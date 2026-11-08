@@ -95,6 +95,9 @@ struct Pill: View {
 /// A modal sheet on the wall: dims the screen and centers a paper card.
 struct WallSheet<Content: View>: View {
     var width: CGFloat = 640
+    /// Sheets whose text fields sit near the top stay put when the keyboard opens;
+    /// re-centering them above the keyboard would push their top off screen.
+    var staysAboveKeyboard = false
     var onClose: () -> Void
     @ViewBuilder var content: () -> Content
 
@@ -120,6 +123,7 @@ struct WallSheet<Content: View>: View {
                     .accessibilityLabel("Close")
                 }
         }
+        .ignoresSafeArea(staysAboveKeyboard ? .keyboard : [])
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 }

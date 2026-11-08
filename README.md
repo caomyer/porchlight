@@ -10,7 +10,7 @@ The product plan and UX mocks live in [.lavish/porchlight.html](.lavish/porchlig
 - **Today**: big clock, local weather, one timeline mixing calendar events, care logs (walks, feeding) and meals, plus companion cards, today's plates and countdowns.
 - **Calendar**: Week, Month and Day views of every calendar on the iPad (via EventKit), colored by person, with paw and plate lanes.
 - **Companions**: pets, plants or anything cared for; routines with time windows and turn rotation, logging with celebration, a weekly page with paw trail, podium, mood meter and cheeky captions.
-- **Food diary**: snap a meal with the camera, home-cooked or delivery, a polaroid week, and a handwritten paper month written with Apple Pencil (one fixed-ratio page per day, zoomed for writing).
+- **Food diary**: snap a meal with the camera, home-cooked or delivery, a polaroid week where any meal can be fixed or removed, and a handwritten paper month written with Apple Pencil (one fixed-ratio page per day, zoomed for writing).
 - **Chores and rewards**, **Lists and meal plan**, and an **Ambient** photo frame with a night clock.
 
 ## Develop
@@ -49,7 +49,8 @@ Review the real iPad's rendering (sample data lives in a separate storage sandbo
 scripts/device-tour.sh /tmp/porchlight-device-tour
 ```
 
-UI tests (screen tour and a handwriting round trip) run with the `PorchlightUI` scheme on a simulator.
+UI tests (screen tour, handwriting round trip, meal editing, keyboard placement, scrolling and the idle timer) run with the `PorchlightUI` scheme on a simulator.
+The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator too (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
 
 ## Install on the wall iPad
 

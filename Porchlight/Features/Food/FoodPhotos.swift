@@ -93,6 +93,7 @@ enum FoodError: Error, Equatable, LocalizedError {
     case nobodyAte
     case titleTooLong(limit: Int)
     case photoUnreadable
+    case mealNotFound
 
     var errorDescription: String? {
         switch self {
@@ -101,6 +102,7 @@ enum FoodError: Error, Equatable, LocalizedError {
         case .nobodyAte: "Pick who ate."
         case let .titleTooLong(limit): "Keep the dish name under \(limit) characters."
         case .photoUnreadable: "That photo could not be saved."
+        case .mealNotFound: "That meal was already removed."
         }
     }
 }

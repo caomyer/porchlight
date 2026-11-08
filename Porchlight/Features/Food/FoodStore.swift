@@ -201,6 +201,13 @@ final class FoodStore {
         return try database.addMeal(draft, journalId: journalId, photo: stored, page: page?.dataRepresentation(), photos: photos)
     }
 
+    /// Saves edits to a logged meal. Returns false, with `lastError` set, when they are rejected.
+    @discardableResult
+    func updateMeal(_ entry: JournalEntry, _ draft: MealDraft) -> Bool {
+        guard let id = entry.id else { return false }
+        return perform { try database.updateMeal(id: id, draft) }
+    }
+
     func deleteMeal(_ entry: JournalEntry) {
         guard let id = entry.id else { return }
         perform { try database.deleteMeal(id: id, photos: photos) }

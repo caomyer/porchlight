@@ -79,4 +79,57 @@ final class WallTourTests: XCTestCase {
             XCTFail("Done button not found")
         }
     }
+
+    /// Opens a logged meal, renames it, marks it delivery and saves; the detail shows the edit.
+    func testEditingAMeal() {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "detail"])
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 20), "The meal detail should offer Edit")
+        edit.tap()
+
+        let title = app.textFields["What was it?"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        let current = title.value as? String ?? ""
+        title.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+        title.typeText("Leftover curry")
+        app.buttons["🛵 Delivery"].tap()
+        assertOnScreen(app.staticTexts["Edit meal"], in: app, "The sheet title should stay on screen with the keyboard up")
+        assertOnScreen(title, in: app, "The name field should stay on screen with the keyboard up")
+        snapshot("23-meal-edit")
+
+        title.typeText("\n")  // "done" puts the keyboard away, revealing Save
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Leftover curry"].waitForExistence(timeout: 5), "The detail should show the new name")
+        XCTAssertTrue(app.staticTexts["Delivery"].exists, "The detail should show the new maker")
+        XCTAssertFalse(app.textFields["What was it?"].exists, "Saving should leave edit mode")
+        snapshot("24-meal-edited")
+    }
+
+    /// Typing into a sheet keeps the field being typed into, and the sheet's title, on screen.
+    func testSheetsWithTheKeyboardUp() {
+        var app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
+        let dish = app.textFields["What was it? e.g. Dan dan noodles"]
+        XCTAssertTrue(dish.waitForExistence(timeout: 20))
+        dish.tap()
+        dish.typeText("Dan dan noodles")
+        assertOnScreen(dish, in: app, "The dish field should stay on screen")
+        snapshot("25-capture-keyboard")
+        app.terminate()
+
+        app = launch(["-startScreen", "today", "-debugCompanionSheet", "log"])
+        let note = app.textFields.firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 20))
+        note.tap()
+        note.typeText("Met a corgi")
+        assertOnScreen(note, in: app, "The walk note should stay above the keyboard")
+        snapshot("26-walk-note-keyboard")
+    }
+
+    private func assertOnScreen(_ element: XCUIElement, in app: XCUIApplication, _ message: String) {
+        let screen = app.windows.firstMatch.frame
+        let keyboardTop = app.keyboards.firstMatch.exists ? app.keyboards.firstMatch.frame.minY : screen.maxY
+        let frame = element.frame
+        XCTAssertTrue(frame.minY >= screen.minY && frame.maxY <= keyboardTop, "\(message): \(frame) vs keyboard at \(keyboardTop)")
+    }
 }

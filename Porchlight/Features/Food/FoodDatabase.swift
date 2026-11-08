@@ -206,6 +206,39 @@ extension AppDatabase {
         )
     }
 
+    /// Changes a logged meal's details and who ate it. The photo, note line and creation
+    /// time stay; the day comes from the entry, not the draft. A new title gets a fresh
+    /// illustration unless the draft names one.
+    @discardableResult
+    func updateMeal(id: Int64, _ draft: MealDraft) throws -> JournalEntry {
+        try writer.write { db in
+            guard var existing = try JournalEntry.fetchOne(db, id: id),
+                  let journal = try Journal.fetchOne(db, id: existing.journalId) else { throw FoodError.mealNotFound }
+            var draft = draft
+            draft.day = existing.dayKey
+            draft.noteLine = existing.noteLine
+            let titleChanged = draft.title.trimmingCharacters(in: .whitespacesAndNewlines) != existing.title
+            if !titleChanged {
+                draft.emoji = draft.emoji ?? existing.emoji
+                draft.tint = draft.tint ?? existing.tint
+            }
+            let validated = try Self.validated(draft, journal: journal, db: db, photo: nil, now: existing.createdAt)
+            existing.slot = validated.slot
+            existing.source = validated.source
+            existing.title = validated.title
+            existing.emoji = validated.emoji
+            existing.tint = validated.tint
+            existing.rating = validated.rating
+            existing.eatenAt = validated.eatenAt
+            try existing.update(db)
+            try db.execute(sql: "DELETE FROM journalEntryEater WHERE entryId = ?", arguments: [id])
+            for personId in Set(draft.eaterIds) {
+                try JournalEntryEater(entryId: id, personId: personId).insert(db)
+            }
+            return existing
+        }
+    }
+
     /// Deletes an entry and its photo files.
     func deleteMeal(id: Int64, photos: FoodPhotoStore) throws {
         let entry = try writer.write { db -> JournalEntry? in

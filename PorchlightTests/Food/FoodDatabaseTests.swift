@@ -74,6 +74,63 @@ struct FoodDatabaseTests {
         #expect(snapshot.eaters[entry.id!] == [james])
     }
 
+    @Test("Editing a meal changes its details and eaters, keeping photo, day and note")
+    func updateMeal() throws {
+        let james = people[0].id!, mia = people[1].id!
+        let stored = try photos.save(image())
+        var original = draft("Pho", eaters: [james])
+        original.noteLine = 2
+        _ = try db.addMeal(original, journalId: journal.id!, photo: stored, photos: photos)
+        let entry = try #require(try db.foodSnapshot().entries.first)
+
+        var edit = draft("Dan dan noodles", slot: "Dinner", eaters: [mia, james], day: "2026-01-01")
+        edit.source = .delivery
+        edit.rating = .fine
+        edit.noteLine = nil
+        let updated = try db.updateMeal(id: entry.id!, edit)
+
+        let snapshot = try db.foodSnapshot()
+        let row = try #require(snapshot.entries.first)
+        #expect(snapshot.entries.count == 1)
+        #expect(row == updated)
+        #expect(row.title == "Dan dan noodles")
+        #expect(row.emoji == "🍜")
+        #expect(row.slot == "Dinner")
+        #expect(row.source == .delivery)
+        #expect(row.rating == .fine)
+        #expect(row.dayKey == entry.dayKey)
+        #expect(row.noteLine == 2)
+        #expect(row.photoFile == stored.photoFile && row.thumbnailFile == stored.thumbnailFile)
+        #expect(row.createdAt == entry.createdAt)
+        #expect(Set(snapshot.eaters[entry.id!] ?? []) == [james, mia])
+        #expect(files() == [stored.photoFile, stored.thumbnailFile].sorted())
+    }
+
+    @Test("Editing keeps a hand-picked illustration while the title stays the same")
+    func updateKeepsIllustration() throws {
+        var original = draft("Grandma's special")
+        original.emoji = "🥘"
+        original.tint = 3
+        let entry = try db.addMeal(original, journalId: journal.id!, photos: photos)
+        var edit = draft("Grandma's special")
+        edit.rating = .meh
+        let updated = try db.updateMeal(id: entry.id!, edit)
+        #expect(updated.emoji == "🥘")
+        #expect(updated.tint == 3)
+        #expect(updated.rating == .meh)
+    }
+
+    @Test("Invalid edits are rejected and leave the meal as it was")
+    func invalidUpdate() throws {
+        _ = try db.addMeal(draft(), journalId: journal.id!, photos: photos)
+        let entry = try #require(try db.foodSnapshot().entries.first)
+        #expect(throws: FoodError.nobodyAte) { try db.updateMeal(id: entry.id!, draft(eaters: [])) }
+        #expect(throws: FoodError.unknownSlot("Snack")) { try db.updateMeal(id: entry.id!, draft(slot: "Snack")) }
+        #expect(throws: FoodError.mealNotFound) { try db.updateMeal(id: 9_999, draft()) }
+        #expect(try db.foodSnapshot().entries == [entry])
+        #expect(try db.foodSnapshot().eaters[entry.id!] == people.compactMap(\.id))
+    }
+
     @Test("A blank title falls back to the meal name")
     func blankTitle() throws {
         let entry = try db.addMeal(draft("   "), journalId: journal.id!, photos: photos)

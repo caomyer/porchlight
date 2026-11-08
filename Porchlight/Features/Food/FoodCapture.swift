@@ -102,6 +102,9 @@ struct CaptureSheet: View {
                 }
             }
         }
+        // The dish name field is near the top, well above the keyboard; re-centering the
+        // tall sheet above the keyboard would push that field off screen.
+        .ignoresSafeArea(.keyboard)
         .onAppear {
             if form == nil { form = CaptureForm(request: request, store: store, now: .now) }
             if let previewSaved { saved = previewSaved }
@@ -472,7 +475,7 @@ private struct CaptureFormView: View {
     }
 }
 
-private struct WhoButton: View {
+struct WhoButton: View {
     let person: Person
     let isSelected: Bool
     let action: () -> Void
