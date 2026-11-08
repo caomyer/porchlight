@@ -227,7 +227,7 @@ struct EaterBadge: View {
 // MARK: - Controls
 
 /// The Week / Month chips in the header (white with a hairline, ink when selected).
-struct HeaderChip: View {
+struct FoodHeaderChip: View {
     let title: String
     var isSelected = false
     let action: () -> Void
@@ -271,7 +271,7 @@ struct PagerButton: View {
 }
 
 /// A choice pill in sheets ("☀️ Lunch", "Felt tip"): paper gray, ink when selected.
-struct ChoicePill<Label: View>: View {
+struct FoodChoicePill<Label: View>: View {
     let isSelected: Bool
     let action: () -> Void
     @ViewBuilder var label: () -> Label
@@ -291,7 +291,7 @@ struct ChoicePill<Label: View>: View {
     }
 }
 
-extension ChoicePill where Label == Text {
+extension FoodChoicePill where Label == Text {
     init(_ title: String, isSelected: Bool, action: @escaping () -> Void) {
         self.init(isSelected: isSelected, action: action) { Text(title) }
     }

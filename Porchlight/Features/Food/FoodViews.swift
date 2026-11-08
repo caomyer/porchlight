@@ -50,8 +50,8 @@ struct FoodScreen: View {
                     PagerButton(symbol: "chevron.right", label: mode == .week ? "Next week" : "Next month") { offset += 1 }
                 }
                 Spacer().frame(width: 6)
-                HeaderChip(title: "Week", isSelected: mode == .week) { select(.week) }
-                HeaderChip(title: "Month", isSelected: mode == .month) { select(.month) }
+                FoodHeaderChip(title: "Week", isSelected: mode == .week) { select(.week) }
+                FoodHeaderChip(title: "Month", isSelected: mode == .month) { select(.month) }
                 Button {
                     capture = CaptureRequest(day: today)
                 } label: {
@@ -266,7 +266,7 @@ struct FoodSettingsSection: View {
                         HStack(spacing: 8) {
                             ForEach(MealSlot.known, id: \.name) { slot in
                                 let isOn = store.slots.contains(slot.name)
-                                ChoicePill("\(slot.emoji) \(slot.name)", isSelected: isOn) {
+                                FoodChoicePill("\(slot.emoji) \(slot.name)", isSelected: isOn) {
                                     store.setSlot(slot.name, on: !isOn)
                                 }
                                 .disabled(isOn && store.slots.count == 1)

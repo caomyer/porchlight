@@ -388,14 +388,14 @@ private struct CaptureFormView: View {
             label("Meal")
             FlowLayout(spacing: 8) {
                 ForEach(store.slots, id: \.self) { slot in
-                    ChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: form.slot == slot) { form.slot = slot }
+                    FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: form.slot == slot) { form.slot = slot }
                 }
             }
 
             label("Made by")
             HStack(spacing: 8) {
                 ForEach(MealSource.allCases, id: \.self) { source in
-                    ChoicePill("\(source.emoji) \(source.label)", isSelected: form.source == source) { form.source = source }
+                    FoodChoicePill("\(source.emoji) \(source.label)", isSelected: form.source == source) { form.source = source }
                 }
             }
 
@@ -416,7 +416,7 @@ private struct CaptureFormView: View {
             label("Would eat again?")
             HStack(spacing: 8) {
                 ForEach(MealRating.allCases, id: \.self) { rating in
-                    ChoicePill(rating.emoji, isSelected: form.rating == rating) { form.rating = rating }
+                    FoodChoicePill(rating.emoji, isSelected: form.rating == rating) { form.rating = rating }
                         .accessibilityLabel(rating.phrase)
                 }
             }

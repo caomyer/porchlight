@@ -126,7 +126,7 @@ struct WriteDaySheet: View {
             SheetLabel(title: "Zoom").padding(.top, 22).padding(.bottom, 8)
             HStack(spacing: 8) {
                 ForEach(Zoom.allCases) { option in
-                    ChoicePill(option.label, isSelected: zoom == option) { setZoom(option) }
+                    FoodChoicePill(option.label, isSelected: zoom == option) { setZoom(option) }
                 }
             }
 
@@ -149,7 +149,7 @@ struct WriteDaySheet: View {
             SheetLabel(title: "Tip").padding(.top, 20).padding(.bottom, 8)
             HStack(spacing: 8) {
                 ForEach(PenTip.allCases) { tip in
-                    ChoicePill(tip.label, isSelected: store.tip == tip && !store.isErasing) {
+                    FoodChoicePill(tip.label, isSelected: store.tip == tip && !store.isErasing) {
                         store.tip = tip
                         store.isErasing = false
                     }
