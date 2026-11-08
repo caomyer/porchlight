@@ -63,6 +63,7 @@ private struct AccessPrompt: View {
                 .font(.body(15, weight: 500))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 440)
             Button {
                 isAsking = true
@@ -71,7 +72,7 @@ private struct AccessPrompt: View {
                     isAsking = false
                 }
             } label: {
-                Label("Allow calendar access", systemImage: "calendar.badge.checkmark")
+                Text("Allow calendar access")
                     .font(.body(18, weight: 700))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)

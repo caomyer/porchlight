@@ -37,6 +37,14 @@ struct CalendarScreen: View {
         .task(id: visibleInterval) {
             if let visibleInterval { store.show(visibleInterval) }
         }
+        #if DEBUG
+        .onAppear {
+            // `-calendarShowEvent <title>` opens that event's sheet, for screenshots.
+            if let title = UserDefaults.standard.string(forKey: "calendarShowEvent") {
+                selected = store.events.first { $0.title == title }
+            }
+        }
+        #endif
     }
 
     // MARK: Header
@@ -358,7 +366,7 @@ private struct EventDetail: View {
             }
             VStack(alignment: .leading, spacing: 12) {
                 if let location = event.location {
-                    row("mappin.and.ellipse", location)
+                    row("mappin", location)
                 }
                 HStack(spacing: 12) {
                     OwnerAvatar(owner: event.owner, people: store.people, size: 26)
@@ -390,7 +398,7 @@ private struct EventDetail: View {
             if let span = EventText.daySpan(event, calendar: calendar) { return "All day · \(span)" }
             return "\(date) · All day"
         }
-        return "\(date) · \(EventText.timeRange(event, calendar: calendar))"
+        return "\(date) · \(EventText.timeRange(event, calendar: calendar, withPeriod: true))"
     }
 
     private func row(_ symbol: String, _ text: String) -> some View {
@@ -469,7 +477,7 @@ private struct CountdownRow: View {
     private var detail: String {
         let event = countdown.event
         var parts = [EventText.shortDate(event.start, calendar: calendar)]
-        if !event.isAllDayLike { parts.append(ClockFormat.time(event.start, calendar: calendar)) }
+        if !event.isAllDayLike { parts.append(EventText.format(event.start, calendar, "jmm")) }
         if let location = event.location { parts.append(location) }
         return parts.joined(separator: " · ")
     }

@@ -270,9 +270,13 @@ enum HourRange {
 
 enum EventText {
     /// "10:00 - 11:30", with weekdays when the event spans days.
-    static func timeRange(_ event: CalendarEvent, calendar: Calendar) -> String {
-        let start = ClockFormat.time(event.start, calendar: calendar)
-        let end = ClockFormat.time(event.end, calendar: calendar)
+    /// `withPeriod` adds AM/PM where the locale uses it ("7:00 PM").
+    static func timeRange(_ event: CalendarEvent, calendar: Calendar, withPeriod: Bool = false) -> String {
+        func time(_ date: Date) -> String {
+            withPeriod ? format(date, calendar, "jmm") : ClockFormat.time(date, calendar: calendar)
+        }
+        let start = time(event.start)
+        let end = time(event.end)
         let range = event.dayRange(in: calendar)
         if range.first == range.last {
             return "\(start) - \(end)"
