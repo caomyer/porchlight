@@ -43,6 +43,14 @@ Debug-only launch arguments:
 - `-startScreen today|calendar|companion-1|food|chores|lists|photos|settings`
 - Feature previews: `-calendarMode month|day`, `-debugCompanionSheet log|celebrate|onboarding|editor|routine`, `-debugFoodView month|write|capture|saved|detail`, `-homeSheet newChore|whoDidIt|week|ambient|...`
 
+Review the real iPad's rendering (sample data lives in a separate storage sandbox, so the household's data is never touched):
+
+```bash
+scripts/device-tour.sh /tmp/porchlight-device-tour
+```
+
+UI tests (screen tour and a handwriting round trip) run with the `PorchlightUI` scheme on a simulator.
+
 ## Install on the wall iPad
 
 ```bash
