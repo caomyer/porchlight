@@ -119,6 +119,7 @@ struct TodayAgenda: View {
                 }
                 .font(.body(14, weight: 600))
                 .foregroundStyle(Theme.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 12)
                 .overlay(alignment: .top) {
                     Rectangle().fill(Theme.line).frame(height: 1)

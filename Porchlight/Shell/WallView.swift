@@ -92,6 +92,7 @@ struct WallView: View {
         // Any touch counts as activity, without stealing the touch.
         .simultaneousGesture(TapGesture().onEnded { lastInteraction = .now })
         .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in lastInteraction = .now })
+        .environment(\.openCompanion, OpenCompanionAction { selection = .companion($0) })
         .task(id: ambientMinutes) { await watchForIdle() }
         .onAppear {
             // Starting on Photos (debug start screen) opens Ambient directly.
