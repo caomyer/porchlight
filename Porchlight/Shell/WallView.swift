@@ -89,9 +89,8 @@ struct WallView: View {
                     .ignoresSafeArea()
             }
         }
-        // Any touch counts as activity, without stealing the touch.
-        .simultaneousGesture(TapGesture().onEnded { lastInteraction = .now })
-        .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in lastInteraction = .now })
+        // Any touch counts as activity, observed outside SwiftUI gestures so scrolling is untouched.
+        .onAnyTouch { lastInteraction = .now }
         .environment(\.openCompanion, OpenCompanionAction { selection = .companion($0) })
         .task(id: ambientMinutes) { await watchForIdle() }
         .onAppear {

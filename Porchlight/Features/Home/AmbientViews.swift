@@ -43,6 +43,7 @@ struct AmbientView: View {
         }
         .onDisappear { NightBrightness.restore() }
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("ambient")
         .accessibilityAction(named: "Wake", onWake)
     }
 
