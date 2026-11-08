@@ -9,3 +9,5 @@ xcuserdata/
 # Machine-specific signing settings
 Config/Local.xcconfig
 .DS_Store
+# Claude Code worktrees and local state
+.claude/

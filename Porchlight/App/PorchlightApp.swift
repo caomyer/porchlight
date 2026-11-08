@@ -14,6 +14,7 @@ struct PorchlightApp: App {
                     .environment(stores.companions)
                     .environment(stores.food)
                     .environment(stores.home)
+                    .environment(stores.weather)
             case let .failed(message):
                 StartupErrorView(message: message)
             }
@@ -48,6 +49,7 @@ private struct Stores {
     let companions: CompanionStore
     let food: FoodStore
     let home: HomeStore
+    let weather: WeatherStore
 
     init(database: AppDatabase) {
         app = AppModel(database: database)
@@ -55,12 +57,14 @@ private struct Stores {
         companions = CompanionStore(database: database)
         food = FoodStore(database: database)
         home = HomeStore(database: database)
+        weather = WeatherStore()
     }
 }
 
 /// Picks onboarding or the wall, and applies the kiosk behavior everywhere.
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(WeatherStore.self) private var weather
 
     var body: some View {
         Group {
@@ -68,6 +72,7 @@ struct RootView: View {
                 OnboardingView()
             } else {
                 WallView()
+                    .task { weather.start() }
             }
         }
         .kioskMode()

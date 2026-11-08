@@ -5,6 +5,8 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @AppStorage(DisplaySettings.keepAwakeKey) private var keepAwake = true
     @AppStorage(DisplaySettings.ambientMinutesKey) private var ambientMinutes = DisplaySettings.defaultAmbientMinutes
+    @AppStorage(WeatherStore.enabledKey) private var showWeather = true
+    @Environment(WeatherStore.self) private var weather
 
     @State private var householdName = ""
     @State private var drafts: [Int64: PersonDraft] = [:]
@@ -78,6 +80,21 @@ struct SettingsView: View {
                     .tint(Theme.good)
                     .card(padding: 16)
                     .frame(maxWidth: 720)
+                    Toggle(isOn: $showWeather) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Show local weather")
+                                .font(.body(17, weight: 600))
+                            Text("Uses this iPad's approximate location (rounded to about 1 km) to get a forecast from Open-Meteo. No account needed.")
+                                .font(.body(14))
+                                .foregroundStyle(Theme.muted)
+                        }
+                    }
+                    .tint(Theme.good)
+                    .card(padding: 16)
+                    .frame(maxWidth: 720)
+                    .onChange(of: showWeather) { _, isOn in
+                        if isOn { weather.start() } else { weather.stop() }
+                    }
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Photo frame when idle")

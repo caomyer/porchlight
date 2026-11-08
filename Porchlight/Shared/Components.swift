@@ -123,8 +123,3 @@ struct WallSheet<Content: View>: View {
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 }
-
-/// Current weather in the Today header (STUB until weather lands).
-struct WeatherBadge: View {
-    var body: some View { EmptyView() }
-}
