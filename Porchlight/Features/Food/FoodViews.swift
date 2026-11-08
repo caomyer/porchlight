@@ -29,6 +29,9 @@ struct FoodScreen: View {
             }
         }
         .onAppear(perform: applyDebugLaunch)
+        #if DEBUG
+        .task { await FoodDebugPhoto.injectIfRequested(into: store) }
+        #endif
     }
 
     // MARK: Header
