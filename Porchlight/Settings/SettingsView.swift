@@ -58,7 +58,7 @@ struct SettingsView: View {
                             .disabled(newPerson.name.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                     }
-                    .frame(maxWidth: 720, alignment: .leading)
+                    .frame(maxWidth: 980, alignment: .leading)
                 }
 
                 // Each feature owns its own settings section.
@@ -79,7 +79,7 @@ struct SettingsView: View {
                     }
                     .tint(Theme.good)
                     .card(padding: 16)
-                    .frame(maxWidth: 720)
+                    .frame(maxWidth: 980)
                     Toggle(isOn: $showWeather) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Show local weather")
@@ -91,7 +91,7 @@ struct SettingsView: View {
                     }
                     .tint(Theme.good)
                     .card(padding: 16)
-                    .frame(maxWidth: 720)
+                    .frame(maxWidth: 980)
                     .onChange(of: showWeather) { _, isOn in
                         if isOn { weather.start() } else { weather.stop() }
                     }
@@ -114,7 +114,7 @@ struct SettingsView: View {
                         .tint(Theme.ink)
                     }
                     .card(padding: 16)
-                    .frame(maxWidth: 720)
+                    .frame(maxWidth: 980)
                 }
 
                 if let error = model.lastError {
@@ -123,6 +123,8 @@ struct SettingsView: View {
                         .foregroundStyle(Theme.accent)
                 }
             }
+            // One readable column for every section, features included.
+            .frame(maxWidth: 980, alignment: .leading)
             .padding(Theme.pagePadding + 8)
             .frame(maxWidth: .infinity, alignment: .leading)
         }

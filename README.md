@@ -5,6 +5,14 @@ The household, its people, companions and journals are all set up in the app; no
 
 The product plan and UX mocks live in [.lavish/porchlight.html](.lavish/porchlight.html).
 
+## What it does
+
+- **Today**: big clock, local weather, one timeline mixing calendar events, care logs (walks, feeding) and meals, plus companion cards, today's plates and countdowns.
+- **Calendar**: Week, Month and Day views of every calendar on the iPad (via EventKit), colored by person, with paw and plate lanes.
+- **Companions**: pets, plants or anything cared for; routines with time windows and turn rotation, logging with celebration, a weekly page with paw trail, podium, mood meter and cheeky captions.
+- **Food diary**: snap a meal with the camera, home-cooked or delivery, a polaroid week, and a handwritten paper month written with Apple Pencil (one fixed-ratio page per day, zoomed for writing).
+- **Chores and rewards**, **Lists and meal plan**, and an **Ambient** photo frame with a night clock.
+
 ## Develop
 
 `project.yml` is the source of truth; the Xcode project is generated.
@@ -16,14 +24,24 @@ xcodegen generate
 open Porchlight.xcodeproj
 ```
 
-Run the tests on an iPad simulator:
+Run the tests on an iPad simulator (build output must stay outside iCloud-synced folders):
 
 ```bash
 xcodebuild test -project Porchlight.xcodeproj -scheme Porchlight \
-  -destination 'platform=iOS Simulator,name=iPad (10th generation)' CODE_SIGNING_ALLOWED=NO
+  -destination 'platform=iOS Simulator,name=iPad (10th generation)' \
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Porchlight-main CODE_SIGNING_ALLOWED=NO
 ```
 
-Debug-only launch arguments: `-resetData` (start at onboarding), `-sampleHousehold` (seed two people), `-startScreen settings`.
+Screenshot a screen with sample data:
+
+```bash
+scripts/sim-shot.sh <simulator-udid> /tmp/today.png -sampleHousehold -startScreen today
+```
+
+Debug-only launch arguments:
+- `-resetData` (start at onboarding), `-sampleHousehold` (seed a sample household with a week of everything)
+- `-startScreen today|calendar|companion-1|food|chores|lists|photos|settings`
+- Feature previews: `-calendarMode month|day`, `-debugCompanionSheet log|celebrate|onboarding|editor|routine`, `-debugFoodView month|write|capture|saved|detail`, `-homeSheet newChore|whoDidIt|week|ambient|...`
 
 ## Install on the wall iPad
 
@@ -31,15 +49,16 @@ Debug-only launch arguments: `-resetData` (start at onboarding), `-sampleHouseho
 scripts/deploy-ipad.sh
 ```
 
-With a free Apple ID the install expires after 7 days, so the Mac mini reruns this weekly.
+With a free Apple ID the install expires after 7 days. `scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror (macOS does not let background jobs read ~/Documents).
 
 ## Layout
 
-- `Porchlight/App` - app entry, live app state, kiosk behavior
-- `Porchlight/Data` - SQLite (GRDB) schema, migrations, models and all writes
-- `Porchlight/Design` - Sunday Paper tokens, fonts and shared components
-- `Porchlight/Shell` - the wall: side rail and destinations
-- `Porchlight/Screens`, `Onboarding`, `Settings` - screens
-- `PorchlightTests` - Swift Testing suites
+- `Porchlight/App` - app entry, live stores, kiosk behavior, debug launch hooks
+- `Porchlight/Data` - SQLite (GRDB) core schema: household and people
+- `Porchlight/Shared` - contracts between features (DayKey, TimelineItem, CalendarLane), shared components, weather
+- `Porchlight/Shell` - the wall: side rail, destinations, idle switch to Ambient
+- `Porchlight/Screens`, `Onboarding`, `Settings` - Today, setup and settings
+- `Porchlight/Features/{Calendar,Companions,Food,Home}` - each feature owns its schema, store, views and sample data
+- `PorchlightTests` - Swift Testing suites, one folder per feature
 
 Fonts (Fraunces, DM Sans, Caveat) are bundled under the SIL Open Font License; see `Porchlight/Resources/Fonts`.
