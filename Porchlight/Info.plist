@@ -22,6 +22,14 @@
 	<string>1</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Porchlight shows your household's calendars on the wall. It only reads them.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Porchlight uses the camera to snap photos of your meals for the food diary.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Porchlight uses your approximate location once to show local weather.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Porchlight can show photos you pick on the wall in Ambient mode.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Fraunces.ttf</string>

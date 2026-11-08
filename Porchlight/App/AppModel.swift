@@ -42,6 +42,14 @@ final class AppModel {
         perform { try database.createHousehold(name: name, people: people) }
     }
 
+    func finishSetup() -> Bool {
+        guard let id = household?.id else { return false }
+        return perform { try database.markSetupCompleted(householdId: id) }
+    }
+
+    /// The household's calendar (time zone, first weekday), or the device's before setup.
+    var calendar: Calendar { household?.calendar ?? .current }
+
     func renameHousehold(to name: String) -> Bool {
         guard let id = household?.id else { return false }
         return perform { try database.renameHousehold(id: id, to: name) }

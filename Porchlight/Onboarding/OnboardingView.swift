@@ -5,17 +5,22 @@ struct OnboardingView: View {
     @Environment(AppModel.self) private var model
 
     private enum Step: Int, CaseIterable {
-        case household, people
+        case household, people, calendars, companions, journals, display
 
         var title: String {
             switch self {
             case .household: "Your household"
             case .people: "People"
+            case .calendars: "Calendars"
+            case .companions: "Companions"
+            case .journals: "Journals"
+            case .display: "This display"
             }
         }
     }
 
     @State private var step: Step = .household
+    @AppStorage(DisplaySettings.keepAwakeKey) private var keepAwake = true
     @State private var householdName = ""
     @State private var people: [PersonDraft] = [PersonDraft(name: "", color: .suggested(for: 0))]
     @FocusState private var focusedRow: Int?
@@ -27,6 +32,10 @@ struct OnboardingView: View {
                 switch step {
                 case .household: householdStep
                 case .people: peopleStep
+                case .calendars: CalendarOnboardingStep()
+                case .companions: CompanionOnboardingStep()
+                case .journals: FoodOnboardingStep()
+                case .display: displayStep
                 }
                 Spacer(minLength: 0)
                 footer
@@ -37,6 +46,10 @@ struct OnboardingView: View {
         }
         .background(Theme.background)
         .ignoresSafeArea(.container, edges: .vertical)
+        .onAppear {
+            // The household is created after "People"; resume there if setup was interrupted.
+            if model.household != nil && step.rawValue < Step.calendars.rawValue { step = .calendars }
+        }
     }
 
     // MARK: Steps sidebar
@@ -111,6 +124,39 @@ struct OnboardingView: View {
         }
     }
 
+    // MARK: Last step
+
+    private var displayStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            heading("Make it a wall display", "A few settings turn this iPad into a calm, always-on household screen.")
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(isOn: $keepAwake) {
+                    Text("Keep the screen on while Porchlight is open").font(.body(17, weight: 600))
+                }
+                .tint(Theme.good)
+                .card(padding: 16)
+                tip("lock", "Lock the iPad to Porchlight", "Settings › Accessibility › Guided Access, then triple-click the Home button while Porchlight is open.")
+                tip("bolt.batteryblock", "Be kind to the battery", "An older iPad plugged in all day can swell. A smart plug that charges it a few hours a day keeps it healthy.")
+            }
+            .frame(maxWidth: 620)
+        }
+    }
+
+    private func tip(_ symbol: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 40, height: 40)
+                .background(Theme.accent.wash(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.body(16, weight: 700))
+                Text(detail).font(.body(14)).foregroundStyle(Theme.muted)
+            }
+        }
+        .card(padding: 16)
+    }
+
     // MARK: Footer
 
     private var footer: some View {
@@ -125,7 +171,7 @@ struct OnboardingView: View {
                 Button("Back") { step = .household }
                     .buttonStyle(SecondaryButtonStyle())
             }
-            Button(step == .people ? "Start" : "Continue", action: next)
+            Button(step == .display ? "Start using Porchlight" : "Continue", action: next)
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(!canContinue)
         }
@@ -137,6 +183,8 @@ struct OnboardingView: View {
             !householdName.trimmingCharacters(in: .whitespaces).isEmpty
         case .people:
             people.contains { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
+        case .calendars, .companions, .journals, .display:
+            true
         }
     }
 
@@ -149,11 +197,29 @@ struct OnboardingView: View {
         case .people:
             // Blank rows are simply skipped.
             let named = people.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
-            _ = model.createHousehold(name: householdName, people: named)
+            if model.createHousehold(name: householdName, people: named) { step = .calendars }
+        case .calendars:
+            step = .companions
+        case .companions:
+            step = .journals
+        case .journals:
+            step = .display
+        case .display:
+            _ = model.finishSetup()
         }
     }
 
     private func heading(_ title: String, _ subtitle: String) -> some View {
+        OnboardingHeading(title: title, subtitle: subtitle)
+    }
+}
+
+/// Big title + subtitle at the top of every onboarding step (features use it too).
+struct OnboardingHeading: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.display(38))
             Text(subtitle)

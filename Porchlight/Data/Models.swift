@@ -8,6 +8,8 @@ struct Household: Codable, Equatable, Identifiable, Sendable {
     var timeZoneIdentifier: String
     /// 1 = Sunday … 7 = Saturday, matching `Calendar.firstWeekday`.
     var firstWeekday: Int
+    /// False until the whole onboarding flow has been finished.
+    var setupCompleted: Bool
     var createdAt: Date
 }
 

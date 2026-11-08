@@ -45,6 +45,10 @@ targets:
           - DMSans.ttf
           - Caveat.ttf
         ITSAppUsesNonExemptEncryption: false
+        NSCalendarsFullAccessUsageDescription: Porchlight shows your household's calendars on the wall. It only reads them.
+        NSCameraUsageDescription: Porchlight uses the camera to snap photos of your meals for the food diary.
+        NSPhotoLibraryUsageDescription: Porchlight can show photos you pick on the wall in Ambient mode.
+        NSLocationWhenInUseUsageDescription: Porchlight uses your approximate location once to show local weather.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mingyucao.porchlight

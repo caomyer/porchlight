@@ -7,9 +7,13 @@ struct PorchlightApp: App {
     var body: some Scene {
         WindowGroup {
             switch launch {
-            case let .ready(model):
+            case let .ready(stores):
                 RootView()
-                    .environment(model)
+                    .environment(stores.app)
+                    .environment(stores.calendar)
+                    .environment(stores.companions)
+                    .environment(stores.food)
+                    .environment(stores.home)
             case let .failed(message):
                 StartupErrorView(message: message)
             }
@@ -19,7 +23,7 @@ struct PorchlightApp: App {
 
 /// Opening the database is the only thing that can fail at launch.
 private enum Launch {
-    case ready(AppModel)
+    case ready(Stores)
     case failed(String)
 
     @MainActor
@@ -29,10 +33,28 @@ private enum Launch {
             #if DEBUG
             try DebugLaunch.apply(ProcessInfo.processInfo.arguments, to: database)
             #endif
-            return .ready(AppModel(database: database))
+            return .ready(Stores(database: database))
         } catch {
             return .failed(error.localizedDescription)
         }
+    }
+}
+
+/// Every live store, created once at launch and shared through the environment.
+@MainActor
+private struct Stores {
+    let app: AppModel
+    let calendar: CalendarStore
+    let companions: CompanionStore
+    let food: FoodStore
+    let home: HomeStore
+
+    init(database: AppDatabase) {
+        app = AppModel(database: database)
+        calendar = CalendarStore(database: database)
+        companions = CompanionStore(database: database)
+        food = FoodStore(database: database)
+        home = HomeStore(database: database)
     }
 }
 
@@ -42,7 +64,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if model.household == nil {
+            if model.household?.setupCompleted != true {
                 OnboardingView()
             } else {
                 WallView()

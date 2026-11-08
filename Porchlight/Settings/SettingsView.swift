@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @AppStorage(DisplaySettings.keepAwakeKey) private var keepAwake = true
+    @AppStorage(DisplaySettings.ambientMinutesKey) private var ambientMinutes = DisplaySettings.defaultAmbientMinutes
 
     @State private var householdName = ""
     @State private var drafts: [Int64: PersonDraft] = [:]
@@ -58,6 +59,12 @@ struct SettingsView: View {
                     .frame(maxWidth: 720, alignment: .leading)
                 }
 
+                // Each feature owns its own settings section.
+                CalendarSettingsSection()
+                CompanionSettingsSection()
+                FoodSettingsSection()
+                HomeSettingsSection()
+
                 section("This display") {
                     Toggle(isOn: $keepAwake) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -69,6 +76,26 @@ struct SettingsView: View {
                         }
                     }
                     .tint(Theme.good)
+                    .card(padding: 16)
+                    .frame(maxWidth: 720)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Photo frame when idle")
+                                .font(.body(17, weight: 600))
+                            Text("After this long without a touch, the wall shows photos with the clock.")
+                                .font(.body(14))
+                                .foregroundStyle(Theme.muted)
+                        }
+                        Spacer()
+                        Picker("Photo frame when idle", selection: $ambientMinutes) {
+                            Text("Never").tag(0)
+                            Text("2 minutes").tag(2)
+                            Text("5 minutes").tag(5)
+                            Text("10 minutes").tag(10)
+                            Text("30 minutes").tag(30)
+                        }
+                        .tint(Theme.ink)
+                    }
                     .card(padding: 16)
                     .frame(maxWidth: 720)
                 }

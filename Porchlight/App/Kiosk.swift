@@ -4,6 +4,9 @@ import UIKit
 /// Display preferences that belong to this device, not the household.
 enum DisplaySettings {
     static let keepAwakeKey = "display.keepAwake"
+    /// Minutes without a touch before the wall switches to Ambient mode (0 = never).
+    static let ambientMinutesKey = "display.ambientMinutes"
+    static let defaultAmbientMinutes = 10
 }
 
 /// Wall-display behavior: never sleep while Porchlight is open, and hide the

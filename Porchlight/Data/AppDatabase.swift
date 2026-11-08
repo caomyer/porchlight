@@ -51,6 +51,18 @@ struct AppDatabase: Sendable {
                 t.column("createdAt", .datetime).notNull()
             }
         }
+        migrator.registerMigration("v2: setup completion") { db in
+            // Households created before this step had already finished setup.
+            try db.alter(table: "household") { t in
+                t.add(column: "setupCompleted", .boolean).notNull().defaults(to: true)
+            }
+        }
+
+        // Feature schemas, always registered in this order.
+        registerCalendarMigrations(&migrator)
+        registerCompanionMigrations(&migrator)
+        registerFoodMigrations(&migrator)
+        registerHomeMigrations(&migrator)
         return migrator
     }
 }
@@ -109,6 +121,7 @@ extension AppDatabase {
                 name: householdName,
                 timeZoneIdentifier: timeZone.identifier,
                 firstWeekday: calendar.firstWeekday,
+                setupCompleted: false,
                 createdAt: now
             )
             try household.insert(db)
@@ -123,6 +136,12 @@ extension AppDatabase {
                 try person.insert(db)
             }
             return household
+        }
+    }
+
+    func markSetupCompleted(householdId: Int64) throws {
+        try writer.write { db in
+            try db.execute(sql: "UPDATE household SET setupCompleted = 1 WHERE id = ?", arguments: [householdId])
         }
     }
 
