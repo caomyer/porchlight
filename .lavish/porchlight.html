@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Porchlight Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* ============ Review-page chrome ============ */
+:root{
+  --doc-bg:#F3EFE8; --doc-surface:#FFFDF9; --doc-ink:#24201C; --doc-muted:#6F665D; --doc-line:#E2DACD; --doc-accent:#C8572F;
+  --doc-good:#2F7A4F; --doc-warn:#A86A12;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--doc-bg);color:var(--doc-ink);font-family:'DM Sans',system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.topbar{position:sticky;top:0;z-index:50;background:rgba(243,239,232,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--doc-line)}
+.topbar-in{max-width:1480px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Fraunces',serif;font-weight:600;font-size:20px;letter-spacing:-.01em}
+.brand small{font-family:'DM Sans';font-weight:500;font-size:12px;color:var(--doc-muted);letter-spacing:0;border:1px solid var(--doc-line);border-radius:99px;padding:2px 8px}
+.seg{display:inline-flex;background:#E8E1D5;border-radius:12px;padding:3px;gap:2px}
+.seg button{font:inherit;font-size:14px;font-weight:600;border:0;background:transparent;color:var(--doc-muted);padding:7px 14px;border-radius:9px;cursor:pointer}
+.seg button.on{background:var(--doc-surface);color:var(--doc-ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.spacer{flex:1}
+
+/* ============ Plan document ============ */
+.doc{max-width:980px;margin:0 auto;padding:40px 24px 120px}
+.doc h1{font-family:'Fraunces',serif;font-weight:600;font-size:46px;line-height:1.05;letter-spacing:-.02em;margin:0 0 14px}
+.doc h2{font-family:'Fraunces',serif;font-weight:600;font-size:28px;letter-spacing:-.01em;margin:56px 0 12px;padding-top:8px;border-top:1px solid var(--doc-line)}
+.doc h3{font-size:16px;font-weight:700;margin:24px 0 6px}
+.doc p{margin:8px 0}
+.lede{font-size:18px;color:#3d3630;max-width:760px}
+.kicker{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--doc-accent)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{background:var(--doc-surface);border:1px solid var(--doc-line);border-radius:16px;padding:16px 18px;min-width:0}
+.card h4{margin:0 0 4px;font-size:15px}
+.card p{margin:0;color:var(--doc-muted);font-size:14px}
+.card .num{font-family:'Fraunces',serif;font-size:30px;font-weight:600;line-height:1;margin-bottom:6px}
+table.t{width:100%;border-collapse:separate;border-spacing:0;background:var(--doc-surface);border:1px solid var(--doc-line);border-radius:14px;overflow:hidden;font-size:14px;margin:14px 0}
+.t th,.t td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--doc-line);vertical-align:top}
+.t th{background:#F7F2EA;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--doc-muted);font-weight:700}
+.t tr:last-child td{border-bottom:0}
+.t td:first-child{font-weight:600}
+.yes{color:var(--doc-good);font-weight:700}.no{color:#B23B2B;font-weight:700}.part{color:var(--doc-warn);font-weight:700}
+.us{background:#FBF4EA}
+ul.tight{margin:6px 0;padding-left:20px}ul.tight li{margin:3px 0}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:99px;padding:2px 9px;background:#EEE6DA;color:#5a5047;white-space:nowrap}
+.pill.a{background:#F8E2D7;color:#9A3E1C}
+.arch{background:var(--doc-surface);border:1px solid var(--doc-line);border-radius:16px;padding:18px;margin:14px 0;overflow-x:auto}
+.arch svg{display:block;width:100%;min-width:720px;height:auto}
+.model{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:14px 0}
+.ent{background:var(--doc-surface);border:1px solid var(--doc-line);border-radius:14px;padding:12px 14px;min-width:0}
+.ent b{font-family:'Fraunces',serif;font-size:17px;font-weight:600}
+.ent code,.doc code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:#F1EADF;border-radius:5px;padding:1px 5px;word-break:break-word}
+.ent p{margin:4px 0 0;font-size:13.5px;color:var(--doc-muted)}
+.phases{display:grid;gap:10px;margin:14px 0}
+.phase{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;background:var(--doc-surface);border:1px solid var(--doc-line);border-radius:14px;padding:14px 16px}
+.phase .tag{font-family:'Fraunces',serif;font-weight:600;font-size:20px;color:var(--doc-accent)}
+.phase h4{margin:0 0 2px;font-size:15px}
+.phase p{margin:0;font-size:14px;color:var(--doc-muted)}
+.q{background:var(--doc-surface);border:1px solid var(--doc-line);border-radius:16px;padding:16px 18px;margin:12px 0}
+.q h4{margin:0 0 4px;font-size:16px}
+.q .hint{font-size:13.5px;color:var(--doc-muted);margin:0 0 10px}
+.q .opts{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.q label.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--doc-line);border-radius:12px;padding:10px 12px;cursor:pointer;background:#FFFEFB}
+.q label.opt:has(input:checked){border-color:var(--doc-accent);background:#FCF1EA}
+.q label.opt input{margin-top:4px;accent-color:var(--doc-accent)}
+.q label.opt span b{display:block;font-size:14px}
+.q label.opt span i{font-style:normal;font-size:13px;color:var(--doc-muted)}
+.q textarea,.q input[type=text]{width:100%;font:inherit;font-size:14px;border:1px solid var(--doc-line);border-radius:10px;padding:8px 10px;background:#FFFEFB;margin-top:8px}
+.q .row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:700;font-size:14px;border:0;border-radius:10px;padding:9px 14px;background:var(--doc-ink);color:#fff;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--doc-ink);border:1px solid var(--doc-line)}
+.queued{font-size:13px;color:var(--doc-good);font-weight:600}
+.callout{border-left:3px solid var(--doc-accent);background:#FBF3EA;border-radius:0 12px 12px 0;padding:10px 14px;margin:14px 0;font-size:14.5px}
+.src{font-size:13px;color:var(--doc-muted)}
+.src a{color:inherit}
+
+/* ============ Mocks stage ============ */
+.mocks{max-width:1480px;margin:0 auto;padding:20px 24px 80px}
+.screens-nav{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px}
+.screens-nav button{font:inherit;font-size:13.5px;font-weight:600;border:1px solid var(--doc-line);background:var(--doc-surface);color:var(--doc-ink);border-radius:99px;padding:6px 12px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.screens-nav button .n{font-size:11px;font-weight:700;color:var(--doc-muted);background:#EFE8DD;border-radius:99px;padding:0 6px}
+.screens-nav button.on{background:var(--doc-ink);color:#fff;border-color:var(--doc-ink)}
+.screens-nav button.on .n{background:rgba(255,255,255,.18);color:#fff}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+@media (max-width:1100px){.stage{grid-template-columns:minmax(0,1fr)}}
+.device-wrap{min-width:0}
+.ipad{position:relative;border-radius:46px;background:#1B1B1D;padding:22px;box-shadow:0 30px 60px -20px rgba(40,25,10,.35),inset 0 0 0 2px #3a3a3e;width:100%}
+.ipad .scaler{position:relative;width:100%;overflow:hidden;border-radius:22px}
+.ipad .screen{position:absolute;left:0;top:0;width:1112px;height:834px;transform-origin:0 0}
+.ipad .cam{position:absolute;left:50%;top:9px;width:6px;height:6px;border-radius:50%;background:#333;transform:translateX(-50%)}
+.notes{background:var(--doc-surface);border:1px solid var(--doc-line);border-radius:16px;padding:16px 18px;position:sticky;top:80px}
+.notes .kicker{margin-bottom:4px}
+.notes h3{font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin:0 0 8px;line-height:1.15}
+.notes ul{margin:0;padding-left:18px;font-size:14px}
+.notes li{margin:6px 0}
+.notes .general{margin-top:14px;padding-top:12px;border-top:1px dashed var(--doc-line);font-size:13px;color:var(--doc-muted)}
+.notes .general b{color:var(--doc-ink)}
+
+/* ============ PRODUCT DESIGN SYSTEM (themes) ============ */
+.pl{
+  --bg:#F5EFE4; --surface:#FFFCF6; --surface2:#F0E8DA; --ink:#2A2420; --muted:#867A6E; --line:#E6DCCB; --accent:#D9653B; --accent-ink:#fff;
+  --m1:#4C7BB0; --m2:#DD7558; --m3:#5B9F72; --m4:#C2933A; --pet:#E1A75A; --good:#5B9F72;
+  --font-d:'Fraunces',Georgia,serif; --font-b:'DM Sans',system-ui,sans-serif; --d-wt:600; --d-track:-.02em;
+  --r:20px; --r-sm:12px; --shadow:0 1px 0 rgba(70,45,20,.04),0 8px 24px -10px rgba(70,45,20,.14);
+  --ev-mix:15%; --rail:#EDE4D4;
+  font-family:var(--font-b);color:var(--ink);background:var(--bg);
+}
+.pl *{box-sizing:border-box}
+.pl .d{font-family:var(--font-d);font-weight:var(--d-wt);letter-spacing:var(--d-track)}
+.pl .muted{color:var(--muted)}
+.pl .wall{position:absolute;inset:0;display:grid;grid-template-columns:84px minmax(0,1fr);background:var(--bg)}
+.pl .rail{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:18px 0 16px;gap:4px}
+.pl .rail .logo{width:40px;height:40px;border-radius:12px;background:var(--accent);display:grid;place-items:center;margin-bottom:14px;color:var(--accent-ink)}
+.pl .rail a{width:68px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 7px;border-radius:14px;color:var(--muted);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer}
+.pl .rail a svg{width:24px;height:24px}
+.pl .rail a.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.pl .tmrw{margin-top:auto;padding-top:12px;border-top:1px dashed var(--line);display:flex;gap:14px;align-items:center;font-size:13.5px;font-weight:600;color:var(--muted)}
+.pl .tmrw b{color:var(--ink);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.pl .rail a .pet-ic{width:28px;height:28px;margin:-2px 0 -2px}
+.pl .rail .grow{flex:1}
+.pl .main{position:relative;padding:22px 26px 22px;min-width:0;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+.pl .hdr{display:flex;align-items:flex-end;gap:18px;min-height:56px}
+.pl .hdr .title{font-size:40px;line-height:1}
+.pl .hdr .sub{font-size:15px;color:var(--muted);margin-bottom:4px}
+.pl .chips{display:flex;gap:6px;align-items:center}
+.pl .chip{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 4px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:600}
+.pl .chip.plain{padding:0 12px}
+.pl .card{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:18px 20px;min-width:0;position:relative}
+.pl .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px}
+.pl .card-h h3{margin:0;font-size:19px}
+.pl .card-h .meta{font-size:13px;color:var(--muted);font-weight:600}
+.pl .av{--c:var(--m1);width:30px;height:30px;border-radius:50%;background:var(--c);color:#fff;display:inline-grid;place-items:center;font-weight:700;font-size:13px;flex:none;font-family:var(--font-b)}
+.pl .av.lg{width:46px;height:46px;font-size:18px}
+.pl .av.xl{width:76px;height:76px;font-size:28px}
+.pl .av.ring{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--c)}
+.pl .btn-p{font:inherit;font-weight:700;font-size:15px;border:0;border-radius:99px;background:var(--accent);color:var(--accent-ink);padding:11px 18px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap}
+.pl .btn-s{font:inherit;font-weight:700;font-size:14px;border:1px solid var(--line);border-radius:99px;background:var(--surface);color:var(--ink);padding:9px 14px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.pl .icon{width:18px;height:18px;flex:none}
+
+/* --- Today --- */
+.pl .today-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;flex:1;min-height:0}
+.pl .col{display:flex;flex-direction:column;gap:16px;min-height:0;min-width:0}
+.pl .clock{font-size:64px;line-height:.9}
+.pl .weather{display:flex;align-items:center;gap:10px;margin-left:auto;padding-bottom:2px}
+.pl .weather .deg{font-size:30px;line-height:1}
+.pl .weather small{display:block;font-size:12.5px;color:var(--muted);font-weight:600}
+.pl .allday{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.pl .tag-ev{--c:var(--m1);display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;padding:6px 12px 6px 6px;border-radius:99px;background:color-mix(in srgb,var(--c) var(--ev-mix),var(--surface));}
+.pl .tag-ev .dot{width:20px;height:20px;border-radius:50%;background:var(--c)}
+.pl .agenda{display:flex;flex-direction:column;gap:2px;position:relative}
+.pl .ag{--c:var(--m1);display:grid;grid-template-columns:62px minmax(0,1fr);gap:12px;align-items:stretch;min-height:52px}
+.pl .ag .tm{font-size:13.5px;font-weight:700;color:var(--muted);padding-top:9px;text-align:right;font-variant-numeric:tabular-nums}
+.pl .ag .ev{background:color-mix(in srgb,var(--c) var(--ev-mix),var(--surface));border-radius:var(--r-sm);padding:8px 12px 8px 14px;position:relative;display:flex;align-items:center;gap:12px;overflow:hidden}
+.pl .ag .ev::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
+.pl .ag .ev .em{font-size:22px;line-height:1;width:28px;text-align:center}
+.pl .ag .ev .tx{min-width:0;flex:1}
+.pl .ag .ev b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .ag .ev .tx span{font-size:12.5px;color:var(--muted);font-weight:600}
+.pl .ag.past .ev{opacity:.55}
+.pl .ag.care .ev{background:transparent;border:1.5px dashed color-mix(in srgb,var(--pet) 70%,transparent)}
+.pl .ag.care .ev::before{display:none}
+.pl .ag.care.done .ev{border-style:solid;background:color-mix(in srgb,var(--pet) 12%,var(--surface))}
+.pl .nowline{display:grid;grid-template-columns:62px minmax(0,1fr);gap:12px;align-items:center;margin:4px 0}
+.pl .nowline span{font-size:12px;font-weight:800;color:var(--accent);text-align:right}
+.pl .nowline i{height:2px;background:var(--accent);border-radius:2px;position:relative}
+.pl .nowline i::before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+
+.pl .pet-card{background:linear-gradient(160deg,color-mix(in srgb,var(--pet) 26%,var(--surface)),var(--surface) 70%)}
+.pl .pet-top{display:flex;gap:14px;align-items:center}
+.pl .pet-top .face{width:78px;height:78px;flex:none;border-radius:50%;background:color-mix(in srgb,var(--pet) 30%,var(--surface));display:grid;place-items:center}
+.pl .pet-top h3{margin:0;font-size:26px;line-height:1}
+.pl .pet-top .mood{font-size:14px;font-weight:600;color:var(--muted);margin-top:4px}
+.pl .slots{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 14px}
+.pl .slot{--c:var(--m2);border-radius:var(--r-sm);padding:10px 12px;display:flex;gap:10px;align-items:center;background:var(--surface);border:1.5px solid var(--line);min-width:0}
+.pl .slot.done{border-color:transparent;background:color-mix(in srgb,var(--c) var(--ev-mix),var(--surface))}
+.pl .slot.todo{border-style:dashed}
+.pl .slot .paw{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);color:var(--muted);flex:none}
+.pl .slot b{display:block;font-size:14px}
+.pl .slot div > span{display:block;font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+.pl .pet-foot{display:flex;align-items:center;gap:10px}
+.pl .streak{font-size:13px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px}
+.pl .rings{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pl .ring{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:700}
+.pl .ring svg{width:74px;height:74px}
+.pl .ring small{font-size:12px;color:var(--muted);font-weight:600;margin-top:-4px}
+.pl .count-list{display:flex;flex-direction:column;gap:8px}
+.pl .count{--c:var(--m1);display:flex;align-items:center;gap:12px}
+.pl .count .big{width:52px;height:52px;border-radius:14px;background:color-mix(in srgb,var(--c) var(--ev-mix),var(--surface));display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;line-height:1}
+.pl .count .big b{font-size:20px;font-family:var(--font-d)}
+.pl .count .big small{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.pl .count .tx b{display:block;font-size:14.5px}
+.pl .count .tx span{font-size:12.5px;color:var(--muted);font-weight:600}
+
+/* --- Week --- */
+.pl .wk{display:grid;grid-template-columns:52px repeat(7,minmax(0,1fr));flex:1;min-height:0;background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.pl .wk .dh{padding:10px 8px 8px;border-bottom:1px solid var(--line);text-align:center;border-left:1px solid var(--line)}
+.pl .wk .dh .dn{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.pl .wk .dh .dd{font-size:24px;line-height:1.1}
+.pl .wk .dh .wx{font-size:12px;color:var(--muted);font-weight:600}
+.pl .wk .dh.today .dd{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--accent);color:var(--accent-ink)}
+.pl .wk .corner{border-bottom:1px solid var(--line)}
+.pl .wk .adrow{grid-column:1 / -1;display:grid;grid-template-columns:52px repeat(7,minmax(0,1fr));border-bottom:1px solid var(--line);padding:5px 0;min-height:34px;gap:0}
+.pl .wk .adrow .lab,.pl .wk .walkrow .lab{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;display:flex;align-items:center;justify-content:center;letter-spacing:.04em}
+.pl .wk .adbar{--c:var(--m1);margin:0 4px;border-radius:8px;font-size:12.5px;font-weight:700;padding:4px 8px;background:color-mix(in srgb,var(--c) var(--ev-mix),var(--surface));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:center}
+.pl .wk .body{grid-column:1 / -1;display:grid;grid-template-columns:52px repeat(7,minmax(0,1fr));position:relative;min-height:0}
+.pl .wk .hours{position:relative}
+.pl .wk .hours div{position:absolute;right:8px;font-size:11px;font-weight:700;color:var(--muted);transform:translateY(-50%)}
+.pl .wk .day{position:relative;border-left:1px solid var(--line)}
+.pl .wk .day.today{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.pl .wk .gl{position:absolute;left:0;right:0;border-top:1px solid var(--line);opacity:.6}
+.pl .wk .blk{--c:var(--m1);position:absolute;left:4px;right:4px;border-radius:9px;padding:4px 7px;background:color-mix(in srgb,var(--c) var(--ev-mix),var(--surface));overflow:hidden;font-size:12px;line-height:1.25;border-left:4px solid var(--c)}
+.pl .wk .blk b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .wk .blk span{color:var(--muted);font-weight:600;font-size:11px}
+.pl .wk .now{position:absolute;left:0;right:0;height:2px;background:var(--accent);z-index:3}
+.pl .wk .now::before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.pl .wk .walkrow{grid-column:1 / -1;display:grid;grid-template-columns:52px repeat(7,minmax(0,1fr));border-top:1px solid var(--line);background:color-mix(in srgb,var(--pet) 9%,var(--surface));min-height:46px}
+.pl .wk .walkrow .cell{display:flex;align-items:center;justify-content:center;gap:5px;border-left:1px solid var(--line)}
+.pl .pd{--c:var(--m1);width:24px;height:24px;border-radius:50%;background:var(--c);display:grid;place-items:center;color:#fff}
+.pl .pd svg{width:14px;height:14px}
+.pl .pd.ghost{background:transparent;border:1.5px dashed var(--muted);color:var(--muted)}
+.pl .pd.duo{background:conic-gradient(var(--m2) 0 50%,var(--m1) 0)}
+.pl .legend{display:flex;gap:14px;align-items:center;margin-left:auto}
+.pl .legend span{display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600}
+.pl .legend i{width:10px;height:10px;border-radius:50%;display:block}
+
+/* --- Month --- */
+.pl .mo{flex:1;display:grid;grid-template-rows:auto repeat(5,minmax(0,1fr));background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;min-height:0}
+.pl .mo .r{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.pl .mo .wd{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:9px 10px;border-bottom:1px solid var(--line)}
+.pl .mo .c{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px 7px;min-width:0;display:flex;flex-direction:column;gap:3px;position:relative}
+.pl .mo .c:nth-child(7n){border-right:0}
+.pl .mo .c .dnum{font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.pl .mo .c.out .dnum{color:var(--muted);opacity:.5}
+.pl .mo .c.today .dnum b{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink);margin:-3px 0 -3px -4px}
+.pl .mo .c .paws{font-size:10.5px;font-weight:700;color:var(--muted);display:flex;gap:2px;align-items:center}
+.pl .mo .c .paws svg{width:11px;height:11px;color:var(--pet)}
+.pl .mo .e{--c:var(--m1);font-size:11.5px;font-weight:700;border-radius:6px;padding:2px 6px;background:color-mix(in srgb,var(--c) var(--ev-mix),var(--surface));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .mo .e.dotted{background:transparent;padding-left:2px;display:flex;align-items:center;gap:5px}
+.pl .mo .e.dotted::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+.pl .mo .more{font-size:11px;font-weight:700;color:var(--muted);padding-left:2px}
+.pl .mo .sticker{position:absolute;right:6px;bottom:4px;font-size:22px;transform:rotate(-8deg)}
+
+/* --- Companion --- */
+.pl .comp-grid{display:grid;grid-template-columns:300px minmax(0,1fr) 278px;gap:16px;flex:1;min-height:0}
+.pl .hero{display:flex;flex-direction:column;align-items:center;text-align:center;background:linear-gradient(180deg,color-mix(in srgb,var(--pet) 32%,var(--surface)),var(--surface) 62%)}
+.pl .hero .bigface{width:184px;height:184px;margin-top:10px;animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
+.pl .hero h2{margin:6px 0 0;font-size:36px;line-height:1}
+.pl .hero .breed{font-size:13px;color:var(--muted);font-weight:600}
+.pl .meter{width:100%;margin:16px 0 4px;text-align:left}
+.pl .meter .lbls{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--muted)}
+.pl .meter .bar{height:12px;border-radius:99px;background:linear-gradient(90deg,#C9B8A6,var(--pet) 55%,var(--good));position:relative;margin:6px 0}
+.pl .meter .bar i{position:absolute;top:50%;width:24px;height:24px;border-radius:50%;background:var(--surface);border:3px solid var(--ink);transform:translate(-50%,-50%)}
+.pl .meter .now-mood{font-size:15px;font-weight:700;text-align:center;margin-top:8px}
+.pl .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:auto}
+.pl .stat{background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;text-align:left}
+.pl .stat b{font-family:var(--font-d);font-size:24px;display:block;line-height:1.05}
+.pl .stat span{font-size:12px;color:var(--muted);font-weight:700}
+.pl .trail{display:grid;grid-template-columns:44px repeat(7,minmax(0,1fr));row-gap:10px;align-items:center}
+.pl .trail .dl{font-size:12px;font-weight:700;color:var(--muted);text-align:center}
+.pl .trail .dl.t{color:var(--accent)}
+.pl .trail .sl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.pl .trail .pc{display:flex;justify-content:center}
+.pl .trail .pd{width:36px;height:36px;font-size:13px;font-weight:800}
+.pl .trail .pd svg{width:18px;height:18px}
+.pl .podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;height:176px;margin-top:0}
+.pl .pod{display:flex;flex-direction:column;align-items:center;gap:6px;width:76px}
+.pl .pod .stand{width:100%;border-radius:12px 12px 4px 4px;background:color-mix(in srgb,var(--c) 28%,var(--surface2));display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-family:var(--font-d);font-size:22px}
+.pl .pod small{font-size:12px;font-weight:700;color:var(--muted)}
+.pl .crown{font-size:22px;margin-bottom:-8px}
+.pl .feed{display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.pl .fi{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px}
+.pl .fi p{margin:0;font-size:13.5px;line-height:1.4}
+.pl .fi small{font-size:12px;color:var(--muted);font-weight:600}
+.pl .bz{display:inline-flex;gap:3px;margin-left:4px;vertical-align:1px}
+.pl .bz i{font-style:normal;font-size:12px}
+
+/* --- Sheet / log walk --- */
+.pl .scrim{position:absolute;inset:0;background:rgba(20,15,10,.38);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:20}
+.pl .sheet{width:640px;background:var(--surface);border-radius:28px;box-shadow:0 30px 80px -20px rgba(0,0,0,.4);padding:26px 28px 24px;position:relative}
+.pl .sheet h2{margin:0;font-size:30px;line-height:1.1}
+.pl .sheet .sub{color:var(--muted);font-weight:600;font-size:14px;margin:4px 0 18px}
+.pl .sheet .lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px}
+.pl .who{display:flex;gap:14px}
+.pl .who button{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:700;font-size:14px;padding:10px 8px;border-radius:18px;width:96px;border:2px solid transparent;position:relative}
+.pl .who button.sel{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--surface))}
+.pl .who button.sel::after{content:"✓";position:absolute;top:6px;right:12px;width:20px;height:20px;border-radius:50%;background:var(--c);color:#fff;font-size:12px;display:grid;place-items:center}
+.pl .pills{display:flex;gap:8px;flex-wrap:wrap}
+.pl .pills button{all:unset;cursor:pointer;font-weight:700;font-size:14.5px;padding:9px 16px;border-radius:99px;background:var(--surface2);display:inline-flex;gap:6px;align-items:center}
+.pl .pills button.sel{background:var(--ink);color:var(--surface)}
+.pl .sheet .actions{display:flex;justify-content:space-between;align-items:center;margin-top:22px}
+.pl .x{position:absolute;right:20px;top:20px;width:36px;height:36px;border-radius:50%;background:var(--surface2);display:grid;place-items:center;cursor:pointer;font-weight:700;color:var(--muted)}
+.pl .celebrate{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;background:color-mix(in srgb,var(--pet) 30%,var(--bg))}
+.pl .celebrate.show{display:flex}
+.pl .celebrate .jump{width:200px;height:200px;animation:jump .7s cubic-bezier(.3,.7,.4,1) infinite alternate}
+@keyframes jump{from{transform:translateY(10px) scale(1.02,.97)}to{transform:translateY(-34px) rotate(4deg)}}
+.pl .celebrate h2{font-size:46px;margin:14px 0 6px;line-height:1}
+.pl .celebrate p{font-size:18px;font-weight:600;color:var(--muted);max-width:520px;margin:0}
+.pl .confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.pl .confetti i{position:absolute;top:-30px;font-style:normal;font-size:26px;animation:fall linear infinite}
+@keyframes fall{to{transform:translateY(900px) rotate(360deg)}}
+
+/* --- Chores --- */
+.pl .ch-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;flex:1;min-height:0}
+.pl .who-col{--c:var(--m1);display:flex;flex-direction:column;gap:10px}
+.pl .who-col .wh{display:flex;align-items:center;gap:12px}
+.pl .who-col .starct{display:flex;align-items:center;gap:4px;font-family:var(--font-d);font-size:24px;color:var(--ink)}
+.pl .who-col .starct .icon{color:var(--m4);width:20px;height:20px}
+.pl .who-col .wh b{font-size:20px;display:block;line-height:1.1}
+.pl .who-col .wh .wm{font-size:13px;font-weight:700;color:var(--muted)}
+.pl .who-col .prog{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden;margin:2px 0 6px}
+.pl .who-col .prog i{display:block;height:100%;background:var(--c);border-radius:99px}
+.pl .task{display:flex;align-items:center;gap:12px;padding:14px 14px;border-radius:var(--r-sm);background:var(--surface2)}
+.pl .task .bx{width:28px;height:28px;border-radius:9px;border:2.5px solid color-mix(in srgb,var(--c) 70%,var(--muted));display:grid;place-items:center;flex:none;color:#fff}
+.pl .task.done .bx{background:var(--c);border-color:var(--c)}
+.pl .task .tt{flex:1;min-width:0}
+.pl .task .tt b{display:block;font-size:16px}
+.pl .task .tt span{font-size:12px;color:var(--muted);font-weight:600}
+.pl .task.done .tt b{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:color-mix(in srgb,var(--c) 70%,transparent);color:var(--muted)}
+.pl .task .st{font-size:13px;font-weight:800;color:var(--muted);white-space:nowrap;background:var(--surface);border-radius:99px;padding:3px 9px}
+.pl .task .pet-mini{width:22px;height:22px;flex:none}
+.pl .reward{background:var(--surface2);border-radius:var(--r-sm);padding:12px}
+.pl .reward .rb{height:10px;border-radius:99px;background:var(--surface);overflow:hidden;margin:8px 0 4px}
+.pl .reward .rb i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--m4),var(--accent))}
+
+/* --- Lists & meals --- */
+.pl .lm-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:16px;flex:1;min-height:0}
+.pl .meals{grid-column:1 / -1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+.pl .meal{border-radius:var(--r-sm);background:var(--surface2);padding:10px 10px 12px;min-width:0}
+.pl .meal.t{background:color-mix(in srgb,var(--accent) 14%,var(--surface));outline:2px solid var(--accent)}
+.pl .meal small{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pl .meal .em{font-size:28px;display:block;margin:4px 0 2px}
+.pl .meal b{font-size:13.5px;display:block;line-height:1.25}
+.pl .li-sec{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px}
+.pl .li{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px;font-weight:600}
+.pl .li:last-child{border-bottom:0}
+.pl .li .cb{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);flex:none;display:grid;place-items:center}
+.pl .li.ck{color:var(--muted);text-decoration:line-through}
+.pl .li.ck .cb{background:var(--good);border-color:var(--good);color:#fff}
+.pl .li .by{margin-left:auto}
+.pl .li .by .av{width:22px;height:22px;font-size:10px}
+.pl .twocol{display:grid;grid-template-columns:1fr 1fr;column-gap:24px;align-items:start}
+
+/* --- Ambient --- */
+.pl .ambient{position:absolute;inset:0;overflow:hidden;color:#fff;font-family:var(--font-b)}
+.pl .ambient .photo{position:absolute;inset:0;background:
+  radial-gradient(ellipse 60% 50% at 70% 30%,rgba(255,206,140,.85),transparent 60%),
+  radial-gradient(ellipse 50% 60% at 20% 80%,rgba(80,120,170,.9),transparent 70%),
+  radial-gradient(ellipse 70% 40% at 50% 100%,rgba(40,60,50,.95),transparent 70%),
+  linear-gradient(180deg,#E9A46B,#7A5A7D 55%,#24304A);
+}
+.pl .ambient .hills{position:absolute;left:0;bottom:0;width:100%;height:46%;display:block}
+.pl .ambient .shade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.6),rgba(0,0,0,0) 55%)}
+.pl .ambient .caption{position:absolute;top:24px;right:28px;font-size:13px;font-weight:600;background:rgba(0,0,0,.28);padding:6px 12px;border-radius:99px;backdrop-filter:blur(6px)}
+.pl .ambient .bl{position:absolute;left:44px;bottom:38px;right:44px;display:flex;align-items:flex-end;gap:24px}
+.pl .ambient .ck{font-size:120px;line-height:.85;font-family:var(--font-d);font-weight:var(--d-wt);letter-spacing:-.04em}
+.pl .ambient .dt{font-size:20px;font-weight:600;opacity:.9;margin-top:8px}
+.pl .ambient .glass{background:rgba(20,20,28,.35);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:14px 16px;min-width:230px}
+.pl .ambient .glass small{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
+.pl .ambient .glass b{display:block;font-size:17px;margin-top:3px}
+.pl .ambient .glass span{font-size:13.5px;opacity:.8}
+
+/* --- Setup --- */
+.pl .setup{position:absolute;inset:0;background:var(--bg);display:grid;grid-template-columns:270px minmax(0,1fr)}
+.pl .steps{padding:30px 22px;border-right:1px solid var(--line);background:var(--rail)}
+.pl .steps .logo-row{display:flex;align-items:center;gap:10px;margin-bottom:30px;font-size:20px}
+.pl .steps .logo-row .logo{width:34px;height:34px;border-radius:10px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink)}
+.pl .stp{display:flex;gap:12px;align-items:center;padding:10px 10px;border-radius:12px;font-weight:700;font-size:14.5px;color:var(--muted)}
+.pl .stp i{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;border:2px solid var(--line);flex:none}
+.pl .stp.done{color:var(--ink)}
+.pl .stp.done i{background:var(--good);border-color:var(--good);color:#fff}
+.pl .stp.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.pl .stp.on i{border-color:var(--accent);color:var(--accent)}
+.pl .setup .pane{padding:30px 34px;overflow:hidden;display:flex;flex-direction:column;gap:16px;min-width:0}
+.pl .setup h1{margin:0;font-size:34px;line-height:1.1}
+.pl .setup .lead{margin:4px 0 0;color:var(--muted);font-weight:600;font-size:15px}
+.pl .provs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.pl .prov{min-height:150px;background:var(--surface);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column;gap:8px;border:1.5px solid transparent}
+.pl .prov .lg{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:16px;color:#fff}
+.pl .prov b{font-size:15px}
+.pl .prov .desc{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.35;flex:1}
+.pl .prov .st{font-size:12.5px;font-weight:800;color:var(--good)}
+.pl .prov .btn-s{align-self:flex-start;margin-top:auto;padding:6px 12px;font-size:13px}
+.pl .maptbl{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.pl .maptbl .mr{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.2fr) 150px 130px 70px;gap:12px;align-items:center;padding:10px 18px;border-bottom:1px solid var(--line);font-size:14px}
+.pl .maptbl .mr:last-child{border-bottom:0}
+.pl .maptbl .mr.h{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:10px 18px}
+.pl .maptbl .cal{display:flex;align-items:center;gap:10px;font-weight:700;min-width:0}
+.pl .maptbl .cal i{width:10px;height:10px;border-radius:3px;flex:none}
+.pl .maptbl .acct{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .ddsel{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:5px 8px;font-weight:700;font-size:13px;background:var(--surface)}
+.pl .ddsel .av{width:22px;height:22px;font-size:10px}
+.pl .ddsel .car{margin-left:auto;color:var(--muted)}
+.pl .tgl{width:42px;height:24px;border-radius:99px;background:var(--good);position:relative}
+.pl .tgl::after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.pl .tgl.off{background:var(--line)}
+.pl .tgl.off::after{right:auto;left:3px}
+.pl .species{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.pl .sp{background:var(--surface);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:12px 6px;text-align:center;font-weight:700;font-size:13.5px;border:2px solid transparent}
+.pl .sp .e{font-size:30px;display:block;margin-bottom:2px}
+.pl .sp.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.pl .pet-form{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;min-height:0}
+.pl .fld{display:flex;flex-direction:column;gap:6px}
+.pl .fld label{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.pl .inp{border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-weight:700;font-size:15px;background:var(--surface)}
+.pl .coats{display:flex;gap:8px;align-items:center}
+.pl .coats i{width:30px;height:30px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.pl .coats i.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
+.pl .routine{background:var(--surface);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:12px 14px;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center}
+.pl .routine .ri{width:40px;height:40px;border-radius:12px;background:color-mix(in srgb,var(--pet) 25%,var(--surface));display:grid;place-items:center;font-size:20px}
+.pl .routine b{font-size:15px}
+.pl .routine .rm{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.pl .routine .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.pl .routine .tags span{font-size:11.5px;font-weight:700;background:var(--surface2);border-radius:99px;padding:2px 8px}
+.pl .tone{display:flex;gap:6px}
+.pl .tone span{font-size:13px;font-weight:700;padding:6px 12px;border-radius:99px;background:var(--surface2)}
+.pl .tone span.on{background:var(--ink);color:var(--surface)}
+
+/* --- v2: food diary, plates, capture --- */
+.pl .on-chip{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.pl .mo .c .mplates{display:flex;gap:3px;margin-top:auto}
+.pl .plt{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle,#fff 0 50%,var(--bg) 53%);display:grid;place-items:center;font-size:10px;line-height:1;box-shadow:0 0 0 1px rgba(60,40,20,.08);flex:none}
+.pl .plt.none{background:transparent;box-shadow:none;border:1.5px dashed var(--line)}
+.pl .wk .foodrow{background:color-mix(in srgb,var(--m4) 8%,var(--surface));min-height:38px}
+.pl .wk .foodrow .cell{gap:4px}
+.pl .ag .ev .thumb{width:34px;height:34px;border-radius:8px;background:radial-gradient(circle,#fff 0 38%,var(--bg) 41%);display:grid;place-items:center;font-size:17px;flex:none;box-shadow:0 1px 3px rgba(60,40,20,.15)}
+.pl .ag.food .ev{background:transparent;border:1.5px solid var(--line)}
+.pl .ag.food .ev::before{display:none}
+.pl .pola{position:relative;background:#FFFEFA;padding:6px 6px 24px;border-radius:3px;box-shadow:0 1px 2px rgba(60,40,20,.12),0 8px 16px -8px rgba(60,40,20,.3);transform:rotate(var(--rot,0deg))}
+.pl .pola .img{aspect-ratio:1;border-radius:2px;background:radial-gradient(circle at 50% 52%,#fff 0 31%,rgba(0,0,0,.05) 32% 34%,transparent 35%),var(--bg);display:grid;place-items:center}
+.pl .pola .img span{font-size:var(--fs,34px);line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.15))}
+.pl .pola .cap{position:absolute;left:6px;right:6px;bottom:4px;font-family:'Caveat',cursive;font-weight:700;font-size:16px;line-height:1;color:#3a332d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.pl .pola .who{position:absolute;top:-8px;right:-8px}
+.pl .pola .who .av{width:22px;height:22px;font-size:10px;box-shadow:0 0 0 2px #FFFEFA}
+.pl .pola .ftag{position:absolute;top:10px;left:10px;font-size:11px;background:rgba(255,255,255,.88);border-radius:99px;padding:1px 4px;line-height:1.3}
+.pl .pola.empty{background:transparent;box-shadow:none;border:1.5px dashed color-mix(in srgb,var(--muted) 55%,transparent);transform:none;cursor:pointer}
+.pl .pola.empty .img{background:transparent;color:var(--muted)}
+.pl .pola.empty .img .icon{width:24px;height:24px}
+.pl .pola.empty .cap{color:var(--muted);font-size:15px}
+.pl .plates3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:4px 8px 0}
+.pl .plates3>div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.pl .plates3 small{text-align:center;font-size:12px;font-weight:700;color:var(--muted)}
+.pl .plates3 .pola{--fs:40px}
+.pl .fd .pola{--fs:38px}
+.pl .fd .pola .img{background:radial-gradient(circle at 50% 52%,#fff 0 36%,rgba(0,0,0,.05) 37% 39%,transparent 40%),var(--bg)}
+.pl .food-grid{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:16px;flex:1;min-height:0}
+.pl .fd{display:flex;flex-direction:column;justify-content:space-around;padding:14px 18px}
+.pl .fd-row{display:grid;grid-template-columns:62px repeat(7,minmax(0,1fr));gap:9px;align-items:center}
+.pl .fd-dh{text-align:center;font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pl .fd-dh b{display:block;font-size:22px;color:var(--ink);letter-spacing:0;text-transform:none;line-height:1.1}
+.pl .fd-dh.t b{color:var(--accent)}
+.pl .fd-sl{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pl .fd-c{min-width:0}
+.pl .split .sbar{display:flex;height:12px;border-radius:99px;overflow:hidden;gap:3px}
+.pl .split .sbar i{display:block;height:100%;border-radius:99px}
+.pl .split .slg{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;color:var(--muted);margin-top:8px}
+.pl .split .slg span{display:flex;gap:6px;align-items:center}
+.pl .split .slg i{width:9px;height:9px;border-radius:50%;display:block}
+.pl .mem{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;padding-top:4px}
+.pl .mem .pola{width:140px;--fs:54px}
+.pl .mem p{margin:0;font-size:14px;font-weight:600;color:var(--muted);line-height:1.45}
+.pl .mem p i{font-family:'Caveat',cursive;font-weight:700;font-size:20px;color:var(--ink);font-style:normal}
+.pl .cap-sheet{width:920px;display:grid;grid-template-columns:370px minmax(0,1fr);gap:28px;padding:22px 28px 22px 22px}
+.pl .vf{position:relative;border-radius:20px;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#6a5341,#2a201a 72%);height:540px}
+.pl .vf-plate{position:absolute;left:50%;top:46%;width:250px;height:250px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,#fbfaf6 0 57%,#e7e1d6 59% 63%,#fbfaf6 65%);display:grid;place-items:center;box-shadow:0 24px 40px rgba(0,0,0,.45)}
+.pl .vf-plate span{font-size:118px;line-height:1}
+.pl .vf .br{position:absolute;width:34px;height:34px;border:3px solid rgba(255,255,255,.85)}
+.pl .vf .tl{top:92px;left:56px;border-right:0;border-bottom:0;border-radius:10px 0 0 0}
+.pl .vf .tr{top:92px;right:56px;border-left:0;border-bottom:0;border-radius:0 10px 0 0}
+.pl .vf .bl{top:370px;left:56px;border-right:0;border-top:0;border-radius:0 0 0 10px}
+.pl .vf .brr{top:370px;right:56px;border-left:0;border-top:0;border-radius:0 0 10px 0}
+.pl .vf-hint{position:absolute;top:18px;left:0;right:0;text-align:center;color:#fff;font-size:13px;font-weight:600;opacity:.85}
+.pl .shutter{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);width:74px;height:74px;border-radius:50%;background:#fff;border:0;box-shadow:0 0 0 5px rgba(255,255,255,.35);cursor:pointer}
+.pl .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.pl .flash.go{animation:flash .45s ease-out}
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+.pl .cap-form{padding-top:14px;min-width:0;display:flex;flex-direction:column}
+.pl .cap-form .foot{margin-top:auto;font-size:13.5px;font-weight:600;color:var(--muted);display:flex;gap:8px;align-items:center}
+.pl .cap-form h2{font-size:30px}
+.pl .who.small{gap:10px}
+.pl .who.small button{width:84px;padding:8px 6px}
+.pl .food-saved{background:color-mix(in srgb,var(--m4) 20%,var(--bg))}
+.pl .dev .pola{width:220px;--fs:92px;animation:drop .8s cubic-bezier(.2,.8,.3,1.15)}
+.pl .dev .pola .img{animation:develop 1.8s ease-out}
+.pl .dev .pola .cap{font-size:22px;bottom:2px}
+@keyframes develop{from{filter:sepia(1) brightness(1.7) contrast(.4)}to{filter:none}}
+@keyframes drop{from{transform:translateY(-140px) rotate(9deg);opacity:0}to{transform:rotate(-3deg);opacity:1}}
+.pl .ek{display:flex;gap:18px;align-items:center;background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:18px 20px}
+.pl .ek-ic{width:54px;height:54px;border-radius:14px;background:color-mix(in srgb,var(--accent) 14%,var(--surface));color:var(--accent);display:grid;place-items:center;flex:none}
+.pl .ek-ic .icon{width:28px;height:28px}
+.pl .ek b{display:block;font-size:16px}
+.pl .ek .ekd{display:block;font-size:13.5px;color:var(--muted);font-weight:600;margin-top:2px;line-height:1.4}
+.pl .ek-logos{display:flex;gap:6px;margin-top:10px}
+.pl .ek-logos span{width:26px;height:26px;border-radius:7px;color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+/* --- v3: handwriting --- */
+.pl .lbl .opt{text-transform:none;letter-spacing:0;font-weight:600;margin-left:6px}
+.pl .cap-form .foot{margin-top:14px}
+.pl .paper{flex:1;display:grid;grid-template-rows:auto repeat(5,minmax(0,1fr));background:#FFFDF6;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;min-height:0;position:relative}
+.pl .paper .r{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.pl .paper .wd{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:9px 10px;border-bottom:1.5px solid #E2D3BE}
+.pl .paper .c{position:relative;border-right:1px solid #EFE5D6;border-bottom:1px solid #EFE5D6;padding:4px 9px 0;min-width:0;overflow:hidden;background-image:repeating-linear-gradient(to bottom,transparent 0 21px,rgba(140,110,80,.15) 21px 22px);background-position:0 28px;background-repeat:repeat-x}
+.pl .paper .c:nth-child(7n){border-right:0}
+.pl .paper .c .dn{font-family:var(--font-d);font-weight:600;font-size:16px;height:24px;line-height:24px}
+.pl .paper .c.out .dn{opacity:.35}
+.pl .paper .hw{font-family:'Caveat',cursive;font-weight:600;font-size:20px;line-height:22px;white-space:nowrap;overflow:hidden;text-overflow:clip;transform-origin:left center}
+.pl .paper .c.today{background-color:color-mix(in srgb,var(--accent) 5%,#FFFDF6);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--accent) 55%,transparent)}
+.pl .paper .c.today .dn{color:var(--accent)}
+.pl .paper .caret{display:inline-block;width:2px;height:18px;background:#9C3F2A;margin-left:1px;vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.pl .paper .pen-at{position:absolute;left:103px;top:60px}
+.pl .paper .pen-at .pencil{width:84px;transform:rotate(-38deg);transform-origin:0 50%;filter:drop-shadow(0 3px 3px rgba(60,40,20,.25))}
+.pl .paper .tape{position:absolute;right:7px;top:5px;width:34px;background:#fff;padding:3px 3px 8px;box-shadow:0 2px 5px rgba(60,40,20,.22);transform:rotate(7deg)}
+.pl .paper .tape .img{aspect-ratio:1;background:radial-gradient(circle,#fff 0 34%,var(--bg) 37%);display:grid;place-items:center;font-size:14px}
+.pl .paper .tape::before{content:"";position:absolute;top:-6px;left:10px;width:24px;height:10px;background:rgba(236,214,150,.75);transform:rotate(-10deg)}
+.pl .tools{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:99px;box-shadow:0 14px 30px -10px rgba(60,40,20,.4);padding:8px 10px 8px 16px;z-index:5;white-space:nowrap}
+.pl .tools .tl-lbl{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.pl .tools .ink{width:26px;height:26px;border-radius:50%;background:var(--c)}
+.pl .tools .ink.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+.pl .tools .sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+.pl .tools .tl-btn{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;padding:7px 12px;border-radius:99px;background:var(--surface2)}
+/* --- v4: one fixed-ratio page per day, zoomed for writing --- */
+.pl .paper-solo{display:block;width:139px;height:137px;border-radius:0;box-shadow:none;overflow:visible;background:#FFFDF6;transform-origin:0 0}
+.pl .paper-solo .c{height:137px;border:0}
+.pl .paper-solo .c.today{box-shadow:none;background-color:#FFFDF6}
+.pl .paper .c.pg[data-go]{cursor:pointer}
+.pl .palette{display:flex;gap:7px;align-items:center}
+.pl .palette .ink{width:22px;height:22px;border-radius:50%;background:var(--c);cursor:pointer;flex:none}
+.pl .palette .ink.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+.pl .palette.lg{gap:12px}
+.pl .palette.lg .ink{width:32px;height:32px}
+.pl .wd-sheet{width:968px;display:grid;grid-template-columns:560px minmax(0,1fr);gap:26px;padding:20px 26px 20px 20px}
+.pl .wd-stage{width:560px;height:596px;border-radius:18px;background:#ECE2D0;position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;overflow:hidden}
+.pl .wd-page{width:calc(139px*var(--z));height:calc(137px*var(--z));position:relative;box-shadow:0 14px 30px -12px rgba(60,40,20,.4);transition:width .25s,height .25s;flex:none}
+.pl .wd-page .paper-solo{position:absolute;left:0;top:0;transform:scale(var(--z));transition:transform .25s}
+.pl .wd-cap{font-size:12.5px;font-weight:600;color:var(--muted)}
+.pl .wd-side{display:flex;flex-direction:column;min-width:0;padding-top:12px}
+.pl .wd-side h2{font-size:28px}
+.pl .wd-side .actions{margin-top:auto;display:flex;gap:8px;justify-content:flex-end}
+.pl .mini{position:relative;width:139px;height:137px;box-shadow:0 0 0 1px var(--line),0 6px 14px -8px rgba(60,40,20,.35);border-radius:2px;overflow:hidden}
+.pl .mini.sm{width:70px;height:69px;flex:none}
+.pl .mini.sm .paper-solo{transform:scale(.5)}
+.pl .mini .hl{position:absolute;left:0;right:0;top:calc((28px + 22px) * .5);height:11px;background:color-mix(in srgb,var(--accent) 22%,transparent);outline:1.5px solid var(--accent)}
+.pl .note-row{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.pl .strip{position:relative;width:334px;height:53px;overflow:hidden;border-radius:10px;box-shadow:0 0 0 1px var(--line);background:#FFFDF6;flex:none}
+.pl .strip .paper-solo{position:absolute;left:0;top:0;transform:scale(2.4) translateY(-50px)}
+.hidden{display:none!important}
+body.solo{background:#000}
+body.solo .topbar,body.solo .screens-nav,body.solo .notes,body.solo .ipad .cam{display:none}
+body.solo .mocks{padding:0;max-width:none}
+body.solo .stage{display:block}
+body.solo .ipad{padding:0;border-radius:0;box-shadow:none;background:none}
+body.solo .ipad .scaler{border-radius:0}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-paw" viewBox="0 0 24 24" fill="currentColor"><ellipse cx="6" cy="10" rx="2.2" ry="2.8"/><ellipse cx="10" cy="6" rx="2.2" ry="2.9"/><ellipse cx="14.5" cy="6" rx="2.2" ry="2.9"/><ellipse cx="18.5" cy="10" rx="2.2" ry="2.8"/><path d="M12.2 11c-3 0-6 3.6-6 6.2 0 1.9 1.6 2.6 3 2.3 1.2-.3 2-.8 3-.8s1.8.5 3 .8c1.4.3 3-.4 3-2.3 0-2.6-3-6.2-6-6.2z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3.5 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4.3 2.6-5.6.2 1.7 1 2.9 2.2 3.4C10.6 7.8 11.3 4.6 12 2z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.8 2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2 6.4 20.2l1.1-6.3L2.9 9.5l6.3-.9z"/></symbol>
+    <symbol id="i-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-food" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10M17 21V3c-2.2 1.2-3.5 3.8-3.5 7v3H17"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.6-2.4A1.5 1.5 0 0 1 9.9 5h4.2a1.5 1.5 0 0 1 1.3.6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></symbol>
+    <symbol id="i-house-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8.5a.5.5 0 0 1-.5.5h-15a.5.5 0 0 1-.5-.5z"/><circle cx="12" cy="13.5" r="2.4" fill="currentColor" stroke="none"/></symbol>
+
+    <!-- Companion face: generated per companion (species preset + coat color). Uses CSS vars --coat / --coat2 -->
+    <symbol id="dog" viewBox="0 0 120 120">
+      <ellipse cx="25" cy="58" rx="15" ry="27" transform="rotate(18 25 58)" fill="var(--coat2,#B8763A)"/>
+      <ellipse cx="95" cy="58" rx="15" ry="27" transform="rotate(-18 95 58)" fill="var(--coat2,#B8763A)"/>
+      <circle cx="60" cy="62" r="37" fill="var(--coat,#E8B477)"/>
+      <circle cx="49" cy="27" r="9" fill="var(--coat,#E8B477)"/><circle cx="60" cy="24" r="10" fill="var(--coat,#E8B477)"/><circle cx="71" cy="27" r="9" fill="var(--coat,#E8B477)"/>
+      <ellipse cx="60" cy="80" rx="20" ry="15" fill="#FFF3E2"/>
+      <g class="eyes-open"><circle cx="45" cy="58" r="5.2" fill="#2A1E16"/><circle cx="75" cy="58" r="5.2" fill="#2A1E16"/><circle cx="46.8" cy="56.2" r="1.7" fill="#fff"/><circle cx="76.8" cy="56.2" r="1.7" fill="#fff"/></g>
+      <ellipse cx="37" cy="70" rx="5.5" ry="3.3" fill="#F49A8A" opacity=".55"/><ellipse cx="83" cy="70" rx="5.5" ry="3.3" fill="#F49A8A" opacity=".55"/>
+      <ellipse cx="60" cy="72" rx="6.5" ry="4.8" fill="#2A1E16"/>
+      <path d="M52 80 Q56 85 60 80 Q64 85 68 80" fill="none" stroke="#2A1E16" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M56 83 Q60 95 64 83 Z" fill="#F07C7C"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 24 24" style="color:#C8572F"><use href="#i-house-logo"/></svg>
+    Porchlight <small>working name · v0 proposal</small>
+  </div>
+  <div class="seg" role="tablist">
+    <button class="on" data-tab="plan">Product plan</button>
+    <button data-tab="mocks">UX mocks</button>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill a" style="font-size:12.5px">Sunday Paper · iPad MVP</span>
+</div></div>
+
+<!-- ======================= PLAN ======================= -->
+<main class="doc" id="tab-plan">
+  <div class="kicker">Proposal v2 · Nov 7, 2026</div>
+  <h1>A family wall calendar that runs on the tablet you already own.</h1>
+  <p class="lede">Porchlight turns an old iPad into a warm, glanceable home screen: both of your calendars in one place, Yo-Yo's walks with credit to whoever did them, and a photo diary of what you eat that lands right on the calendar.
+  The MVP is a single iPad app with no server, and nothing about your household is hard-coded.</p>
+
+  <div class="callout"><b>What changed in v2, from your feedback:</b> Sunday Paper is the visual direction.
+  No server for now: the iPad is the whole product, and phones and multi-device sync come later.
+  The sample household is now two adults plus Yo-Yo.
+  New: a <b>food photo diary</b> captured with the iPad camera and shown on the calendar.</div>
+
+  <div class="cards">
+    <div class="card"><div class="num">1 iPad</div><h4>The whole MVP</h4><p>Native iPad app on the wall. No server, no accounts to create, no subscription.</p></div>
+    <div class="card"><div class="num">0 hard-coding</div><h4>General purpose</h4><p>People, calendars, companions, journals and routines are all data, set up in onboarding.</p></div>
+    <div class="card"><div class="num">🐾 + 🍜</div><h4>Two delight features</h4><p>Companion care (Yo-Yo's walks) and a food photo diary. Neither exists in Skylight.</p></div>
+    <div class="card"><div class="num">On-device</div><h4>Private by default</h4><p>Calendars are read locally, and photos and logs stay on the iPad until we add sync.</p></div>
+  </div>
+
+  <h2>1. Market due diligence</h2>
+  <p>Skylight is the category leader: a dedicated touchscreen (Calendar 2 at about $279, up to the 27" Max) plus a "Plus" subscription that gates the fun parts.
+  Hearth Display sits at the premium end (around $699), and Cozi is the software-only incumbent on phones.</p>
+  <table class="t">
+    <thead><tr><th>Capability</th><th>Skylight (free)</th><th>Skylight Plus</th><th class="us">Porchlight MVP</th></tr></thead>
+    <tbody>
+      <tr><td>Calendar sync (Google, Outlook, iCloud, Yahoo...)</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="us"><span class="yes">Yes</span>, any account the iPad knows about</td></tr>
+      <tr><td>Color-coded people</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="us"><span class="yes">Yes</span>, with per-calendar "show as Busy"</td></tr>
+      <tr><td>Chore chart</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="us"><span class="yes">Yes</span></td></tr>
+      <tr><td>Chore rewards / stars</td><td class="no">No</td><td class="yes">Yes</td><td class="us"><span class="yes">Yes</span>, free</td></tr>
+      <tr><td>Lists (grocery, to-do)</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="us"><span class="yes">Yes</span></td></tr>
+      <tr><td>Meal planning</td><td class="no">No</td><td class="yes">Yes</td><td class="us"><span class="part">Later</span></td></tr>
+      <tr><td>Food photo diary on the calendar</td><td class="no">No</td><td class="no">No</td><td class="us"><span class="yes">Core feature</span></td></tr>
+      <tr><td>Handwriting on the calendar (Apple Pencil)</td><td class="no">No</td><td class="no">No</td><td class="us"><span class="yes">Yes</span>, paper-style food month</td></tr>
+      <tr><td>Pet / companion care tracking</td><td class="no">No</td><td class="no">No</td><td class="us"><span class="yes">Core feature</span></td></tr>
+      <tr><td>Photo screensaver</td><td class="no">No</td><td class="yes">Yes</td><td class="us"><span class="yes">Yes</span>, Ambient mode</td></tr>
+      <tr><td>AI import (photo / email to events)</td><td class="no">No</td><td class="yes">Yes</td><td class="us"><span class="part">Later</span></td></tr>
+      <tr><td>Phone companion app</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="us"><span class="part">Later</span></td></tr>
+      <tr><td>Cost</td><td>~$279+ device</td><td>~$79 / yr</td><td class="us">Hardware you own, $0</td></tr>
+    </tbody>
+  </table>
+  <h3>Where the incumbents fall short</h3>
+  <ul class="tight">
+    <li><b>Paywall fatigue.</b> The most-cited complaint is that the delightful parts (rewards, meals, photos, AI) sit behind Plus.</li>
+    <li><b>Generic personality.</b> The UI is clean but clip-art friendly; nothing feels like <i>your</i> household.</li>
+    <li><b>No story of daily life.</b> Pets, meals and small rituals are plain checkboxes at best, with no history to look back on.</li>
+    <li><b>Closed hardware.</b> You buy their screen; an idle iPad cannot join.</li>
+  </ul>
+  <p class="src">Sources:
+    <a href="https://skylightframe.com/products/skylight-calendar-max/">Skylight Calendar Max</a> ·
+    <a href="https://shopsavvy.com/answers/is-a-subscription-required-to-use-all-features-of-the-skylight-calendar">ShopSavvy on Plus features</a> ·
+    <a href="https://www.pulse.bot/consumer-tech/news/the-best-digital-wall-calendar-2026-skylight-apolosign-95d24ee0-c6d1-42f5-8e14-19600293d54d">WIRED best digital wall calendars 2026 (via pulse)</a> ·
+    <a href="https://wetried.it/compare/skylight-calendar-max-vs-hearth-display/">wetried.it Skylight vs Hearth</a>.
+    Pricing varies by promotion; verify on the official sites before quoting.</p>
+
+  <h2>2. Product principles</h2>
+  <div class="cards">
+    <div class="card"><h4>Glance, then tap</h4><p>Every screen answers "what's happening now and next" from across the room. Logging anything is one or two taps.</p></div>
+    <div class="card"><h4>The household is data</h4><p>People, companions, journals, routines and caption tone are configured, never compiled in. Yo-Yo is a row in our own instance.</p></div>
+    <div class="card"><h4>Life lands on the calendar</h4><p>Walks and meals appear in the same timeline as events, so the calendar becomes a record of the week, not just a plan.</p></div>
+    <div class="card"><h4>One source of truth</h4><p>Events stay in Google / iCloud / Outlook. Porchlight reads and decorates them; it never forks the data.</p></div>
+  </div>
+
+  <h2>3. Core concepts (domain model)</h2>
+  <p>Everything on screen is driven by these entities. The two delight features share one idea: a <b>log</b> of small moments, attached to a day and a person.</p>
+  <div class="model">
+    <div class="ent"><b>Household</b><p>Timezone, week start, locale, units, theme. One per install today; a clean boundary for multi-device later.</p></div>
+    <div class="ent"><b>Person</b><p>Name, color, avatar. No login on the wall: you tap your face to get credit.</p></div>
+    <div class="ent"><b>CalendarSource</b><p>A calendar found through a <code>CalendarProvider</code>. The MVP provider is <code>eventkit</code> (every account on the iPad); <code>ics</code> links are a second one. Each source maps to a person or "Both", with visibility <code>full</code> or <code>busy</code>.</p></div>
+    <div class="ent"><b>Event</b><p>Read live from the provider and decorated locally with an emoji / sticker and a countdown flag.</p></div>
+    <div class="ent"><b>Companion → CareRoutine → CareLog</b><p>A companion has a <code>species</code> preset and look. A routine has a cadence (<code>2× daily</code>), time windows, a rotation and tracked fields (duration, pee, poo, vibe). A log records who, when, and those fields.</p></div>
+    <div class="ent"><b>Journal → Entry</b><p>A log with slots (Breakfast, Lunch, Dinner, Snack) and a source (Home-cooked or Delivery; eating out later). An entry has an optional photo, an optional Apple Pencil note, the slot, who ate, and a rating. The food diary is a Journal; a "garden" or "outfits" journal would be another.</p></div>
+    <div class="ent"><b>Chore → Completion</b><p>Recurring task with an owner, a rotation or "anyone", a star value and a due window. Care routines can spawn chores ("Feed Yo-Yo dinner").</p></div>
+    <div class="ent"><b>List / Reward / Album</b><p>Grocery and to-do lists, shared star goals ("Date night fund"), and the photo source for Ambient mode.</p></div>
+  </div>
+
+  <h2>4. Architecture: one native iPad app</h2>
+  <p>Dropping the server changes the right technology.
+  A web page cannot read the iPad's calendars, keeps Google sign-in tokens alive only with a server, and has weaker camera and always-on support.
+  A native SwiftUI app gets all of that from the operating system.</p>
+  <div class="arch">
+    <svg viewBox="0 0 900 290" font-family="DM Sans, sans-serif" font-size="13">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#8a7f74"/></marker></defs>
+      <rect x="10" y="14" width="210" height="262" rx="16" fill="#FBF4EA" stroke="#E2DACD"/>
+      <text x="28" y="42" font-weight="700" font-size="15">iPad Settings › Calendar</text>
+      <text x="28" y="60" fill="#6F665D">accounts added once by you</text>
+      <rect x="28" y="76" width="174" height="34" rx="9" fill="#fff" stroke="#E2DACD"/><text x="42" y="98">Google (James, shared)</text>
+      <rect x="28" y="118" width="174" height="34" rx="9" fill="#fff" stroke="#E2DACD"/><text x="42" y="140">iCloud / Outlook / Yahoo</text>
+      <rect x="28" y="160" width="174" height="34" rx="9" fill="#fff" stroke="#E2DACD"/><text x="42" y="182">Subscribed links (ICS)</text>
+      <rect x="28" y="214" width="174" height="44" rx="9" fill="#fff" stroke="#E2DACD"/><text x="42" y="234">Camera · Photos</text><text x="42" y="250" fill="#6F665D" font-size="12">for the food diary</text>
+      <rect x="290" y="14" width="390" height="262" rx="16" fill="#fff" stroke="#C8572F" stroke-width="1.5"/>
+      <text x="310" y="42" font-weight="700" font-size="15">Porchlight iPad app (SwiftUI)</text>
+      <text x="310" y="60" fill="#6F665D">kiosk on the wall · Guided Access · screen always on</text>
+      <rect x="310" y="74" width="170" height="34" rx="9" fill="#F7F2EA"/><text x="324" y="96">Capture (camera)</text>
+      <rect x="490" y="74" width="170" height="34" rx="9" fill="#F7F2EA"/><text x="504" y="96">Wall UI (screens)</text>
+      <rect x="310" y="116" width="350" height="34" rx="9" fill="#F7F2EA"/><text x="324" y="138">Domain: people, companions, journals, chores, lists</text>
+      <rect x="310" y="158" width="170" height="34" rx="9" fill="#F7F2EA"/><text x="324" y="180">Calendar providers</text>
+      <rect x="490" y="158" width="170" height="34" rx="9" fill="#F7F2EA"/><text x="504" y="180">Caption engine</text>
+      <rect x="310" y="200" width="350" height="34" rx="9" fill="#F1E3D6"/><text x="324" y="222">SQLite (GRDB) + photo files · on device</text>
+      <text x="310" y="260" fill="#6F665D" font-size="12">Backups: export to Files / iCloud Drive</text>
+      <rect x="740" y="74" width="150" height="150" rx="16" fill="none" stroke="#B9AE9F" stroke-dasharray="5 5"/>
+      <text x="756" y="102" font-weight="700">Later</text>
+      <text x="756" y="124" fill="#6F665D">CloudKit sync</text>
+      <text x="756" y="144" fill="#6F665D">iPhone app</text>
+      <text x="756" y="164" fill="#6F665D">Android / web</text>
+      <text x="756" y="184" fill="#6F665D">AI import</text>
+      <g stroke="#8a7f74" stroke-width="1.5" fill="none" marker-end="url(#ah)">
+        <path d="M202 135 H246 V175 H308"/><path d="M202 236 H272 V91 H308"/>
+      </g>
+      <text x="206" y="128" fill="#8a7f74" font-size="11.5">EventKit</text>
+      <path d="M680 150 H738" stroke="#B9AE9F" stroke-width="1.5" stroke-dasharray="4 4" fill="none" marker-end="url(#ah)"/>
+    </svg>
+  </div>
+  <h3>Key decisions</h3>
+  <table class="t">
+    <thead><tr><th>Decision</th><th>Recommendation</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Target device</td><td>iPad Pro 10.5" (2017): iPadOS 17 deployment target, 1112 × 834 pt landscape, Apple Pencil (1st gen)</td><td>iPadOS 17 is the last version this iPad gets, so it is our floor. All mocks are now drawn at its exact screen size.</td></tr>
+      <tr><td>Client tech</td><td>Native SwiftUI iPad app, landscape, built in Xcode on the Mac mini</td><td>Direct calendar access, a real camera pipeline, and reliable always-on kiosk behavior. No server needed.</td></tr>
+      <tr><td>Calendar integration</td><td>EventKit as the first <code>CalendarProvider</code>; ICS links as the second</td><td>Any account you add in iPad Settings (Google, iCloud, Outlook, Yahoo, Exchange, CalDAV) shows up with no OAuth app, no Google verification, and no tokens to babysit. The provider interface keeps a direct Google adapter possible later.</td></tr>
+      <tr><td>Handwriting</td><td>One fixed-ratio page per day (139 × 137 pt, 5 ruled lines); PencilKit strokes stored in page coordinates</td><td>The month cell, the zoomed day editor (2×, Fit, 4×) and the meal-note strip are the same page at different zoom levels, so ink never reflows or gets squeezed. Six pen colors tuned to the paper; recognition for search can come later.</td></tr>
+      <tr><td>Storage</td><td>SQLite via GRDB, photos as files with generated thumbnails</td><td>Mature, fast, simple migrations, works on older iPadOS versions. Schema stays portable for future sync.</td></tr>
+      <tr><td>Identity on the wall</td><td>No login; tap your face ("Who walked Yo-Yo?", "Who ate this?")</td><td>Shared household device; credit is part of the fun.</td></tr>
+      <tr><td>Kiosk</td><td>Guided Access + keep the screen awake while the app is open + night dimming schedule</td><td>Stays on Porchlight, never sleeps, and is not a lamp at 2am.</td></tr>
+      <tr><td>Fun copy</td><td>On-device caption templates with tone presets</td><td>Deterministic and offline ("James' 6th walk this week. Yo-Yo has notes about his pace."). An LLM polish can come later.</td></tr>
+      <tr><td>Multi-device</td><td>Out of MVP scope; CloudKit sync is the likely path</td><td>Keeps the "no server" promise when phones join later.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. Phased roadmap</h2>
+  <div class="phases">
+    <div class="phase"><div class="tag">M0</div><div><h4>Foundations</h4><p>Xcode project, SQLite schema and migrations, onboarding for household and people, wall shell with the side rail, Sunday Paper design tokens, kiosk setup (Guided Access, always awake).</p></div></div>
+    <div class="phase"><div class="tag">M1</div><div><h4>Calendars</h4><p>EventKit provider, calendar-to-person mapping, busy-only privacy, Today, Week and Month views, emoji decoration, countdowns, weather.</p></div></div>
+    <div class="phase"><div class="tag">M2</div><div><h4>Companions</h4><p>Companion setup with species presets, care routines and rotation, the log-a-walk flow and celebration, paw lane on the calendar, Yo-Yo's page (paw trail, podium, mood meter, diary captions).</p></div></div>
+    <div class="phase"><div class="tag">M3</div><div><h4>Food diary</h4><p>Camera capture with a smart meal slot, optional Apple Pencil notes, a handwritten paper-style month (write straight into each day), polaroid week, plates on Today / Week / Month, weekly stats and "on this day" memories.</p></div></div>
+    <div class="phase"><div class="tag">M4</div><div><h4>Chores, lists, ambient</h4><p>Chores with stars and shared goals, grocery and to-do lists, Ambient photo mode with night schedule.</p></div></div>
+    <div class="phase"><div class="tag">Later</div><div><h4>Beyond the wall</h4><p>CloudKit sync, an iPhone app (log walks and meals from anywhere), Android or web, meal planning, AI import of flyers and emails.</p></div></div>
+  </div>
+
+  <h2>6. Risks to plan around</h2>
+  <ul class="tight">
+    <li><b>Which calendars the iPad can see.</b> Your wife's calendar appears if her account is added to the iPad or she shares her calendar with an account that is. Setup should explain this in one friendly screen.</li>
+    <li><b>Free Apple ID.</b> Installs expire every 7 days, so the Mac mini rebuilds and reinstalls weekly over the network (needs Xcode selected as the active developer directory, which takes your password once). A free account also cannot use iCloud / CloudKit, so the later sync phase will need the paid account.</li>
+    <li><b>Old iPad hardware.</b> The 2017 iPad Pro tops out at iPadOS 17 and its battery is likely tired. Plugged in 24/7 it can swell: use a smart plug to cycle charging and keep it ventilated.</li>
+    <li><b>Photo storage.</b> Three meals a day adds up. Store compressed images plus thumbnails, and offer export / backup to iCloud Drive.</li>
+    <li><b>Time is hard.</b> Recurring events, DST and all-day events across timezones. Use EventKit's expanded occurrences; never hand-roll recurrence math.</li>
+  </ul>
+
+  <h2>7. Decisions</h2>
+  <p>Everything needed to start is decided:</p>
+  <div class="cards">
+    <div class="card"><h4>Look</h4><p>Sunday Paper.</p></div>
+    <div class="card"><h4>Platform</h4><p>Native iPad app, no server. iPad Pro 10.5", iPadOS 17.</p></div>
+    <div class="card"><h4>Install</h4><p>Free Apple ID; the Mac mini reinstalls weekly.</p></div>
+    <div class="card"><h4>Household</h4><p>Two adults + Yo-Yo. Phones later.</p></div>
+    <div class="card"><h4>Food diary</h4><p>Home-cooked + delivery, photos, Apple Pencil pages.</p></div>
+    <div class="card"><h4>Chores</h4><p>Light board in M4.</p></div>
+  </div>
+  <p><b>Next step:</b> M0, the Xcode project and wall shell, running on the real iPad.</p>
+
+  <div class="callout">Sample data note: "Mia" is a placeholder name for your wife, and the events are made up. Every name, color, species, journal and routine comes from setup.</div>
+</main>
+
+<!-- ======================= MOCKS ======================= -->
+<section class="mocks hidden" id="tab-mocks">
+  <div class="screens-nav" id="screensNav"></div>
+  <div class="stage">
+    <div class="device-wrap" id="deviceWrap">
+      <div class="ipad" id="ipad"><div class="cam"></div>
+        <div class="scaler" id="scaler">
+          <div class="screen pl" id="screen"></div>
+        </div>
+      </div>
+    </div>
+    <aside class="notes" id="notes"></aside>
+  </div>
+</section>
+
+<script>
+/* ---------- Sample household (setup data, not code) ---------- */
+const M = {
+  j:{n:'James',i:'J',c:'var(--m1)',ink:'midnight'},
+  m:{n:'Mia',i:'M',c:'var(--m2)',ink:'brick'},
+  b:{n:'Both',i:'♥',c:'var(--m4)',ink:'ochre'}
+};
+const PET = {name:'Yo-Yo'};
+/* One week of walk logs (Sun..Sat): [AM, PM]; an array = walked together. Shared by Week, Month and Companion views. */
+const WALKS=[['j','m'],['m','j'],['j',['j','m']],['m','m'],['j','m'],['m','j'],['m',null]];
+/* One week of food diary entries (Sun..Sat): [breakfast, lunch, dinner]; [emoji, title, who, source (home|delivery), tablecloth color, handwritten note] */
+const FOOD=[
+  [['🥞','Pancakes','b','home','#F3D9A4'],['🥗','Cobb salad','m','home','#CFE3C4'],['🍝','Pesto pasta','b','home','#E8C9B5']],
+  [['🥣','Granola','j','home','#E9DCC4'],null,['🍛','Chicken curry','b','home','#F1C78F']],
+  [['🥯','Bagel','m','home','#E6D3B8'],['🍱','Bento box','j','delivery','#D9E2EE'],['🌮','Taco night','b','home','#F2C6A8']],
+  [['🍳','Eggs & toast','b','home','#F5E2A6'],['🥪','Banh mi','m','delivery','#E8D7C2'],['🍲','Miso salmon','b','home','#CBDDE6']],
+  [['🥣','Oatmeal','j','home','#EADFCB'],['🍜','Pho','b','delivery','#F0D5B8'],['🍕','Pizza','b','delivery','#F4C3B4']],
+  [null,['🥙','Falafel wrap','m','home','#DCE6CF'],['🍣','Sushi night','b','delivery','#E5D0DA']],
+  [['🥑','Avocado toast','m','home','#D7E5C2'],null,null]
+];
+/* Pen palette: six inks tuned to the Sunday Paper surface (all >= 4.5:1 on the paper color) */
+const INKS={midnight:['Midnight','#2F4F86'],brick:['Brick','#9C3F2A'],forest:['Forest','#3E6B4A'],plum:['Plum','#6E4A7E'],ochre:['Ochre','#8A6418'],graphite:['Graphite','#3A3530']};
+const inkOf=l=>INKS[l[2]||M[l[1]].ink][1];
+/* Each day has ONE handwritten page with a fixed aspect ratio (139 x 137 pt, 5 ruled lines).
+   Ink is stored in page coordinates, so the month cell (1x), the day editor (2-4x) and a meal note strip are all the same page, only zoomed. */
+const PAGE={w:139,h:137,top:28,line:22};
+const HW={1:[['pancakes ♡','m'],['cobb salad','m'],['pesto pasta!','j']],2:[['granola','j'],['chicken curry 🌶','m']],3:[['bagel','m'],['bento (delivery)','j'],['taco night!!','m','ochre']],
+  4:[['eggs & toast','j'],['banh mi 🛵','m'],['miso salmon ★','m','forest']],5:[['oatmeal','j'],['pho 🛵','m'],['pizza... too much','j']],6:[['falafel wrap','m'],['sushi night ♡','m','plum']],7:[['avocado toast','m'],['dan dan nood','m']]};
+const TAPED={1:FOOD[0][0],4:FOOD[3][2],6:FOOD[5][2]};
+const PENCIL=`<svg class="pencil" viewBox="0 0 80 16"><polygon points="0,8 12,2 12,14" fill="#F1D3A2"/><polygon points="0,8 5,5.5 5,10.5" fill="#3A332D"/><rect x="12" y="2" width="54" height="12" fill="#F3F1EC" stroke="#D8D2C6" stroke-width=".8"/><rect x="66" y="2" width="12" height="12" rx="3" fill="#E9E6DF" stroke="#D8D2C6" stroke-width=".8"/></svg>`;
+const av=(k,cls='')=>`<span class="av ${cls}" style="--c:${M[k].c}">${M[k].i}</span>`;
+const ic=(id,cls='icon')=>`<svg class="${cls}"><use href="#${id}"/></svg>`;
+const face=(size=40,extra='')=>`<svg width="${size}" height="${size}" viewBox="0 0 120 120" ${extra}><use href="#dog"/></svg>`;
+const ROT=[-2.5,1.8,-1.2,2.2,-1.8,1.2,-2];
+const pola=(f,i,opt={})=>f?`<div class="pola" style="--rot:${opt.rot??ROT[i%7]}deg">
+    <div class="img" style="--bg:${f[4]}"><span>${f[0]}</span></div>
+    <div class="cap">${f[1]}</div>${f[3]==='delivery'?`<span class="ftag">🛵</span>`:''}<span class="who">${av(f[2])}</span></div>`
+  :`<div class="pola empty"${opt.go?` data-go="${opt.go}"`:''}><div class="img">${ic('i-camera','icon')}</div><div class="cap">${opt.label||'not logged'}</div></div>`;
+const plate=f=>f?`<span class="plt" style="--bg:${f[4]}">${f[0]}</span>`:`<span class="plt none"></span>`;
+
+function rail(active){
+  const items=[['today','Today','i-home'],['week','Calendar','i-cal'],['companion',PET.name,'pet'],['food','Food','i-food'],['chores','Chores','i-check'],['lists','Lists','i-list'],['ambient','Photos','i-photo']];
+  const alias={month:'week',logwalk:'today',capture:'food','food-month':'food','write-day':'food'};
+  return `<nav class="rail"><div class="logo"><svg width="22" height="22"><use href="#i-house-logo"/></svg></div>
+    ${items.map(([id,l,i])=>`<a data-go="${id}" class="${(alias[active]||active)===id?'on':''}">${i==='pet'?face(28,'class="pet-ic"'):ic(i)}<span>${l}</span></a>`).join('')}
+    <div class="grow"></div><a data-go="setup-cal">${ic('i-gear')}<span>Settings</span></a></nav>`;
+}
+const legend=(extra='')=>`<div class="legend">${['j','m','b'].map(k=>`<span><i style="background:${M[k].c}"></i>${M[k].n}</span>`).join('')}${extra}</div>`;
+
+/* ---------------- Screens ---------------- */
+const S={};
+
+S.today=()=>`<div class="wall">${rail('today')}<div class="main">
+  <div class="hdr">
+    <div><div class="clock d">9:41</div></div>
+    <div style="margin-bottom:4px"><div class="d" style="font-size:24px;line-height:1.1">Saturday</div><div class="muted" style="font-weight:600;font-size:15px">November 7</div></div>
+    <div class="weather">${ic('i-sun','icon')}<div><div class="deg d">58°</div><small>Sunny · high 64°</small></div></div>
+    <div class="chips" style="margin-left:18px">${['j','m'].map(k=>av(k,'ring')).join('')}<span class="chip plain" data-go="capture" style="margin-left:6px;cursor:pointer">${ic('i-camera','icon')} Snap a meal</span></div>
+  </div>
+  <div class="today-grid">
+    <div class="card" style="overflow:hidden;display:flex;flex-direction:column">
+      <div class="card-h"><h3 class="d">Today</h3><span class="meta">5 events · 1 walk · 1 meal</span></div>
+      <div class="allday"><span class="tag-ev" style="--c:var(--m4)"><span class="dot"></span>🧳 Aunt Rosa visiting · Fri–Sun</span></div>
+      <div class="agenda">
+        <div class="ag care done past"><div class="tm">8:12</div><div class="ev">${face(28)}<div class="tx"><b>Mia walked Yo-Yo · 25 min</b><span>💧 💩 · "Squirrel situation handled"</span></div>${av('m')}</div></div>
+        <div class="ag food past"><div class="tm">8:40</div><div class="ev"><span class="thumb" style="--bg:#D7E5C2">🥑</span><div class="tx"><b>Breakfast · Avocado toast</b><span>Home-cooked · 😋 would eat again</span></div>${av('m')}</div></div>
+        <div class="nowline"><span>NOW</span><i></i></div>
+        <div class="ag" style="--c:var(--m1)"><div class="tm">10:00</div><div class="ev"><span class="em">🧗</span><div class="tx"><b>Climbing gym</b><span>10:00 – 11:30 · Mission Cliffs</span></div>${av('j')}</div></div>
+        <div class="ag" style="--c:var(--m4)"><div class="tm">12:30</div><div class="ev"><span class="em">🍜</span><div class="tx"><b>Aunt Rosa over for lunch</b><span>12:30 – 1:30 · at home</span></div>${av('b')}</div></div>
+        <div class="ag" style="--c:var(--m2)"><div class="tm">3:00</div><div class="ev"><span class="em">🏺</span><div class="tx"><b>Pottery class</b><span>3:00 – 5:00 · Clay Studio</span></div>${av('m')}</div></div>
+        <div class="ag care"><div class="tm">~6:00</div><div class="ev">${face(28)}<div class="tx"><b>Evening walk</b><span>Usually 5–8pm · James' turn</span></div><span class="pd ghost">${ic('i-paw')}</span></div></div>
+        <div class="ag" style="--c:var(--m2)"><div class="tm">7:00</div><div class="ev"><span class="em">📚</span><div class="tx"><b>Book club</b><span>7:00 – 8:30 · at Priya's</span></div>${av('m')}</div></div>
+      </div>
+      <div class="tmrw"><b>Tomorrow</b><span>🥞 Brunch with Rosa · 10am</span><span>🛒 Farmers market · 1pm</span></div>
+    </div>
+    <div class="col">
+      <div class="card pet-card">
+        <div class="pet-top"><div class="face">${face(66)}</div><div style="flex:1;min-width:0"><h3 class="d">Yo-Yo</h3><div class="mood">Walked 1h ago</div></div>
+          <div class="streak" style="color:var(--accent)">${ic('i-flame')} 23-day streak</div></div>
+        <div class="slots">
+          <div class="slot done" style="--c:var(--m2)">${av('m')}<div><b>Morning ✓</b><span>8:12 · 25 min · 💧💩</span></div></div>
+          <div class="slot todo"><span class="paw">${ic('i-paw')}</span><div><b>Evening</b><span>5–8pm · James' turn</span></div></div>
+        </div>
+        <div class="pet-foot"><button class="btn-p" data-go="logwalk">${ic('i-paw')} I walked Yo-Yo</button><button class="btn-s" data-go="companion">See the week</button></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3 class="d">Today's plates</h3><span class="meta">12-day diary streak</span></div>
+        <div class="plates3">
+          <div>${pola(FOOD[6][0],0,{rot:-2})}<small>Breakfast</small></div>
+          <div>${pola(null,1,{go:'capture',label:'snap lunch'})}<small>Lunch</small></div>
+          <div>${pola(null,2,{go:'capture',label:'snap dinner'})}<small>Dinner</small></div>
+        </div>
+      </div>
+      <div class="card" style="flex:1">
+        <div class="card-h"><h3 class="d">Coming up</h3></div>
+        <div class="count-list">
+          <div class="count" style="--c:var(--m4)"><div class="big"><b>5</b><small>days</small></div><div class="tx"><b>🎂 Grandma's 80th</b><span>Thu Nov 12 · dinner at 6</span></div></div>
+          <div class="count" style="--c:var(--m2)"><div class="big"><b>14</b><small>days</small></div><div class="tx"><b>🥂 Our anniversary</b><span>Sat Nov 21 · table booked</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>`;
+
+/* Week view: Sun Nov 1 – Sat Nov 7 */
+S.week=()=>{
+  const days=[['Sun',1,'☁️ 55°'],['Mon',2,'🌧 52°'],['Tue',3,'⛅ 57°'],['Wed',4,'☀️ 61°'],['Thu',5,'☀️ 63°'],['Fri',6,'⛅ 60°'],['Sat',7,'☀️ 64°']];
+  const H0=8,H1=21,HH=35,OFF=10;
+  const ev=[
+    [0,'b',10,12,'🥞 Brunch at home'],[0,'j',14,15.5,'🎾 Tennis'],[0,'m',16,17,'🥗 Meal prep'],
+    [1,'j',11,12,'🦷 Dentist'],[1,'m',9,10.5,'Design review'],[1,'m',18.5,19.5,'🧘 Yoga'],
+    [2,'j',13,14,'Sprint planning'],[2,'b',18,19,'🌮 Taco Tuesday'],
+    [3,'j',12,13,'Lunch w/ Sam'],[3,'m',19,20,'🏺 Pottery'],
+    [4,'m',8,9,'🏋️ Gym'],[4,'j',16,17,'📞 Call w/ Mom'],[4,'b',19,20.5,'🎬 Movie night'],
+    [5,'j',9,10,'1:1 with Dana'],[5,'b',18.5,20.5,'🍣 Sushi night in'],
+    [6,'j',10,11.5,'🧗 Climbing'],[6,'b',12.5,13.5,'🍜 Lunch w/ Rosa'],[6,'m',15,17,'🏺 Pottery class'],[6,'m',19,20.5,'📚 Book club']
+  ];
+  const walks=WALKS.map((d,i)=>d.filter((w,k)=>w||i===6).map(w=>w===null?null:(Array.isArray(w)?w:[w])));
+  const fmt=h=>{const hr=Math.floor(h),mn=Math.round((h-hr)*60);const p=hr>=12?'p':'a';const h12=((hr+11)%12)+1;return h12+(mn?':'+String(mn).padStart(2,'0'):'')+p;};
+  const pd=w=>{if(!w)return `<span class="pd ghost">${ic('i-paw')}</span>`;if(w.length>1)return `<span class="pd duo" title="Walked together">${ic('i-paw')}</span>`;return `<span class="pd" style="--c:${M[w[0]].c}">${ic('i-paw')}</span>`;};
+  let hours='';for(let h=H0;h<H1;h++)hours+=`<div style="top:${(h-H0)*HH+OFF}px">${h===12?'Noon':((h+11)%12+1)+(h<12?'a':'p')}</div>`;
+  let gl='';for(let h=H0;h<=H1;h++)gl+=`<div class="gl" style="top:${(h-H0)*HH+OFF}px"></div>`;
+  return `<div class="wall">${rail('week')}<div class="main">
+  <div class="hdr"><div class="title d">November 1 – 7</div>
+    <div class="chips" style="margin-left:10px"><span class="chip plain on-chip">Week</span><span class="chip plain" data-go="month" style="cursor:pointer">Month</span><span class="chip plain">Day</span></div>
+    ${legend(`<span><svg width="14" height="14" style="color:var(--pet)"><use href="#i-paw"/></svg>walks</span><span>🍽 meals</span>`)}
+  </div>
+  <div class="wk" style="grid-template-rows:auto auto minmax(0,1fr) auto auto">
+    <div class="corner"></div>
+    ${days.map((d,i)=>`<div class="dh ${i===6?'today':''}"><div class="dn">${d[0]}</div><div class="dd d">${d[1]}</div><div class="wx">${d[2]}</div></div>`).join('')}
+    <div class="adrow"><div class="lab">All day</div><div></div><div></div><div></div><div></div><div></div><div class="adbar" style="--c:var(--m4);grid-column:7 / span 2">🧳 Aunt Rosa visiting</div></div>
+    <div class="body"><div class="hours">${hours}</div>
+      ${days.map((d,i)=>`<div class="day ${i===6?'today':''}">${gl}${ev.filter(e=>e[0]===i).map(e=>`<div class="blk" style="--c:${M[e[1]].c};top:${(e[2]-H0)*HH+OFF+1}px;height:${(e[3]-e[2])*HH-3}px"><b>${e[4]}</b>${(e[3]-e[2])>=1.25?`<span>${fmt(e[2])} – ${fmt(e[3])}</span>`:''}</div>`).join('')}${i===6?`<div class="now" style="top:${(9.68-H0)*HH+OFF}px"></div>`:''}</div>`).join('')}
+    </div>
+    <div class="walkrow"><div class="lab">${face(24)}</div>${walks.map(w=>`<div class="cell">${w.map(pd).join('')}</div>`).join('')}</div>
+    <div class="walkrow foodrow"><div class="lab" style="font-size:16px">🍽</div>${FOOD.map(d=>`<div class="cell">${d.map(plate).join('')}</div>`).join('')}</div>
+  </div>
+</div></div>`;};
+
+/* Month view */
+S.month=(()=>{
+  const evs={1:[['b','🥞 Brunch','d'],['j','🎾 Tennis','d']],2:[['j','🦷 Dentist','d'],['m','🧘 Yoga','d']],3:[['b','🌮 Taco Tue','d']],4:[['m','🏺 Pottery','d']],5:[['b','🎬 Movie night','d']],
+    6:[['b','🧳 Aunt Rosa'],['b','🍣 Sushi night','d']],7:[['b','🧳 Aunt Rosa'],['j','🧗 Climbing','d'],['b','🍜 Lunch w/ Rosa','d'],['m','🏺 Pottery','d'],['m','📚 Book club','d']],
+    8:[['b','🧳 Aunt Rosa'],['b','🛒 Market','d']],9:[['m','🧘 Yoga','d']],10:[['b','🌮 Taco Tue','d']],11:[['b','Veterans Day'],['m','🏺 Pottery','d']],12:[['b','🎂 Grandma turns 80']],
+    13:[['b','🎬 Movie night','d']],14:[['j','🎾 Tennis','d']],16:[['m','🧘 Yoga','d']],17:[['j','✈️ Seattle trip'],['b','🌮 Taco Tue','d']],18:[['j','✈️ Seattle trip']],19:[['j','✈️ Seattle trip']],
+    20:[['b','🎬 Movie night','d']],21:[['b','🥂 Anniversary'],['m','🧁 Bake sale','d']],23:[['m','🧘 Yoga','d']],24:[['b','🌮 Taco Tue','d']],26:[['b','🦃 Thanksgiving']],27:[['b','🛋️ Day off']],28:[['b','🎄 Tree hunt','d']],30:[['m','🧘 Yoga','d']]};
+  const stickers={12:'🎂',21:'🥂',26:'🦃'};
+  return ()=>{
+    let rows='';
+    for(let r=0;r<5;r++){let cells='';
+      for(let c=0;c<7;c++){const dnum=r*7+c+1;const out=dnum>30;const dd=out?dnum-30:dnum;const list=out?[]:(evs[dnum]||[]);
+        const show=list.slice(0,dnum<=7?2:3),more=list.length-show.length;
+        const w=dnum<=7?WALKS[dnum-1].filter(Boolean).length:0;
+        const food=dnum<=7?FOOD[dnum-1]:null;
+        cells+=`<div class="c ${out?'out':''} ${dnum===7?'today':''}"><div class="dnum"><b>${out&&dd===1?'Dec 1':dd}</b>${w?`<span class="paws">${Array.from({length:w}).map(()=>`<svg><use href="#i-paw"/></svg>`).join('')}</span>`:''}</div>${show.map(e=>`<div class="e ${e[2]?'dotted':''}" style="--c:${M[e[0]].c}">${e[1]}</div>`).join('')}${more>0?`<div class="more">+${more} more</div>`:''}${food?`<div class="mplates">${food.map(plate).join('')}</div>`:''}${stickers[dnum]?`<span class="sticker">${stickers[dnum]}</span>`:''}</div>`;}
+      rows+=`<div class="r">${cells}</div>`;}
+    return `<div class="wall">${rail('month')}<div class="main">
+      <div class="hdr"><div class="title d">November <span class="muted" style="font-weight:400">2026</span></div>
+        <div class="chips" style="margin-left:10px"><span class="chip plain" data-go="week" style="cursor:pointer">Week</span><span class="chip plain on-chip">Month</span><span class="chip plain">Day</span></div>
+        ${legend(`<span><svg width="14" height="14" style="color:var(--pet)"><use href="#i-paw"/></svg>walks</span><span>🍽 meals</span>`)}</div>
+      <div class="mo"><div class="r">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="wd">${d}</div>`).join('')}</div>${rows}</div>
+    </div></div>`;};
+})();
+
+S.companion=()=>{
+  const days=['S','M','T','W','T','F','S'];
+  const am=WALKS.map(d=>d[0]), pm=WALKS.map(d=>d[1]);
+  const cell=w=>{if(!w)return `<span class="pd ghost">${ic('i-paw')}</span>`;if(Array.isArray(w))return `<span class="pd duo" title="Together">♥</span>`;return `<span class="pd" style="--c:${M[w].c}">${M[w].i}</span>`;};
+  return `<div class="wall">${rail('companion')}<div class="main">
+  <div class="hdr"><div class="title d">Yo-Yo's week</div><div class="sub">13 walks · 6.1 mi · 4 squirrels pursued, 0 caught</div>
+    <div style="margin-left:auto"><button class="btn-p" data-go="logwalk">${ic('i-paw')} Log a walk</button></div></div>
+  <div class="comp-grid">
+    <div class="card hero">
+      <svg class="bigface" viewBox="0 0 120 120"><use href="#dog"/></svg>
+      <h2 class="d">Yo-Yo</h2><div class="breed">Toy poodle · 4 yrs · 9 lb of opinions</div>
+      <div class="meter"><div class="lbls"><span>Staring at door</span><span>Zoomies</span></div><div class="bar"><i style="left:68%"></i></div>
+        <div class="now-mood">😌 Content, mildly smug</div></div>
+      <div class="slots" style="width:100%;margin:14px 0 14px;text-align:left">
+        <div class="slot done" style="--c:var(--m2)">${av('m')}<div><b>AM ✓</b><span>8:12</span></div></div>
+        <div class="slot todo"><span class="paw">${ic('i-paw')}</span><div><b>PM</b><span>James</span></div></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>23 <span style="font-size:15px">days</span></b><span>2×/day streak 🔥</span></div>
+        <div class="stat"><b>27 <span style="font-size:15px">min</span></b><span>avg walk</span></div>
+        <div class="stat"><b>13/14</b><span>slots on time</span></div>
+        <div class="stat"><b>💧9 💩7</b><span>business log</span></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card">
+        <div class="card-h"><h3 class="d">Paw trail</h3><span class="meta">who walked, each slot</span></div>
+        <div class="trail">
+          <div></div>${days.map((d,i)=>`<div class="dl ${i===6?'t':''}">${d}<br><span style="font-size:15px;color:var(--ink)" class="d">${i+1}</span></div>`).join('')}
+          <div class="sl">AM</div>${am.map(w=>`<div class="pc">${cell(w)}</div>`).join('')}
+          <div class="sl">PM</div>${pm.map(w=>`<div class="pc">${cell(w)}</div>`).join('')}
+        </div>
+      </div>
+      <div class="card" style="flex:1">
+        <div class="card-h"><h3 class="d">Walk diary</h3><span class="meta">captions: Cheeky</span></div>
+        <div class="feed">
+          <div class="fi">${av('m')}<div><p><b>Mia</b> · 25 min <span class="bz"><i>💧</i><i>💩</i></span><br>Squirrel situation handled. Yo-Yo would like it noted she was "very brave".</p><small>Today 8:12am</small></div></div>
+          <div class="fi">${av('j')}<div><p><b>James</b> · 18 min <span class="bz"><i>💧</i></span><br>James' 6th walk this week. Yo-Yo has notes about his pace.</p><small>Fri 6:40pm</small></div></div>
+          <div class="fi">${av('b')}<div><p><b>James &amp; Mia</b> · 40 min <span class="bz"><i>💧</i><i>💩</i></span><br>A rare joint walk. Yo-Yo trotted between them like a tiny supervisor.</p><small>Tue 6:30pm</small></div></div>
+          <div class="fi">${av('m')}<div><p><b>Mia</b> · 31 min <span class="bz"><i>💧</i></span><br>Met a golden retriever 40 times her size. Held her ground. Barely.</p><small>Wed 7:55am</small></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card">
+        <div class="card-h"><h3 class="d">Walker of the week</h3></div>
+        <div class="podium">
+          <div class="pod" style="--c:var(--m1)">${av('j','lg')}<div class="stand" style="height:62px">6</div><small>James</small></div>
+          <div class="pod" style="--c:var(--m2)"><span class="crown">👑</span>${av('m','lg')}<div class="stand" style="height:88px">8</div><small>Mia</small></div>
+          <div class="pod" style="--c:var(--m4)">${av('b','lg')}<div class="stand" style="height:30px">1</div><small>Together</small></div>
+        </div>
+      </div>
+      <div class="card" style="flex:1">
+        <div class="card-h"><h3 class="d">Little milestones</h3></div>
+        <div class="count-list">
+          <div class="count" style="--c:var(--pet)"><div class="big" style="font-size:24px">🏅</div><div class="tx"><b>100 walks in a row on time</b><span>7 more to go</span></div></div>
+          <div class="count" style="--c:var(--m2)"><div class="big" style="font-size:24px">🥾</div><div class="tx"><b>Longest walk: 52 min</b><span>Mia · Sunday</span></div></div>
+          <div class="count" style="--c:var(--m1)"><div class="big" style="font-size:24px">🌧</div><div class="tx"><b>Rain walk hero</b><span>James · 3 soggy walks</span></div></div>
+          <div class="count" style="--c:var(--m4)"><div class="big" style="font-size:24px">🐿️</div><div class="tx"><b>Squirrel watch</b><span>4 pursued · 0 caught, ever</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>`;};
+
+S.logwalk=()=>S.today().replace(/<\/div><\/div>$/,'')+`
+  <div class="scrim"><div class="sheet">
+    <div class="x" data-go="today">✕</div>
+    <div style="display:flex;gap:14px;align-items:center">${face(56)}<div><h2 class="d">Who walked Yo-Yo?</h2><div class="sub" style="margin:2px 0 0">Tap everyone who came along</div></div></div>
+    <div class="lbl">Walkers</div>
+    <div class="who" id="who">${['j','m'].map(k=>`<button style="--c:${M[k].c}" class="${k==='j'?'sel':''}" data-pick="${k}">${av(k,'xl')}${M[k].n}</button>`).join('')}</div>
+    <div class="lbl">How long</div>
+    <div class="pills" data-single>${['10 min','20 min','30 min','45 min','1 hr+'].map((t,i)=>`<button class="${i===1?'sel':''}">${t}</button>`).join('')}</div>
+    <div class="lbl">Business</div>
+    <div class="pills" data-multi><button class="sel">💧 Pee</button><button class="sel">💩 Poo</button><button>🤷 Nothing doing</button></div>
+    <div class="lbl">Vibe</div>
+    <div class="pills" data-single><button class="sel">😎 Smooth</button><button>🐿️ Squirrel chaos</button><button>🌧️ Soggy</button><button>🐕 Made a friend</button></div>
+    <div class="actions"><span class="muted" style="font-weight:600;font-size:14px">Ended just now · started 6:02pm</span><button class="btn-p" id="saveWalk">${ic('i-tick')} Save walk</button></div>
+  </div></div>
+  <div class="celebrate" id="celebrate"><div class="confetti">${Array.from({length:22}).map((_,i)=>`<i style="left:${(i*4.7)%100}%;animation-duration:${2.2+(i%5)*.5}s;animation-delay:${(i%7)*.25}s">${['🐾','⭐','🦴','💛'][i%4]}</i>`).join('')}</div>
+    <svg class="jump" viewBox="0 0 120 120"><use href="#dog"/></svg>
+    <h2 class="d">Nice one, James!</h2><p>Walk #2 today, both slots done. Yo-Yo is officially content.</p>
+    <div style="margin-top:22px"><button class="btn-s" data-go="today">Back to today</button></div>
+  </div>
+</div></div>`;
+
+/* Food diary: week of polaroids */
+S.food=()=>{
+  const dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const slots=['Breakfast','Lunch','Dinner'];
+  return `<div class="wall">${rail('food')}<div class="main">
+  <div class="hdr"><div class="title d">What we ate</div><div class="sub">Nov 1 – 7 · 17 meals logged</div>
+    <div class="chips" style="margin-left:auto"><span class="chip plain on-chip">Week</span><span class="chip plain" data-go="food-month" style="cursor:pointer">Month</span><button class="btn-p" data-go="capture" style="margin-left:6px">${ic('i-camera')} Snap a meal</button></div></div>
+  <div class="food-grid">
+    <div class="card fd">
+      <div class="fd-row"><div></div>${dn.map((d,i)=>`<div class="fd-dh ${i===6?'t':''}">${d}<b class="d">${i+1}</b></div>`).join('')}</div>
+      ${slots.map((s,si)=>`<div class="fd-row"><div class="fd-sl">${s}</div>${FOOD.map((d,di)=>`<div class="fd-c">${pola(d[si],di+si,(di===6&&si>0)?{go:'capture',label:si===1?'snap lunch':'snap dinner'}:{})}</div>`).join('')}</div>`).join('')}
+    </div>
+    <div class="col">
+      <div class="card">
+        <div class="card-h"><h3 class="d">This week</h3></div>
+        <div class="split"><div class="sbar"><i style="width:71%;background:var(--m4)"></i><i style="width:29%;background:var(--m1)"></i></div>
+          <div class="slg"><span><i style="background:var(--m4)"></i>12 home-cooked</span><span><i style="background:var(--m1)"></i>5 delivery</span></div></div>
+        <div class="count-list" style="margin-top:14px">
+          <div class="count" style="--c:var(--m2)"><div class="big" style="font-size:24px">🍜</div><div class="tx"><b>Noodle week</b><span>Pho, pesto pasta, and noodles again today</span></div></div>
+          <div class="count" style="--c:var(--m3)"><div class="big" style="font-size:24px">✨</div><div class="tx"><b>New this week</b><span>Miso salmon · rated 🤩</span></div></div>
+          <div class="count" style="--c:var(--m1)"><div class="big" style="font-size:24px">🔥</div><div class="tx"><b>12-day diary streak</b><span>2 meals slipped by unsnapped</span></div></div>
+        </div>
+      </div>
+      <div class="card memory" style="flex:1">
+        <div class="card-h"><h3 class="d">On this day</h3><span class="meta">Nov 7, 2025</span></div>
+        <div class="mem">${pola(['🦃','Practice turkey','b','home','#F1CFA0'],0,{rot:-4})}<p>A year ago you tried a practice Thanksgiving turkey. Mia's note: <i>"juicy, finally."</i></p></div>
+      </div>
+    </div>
+  </div>
+</div></div>`;};
+
+/* One day page (same markup at every zoom level) */
+const dayPage=(d,lines,o={})=>{const out=d>30;return `<div class="c pg ${out?'out':''} ${d===7?'today':''}" ${o.go?`data-go="${o.go}"`:''}><div class="dn">${out?(d===31?'Dec 1':d-30):d}</div>
+  ${lines.map((l,i)=>`<div class="hw" style="color:${inkOf(l)};transform:rotate(${(i%2?.6:-.8)}deg)">${l[0]}${o.caret&&i===lines.length-1?'<i class="caret"></i>':''}</div>`).join('')}
+  ${o.pencil?`<span class="pen-at">${PENCIL}</span>`:''}
+  ${TAPED[d]&&!o.noTape?`<div class="tape"><div class="img" style="--bg:${TAPED[d][4]}">${TAPED[d][0]}</div></div>`:''}</div>`;};
+const palette=(sel,size='')=>`<div class="palette ${size}">${Object.entries(INKS).map(([k,v])=>`<span class="ink ${k===sel?'on':''}" style="--c:${v[1]}" title="${v[0]}" data-ink="${k}"></span>`).join('')}</div>`;
+
+/* Food diary: handwritten paper month */
+S['food-month']=()=>{
+  let rows='';
+  for(let r=0;r<5;r++){let cells='';
+    for(let c=0;c<7;c++){const d=r*7+c+1;cells+=dayPage(d,HW[d]||[],d===7?{go:'write-day',caret:1,pencil:1}:{});}
+    rows+=`<div class="r">${cells}</div>`;}
+  return `<div class="wall">${rail('food')}<div class="main">
+  <div class="hdr"><div class="title d">What we ate</div><div class="sub">November · tap a day to write</div>
+    <div class="chips" style="margin-left:auto"><span class="chip plain" data-go="food" style="cursor:pointer">Week</span><span class="chip plain on-chip">Month</span><button class="btn-p" data-go="capture" style="margin-left:6px">${ic('i-camera')} Snap a meal</button></div></div>
+  <div class="paper"><div class="r">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="wd">${d}</div>`).join('')}</div>${rows}
+    <div class="tools"><span class="tl-lbl">Pen</span>${palette('brick')}<span class="sep"></span><span class="tl-btn">⌫ Eraser</span><span class="tl-btn" data-go="write-day">🔍 Zoom in</span></div>
+  </div>
+</div></div>`;};
+
+/* Day editor: the same page, zoomed 2-4x so it is comfortable to write on */
+S['write-day']=()=>S['food-month']().replace(/<\/div><\/div>$/,'')+`
+  <div class="scrim"><div class="sheet wd-sheet">
+    <div class="x" data-go="food-month">✕</div>
+    <div class="wd-stage"><div class="wd-page" id="wdPage" style="--z:3.6"><div class="paper paper-solo">${dayPage(7,[...HW[7].slice(0,1),['dan dan noodles','m'],['+ extra chili','m','forest']],{caret:1,noTape:1})}</div></div>
+      <div class="wd-cap">Same page, ${'<b id="zLabel">3.6×</b>'} zoom · pencil strokes are stored in page coordinates</div></div>
+    <div class="wd-side">
+      <h2 class="d">Saturday, Nov 7</h2><div class="sub" style="margin:4px 0 0">Writing on today's page</div>
+      <div class="lbl">Zoom</div>
+      <div class="pills" data-single data-zoom><button data-z="2">2×</button><button data-z="3.6" class="sel">Fit</button><button data-z="4">4×</button></div>
+      <div class="lbl">Actual size on the calendar</div>
+      <div class="mini"><div class="paper paper-solo">${dayPage(7,[...HW[7].slice(0,1),['dan dan noodles','m'],['+ extra chili','m','forest']],{noTape:1})}</div></div>
+      <div class="lbl">Pen <span class="opt" id="inkName">Brick</span></div>
+      ${palette('brick','lg')}
+      <div class="lbl">Tip</div>
+      <div class="pills" data-single><button>Fine</button><button class="sel">Felt tip</button><button>Marker</button></div>
+      <div class="actions"><span class="btn-s">↶ Undo</span><span class="btn-s">⌫ Eraser</span><button class="btn-p" data-go="food-month">${ic('i-tick')} Done</button></div>
+    </div>
+  </div></div>
+</div></div>`;
+
+/* Capture flow (camera on the wall iPad) */
+S.capture=()=>S.food().replace(/<\/div><\/div>$/,'')+`
+  <div class="scrim"><div class="sheet cap-sheet">
+    <div class="x" data-go="food">✕</div>
+    <div class="vf"><div class="vf-plate"><span>🍜</span></div><i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br brr"></i>
+      <div class="vf-hint">Center the plate · tap to focus</div>
+      <button class="shutter" id="shutter" aria-label="Take photo"></button>
+      <div class="flash" id="flash"></div></div>
+    <div class="cap-form">
+      <h2 class="d">Lunch, probably</h2><div class="sub" style="margin:4px 0 0">Guessed from the time of day</div>
+      <div class="lbl">Meal</div>
+      <div class="pills" data-single><button>🌅 Breakfast</button><button class="sel">☀️ Lunch</button><button>🌙 Dinner</button><button>🍪 Snack</button></div>
+      <div class="lbl">Made by</div>
+      <div class="pills" data-single><button class="sel">🏠 Home-cooked</button><button>🛵 Delivery</button></div>
+      <div class="lbl">Who ate</div>
+      <div class="who small" id="who2">${['j','m'].map(k=>`<button style="--c:${M[k].c}" class="sel" data-pick="${k}">${av(k,'lg')}${M[k].n}</button>`).join('')}</div>
+      <div class="lbl">Would eat again?</div>
+      <div class="pills" data-single><button>😐</button><button>🙂</button><button class="sel">😋</button><button>🤩</button></div>
+      <div class="lbl">Note <span class="opt">optional · Apple Pencil · lands on line 2 of today's page</span></div>
+      <div class="note-row"><div class="strip"><div class="paper paper-solo">${dayPage(7,[HW[7][0],['noodles + chili 🌶','m']],{caret:1,noTape:1})}</div></div>
+        <div class="mini sm"><div class="paper paper-solo">${dayPage(7,[HW[7][0],['noodles + chili 🌶','m']],{noTape:1})}</div><i class="hl"></i></div></div>
+      ${palette('brick')}
+      <div class="foot">${ic('i-camera')} Tap the shutter to save. No photo? Just write and tap Save.</div>
+    </div>
+  </div></div>
+  <div class="celebrate food-saved" id="saved"><div class="dev">${pola(['🍜','Dan dan noodles','b','home','#F0D5B8'],0,{rot:-3})}</div>
+    <h2 class="d">Saved to Saturday</h2><p>Home-cooked lunch with Aunt Rosa, plus Mia's note. It's on the calendar now, next to the rest of your day.</p>
+    <div style="margin-top:22px;display:flex;gap:10px;justify-content:center"><button class="btn-s" data-go="today">See today</button><button class="btn-s" data-go="food">Back to diary</button></div>
+  </div>
+</div></div>`;
+
+S.chores=()=>{
+  const col=(k,list,stars,rw)=>{const done=list.filter(t=>t[2]).length;return `<div class="card who-col" style="--c:${M[k].c}">
+    <div class="wh">${av(k,'lg')}<div style="flex:1;min-width:0"><b class="d">${k==='b'?'Anyone':M[k].n}</b><span class="wm">${done} of ${list.length} today</span></div><span class="starct">${stars}<svg class="icon"><use href="#i-star"/></svg></span></div>
+    <div class="prog"><i style="width:${done/list.length*100}%"></i></div>
+    ${list.map(t=>`<div class="task ${t[2]?'done':''}"><span class="bx">${t[2]?ic('i-tick','icon'):''}</span><div class="tt"><b>${t[0]}</b><span>${t[4]?face(16,'style="vertical-align:-3px;margin-right:4px"'):''}${t[1]}</span></div><span class="st">+${t[3]}</span></div>`).join('')}
+    ${rw?`<div class="reward" style="margin-top:auto"><b>${rw[0]}</b><div class="rb"><i style="width:${rw[2]/rw[1]*100}%"></i></div><span class="muted" style="font-size:12.5px;font-weight:700">${rw[2]} / ${rw[1]} stars${rw[3]||''}</span></div>`:''}</div>`;};
+  return `<div class="wall">${rail('chores')}<div class="main">
+  <div class="hdr"><div class="title d">Chores</div><div class="sub">Saturday · tap to check off</div>
+    <div class="chips" style="margin-left:auto"><span class="chip plain">This week</span><span class="chip plain">${ic('i-plus')} New chore</span></div></div>
+  <div class="ch-grid">
+    ${col('j',[['Feed Yo-Yo breakfast','7–9am',1,1,1],['Take out recycling','before noon',1,2],['Fix the leaky faucet','this weekend',0,3]],21,['☕ Fancy coffee run',30,21])}
+    ${col('m',[['Water the plants','every 3 days',1,1],['Feed Yo-Yo dinner','5–7pm',0,1,1],['Fold laundry','anytime',0,2]],18,['💆 Spa afternoon',40,18])}
+    ${col('b',[['Vacuum the living room','this weekend',0,2],['Clean out the fridge','before Sunday',1,2],['Book Yo-Yo grooming','this week',0,1,1]],12,['🍷 Date night fund',100,73,' together'])}
+  </div>
+</div></div>`;};
+
+S.lists=()=>{
+  const meals=[['Sun','🥞','Brunch for Rosa'],['Mon','🍝','Pesto pasta'],['Tue','🌮','Taco Tuesday'],['Wed','🍲','Miso salmon'],['Thu','🎂','Grandma\'s dinner'],['Fri','🍣','Sushi night'],['Sat','🍜','Dan dan noodles']];
+  const li=(t,ck,by)=>`<div class="li ${ck?'ck':''}"><span class="cb">${ck?ic('i-tick','icon'):''}</span>${t}${by?`<span class="by">${av(by)}</span>`:''}</div>`;
+  return `<div class="wall">${rail('lists')}<div class="main">
+  <div class="hdr"><div class="title d">Lists &amp; meals</div><div class="sub">This week's dinners and what to buy</div></div>
+  <div class="lm-grid">
+    <div class="meals">${meals.map((m,i)=>`<div class="meal ${i===6?'t':''}"><small>${m[0]}</small><span class="em">${m[1]}</span><b>${m[2]}</b></div>`).join('')}</div>
+    <div class="card" style="overflow:hidden"><div class="card-h"><h3 class="d">Groceries</h3><span class="meta">13 items · 3 done</span></div>
+      <div class="twocol">
+        <div><div class="li-sec">Produce</div>${li('Avocados ×3',0,'m')}${li('Basil',1)}${li('Scallions',0,'j')}${li('Limes',0)}
+        <div class="li-sec">Dairy</div>${li('Oat milk',0,'j')}${li('Parmesan',1)}${li('Greek yogurt',0,'m')}</div>
+        <div><div class="li-sec">Pantry</div>${li('White miso',0,'m')}${li('Rice',1)}${li('Candles: 8 and 0',0,'m')}
+        <div class="li-sec">For Yo-Yo</div>${li('Chicken jerky treats',0,'j')}${li('Poop bags',0,'j')}</div>
+      </div></div>
+    <div class="card" style="overflow:hidden"><div class="card-h"><h3 class="d">To-do</h3><span class="meta">House</span></div>
+      ${li('Order Grandma\'s cake',0,'j')}${li('Book anniversary dinner',1,'j')}${li('Renew Yo-Yo\'s license',0,'m')}${li('Call plumber if faucet still drips',0,'j')}${li('Return library books',1,'m')}${li('Pick holiday card photo',0,'m')}
+    </div>
+  </div>
+</div></div>`;};
+
+S.ambient=()=>`<div class="ambient"><div class="photo"></div>
+  <svg class="hills" viewBox="0 0 1112 380" preserveAspectRatio="none"><path d="M0 220 C200 120 380 180 540 140 S860 80 1112 170 V380 H0z" fill="#3B4B5E" opacity=".75"/><path d="M0 290 C240 220 420 270 620 230 S960 200 1112 260 V380 H0z" fill="#2A3442"/></svg>
+  <div class="shade"></div>
+  <div class="caption">📷 Point Reyes · Aug 2026 · from "Us" album</div>
+  <div class="bl">
+    <div><div class="ck">9:41</div><div class="dt">Saturday, November 7 · ☀️ 58°</div></div>
+    <div style="flex:1"></div>
+    <div class="glass"><small>Next up</small><b>🧗 James · Climbing gym</b><span>10:00 – 11:30 · Mission Cliffs</span></div>
+    <div class="glass" style="display:flex;gap:12px;align-items:center;min-width:0">${face(46)}<div><small>Yo-Yo</small><b>1 of 2 walks</b><span>Evening walk is James' turn</span></div></div>
+  </div>
+</div>`;
+
+const STEPS=(on)=>`<div class="steps"><div class="logo-row d"><span class="logo"><svg width="20" height="20"><use href="#i-house-logo"/></svg></span>Porchlight</div>
+  ${['Your household','People','Calendars','Companions','Journals','This display'].map((t,i)=>`<div class="stp ${i<on?'done':i===on?'on':''}"><i>${i<on?ic('i-tick','icon'):i+1}</i>${t}</div>`).join('')}</div>`;
+
+S['setup-cal']=()=>`<div class="setup">${STEPS(2)}
+  <div class="pane">
+    <div><h1 class="d">Bring your calendars together</h1><p class="lead">Porchlight reads every calendar this iPad already knows about. Assign each one to a person so it gets their color.</p></div>
+    <div class="ek">
+      <div class="ek-ic">${ic('i-cal')}</div>
+      <div style="flex:1;min-width:0"><b>Add accounts once, in iPad Settings</b><span class="ekd">Settings › Calendar › Accounts supports Google, iCloud, Outlook, Yahoo, Exchange and CalDAV. Shared calendars come along automatically.</span>
+        <div class="ek-logos"><span style="background:#4285F4">G</span><span style="background:#555">&#xF8FF;</span><span style="background:#0F6CBD">O</span><span style="background:#6001D2">Y</span><span style="background:var(--accent)">⌁</span></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px"><span class="btn-s">Open iPad Settings</span><span class="btn-s">${ic('i-plus')} Add calendar link</span></div>
+    </div>
+    <div class="maptbl">
+      <div class="mr h"><span>Calendar · 6 found</span><span>Account</span><span>Belongs to</span><span>Show as</span><span>On wall</span></div>
+      ${[
+        ['#4C7BB0','James','Google · james@example.com','j','Full details',1],
+        ['#7E8CA0','Work','Google · james@example.com','j','Busy only',1],
+        ['#DD7558','Mia','iCloud · mia@example.com','m','Full details',1],
+        ['#C2933A','Us','Google · shared by James','b','Full details',1],
+        ['#B07AA1','Birthdays','iCloud · from Contacts','b','Full details',1],
+        ['#9AA0A6','US Holidays','Subscribed link','b','Full details',0]
+      ].map(r=>`<div class="mr"><span class="cal"><i style="background:${r[0]}"></i>${r[1]}</span><span class="acct">${r[2]}</span><span class="ddsel">${av(r[3])}${r[3]==='b'?'Both':M[r[3]].n}<span class="car">▾</span></span><span class="ddsel">${r[4]}<span class="car">▾</span></span><span class="tgl ${r[5]?'':'off'}"></span></div>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto"><span class="muted" style="font-weight:600;font-size:14px">Read-only. Porchlight never changes your calendars.</span><button class="btn-p" data-go="setup-pet">Continue</button></div>
+  </div></div>`;
+
+S['setup-pet']=()=>`<div class="setup">${STEPS(3)}
+  <div class="pane">
+    <div><h1 class="d">Who else lives here?</h1><p class="lead">Pets, plants, anything that needs looking after. Skip if it's just humans.</p></div>
+    <div class="species">${[['🐕','Dog',1],['🐈','Cat'],['🐦','Bird'],['🐇','Rabbit'],['🐠','Fish'],['🪴','Plant']].map(s=>`<div class="sp ${s[2]?'on':''}"><span class="e">${s[0]}</span>${s[1]}</div>`).join('')}</div>
+    <div class="pet-form">
+      <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="fld"><label>Name</label><div class="inp">Yo-Yo</div></div>
+          <div class="fld"><label>Look</label><div class="coats"><i class="on" style="background:#E8B477"></i><i style="background:#F4EEE6"></i><i style="background:#3B302A"></i><i style="background:#9B9B9B"></i><i style="background:#C9773D"></i><span class="btn-s" style="padding:6px 10px;font-size:12.5px">${ic('i-camera')} Photo</span></div></div>
+        </div>
+        <div class="fld"><label>Care routines</label></div>
+        <div class="routine"><span class="ri">🦮</span><div><b>Walk · 2× a day</b><div class="rm">Morning 6–10am · Evening 5–8pm · turns alternate James ↔ Mia</div><div class="tags"><span>⏱ duration</span><span>💧 pee</span><span>💩 poo</span><span>😎 vibe</span><span>⭐ 2 per walk</span></div></div><span class="btn-s" style="padding:6px 12px;font-size:13px">Edit</span></div>
+        <div class="routine"><span class="ri">🥣</span><div><b>Feed · 2× a day</b><div class="rm">Becomes a chore · James mornings, Mia evenings</div><div class="tags"><span>⭐ 1 each</span></div></div><span class="btn-s" style="padding:6px 12px;font-size:13px">Edit</span></div>
+        <div class="routine" style="box-shadow:none;border:1.5px dashed var(--line);background:transparent"><span class="ri" style="background:var(--surface2)">${ic('i-plus')}</span><div><b>Add routine</b><div class="rm">Meds, grooming, vet visits, litter, watering...</div></div></div>
+        <div class="fld"><label>Caption personality</label><div class="tone"><span>Wholesome</span><span class="on">Cheeky</span><span>Dramatic</span><span>Off</span></div></div>
+      </div>
+      <div class="card pet-card" style="align-self:start">
+        <div style="color:var(--muted);font-size:11px;letter-spacing:.1em;font-weight:800;text-transform:uppercase">Preview</div>
+        <div class="pet-top" style="margin-top:8px"><div class="face">${face(66)}</div><div><h3 class="d">Yo-Yo</h3><div class="mood">Waiting for first walk</div></div></div>
+        <div class="slots" style="margin-bottom:0"><div class="slot todo"><span class="paw">${ic('i-paw')}</span><div><b>Morning</b><span>6–10am</span></div></div><div class="slot todo"><span class="paw">${ic('i-paw')}</span><div><b>Evening</b><span>5–8pm</span></div></div></div>
+        <p class="muted" style="font-size:13px;font-weight:600;margin:12px 0 0">"Yo-Yo has joined the household. She expects two walks a day and zero excuses."</p>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto"><span class="btn-s">${ic('i-plus')} Add another companion</span><button class="btn-p">Continue</button></div>
+  </div></div>`;
+
+/* ---------------- Notes ---------------- */
+const NOTES={
+  today:{t:'Today (home)',b:['The default wall screen, readable from across the room: big clock, the agenda, and what needs doing next.','Walks and meals sit in the timeline next to events, so the day reads as one story.','The lunch event shows a small camera: it nudges a photo, and the capture pre-fills "Noodle Bar".','Right column: Yo-Yo\'s slots with whose turn is next, today\'s plates, and countdowns.'],g:'Cards come from configured companions and journals; a household without a pet simply has no pet card.'},
+  week:{t:'Week calendar',b:['Time grid colored by person, with "Both" for shared plans. Emoji are picked from event titles and can be overridden.','Two lanes at the bottom: a paw for each walk colored by who did it (split color means together), and a mini plate for each meal.','Tap Month or Day to switch; swipe to change weeks.'],g:'Each lane is a generic "log lane" per routine or journal, hidden when unused.'},
+  month:{t:'Month calendar',b:['Overview for planning: bold chips for all-day events, dots for timed ones, "+2 more" when busy.','Past days show paw prints for walks and a strip of tiny plates for what you ate.','Birthdays, anniversaries and holidays get a playful sticker.'],g:'Stickers come from editable decoration rules (keyword → sticker).'},
+  companion:{t:'Companion page',b:['Yo-Yo\'s face bobs gently; the mood meter rises after walks and decays with time.','Paw trail: a 7-day AM / PM grid filled with the walker\'s initial, or ♥ when you went together.','Podium with a crown for the walker of the week, milestones, and a walk diary with cheeky captions.'],g:'Mood, slots and stats come from the routine cadence. A plant would show "Thirsty → Thriving" instead.'},
+  logwalk:{t:'Log a walk',b:['Two taps minimum: pick who (both if you went together), then Save. Everything else has smart defaults.','Duration, business and vibe are exactly the routine\'s tracked fields.','Click Save walk to see the celebration.'],g:'The form is generated from the routine\'s field list; nothing walk-specific is hard-coded.'},
+  food:{t:'Food diary',b:['A week of polaroids: breakfast, lunch and dinner for each day, with who ate it and a small 🛵 when it was delivery.','Empty slots for today are buttons that open the camera.','Weekly stats (home-cooked vs out, themes, new dishes) and an "on this day" memory from a year ago.'],g:'This is one Journal with three slots. Slots, tags and rating scale are all editable, and other journals can reuse the screen.'},
+  'food-month':{t:'Handwritten food month',b:['Mimics the paper calendar: each day is ruled paper, and you write what you ate straight into the day with Apple Pencil.','Each person writes in their own pen color, so you can tell who wrote what at a glance.','Days with a photo get a tiny taped-on polaroid. Today shows the pencil mid-word.','A small tool bar picks the pen, eraser, or adds a photo.'],g:'Ink is stored as Pencil drawings per day and per journal; handwriting recognition on device can make entries searchable later.'},
+  'write-day':{t:'Write on a day',b:['Every day has one page with a fixed aspect ratio (the same shape as a month cell) and five ruled lines.','Tapping a day opens that exact page zoomed in (2×, Fit, 4×) so it is comfortable to write on; the "actual size" preview shows how it will look in the month.','Ink is saved in page coordinates, so going back to the month is only a zoom-out: nothing reflows or gets squeezed.','Six pen colors tuned to the paper, plus Fine / Felt tip / Marker tips. Each person starts with their own default pen.'],g:'The page model (aspect ratio, line count) is a Journal setting, so another journal could use a different page shape.'},
+  capture:{t:'Snap a meal',b:['Uses the iPad\'s camera. The meal slot is guessed from the time of day.','Home-cooked or delivery for now; eating out can come later when phones join.','An optional Apple Pencil note: the pad is a zoomed strip of today\'s page (line 2), so the note lands on the calendar exactly as written. A mini page shows where.','Tap the shutter to see it develop like a polaroid and land on today.'],g:'The form fields are the Journal\'s configured fields (slots, sources, rating, note), so other journals reuse the same flow.'},
+  chores:{t:'Chores',b:['A light board for two adults: James, Mia, and an "Anyone" column for shared tasks.','Companion-spawned chores ("Feed Yo-Yo dinner") carry a tiny face.','Personal treats plus one shared goal, the Date night fund.'],g:'Columns come from people with chores plus an optional shared column; rotation rules are per chore.'},
+  lists:{t:'Lists & meals',b:['This week\'s dinners across the top, today highlighted.','Shared grocery list grouped by section, with the avatar of whoever added each item.','A "For Yo-Yo" section appears because the household has a companion.'],g:'Sections are user-defined. Later, planned meals can be compared with the food diary.'},
+  ambient:{t:'Ambient mode',b:['After a few idle minutes the wall becomes a photo frame.','Glass cards keep the essentials: clock, next event, Yo-Yo\'s status.','A night schedule dims to a minimal clock.'],g:'The photo source is configurable (an album on the iPad, or the food diary itself).'},
+  'setup-cal':{t:'Setup: calendars',b:['No sign-in inside Porchlight: it reads the calendars already on the iPad through the system calendar store.','Every calendar is mapped to a person or "Both" and can be shown as Busy only, which is handy for work.','A link (ICS) can be added for anything else.'],g:'The system calendar store is the first CalendarProvider; a direct Google provider can be added later without changing the screens.'},
+  'setup-pet':{t:'Setup: companions',b:['Pick a species, a name and a look (coat color or a photo). No assumption that you have a dog, or any pet.','Routines are species templates (walk for dogs, litter for cats, water for plants) and fully editable, including turn rotation.','Choose the caption personality: Wholesome, Cheeky, Dramatic, or Off.'],g:'This is where Yo-Yo stops being special: she is one Companion with two CareRoutines.'}
+};
+const ORDER=[['today','Today'],['week','Week'],['month','Month'],['companion','Yo-Yo'],['logwalk','Log a walk'],['food','Food diary'],['food-month','Food: handwritten'],['write-day','Write on a day'],['capture','Snap a meal'],['chores','Chores'],['lists','Lists & meals'],['ambient','Ambient'],['setup-cal','Setup: calendars'],['setup-pet','Setup: companions']];
+
+/* ---------------- Controller ---------------- */
+let cur='today';
+const screen=document.getElementById('screen');
+function show(id){
+  if(!S[id])id='today';
+  cur=id;
+  screen.innerHTML=S[id]();
+  document.querySelectorAll('#screensNav button').forEach(b=>b.classList.toggle('on',b.dataset.s===id));
+  const n=NOTES[id];
+  document.getElementById('notes').innerHTML=`<div class="kicker">Screen ${ORDER.findIndex(o=>o[0]===id)+1} of ${ORDER.length}</div><h3>${n.t}</h3><ul>${n.b.map(x=>`<li>${x}</li>`).join('')}</ul><div class="general"><b>Stays general-purpose:</b> ${n.g}</div>`;
+  fit();
+  try{localStorage.setItem('pl-screen',id)}catch(e){}
+}
+function fit(){
+  const sc=document.getElementById('scaler');const w=sc.clientWidth;if(!w)return;const k=w/1112;
+  sc.style.height=(834*k)+'px';screen.style.transform=`scale(${k})`;
+}
+document.getElementById('screensNav').innerHTML=ORDER.map(([id,l],i)=>`<button data-s="${id}"><span class="num">${i+1}</span>${l}</button>`).join('');
+document.getElementById('screensNav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)show(b.dataset.s);});
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');if(g&&g.closest('.pl')){show(g.dataset.go);return;}
+  const pick=e.target.closest('[data-pick]');if(pick){pick.classList.toggle('sel');updateCelebrate();return;}
+  const pb=e.target.closest('.pills button');if(pb){const grp=pb.parentElement;if(grp.hasAttribute('data-single'))grp.querySelectorAll('button').forEach(x=>x.classList.toggle('sel',x===pb));else pb.classList.toggle('sel');if(grp.hasAttribute('data-zoom')){const z=pb.dataset.z;document.getElementById('wdPage').style.setProperty('--z',z);document.getElementById('zLabel').textContent=z+'×';}return;}
+  const ink=e.target.closest('.palette .ink');if(ink){ink.parentElement.querySelectorAll('.ink').forEach(x=>x.classList.toggle('on',x===ink));const n=document.getElementById('inkName');if(n&&ink.closest('.wd-side'))n.textContent=INKS[ink.dataset.ink][0];document.querySelectorAll('.caret').forEach(c=>c.style.background=INKS[ink.dataset.ink][1]);return;}
+  if(e.target.closest('#saveWalk')){updateCelebrate();document.getElementById('celebrate').classList.add('show');return;}
+  if(e.target.closest('#shutter')){const f=document.getElementById('flash');f.classList.add('go');setTimeout(()=>document.getElementById('saved').classList.add('show'),380);}
+});
+function updateCelebrate(){const sel=[...document.querySelectorAll('#who .sel')].map(b=>M[b.dataset.pick].n);const h=document.querySelector('#celebrate h2');if(h)h.textContent=sel.length?`Nice one, ${sel.join(' & ')}!`:'Nice one!';}
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));
+  document.getElementById('tab-plan').classList.toggle('hidden',b.dataset.tab!=='plan');
+  document.getElementById('tab-mocks').classList.toggle('hidden',b.dataset.tab!=='mocks');
+  if(b.dataset.tab==='mocks')fit();
+  window.scrollTo(0,0);
+}));
+window.addEventListener('resize',fit);
+try{cur=localStorage.getItem('pl-screen')||'today';}catch(e){}
+/* URL hash overrides: #screen=week&solo (solo = just the device screen at 1:1, e.g. to open on the real iPad) */
+const HP=new URLSearchParams(location.hash.slice(1));
+if(HP.get('screen'))cur=HP.get('screen');
+if(HP.has('solo'))document.body.classList.add('solo');
+if(HP.has('solo')||HP.get('screen'))document.querySelector('[data-tab=mocks]').click();
+show(cur);
+</script>
+</body>
+</html>
