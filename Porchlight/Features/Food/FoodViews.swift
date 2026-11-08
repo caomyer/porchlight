@@ -315,6 +315,7 @@ struct FoodOnboardingStep: View {
                             Text("Breakfast, lunch and dinner. You can change the meals in Settings.")
                                 .font(.body(14))
                                 .foregroundStyle(Theme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .tint(Theme.good)

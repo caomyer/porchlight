@@ -13,9 +13,7 @@ struct FoodPhotoStore: Sendable {
 
     /// The app's photo folder.
     static var standard: FoodPhotoStore {
-        let base = (try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
-            ?? FileManager.default.temporaryDirectory
-        return FoodPhotoStore(directory: base.appendingPathComponent("Porchlight/Photos", isDirectory: true))
+        FoodPhotoStore(directory: AppFiles.folder("Photos"))
     }
 
     struct Stored: Equatable, Sendable {

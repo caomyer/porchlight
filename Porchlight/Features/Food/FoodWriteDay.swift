@@ -72,13 +72,14 @@ struct WriteDaySheet: View {
             ZStack(alignment: .topLeading) {
                 PagePaper(number: dayNumber, scale: scale, numberColor: day == today ? Theme.accent : Theme.ink)
                 if let editor {
-                    #if targetEnvironment(simulator)
-                    // The simulator's PencilKit renderer may draw nothing on some hosts;
-                    // show the same ink rendered by Core Graphics underneath so it can be checked.
+                    // Saved ink is always drawn by our own Core Graphics renderer underneath the
+                    // canvas: PencilKit's renderer has been seen to draw nothing for loaded drawings
+                    // (verified on the iPad Pro 10.5 with iPadOS 17). It re-renders from the editor's
+                    // live drawing, so erasing and undo stay in sync; where PencilKit does draw,
+                    // the two layers coincide.
                     if !isZooming {
                         Image(uiImage: editor.drawing.pageImage(scale: scale, displayScale: displayScale))
                     }
-                    #endif
                     if isZooming {
                         Image(uiImage: editor.drawing.pageImage(scale: 4, displayScale: displayScale))
                             .resizable()

@@ -527,10 +527,9 @@ private struct NoteStrip: View {
                 PagePaper(number: dayNumber, scale: viewport.scale, numberColor: Theme.accent)
                     .frame(width: PageGeometry.size.width * viewport.scale, height: PageGeometry.size.height * viewport.scale)
                     .offset(y: -viewport.origin.y * viewport.scale)
-                #if targetEnvironment(simulator)
+                // Same Core Graphics underlay as the day editor (see FoodWriteDay).
                 Image(uiImage: form.note.drawing.pageImage(scale: viewport.scale, displayScale: displayScale))
                     .offset(y: -viewport.origin.y * viewport.scale)
-                #endif
                 PageCanvas(
                     editor: form.note,
                     revision: form.note.revision,

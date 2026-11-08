@@ -6,6 +6,12 @@ import GRDB
 ///   -resetData          start from an empty database (shows onboarding)
 ///   -sampleHousehold    start with a sample two-person household
 enum DebugLaunch {
+    /// `-onboardingStep calendars|companions|journals|display` shows that onboarding
+    /// step over a sample household, for screenshots.
+    static var onboardingStep: String? {
+        UserDefaults.standard.string(forKey: "onboardingStep")
+    }
+
     static func apply(_ arguments: [String], to database: AppDatabase) throws {
         if arguments.contains("-resetData") || arguments.contains("-sampleHousehold") {
             // Deleting the household cascades to every feature's rows.
@@ -27,5 +33,11 @@ enum DebugLaunch {
             try HomeSamples.seed(database, household: seeded, people: snapshot.people)
         }
     }
+}
+#endif
+
+#if !DEBUG
+enum DebugLaunch {
+    static var onboardingStep: String? { nil }
 }
 #endif

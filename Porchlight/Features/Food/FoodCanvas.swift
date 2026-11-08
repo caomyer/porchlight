@@ -63,6 +63,7 @@ struct PageCanvas: UIViewRepresentable {
         canvas.showsHorizontalScrollIndicator = false
         canvas.contentInsetAdjustmentBehavior = .never
         canvas.delegate = context.coordinator
+        canvas.accessibilityIdentifier = "dayPageCanvas"
         context.coordinator.load(into: canvas, viewport: viewport, revision: revision)
         apply(to: canvas)
         return canvas

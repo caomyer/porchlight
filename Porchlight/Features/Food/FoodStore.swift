@@ -88,6 +88,7 @@ final class FoodStore {
             CalendarLane(
                 id: "meals",
                 label: AnyView(MealsLaneLabel()),
+                title: "meals",
                 cell: { [self] day, style in AnyView(MealPlatesCell(store: self, day: day, style: style)) }
             ),
         ]

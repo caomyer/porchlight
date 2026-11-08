@@ -311,9 +311,7 @@ struct CompanionPhotoStore: Sendable {
     let folder: URL
 
     static let shared: CompanionPhotoStore = {
-        let base = (try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
-            ?? FileManager.default.temporaryDirectory
-        return CompanionPhotoStore(folder: base.appendingPathComponent("Porchlight/CompanionPhotos", isDirectory: true))
+        CompanionPhotoStore(folder: AppFiles.folder("CompanionPhotos"))
     }()
 
     func url(for fileName: String) -> URL {

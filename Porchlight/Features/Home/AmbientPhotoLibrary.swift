@@ -31,9 +31,7 @@ actor AmbientPhotoLibrary {
     }
 
     private static var defaultFolder: URL {
-        let base = (try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("Porchlight/Ambient", isDirectory: true)
+        AppFiles.folder("Ambient")
     }
 
     nonisolated func url(for fileName: String) -> URL {

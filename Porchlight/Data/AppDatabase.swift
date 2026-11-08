@@ -15,9 +15,7 @@ struct AppDatabase: Sendable {
 
     /// The on-device database in Application Support.
     static func openOnDisk(fileManager: FileManager = .default) throws -> AppDatabase {
-        let folder = try fileManager
-            .url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("Porchlight", isDirectory: true)
+        let folder = AppFiles.root
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent("porchlight.sqlite")
         var config = Configuration()

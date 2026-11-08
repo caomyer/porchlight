@@ -377,10 +377,9 @@ struct StatRow: View {
 
 struct MealsLaneLabel: View {
     var body: some View {
-        HStack(spacing: 4) {
-            Text("🍽").font(.system(size: 12))
-            Text("Meals").font(.body(11, weight: 700)).foregroundStyle(Theme.muted)
-        }
+        Text("🍽")
+            .font(.system(size: 18))
+            .accessibilityLabel("Meals")
     }
 }
 

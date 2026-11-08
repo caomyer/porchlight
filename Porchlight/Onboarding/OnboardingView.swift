@@ -49,6 +49,10 @@ struct OnboardingView: View {
         .onAppear {
             // The household is created after "People"; resume there if setup was interrupted.
             if model.household != nil && step.rawValue < Step.calendars.rawValue { step = .calendars }
+            if let name = DebugLaunch.onboardingStep,
+               let debugStep = Step.allCases.first(where: { String(describing: $0) == name }) {
+                step = debugStep
+            }
         }
     }
 

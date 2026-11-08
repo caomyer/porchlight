@@ -220,6 +220,9 @@ private final class OneShotLocator: NSObject, CLLocationManagerDelegate {
         return await withCheckedContinuation { continuation in
             self.continuation = continuation
             switch manager.authorizationStatus {
+            case .notDetermined where AppFiles.isSandboxed:
+                // Sample launches (screenshots, UI tests) never raise a permission prompt.
+                finish(nil)
             case .notDetermined: manager.requestWhenInUseAuthorization()
             case .authorizedWhenInUse, .authorizedAlways: manager.requestLocation()
             default: finish(nil)

@@ -127,6 +127,7 @@ enum CompanionLanes {
             return CalendarLane(
                 id: "companion-\(companionId)",
                 label: AnyView(CompanionFace(look: look, size: 24).accessibilityLabel(companion.name)),
+                title: "walks",
                 cell: { day, style in
                     let marks = marks(routines: routines, snapshot: snapshot, day: day, now: CompanionClock.now())
                     switch style {

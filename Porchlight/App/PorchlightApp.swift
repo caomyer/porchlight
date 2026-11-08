@@ -68,7 +68,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if model.household?.setupCompleted != true {
+            if model.household?.setupCompleted != true || DebugLaunch.onboardingStep != nil {
                 OnboardingView()
             } else {
                 WallView()
@@ -77,6 +77,9 @@ struct RootView: View {
         }
         .kioskMode()
         .preferredColorScheme(.light)
+        #if DEBUG
+        .task { await DebugSnapshot.captureIfRequested() }
+        #endif
     }
 }
 
