@@ -69,7 +69,9 @@ struct CompanionReport {
         let calendar = snapshot.calendar
         let routines = snapshot.routines(of: companionId)
         let today = DayKey(now, calendar: calendar)
-        let weekDays = calendar.weekDays(containing: now).map { DayKey($0, calendar: calendar) }
+        // The last 7 days ending today, so the page is never empty at the start of a week
+        // (matches the food diary's week).
+        let weekDays = (-6...0).map { today.adding(days: $0, calendar: calendar) }
         let peopleOrder = snapshot.people.compactMap(\.id)
 
         let todays = routines.map { routine in

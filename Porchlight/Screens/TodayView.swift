@@ -24,12 +24,17 @@ struct TodayView: View {
                             .filter { $0.kind == .event }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    VStack(spacing: 16) {
-                        CompanionTodayCards()
-                        FoodTodayCard()
-                        CountdownsCard()
-                        Spacer(minLength: 0)
+                    // Cards keep their natural height; the column scrolls if a
+                    // household has many companions or cards.
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 16) {
+                            CompanionTodayCards()
+                            FoodTodayCard()
+                            CountdownsCard()
+                        }
+                        .padding(.bottom, 4)
                     }
+                    .scrollBounceBehavior(.basedOnSize)
                     .frame(width: 420)
                     .frame(maxHeight: .infinity, alignment: .top)
                 }
