@@ -308,7 +308,9 @@ struct CompanionEditorForm: View {
                                 .textInputAutocapitalization(.words)
                                 .fieldStyle()
                         }
+                        .frame(maxWidth: 260)
                         field("Look") { lookPicker }
+                            .fixedSize()
                     }
                     SectionLabel("Care routines")
                     ScrollView(showsIndicators: false) {
@@ -320,9 +322,12 @@ struct CompanionEditorForm: View {
                             }
                             addRoutineRow
                         }
-                        .padding(4)
+                        // Room for the cards' shadows inside the clip.
+                        .padding(6)
                     }
-                    .padding(-4)
+                    .padding(-6)
+                    // Two preset routines plus "Add routine" fit without scrolling on the wall.
+                    .frame(minHeight: 250)
                     .scrollBounceBehavior(.basedOnSize)
                     field("Caption personality") {
                         HStack(spacing: 6) {
@@ -340,13 +345,14 @@ struct CompanionEditorForm: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 VStack(alignment: .leading, spacing: 12) {
                     CompanionPreviewCard(draft: draft)
                     detailsFields
                 }
                 .frame(width: 290)
             }
+            .frame(maxHeight: .infinity, alignment: .top)
         }
         .wallCover(item: $editingRoutine) { item in
             RoutineEditorSheet(
@@ -407,7 +413,7 @@ struct CompanionEditorForm: View {
                         Text(species.emoji).font(.system(size: 30))
                         Text(species.label).font(.body(13.5, weight: 700)).foregroundStyle(Theme.ink)
                     }
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)
                     .background(SurfaceShape(cornerRadius: Theme.smallRadius, fill: isSelected ? Theme.accent.wash(0.08) : Theme.surface))
                     .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous).strokeBorder(isSelected ? Theme.accent : .clear, lineWidth: 2))
@@ -545,7 +551,8 @@ private struct RoutineRow: View {
                 Text(meta)
                     .font(.body(12.5, weight: 600))
                     .foregroundStyle(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
                 if !tags.isEmpty {
                     FlowLayout(spacing: 5) {
                         ForEach(tags, id: \.self) { tag in
@@ -587,20 +594,20 @@ private struct RoutineRow: View {
         var tags = CareField.allCases.filter(routine.trackedFields.contains).map(\.label)
         if routine.stars > 0 {
             let noun = routine.kind.noun(title: routine.title)
-            tags.append("⭐ \(routine.stars) per \(noun)")
+            tags.append(routine.stars == 1 ? "⭐ 1 per \(noun)" : "⭐ \(routine.stars) each")
         }
         return tags
     }
 }
 
 enum RoutineText {
-    /// "turns alternate James ↔ Mia", "always James", "anyone".
+    /// "James ↔ Mia take turns", "always James", "anyone".
     static func turns(_ rotation: [Int64], people: [Person]) -> String {
         let names = rotation.compactMap { id in people.first { $0.id == id }?.name }
         switch names.count {
         case 0: return "anyone"
         case 1: return "always \(names[0])"
-        case 2: return "turns alternate \(names[0]) ↔ \(names[1])"
+        case 2: return "\(names[0]) ↔ \(names[1]) take turns"
         default: return "turns rotate " + names.joined(separator: " → ")
         }
     }
