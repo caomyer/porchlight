@@ -38,12 +38,23 @@ struct CompanionTodayCards: View {
         .careLogFlow($request)
         #if DEBUG
         .onAppear(perform: openDebugSheet)
+        .fullScreenCover(isPresented: $showOnboardingPreview) {
+            OnboardingStepPreview().statusBarHidden(true).persistentSystemOverlays(.hidden)
+        }
         #endif
     }
 
     #if DEBUG
-    /// `-debugCompanionSheet log|celebrate` opens the sheet for screenshots.
+    @State private var showOnboardingPreview = false
+    #endif
+
+    #if DEBUG
+    /// `-debugCompanionSheet log|celebrate|onboarding` opens a sheet for screenshots.
     private func openDebugSheet() {
+        if UserDefaults.standard.string(forKey: "debugCompanionSheet") == "onboarding" {
+            CompanionCover.instantly { showOnboardingPreview = true }
+            return
+        }
         guard let mode = UserDefaults.standard.string(forKey: "debugCompanionSheet"),
               mode == "log" || mode == "celebrate",
               let first = store.companions.first,
@@ -271,3 +282,28 @@ struct CompanionOnboardingStep: View {
         CompanionOnboardingEditor()
     }
 }
+
+#if DEBUG
+/// The onboarding step inside a stand-in for the onboarding chrome (same paddings),
+/// so the step can be screenshotted on a set-up household.
+private struct OnboardingStepPreview: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            Theme.rail.frame(width: 270)
+            VStack(alignment: .leading, spacing: 22) {
+                CompanionOnboardingStep()
+                Spacer(minLength: 0)
+                HStack {
+                    Spacer()
+                    Button("Continue") {}.buttonStyle(PrimaryButtonStyle())
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.vertical, 36)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .background(Theme.background)
+        .ignoresSafeArea(.container, edges: .vertical)
+    }
+}
+#endif

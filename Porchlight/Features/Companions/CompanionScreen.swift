@@ -454,7 +454,7 @@ private struct PodiumCard: View {
             let person = store.snapshot.person(id)
             return (Carers([id], snapshot: store.snapshot), person?.name ?? "Someone")
         case .together:
-            return (Carers(colors: [Theme.everyone, Theme.everyone], initials: ["♥"]), "Together")
+            return (Carers(colors: [Theme.everyone, Theme.everyone], initials: [CareText.heart]), "Together")
         }
     }
 }

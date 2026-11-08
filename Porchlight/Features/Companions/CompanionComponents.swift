@@ -55,7 +55,7 @@ struct CarerAvatar: View {
 
     var body: some View {
         if carers.isTogether {
-            Avatar(initial: "♥", color: Theme.everyone, size: size)
+            Avatar(initial: CareText.heart, color: Theme.everyone, size: size)
         } else {
             Avatar(initial: carers.initials.first ?? "?", color: carers.single, size: size)
         }
@@ -102,7 +102,7 @@ struct PawDot: View {
         case .paw:
             Image(systemName: "pawprint.fill").font(.system(size: size * 0.5, weight: .semibold))
         case .initial:
-            Text(carers.isTogether ? "♥" : (carers.initials.first ?? ""))
+            Text(carers.isTogether ? CareText.heart : (carers.initials.first ?? ""))
                 .font(.body(size * 0.36, weight: 800))
         }
     }
@@ -143,18 +143,22 @@ struct SlotTile: View {
     var pendingDetail: String
     /// The done line, e.g. "8:12 · 25 min · 💧💩".
     var doneDetail: String
+    /// Tighter spacing for narrow columns like the setup preview.
+    var compact = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: compact ? 8 : 10) {
             if let carers, slot.isDone {
-                CarerAvatar(carers: carers)
+                CarerAvatar(carers: carers, size: compact ? 26 : 30)
             } else {
-                PendingPaw(color: isNudging ? Theme.accent : Theme.muted)
+                PendingPaw(size: compact ? 26 : 30, color: isNudging ? Theme.accent : Theme.muted)
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(slot.isDone ? "\(title) ✓" : title)
                     .font(.body(14, weight: 700))
                     .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Text(slot.isDone ? doneDetail : pendingDetail)
                     .font(.body(12.5, weight: 600))
                     .foregroundStyle(isNudging ? Theme.accent : Theme.muted)
@@ -163,7 +167,7 @@ struct SlotTile: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, compact ? 10 : 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
         .background(background)
@@ -186,6 +190,9 @@ struct SlotTile: View {
 // MARK: - Text helpers
 
 enum CareText {
+    /// A plain text heart (not the red emoji) for "together" marks.
+    static let heart = "\u{2665}\u{FE0E}"
+
     /// "James' turn".
     static func turn(_ name: String) -> String {
         name.hasSuffix("s") ? "\(name)' turn" : "\(name)'s turn"

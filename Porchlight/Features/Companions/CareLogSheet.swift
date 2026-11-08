@@ -26,6 +26,9 @@ extension View {
         fullScreenCover(item: item) { value in
             content(value)
                 .presentationBackground(.clear)
+                // Covers don't inherit the wall's kiosk chrome.
+                .statusBarHidden(true)
+                .persistentSystemOverlays(.hidden)
         }
     }
 }
@@ -54,7 +57,7 @@ private struct CareLogFlow: View {
             if let report = store.report(for: request.companionId),
                let routine = report.routines.first(where: { $0.id == request.routineId }) {
                 if let celebration {
-                    CelebrationView(look: report.look, celebration: celebration, returnTitle: request.returnTitle, onDone: close)
+                    CelebrationView(look: report.look, celebration: celebration, returnTitle: request.returnTitle, autoDismiss: !request.celebrateOnly, onDone: close)
                         .transition(.opacity)
                 } else if !request.celebrateOnly {
                     WallSheet(width: 640, onClose: close) {
@@ -321,6 +324,7 @@ private struct CelebrationView: View {
     let look: CompanionLook
     let celebration: Celebration
     let returnTitle: String
+    var autoDismiss = true
     let onDone: () -> Void
 
     @State private var jump = false
@@ -348,7 +352,10 @@ private struct CelebrationView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 520)
                 if celebration.stars > 0 {
-                    Label("+\(celebration.stars) \(celebration.stars == 1 ? "star" : "stars")", systemImage: "star.fill")
+                    HStack(spacing: 6) {
+                        Image(systemName: "star.fill").foregroundStyle(Color(hex: 0xC2933A))
+                        Text("+\(celebration.stars) \(celebration.stars == 1 ? "star" : "stars")")
+                    }
                         .font(.body(16, weight: 800))
                         .foregroundStyle(Theme.ink)
                         .padding(.horizontal, 16)
@@ -367,6 +374,7 @@ private struct CelebrationView: View {
             withAnimation(.timingCurve(0.3, 0.7, 0.4, 1, duration: 0.7).repeatForever(autoreverses: true)) { jump = true }
         }
         .task {
+            guard autoDismiss else { return }
             try? await Task.sleep(for: .seconds(4.5))
             onDone()
         }

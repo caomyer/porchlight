@@ -12,7 +12,7 @@ enum CompanionTimeline {
             let look = CompanionLook(companion)
             let expression = expression(for: routines.first, snapshot: snapshot, now: now)
             let face = AnyView(CompanionFace(look: look, expression: expression, size: 30))
-            for routine in routines {
+            for (index, routine) in routines.enumerated() {
                 let entries = snapshot.entries(of: routine.id)
                 let byDay = CareLogic.byDay(entries, calendar: calendar)
                 let dayEntries = byDay[day] ?? []
@@ -23,7 +23,8 @@ enum CompanionTimeline {
                 for entry in dayEntries {
                     items.append(logItem(entry, routine: routine, companion: companion, caption: captions[entry.id], face: face, snapshot: snapshot))
                 }
-                guard day == today else { continue }
+                // Only the main routine (the walk) is expected on the agenda; the rest show once logged.
+                guard day == today, index == 0 else { continue }
                 let state = CompanionReport.routineToday(routine, entries: entries, today: today, now: now, calendar: calendar)
                 for slot in state.slots where slot.isPendingToday {
                     items.append(expectedItem(

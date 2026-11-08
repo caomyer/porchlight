@@ -12,6 +12,12 @@ enum CompanionSamples {
         let calendar = household.calendar
         let now = CompanionClock.now()
 
+        // Restart ids on a fresh seed so `-startScreen companion-1` always works.
+        try database.writer.write { db in
+            if try Companion.fetchCount(db) == 0 {
+                try db.execute(sql: "DELETE FROM sqlite_sequence WHERE name IN ('companion', 'careRoutine', 'careLog')")
+            }
+        }
         var draft = CompanionDraft.new(species: .dog, rotation: ids)
         draft.name = "Yo-Yo"
         draft.about = "Toy poodle"

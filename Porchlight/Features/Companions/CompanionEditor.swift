@@ -36,6 +36,9 @@ struct CompanionOnboardingEditor: View {
                 }
             }
         }
+        // Win the host's spare height over its Spacer, so the routine list shows in full.
+        .frame(maxHeight: .infinity, alignment: .top)
+        .layoutPriority(1)
         .onAppear(perform: start)
         .onChange(of: draft) { _, _ in scheduleSave() }
         .onDisappear { saveNow() }
@@ -171,7 +174,7 @@ struct CompanionSettingsList: View {
         }
         #if DEBUG
         .onAppear {
-            if UserDefaults.standard.string(forKey: "debugCompanionSheet") == "editor", let first = store.snapshot.companions.first, let id = first.id {
+            if ["editor", "routine"].contains(UserDefaults.standard.string(forKey: "debugCompanionSheet")), let first = store.snapshot.companions.first, let id = first.id {
                 CompanionCover.instantly { editing = EditingCompanion(draft: CompanionDraft(first, routines: store.snapshot.routines(of: id))) }
             }
         }
@@ -444,7 +447,11 @@ struct CompanionEditorForm: View {
             }
             let hasPhoto = draft.photoFile != nil
             PhotosPicker(selection: $photoItem, matching: .images) {
-                Label("Photo", systemImage: hasPhoto ? "checkmark.circle.fill" : "camera")
+                HStack(spacing: 5) {
+                    Image(systemName: hasPhoto ? "checkmark.circle.fill" : "camera")
+                        .font(.system(size: 12.5, weight: .semibold))
+                    Text("Photo")
+                }
                     .font(.body(12.5, weight: 700))
                     .foregroundStyle(Theme.ink)
                     .padding(.horizontal, 10)
@@ -634,7 +641,8 @@ private struct CompanionPreviewCard: View {
                             title: window.isAllDay ? first.title : window.label,
                             carers: nil,
                             pendingDetail: window.isAllDay ? "every \(first.everyDays) days" : window.rangeText,
-                            doneDetail: ""
+                            doneDetail: "",
+                            compact: true
                         )
                     }
                 }
@@ -868,6 +876,7 @@ private struct RoutineEditorSheet: View {
                  + ". Tap in the order turns go.")
                 .font(.body(13, weight: 600))
                 .foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
