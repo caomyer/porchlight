@@ -77,6 +77,8 @@ final class CaptureForm {
 struct CaptureSheet: View {
     let request: CaptureRequest
     var doneTitle = "Back to diary"
+    /// Debug screenshots only: start on the "Saved" overlay for this entry.
+    var previewSaved: JournalEntry?
     let onClose: () -> Void
 
     @Environment(FoodStore.self) private var store
@@ -102,6 +104,7 @@ struct CaptureSheet: View {
         }
         .onAppear {
             if form == nil { form = CaptureForm(request: request, store: store, now: .now) }
+            if let previewSaved { saved = previewSaved }
         }
     }
 
@@ -111,7 +114,7 @@ struct CaptureSheet: View {
                 form.photo = image
                 Task { await save(form) }
             }
-            .frame(width: 370, height: 560)
+            .frame(width: 370, height: 600)
             CaptureFormView(form: form, isSaving: isSaving, error: error) {
                 Task { await save(form) }
             }
@@ -209,7 +212,7 @@ private struct Viewfinder: View {
     private var content: some View {
         if let photo = form.photo {
             Image(uiImage: photo).resizable().scaledToFill()
-                .frame(width: 370, height: 560)
+                .frame(width: 370, height: 600)
                 .clipped()
         } else if state == .live {
             CameraPreview(camera: camera, deviceID: deviceID) { captureAngle = $0 }
@@ -380,7 +383,7 @@ private struct CaptureFormView: View {
                     .submitLabel(.done)
             }
             .fieldStyle()
-            .padding(.top, 14)
+            .padding(.top, 12)
 
             label("Meal")
             FlowLayout(spacing: 8) {
@@ -446,7 +449,7 @@ private struct CaptureFormView: View {
             .foregroundStyle(Theme.muted)
         }
         .padding(.top, 14)
-        .frame(height: 560, alignment: .topLeading)
+        .frame(height: 600, alignment: .topLeading)
     }
 
     private var subtitle: String {
@@ -463,8 +466,8 @@ private struct CaptureFormView: View {
 
     private func label(_ title: String, note: String? = nil) -> some View {
         SheetLabel(title: title, note: note)
-            .padding(.top, 14)
-            .padding(.bottom, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 7)
     }
 }
 
@@ -524,6 +527,10 @@ private struct NoteStrip: View {
                 PagePaper(number: dayNumber, scale: viewport.scale, numberColor: Theme.accent)
                     .frame(width: PageGeometry.size.width * viewport.scale, height: PageGeometry.size.height * viewport.scale)
                     .offset(y: -viewport.origin.y * viewport.scale)
+                #if targetEnvironment(simulator)
+                Image(uiImage: form.note.drawing.pageImage(scale: viewport.scale, displayScale: displayScale))
+                    .offset(y: -viewport.origin.y * viewport.scale)
+                #endif
                 PageCanvas(
                     editor: form.note,
                     revision: form.note.revision,

@@ -12,6 +12,7 @@ struct FoodScreen: View {
     @State private var capture: CaptureRequest?
     @State private var writingDay: DayKey?
     @State private var openEntry: JournalEntry?
+    @State private var debugSaved: JournalEntry?
 
     var body: some View {
         TimelineView(.everyMinute) { context in
@@ -136,7 +137,7 @@ struct FoodScreen: View {
             .zIndex(1)
         }
         if let request = capture {
-            CaptureSheet(request: request) {
+            CaptureSheet(request: request, previewSaved: debugSaved) {
                 withAnimation(.easeInOut(duration: 0.2)) { capture = nil }
             }
             .id(request.id)
@@ -161,6 +162,9 @@ struct FoodScreen: View {
             mode = .month
             writingDay = today
         case "capture": capture = CaptureRequest(day: today)
+        case "saved":
+            debugSaved = store.entries(on: today).last
+            capture = CaptureRequest(day: today)
         case "detail": openEntry = store.entries(on: today).first ?? store.snapshot.entries.last
         default: break
         }
@@ -180,11 +184,17 @@ struct FoodTodayCard: View {
                 card(today: today)
             }
             .fullScreenCover(item: $capture) { request in
-                CaptureSheet(request: request, doneTitle: "Done") { capture = nil }
+                CaptureSheet(request: request, doneTitle: "Done") { present(nil) }
                     .presentationBackground(.clear)
             }
-            .transaction { $0.disablesAnimations = capture != nil }
         }
+    }
+
+    /// The capture sheet draws its own dimmed backdrop, so the cover appears without sliding.
+    private func present(_ request: CaptureRequest?) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { capture = request }
     }
 
     private func card(today: DayKey) -> some View {
@@ -221,7 +231,7 @@ struct FoodTodayCard: View {
         if let entry = store.entries(on: today, slot: slot).last {
             Polaroid(entry: entry, rotation: [-2, 1.5, -1][index % 3], emojiSize: 40, captionSize: 15, plate: 0.44)
         } else {
-            Button { capture = CaptureRequest(day: today, slot: slot) } label: {
+            Button { present(CaptureRequest(day: today, slot: slot)) } label: {
                 EmptyPolaroid(label: "snap \(slot.lowercased())", showsPlate: false, captionSize: 14)
             }
             .buttonStyle(.plain)

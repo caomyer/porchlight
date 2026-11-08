@@ -72,6 +72,13 @@ struct WriteDaySheet: View {
             ZStack(alignment: .topLeading) {
                 PagePaper(number: dayNumber, scale: scale, numberColor: day == today ? Theme.accent : Theme.ink)
                 if let editor {
+                    #if targetEnvironment(simulator)
+                    // The simulator's PencilKit renderer may draw nothing on some hosts;
+                    // show the same ink rendered by Core Graphics underneath so it can be checked.
+                    if !isZooming {
+                        Image(uiImage: editor.drawing.pageImage(scale: scale, displayScale: displayScale))
+                    }
+                    #endif
                     if isZooming {
                         Image(uiImage: editor.drawing.pageImage(scale: 4, displayScale: displayScale))
                             .resizable()
@@ -153,16 +160,16 @@ struct WriteDaySheet: View {
             HStack(spacing: 8) {
                 Spacer()
                 Button { editor?.undo() } label: {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
+                    Label("Undo", systemImage: "arrow.uturn.backward").fixedSize()
                 }
                 .buttonStyle(SecondaryButtonStyle())
                 .disabled(editor?.canUndo != true)
                 Button { store.isErasing.toggle() } label: {
-                    Label("Eraser", systemImage: "eraser")
+                    Label("Eraser", systemImage: "eraser").fixedSize()
                 }
                 .buttonStyle(ToggleButtonStyle(isOn: store.isErasing))
                 Button(action: close) {
-                    Label("Done", systemImage: "checkmark")
+                    Label("Done", systemImage: "checkmark").fixedSize()
                 }
                 .buttonStyle(PrimaryButtonStyle())
             }

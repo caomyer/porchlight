@@ -38,7 +38,6 @@ struct MealDetailSheet: View {
                         }
                     }
                     .padding(.top, 18)
-                    Spacer(minLength: 24)
                     HStack {
                         Spacer()
                         if confirmingDelete {
@@ -58,8 +57,9 @@ struct MealDetailSheet: View {
                             .buttonStyle(SecondaryButtonStyle())
                         }
                     }
+                    .padding(.top, 28)
                 }
-                .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
     }

@@ -90,7 +90,9 @@ struct PageCanvas: UIViewRepresentable {
         let editor: PageEditor
         var viewport = PageViewport(scale: 1, origin: .zero)
         var revision = -1
-        private var isLoading = false
+        /// Changes only count once the user has touched the canvas since the last load;
+        /// PencilKit may report a change for a drawing we set ourselves.
+        private var userHasDrawn = false
 
         init(editor: PageEditor) {
             self.editor = editor
@@ -99,13 +101,16 @@ struct PageCanvas: UIViewRepresentable {
         func load(into canvas: PKCanvasView, viewport: PageViewport, revision: Int) {
             self.viewport = viewport
             self.revision = revision
-            isLoading = true
+            userHasDrawn = false
             canvas.drawing = editor.drawing.inView(viewport)
-            isLoading = false
+        }
+
+        func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
+            userHasDrawn = true
         }
 
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-            guard !isLoading else { return }
+            guard userHasDrawn else { return }
             editor.userChanged(to: canvasView.drawing.inPage(from: viewport))
         }
     }
