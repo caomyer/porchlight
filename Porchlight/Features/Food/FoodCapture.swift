@@ -435,9 +435,10 @@ private struct CaptureFormView: View {
                         .lineLimit(2)
                 } else {
                     Image(systemName: "camera").font(.system(size: 13, weight: .semibold))
-                    Text(MealCamera.hasCamera ? "Tap the shutter to save. No photo? Just write and tap Save." : "Pick a photo or just write, then tap Save.")
+                    Text(MealCamera.hasCamera ? "Tap the shutter, or just write and tap Save." : "Pick a photo or just write, then tap Save.")
                         .font(.body(13.5, weight: 600))
                         .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Button(action: onSave) {
