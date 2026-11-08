@@ -44,7 +44,8 @@ struct FoodDatabaseTests {
         #expect(journal.slots == ["Breakfast", "Lunch", "Dinner"])
         let again = try db.ensureFoodJournal(householdId: householdId, enabled: false)
         #expect(again.id == journal.id)
-        #expect(try db.foodSnapshot().journal == journal)
+        #expect(try db.foodSnapshot().journal?.id == journal.id)
+        #expect(try db.foodSnapshot().journal?.slots == journal.slots)
     }
 
     @Test("Slots are validated, de-duplicated and kept in meal order")

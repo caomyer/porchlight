@@ -40,6 +40,7 @@ struct FoodScreen: View {
                 .font(.body(15))
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
+                .layoutPriority(-1)
                 .padding(.bottom, 6)
             Spacer(minLength: 8)
             HStack(spacing: 6) {
@@ -54,6 +55,8 @@ struct FoodScreen: View {
                     capture = CaptureRequest(day: today)
                 } label: {
                     Label("Snap a meal", systemImage: "camera")
+                        .lineLimit(1)
+                        .fixedSize()
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.leading, 6)

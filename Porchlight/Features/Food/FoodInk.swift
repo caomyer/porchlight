@@ -31,13 +31,40 @@ extension PKDrawing {
     }
 
     /// The page rendered at `scale` view points per page point, for the month and minis.
-    /// Rendered in light mode so inks keep their paper-tuned colors.
+    ///
+    /// Strokes are drawn with Core Graphics from their sampled points instead of
+    /// `PKDrawing.image(from:scale:)`, which can come back blank (for example in the
+    /// simulator or before PencilKit has warmed up). Widths, opacity and transforms are kept.
     func pageImage(scale: CGFloat, displayScale: CGFloat) -> UIImage {
-        var image = UIImage()
-        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-            image = self.image(from: PageGeometry.bounds, scale: scale * displayScale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = displayScale
+        format.opaque = false
+        let size = CGSize(width: PageGeometry.size.width * scale, height: PageGeometry.size.height * scale)
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            let cg = context.cgContext
+            cg.scaleBy(x: scale, y: scale)
+            cg.setLineCap(.round)
+            cg.setLineJoin(.round)
+            for stroke in strokes {
+                cg.saveGState()
+                cg.concatenate(stroke.transform)
+                let color = stroke.ink.color.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+                let points = Array(stroke.path.interpolatedPoints(by: .distance(0.4)))
+                if points.count == 1, let point = points.first {
+                    color.withAlphaComponent(point.opacity).setFill()
+                    let r = point.size.width / 2
+                    cg.fillEllipse(in: CGRect(x: point.location.x - r, y: point.location.y - r, width: 2 * r, height: 2 * r))
+                }
+                for (a, b) in zip(points, points.dropFirst()) {
+                    cg.setStrokeColor(color.withAlphaComponent(b.opacity).cgColor)
+                    cg.setLineWidth((a.size.width + b.size.width) / 2)
+                    cg.move(to: a.location)
+                    cg.addLine(to: b.location)
+                    cg.strokePath()
+                }
+                cg.restoreGState()
+            }
         }
-        return image
     }
 }
 

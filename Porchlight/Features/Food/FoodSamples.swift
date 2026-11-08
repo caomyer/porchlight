@@ -102,7 +102,7 @@ enum FoodSamples {
 /// real ink always comes from Apple Pencil.
 enum SampleHandwriting {
     /// Pixels per page point while tracing.
-    private static let resolution: CGFloat = 6
+    private static let resolution: CGFloat = 5
     private static let fontSize: CGFloat = 20
     private static let strokeWidth: CGFloat = 1.45
 
@@ -126,7 +126,7 @@ enum SampleHandwriting {
 
         var grid = Skeleton(width: width, height: height, pixels: bitmap)
         grid.thin()
-        let paths = grid.traceLines().filter { $0.count >= 3 }
+        let paths = grid.traceLines()  // single points are dots ("...", "!")
 
         let angle = tiltDegrees * .pi / 180
         let pivot = CGPoint(x: 0, y: CGFloat(height) / 2)
@@ -208,35 +208,40 @@ private struct Skeleton {
         x >= 0 && y >= 0 && x < width && y < height && on[y * width + x]
     }
 
-    /// Neighbors P2...P9, clockwise from north.
-    private func neighbors(_ x: Int, _ y: Int) -> [Bool] {
-        [at(x, y - 1), at(x + 1, y - 1), at(x + 1, y), at(x + 1, y + 1), at(x, y + 1), at(x - 1, y + 1), at(x - 1, y), at(x - 1, y - 1)]
-    }
-
+    /// Zhang-Suen thinning on a flat buffer (no per-pixel allocations, so it stays quick in debug builds).
     mutating func thin() {
-        var changed = true
-        while changed {
-            changed = false
-            for pass in 0..<2 {
-                var remove: [Int] = []
-                for y in 0..<height {
-                    for x in 0..<width where on[y * width + x] {
-                        let p = neighbors(x, y)
-                        let count = p.filter { $0 }.count
-                        guard (2...6).contains(count) else { continue }
-                        var transitions = 0
-                        for index in 0..<8 where !p[index] && p[(index + 1) % 8] { transitions += 1 }
-                        guard transitions == 1 else { continue }
-                        if pass == 0 {
-                            guard !(p[0] && p[2] && p[4]), !(p[2] && p[4] && p[6]) else { continue }
-                        } else {
-                            guard !(p[0] && p[2] && p[6]), !(p[0] && p[4] && p[6]) else { continue }
+        let w = width, h = height
+        on.withUnsafeMutableBufferPointer { px in
+            var remove: [Int] = []
+            remove.reserveCapacity(1024)
+            var changed = true
+            while changed {
+                changed = false
+                for pass in 0..<2 {
+                    remove.removeAll(keepingCapacity: true)
+                    for y in 1..<(h - 1) {
+                        let row = y * w
+                        for x in 1..<(w - 1) where px[row + x] {
+                            let i = row + x
+                            let p2 = px[i - w], p3 = px[i - w + 1], p4 = px[i + 1], p5 = px[i + w + 1]
+                            let p6 = px[i + w], p7 = px[i + w - 1], p8 = px[i - 1], p9 = px[i - w - 1]
+                            let ring = [p2, p3, p4, p5, p6, p7, p8, p9, p2]
+                            var count = 0, transitions = 0
+                            for k in 0..<8 {
+                                if ring[k] { count += 1 } else if ring[k + 1] { transitions += 1 }
+                            }
+                            guard count >= 2, count <= 6, transitions == 1 else { continue }
+                            if pass == 0 {
+                                guard !(p2 && p4 && p6), !(p4 && p6 && p8) else { continue }
+                            } else {
+                                guard !(p2 && p4 && p8), !(p2 && p6 && p8) else { continue }
+                            }
+                            remove.append(i)
                         }
-                        remove.append(y * width + x)
                     }
+                    for index in remove { px[index] = false }
+                    if !remove.isEmpty { changed = true }
                 }
-                for index in remove { on[index] = false }
-                if !remove.isEmpty { changed = true }
             }
         }
     }

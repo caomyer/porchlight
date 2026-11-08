@@ -1,6 +1,7 @@
 import CoreGraphics
 import PencilKit
 import Testing
+import UIKit
 @testable import Porchlight
 
 @Suite("Food: page geometry and ink transforms")
@@ -131,3 +132,44 @@ struct FoodPageTests {
         return PKStroke(ink: PKInk(.monoline, color: .black), path: PKStrokePath(controlPoints: points, creationDate: .now))
     }
 }
+
+#if DEBUG
+@Suite("Food: sample handwriting")
+struct SampleHandwritingTests {
+    @Test("Sample text becomes real strokes on the right ruled lines")
+    func strokes() {
+        let drawing = SampleHandwriting.page(lines: [("pancakes", .brick), ("pesto pasta!", .midnight)])
+        #expect(drawing.strokes.count > 6)
+        let lines = Set(drawing.strokeBounds.map { PageGeometry.lineIndex(forY: $0.midY) })
+        #expect(lines == [0, 1])
+        #expect(drawing.bounds.minX >= 5 && drawing.bounds.maxX <= PageGeometry.size.width)
+
+        // The month cell image actually shows the ink.
+        let image = drawing.pageImage(scale: 1, displayScale: 2)
+        #expect(image.size == PageGeometry.size)
+        #expect(Self.inkedPixels(image) > 200)
+        // Twice the scale, about four times the ink.
+        let big = Self.inkedPixels(drawing.pageImage(scale: 2, displayScale: 2))
+        #expect(big > Self.inkedPixels(image) * 3)
+    }
+
+    static func inkedPixels(_ image: UIImage) -> Int {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let flattened = UIGraphicsImageRenderer(size: CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale), format: format).image { _ in
+            image.draw(in: CGRect(x: 0, y: 0, width: image.size.width * image.scale, height: image.size.height * image.scale))
+        }
+        guard let cg = flattened.cgImage else { return -1 }
+        let w = cg.width, h = cg.height
+        var data = [UInt8](repeating: 0, count: w * h * 4)
+        let ok: Bool = data.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        guard ok else { return 0 }
+        return stride(from: 3, to: data.count, by: 4).filter { data[$0] > 128 }.count
+    }
+}
+#endif

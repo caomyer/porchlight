@@ -446,7 +446,7 @@ private struct CaptureFormView: View {
             .foregroundStyle(Theme.muted)
         }
         .padding(.top, 14)
-        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .frame(height: 560, alignment: .topLeading)
     }
 
     private var subtitle: String {

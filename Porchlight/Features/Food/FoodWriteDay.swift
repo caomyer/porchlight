@@ -168,7 +168,8 @@ struct WriteDaySheet: View {
             }
         }
         .padding(.top, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(height: stageSize.height)
     }
 
     private var subtitle: String {

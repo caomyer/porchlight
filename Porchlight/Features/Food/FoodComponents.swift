@@ -170,6 +170,7 @@ struct EmptyPolaroid: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
+                Color.clear
                 if showsPlate {
                     PlateArt(emoji: "", tint: Theme.background, plate: 0.51)
                 }
@@ -236,6 +237,7 @@ struct HeaderChip: View {
             Text(title)
                 .font(.body(13, weight: 600))
                 .foregroundStyle(isSelected ? Theme.surface : Theme.ink)
+                .fixedSize()
                 .padding(.horizontal, 12)
                 .frame(height: 34)
                 .background(isSelected ? Theme.ink : Theme.surface, in: Capsule())

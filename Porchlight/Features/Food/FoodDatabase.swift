@@ -153,6 +153,7 @@ extension AppDatabase {
         photos: FoodPhotoStore,
         now: Date = .now
     ) throws -> JournalEntry {
+        let page = page.map(Self.nonBlank)
         do {
             return try writer.write { db in
                 guard let journal = try Journal.fetchOne(db, id: journalId) else { throw FoodError.noJournal }
@@ -219,13 +220,21 @@ extension AppDatabase {
 
     /// Saves a day's drawing. Empty drawings (`nil` or no strokes) remove the page.
     func savePage(journalId: Int64, day: DayKey, drawing: Data?, now: Date = .now) throws {
+        let drawing = drawing.flatMap(Self.nonBlank)
         try writer.write { db in
             try Self.writePage(db, journalId: journalId, day: day, drawing: drawing, now: now)
         }
     }
 
+    /// The drawing, or nil when it has no strokes. Must run outside database closures:
+    /// decoding a PencilKit drawing can hop to the main thread, which may be waiting on the write.
+    private static func nonBlank(_ drawing: Data) -> Data? {
+        drawing.isEmpty || PageInkData.isBlank(drawing) ? nil : drawing
+    }
+
+    /// Upserts a page; `nil` (already checked by `nonBlank`) deletes it.
     private static func writePage(_ db: Database, journalId: Int64, day: DayKey, drawing: Data?, now: Date) throws {
-        guard let drawing, !drawing.isEmpty, !PageInkData.isBlank(drawing) else {
+        guard let drawing else {
             try db.execute(sql: "DELETE FROM journalPage WHERE journalId = ? AND day = ?", arguments: [journalId, day.rawValue])
             return
         }
