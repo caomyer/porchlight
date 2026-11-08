@@ -9,7 +9,7 @@ enum DebugLaunch {
     static func apply(_ arguments: [String], to database: AppDatabase) throws {
         if arguments.contains("-resetData") || arguments.contains("-sampleHousehold") {
             // Deleting the household cascades to every feature's rows.
-            try database.writer.write { db in
+            _ = try database.writer.write { db in
                 try Household.deleteAll(db)
             }
         }

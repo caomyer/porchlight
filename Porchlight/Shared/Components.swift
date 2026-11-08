@@ -123,3 +123,40 @@ struct WallSheet<Content: View>: View {
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 }
+
+/// The avatar for an owner: the person's colored initial, or a heart for the
+/// whole household ("Both" / "Anyone").
+struct OwnerAvatar: View {
+    @Environment(AppModel.self) private var model
+    let owner: Owner
+    /// People to look the owner up in; defaults to the household's people.
+    var people: [Person]? = nil
+    var size: CGFloat = 30
+
+    var body: some View {
+        switch owner {
+        case let .person(id):
+            if let person = (people ?? model.people).first(where: { $0.id == id }) {
+                Avatar(person: person, size: size)
+            } else {
+                AnyoneAvatar(size: size)
+            }
+        case .everyone:
+            AnyoneAvatar(size: size)
+        }
+    }
+}
+
+/// The whole-household avatar: a white heart on the shared color.
+struct AnyoneAvatar: View {
+    var size: CGFloat = 30
+
+    var body: some View {
+        Image(systemName: "heart.fill")
+            .font(.system(size: size * 0.4, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(Theme.everyone, in: Circle())
+            .accessibilityHidden(true)
+    }
+}

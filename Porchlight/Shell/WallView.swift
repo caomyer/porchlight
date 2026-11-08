@@ -84,7 +84,7 @@ struct WallView: View {
         .ignoresSafeArea(.container, edges: .vertical)
         .overlay {
             if showAmbient {
-                AmbientView(extraPhotoURLs: food.recentPhotoURLs(limit: 40)) { wake() }
+                AmbientView(extraPhotoURLs: food.recentPhotoURLs(limit: 40), onWake: { wake() }, glance: AnyView(AmbientGlance()))
                     .transition(.opacity)
                     .ignoresSafeArea()
             }
@@ -93,6 +93,13 @@ struct WallView: View {
         .simultaneousGesture(TapGesture().onEnded { lastInteraction = .now })
         .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in lastInteraction = .now })
         .task(id: ambientMinutes) { await watchForIdle() }
+        .onAppear {
+            // Starting on Photos (debug start screen) opens Ambient directly.
+            if selection == .photos {
+                showAmbient = true
+                selection = .today
+            }
+        }
         .onChange(of: selection) { _, newValue in
             lastInteraction = .now
             if newValue == .photos {

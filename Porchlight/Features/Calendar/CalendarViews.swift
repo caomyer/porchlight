@@ -59,7 +59,7 @@ struct CalendarScreen: View {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) { mode = option }
                     } label: {
-                        HeaderChip(title: option.title, isSelected: mode == option)
+                        ModeChip(title: option.title, isSelected: mode == option)
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(mode == option ? .isSelected : [])
@@ -67,14 +67,14 @@ struct CalendarScreen: View {
             }
             .padding(.leading, 4)
             HStack(spacing: 6) {
-                Button { step(-1) } label: { HeaderChip(symbol: "chevron.left") }
+                Button { step(-1) } label: { ModeChip(symbol: "chevron.left") }
                     .accessibilityLabel("Previous")
-                Button { step(1) } label: { HeaderChip(symbol: "chevron.right") }
+                Button { step(1) } label: { ModeChip(symbol: "chevron.right") }
                     .accessibilityLabel("Next")
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) { anchor = now }
                 } label: {
-                    HeaderChip(title: "Today", isSelected: false)
+                    ModeChip(title: "Today", isSelected: false)
                 }
                 .disabled(isShowingToday(now))
                 .opacity(isShowingToday(now) ? 0.5 : 1)
@@ -121,9 +121,14 @@ struct CalendarScreen: View {
             LegendItem(color: Theme.everyone, title: "Both")
             if withLanes {
                 ForEach(lanes) { lane in
-                    lane.label
-                        .frame(maxWidth: 28, maxHeight: 20)
-                        .font(.body(13, weight: 600))
+                    HStack(spacing: 6) {
+                        lane.label
+                            .frame(maxWidth: 20, maxHeight: 18)
+                        if !lane.title.isEmpty {
+                            Text(lane.title)
+                        }
+                    }
+                    .font(.body(13, weight: 600))
                 }
             }
         }
@@ -240,7 +245,7 @@ enum CalendarMode: String, CaseIterable {
 }
 
 /// The small rounded chip used in the calendar header.
-private struct HeaderChip: View {
+private struct ModeChip: View {
     var title: String? = nil
     var symbol: String? = nil
     var isSelected = false
@@ -302,28 +307,6 @@ struct EventMark: View {
 }
 
 /// A person's avatar, or a heart for the whole household.
-struct OwnerAvatar: View {
-    let owner: Owner
-    let people: [Person]
-    var size: CGFloat = 30
-
-    /// A text-style heart (U+FE0E), so it draws white instead of as a red emoji.
-    static let heart = "\u{2665}\u{FE0E}"
-
-    var body: some View {
-        switch owner {
-        case .everyone:
-            Avatar(initial: OwnerAvatar.heart, color: Theme.everyone, size: size)
-        case let .person(id):
-            if let person = people.first(where: { $0.id == id }) {
-                Avatar(person: person, size: size)
-            } else {
-                Avatar(initial: OwnerAvatar.heart, color: Theme.everyone, size: size)
-            }
-        }
-    }
-}
-
 /// "James", "Mia" or "Both".
 func ownerName(_ owner: Owner, people: [Person]) -> String {
     switch owner {

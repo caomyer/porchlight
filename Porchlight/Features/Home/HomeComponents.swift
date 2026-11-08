@@ -52,39 +52,6 @@ struct HeaderChip: View {
     }
 }
 
-/// The avatar for an owner: the person's initial, or a heart for "Anyone".
-struct OwnerAvatar: View {
-    @Environment(AppModel.self) private var model
-    let owner: Owner
-    var size: CGFloat = 30
-
-    var body: some View {
-        switch owner {
-        case let .person(id):
-            if let person = model.person(id) {
-                Avatar(person: person, size: size)
-            } else {
-                AnyoneAvatar(size: size)
-            }
-        case .everyone:
-            AnyoneAvatar(size: size)
-        }
-    }
-}
-
-struct AnyoneAvatar: View {
-    var size: CGFloat = 30
-
-    var body: some View {
-        Image(systemName: "heart.fill")
-            .font(.system(size: size * 0.4, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(Theme.everyone, in: Circle())
-            .accessibilityHidden(true)
-    }
-}
-
 /// The square check box used on chores and list items.
 struct CheckBox: View {
     var isOn: Bool

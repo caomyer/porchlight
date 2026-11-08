@@ -126,6 +126,8 @@ struct CalendarLane: Identifiable {
     var id: String
     /// Small label in the week view's left column.
     var label: AnyView
+    /// Short legend text, e.g. "walks" or "meals".
+    var title: String = ""
     /// Marks for one day.
     var cell: (_ day: DayKey, _ style: Style) -> AnyView
 }
