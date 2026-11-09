@@ -38,6 +38,17 @@ struct HomeLogicTests {
         ChoreCompletion(choreId: choreId, day: day, personId: person, stars: stars, completedAt: .now)
     }
 
+    /// The ledger's view of completions (what star totals and rewards add up).
+    static func earnings(_ completions: [ChoreCompletion]) -> [StarEarning] {
+        completions.enumerated().map { index, completion in
+            StarEarning(
+                source: .chore(choreId: completion.choreId, completionId: Int64(index + 1)),
+                personId: completion.personId, stars: completion.stars, day: completion.dayKey,
+                at: completion.completedAt, title: "Chore \(completion.choreId)", emoji: "✅"
+            )
+        }
+    }
+
     // MARK: Recurrence
 
     @Test("Daily chores occur every day from their start day on")
@@ -150,14 +161,14 @@ struct HomeLogicTests {
         let people = [person(1, "A"), person(2, "B")]
         let today = day("2026-11-04")
         let owned = [Self.chore(id: 1, owner: 1, .daily), Self.chore(id: 2, owner: 1, .weekdays([1]))]
-        let board = ChoreBoard(people: people, chores: owned, completions: [], rewards: [], today: today, calendar: calendar)
+        let board = ChoreBoard(people: people, chores: owned, completions: [], earnings: [], rewards: [], today: today, calendar: calendar)
         #expect(board.columns.map(\.owner) == [.person(1), .person(2)])
         // Sunday-only chore isn't due on a Wednesday.
         #expect(board.columns[0].tasks.map(\.id) == [1])
         #expect(board.columns[1].tasks.isEmpty)
 
         let shared = owned + [Self.chore(id: 3, owner: nil, .daily)]
-        let withShared = ChoreBoard(people: people, chores: shared, completions: [], rewards: [], today: today, calendar: calendar)
+        let withShared = ChoreBoard(people: people, chores: shared, completions: [], earnings: [], rewards: [], today: today, calendar: calendar)
         #expect(withShared.columns.map(\.owner) == [.person(1), .person(2), .everyone])
     }
 
@@ -177,7 +188,7 @@ struct HomeLogicTests {
             Self.done(3, "2026-11-03", by: 2, stars: 3), // B did a shared chore
             Self.done(3, "2026-11-04", by: 1, stars: 3),
         ]
-        let board = ChoreBoard(people: people, chores: chores, completions: completions, rewards: [], today: today, calendar: calendar)
+        let board = ChoreBoard(people: people, chores: chores, completions: completions, earnings: Self.earnings(completions), rewards: [], today: today, calendar: calendar)
         let columns = Dictionary(uniqueKeysWithValues: board.columns.map { ($0.owner, $0) })
         #expect(columns[.person(1)]?.doneCount == 1)
         #expect(columns[.person(1)]?.weekStars == 2 + 2 + 3)
@@ -186,7 +197,7 @@ struct HomeLogicTests {
         #expect(columns[.everyone]?.doneCount == 1)
         #expect(columns[.everyone]?.weekStars == 6)
 
-        let totals = StarTotals.byPerson(completions, in: HomeWeek(containing: today, calendar: calendar))
+        let totals = StarTotals.byPerson(Self.earnings(completions), in: HomeWeek(containing: today, calendar: calendar))
         #expect(totals == [1: 7, 2: 3])
     }
 
@@ -217,7 +228,7 @@ struct HomeLogicTests {
             Self.done(3, "2026-11-03", by: 1, stars: 3),
         ]
         let reward = reward(id: 1, owner: 1, target: 10, start: "2026-11-01")
-        #expect(RewardProgress.earned(for: reward, completions: completions) == 5)
+        #expect(RewardProgress.earned(for: reward, earnings: Self.earnings(completions)) == 5)
     }
 
     @Test("Shared goals count everyone's stars, and progress caps at the target")
@@ -228,7 +239,7 @@ struct HomeLogicTests {
             Self.done(3, "2026-11-03", by: nil, stars: 1), // person since removed
         ]
         let goal = reward(id: 1, owner: nil, target: 5, start: "2026-11-01")
-        let status = ChoreBoard.RewardStatus(reward: goal, earned: RewardProgress.earned(for: goal, completions: completions))
+        let status = ChoreBoard.RewardStatus(reward: goal, earned: RewardProgress.earned(for: goal, earnings: Self.earnings(completions)))
         #expect(status.earned == 7)
         #expect(status.isReached)
         #expect(status.fraction == 1)
@@ -244,7 +255,7 @@ struct HomeLogicTests {
             reward(id: 1, owner: 1, target: 10, start: "2026-11-01"),
             reward(id: 2, owner: nil, target: 100, start: "2026-11-01"),
         ]
-        let board = ChoreBoard(people: people, chores: [], completions: [], rewards: rewards, today: day("2026-11-04"), calendar: calendar)
+        let board = ChoreBoard(people: people, chores: [], completions: [], earnings: [], rewards: rewards, today: day("2026-11-04"), calendar: calendar)
         #expect(board.columns.map(\.owner) == [.person(1), .everyone])
         #expect(board.columns[0].rewards.map(\.id) == [1])
         #expect(board.columns[1].rewards.map(\.id) == [2])
@@ -351,5 +362,58 @@ struct HomeLogicTests {
         #expect(HomeText.emoji("👨‍👩‍👧") == "👨‍👩‍👧")
         #expect(HomeText.emoji("  ") == nil)
         #expect(HomeText.emoji(nil) == nil)
+    }
+
+    // MARK: Care on the board, and Glow
+
+    private func careTask(done: Bool) -> CareTask {
+        let routine = CareRoutine(
+            id: 9, companionId: 1, kind: .walk, title: "Walk", emoji: "🦮", everyDays: 1,
+            windows: [.hours("Morning", 6, 10), .hours("Evening", 17, 20)], trackedFields: [], stars: 2,
+            nudgeAfterMinutes: nil, sortOrder: 0
+        )
+        let log = CareLog(id: 1, careRoutineId: 9, occurredAt: .now, durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil, stars: 2, createdAt: .now)
+        let slot = CareSlot(index: 0, window: routine.windows[0], entry: done ? CareEntry(log: log, people: [1]) : nil, state: done ? .done(onTime: true) : .open)
+        return CareTask(companionId: 1, companionName: "Yo-Yo", routine: routine, slot: slot)
+    }
+
+    @Test("Companion care sits in Anyone with the shared chores, and counts toward its progress")
+    func careOnBoard() {
+        let people = [person(1, "A")]
+        let board = ChoreBoard(
+            people: people, chores: [], completions: [], earnings: [], care: [careTask(done: true), careTask(done: false)],
+            rewards: [], today: day("2026-11-04"), calendar: calendar
+        )
+        let anyone = try? #require(board.columns.first { $0.owner == .everyone })
+        #expect(anyone?.totalCount == 2)
+        #expect(anyone?.doneCount == 1)
+        #expect(careTask(done: false).title == "Walk Yo-Yo · morning")
+    }
+
+    @Test("Glow adds up each person's week, compares fairly with last week, and lists what happened")
+    func glow() {
+        let people = [person(1, "A"), person(2, "B")]
+        let completions = [
+            Self.done(1, "2026-11-02", by: 1, stars: 2),
+            Self.done(1, "2026-11-03", by: 1, stars: 2),
+            Self.done(2, "2026-11-04", by: 2, stars: 3),
+            Self.done(2, "2026-10-26", by: 2, stars: 1), // last Monday: before this point last week
+            Self.done(2, "2026-10-30", by: 2, stars: 5), // last Friday: after it
+        ]
+        let redemption = RewardRedemption(id: 1, rewardId: 7, personId: 1, stars: 10, day: "2026-11-04", redeemedAt: .now)
+        let treat = Reward(id: 7, householdId: 1, title: "Ice cream", emoji: "🍦", targetStars: 10, ownerId: 1, startDay: "2026-11-04", archived: false, sortOrder: 0, createdAt: .now)
+        let summary = GlowSummary(
+            people: people, earnings: Self.earnings(completions), redemptions: [redemption], rewards: [treat],
+            lifetime: [1: 40], week: HomeWeek(containing: day("2026-11-04"), calendar: calendar), today: day("2026-11-04"), calendar: calendar
+        )
+        #expect(summary.weekStars == 7)
+        #expect(summary.lastWeekStars == 6)
+        #expect(summary.lastWeekSoFar == 1)
+        #expect(summary.people[0].weekStars == 4 && summary.people[0].choresDone == 2 && summary.people[0].lifetimeStars == 40)
+        #expect(summary.people[0].byDay == [0, 2, 2, 0, 0, 0, 0])
+        #expect(summary.people[0].favorite == GlowSummary.Favorite(emoji: "✅", title: "Chore 1", count: 2))
+        #expect(summary.sparks.count == 3)
+        #expect(summary.feed.first?.isCashIn == true || summary.feed.first?.day == day("2026-11-04"))
+        #expect(summary.feed.contains { $0.isCashIn && $0.text == "Cashed in Ice cream" })
     }
 }

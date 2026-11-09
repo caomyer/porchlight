@@ -140,7 +140,7 @@ struct HomeDatabaseTests {
         try db.toggleChore(id: shared, day: today, personId: b)
         let snap = try snapshot()
         let household = try #require(snap.household)
-        let board = ChoreBoard(people: snap.people, chores: snap.chores, completions: snap.completions, rewards: snap.rewards, today: today, calendar: household.calendar)
+        let board = ChoreBoard(people: snap.people, chores: snap.chores, completions: snap.completions, earnings: snap.earnings, rewards: snap.rewards, today: today, calendar: household.calendar)
         let stars = Dictionary(uniqueKeysWithValues: board.columns.map { ($0.owner, $0.weekStars) })
         #expect(stars == [.person(a): 4, .person(b): 3, .everyone: 3])
     }
@@ -189,11 +189,11 @@ struct HomeDatabaseTests {
 
         let chore = try #require(try db.saveChore(draft(owner: a, stars: 4), householdId: householdId).id)
         try db.toggleChore(id: chore, day: today, personId: nil)
-        #expect(RewardProgress.earned(for: stored, completions: try snapshot().completions) == 4)
+        #expect(RewardProgress.earned(for: stored, earnings: try snapshot().earnings) == 4)
 
         try db.restartReward(id: id, from: DayKey(rawValue: "2026-11-05"))
         stored = try #require(try snapshot().rewards.first)
-        #expect(RewardProgress.earned(for: stored, completions: try snapshot().completions) == 0)
+        #expect(RewardProgress.earned(for: stored, earnings: try snapshot().earnings) == 0)
 
         try db.setRewardArchived(id: id, archived: true)
         #expect(try snapshot().rewards.first?.archived == true)
@@ -320,6 +320,70 @@ struct HomeDatabaseTests {
         }
         #expect(counts == [0, 0, 0, 0, 0, 0, 0])
     }
+
+    // MARK: One star ledger
+
+    /// A dog with one walk routine worth `stars`, returning the routine id.
+    private func dog(stars: Int = 2) throws -> Int64 {
+        var draft = CompanionDraft.new(species: .dog)
+        draft.name = "Yo-Yo"
+        draft.routines = [CareRoutineDraft(kind: .walk, windows: [.anyTime], stars: stars)]
+        let id = try db.saveCompanion(draft, householdId: householdId)
+        return try #require(try db.writer.read { db in try Int64.fetchOne(db, sql: "SELECT id FROM careRoutine WHERE companionId = ?", arguments: [id]) })
+    }
+
+    private func at(_ day: String, _ hour: Int) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        return calendar.date(byAdding: .hour, value: hour, to: DayKey(rawValue: day).startDate(in: calendar))!
+    }
+
+    @Test("Care given and chores done both earn stars; care together credits everyone who helped")
+    func ledger() throws {
+        let walk = try dog(stars: 2)
+        try db.logCare(routineId: walk, CareLogDraft(people: [a, b], occurredAt: at("2026-11-03", 8)), now: at("2026-11-04", 9))
+        let chore = try db.saveChore(draft(owner: a, stars: 3), householdId: householdId)
+        try db.toggleChore(id: chore.id!, day: today, personId: nil)
+        let earnings = try snapshot().earnings
+        #expect(earnings.count == 3)
+        let carers: Set<Int64> = Set(earnings.filter(\.isCare).compactMap(\.personId))
+        #expect(carers == [a, b])
+        #expect(earnings.first { $0.isCare }?.title == "Walk Yo-Yo")
+        #expect(earnings.first { $0.isCare }?.day == DayKey(rawValue: "2026-11-03"))
+        let lifetime: [Int64: Int] = try snapshot().lifetimeStars
+        #expect(lifetime == [a: 5, b: 2])
+    }
+
+    @Test("Rewards count care stars too, and cashing in records it and starts over")
+    func cashIn() throws {
+        let walk = try dog(stars: 4)
+        let reward = try db.saveReward(RewardDraft(title: "Ice cream", emoji: "🍦", targetStars: 6, ownerId: a), householdId: householdId, today: DayKey(rawValue: "2026-11-01"))
+        try db.logCare(routineId: walk, CareLogDraft(people: [a], occurredAt: at("2026-11-02", 8)), now: at("2026-11-04", 9))
+        try db.logCare(routineId: walk, CareLogDraft(people: [a], occurredAt: at("2026-11-04", 8)), now: at("2026-11-04", 9))
+        var home = try snapshot()
+        #expect(RewardProgress.earned(for: home.rewards[0], earnings: home.earnings, redemptions: home.redemptions) == 8)
+
+        try db.cashInReward(id: reward.id!, stars: 8, day: today, now: at("2026-11-04", 10))
+        try db.logCare(routineId: walk, CareLogDraft(people: [a], occurredAt: at("2026-11-04", 11)), now: at("2026-11-04", 12))
+        home = try snapshot()
+        let redemption = try #require(home.redemptions.first)
+        #expect(redemption.stars == 8 && redemption.personId == a && redemption.day == today.rawValue)
+        // Only the walk after cashing in counts toward the next round, though it's the same day.
+        #expect(RewardProgress.earned(for: home.rewards[0], earnings: home.earnings, redemptions: home.redemptions) == 4)
+    }
+
+    @Test("Saying who did a chore re-credits it, or checks it off for them")
+    func credit() throws {
+        let chore = try db.saveChore(draft(owner: a, stars: 2), householdId: householdId)
+        try db.creditChore(id: chore.id!, day: today, personId: b)
+        var done = try #require(try snapshot().completions.first)
+        #expect(done.personId == b, "Anyone can pitch in on someone else's chore")
+        try db.creditChore(id: chore.id!, day: today, personId: a)
+        done = try #require(try snapshot().completions.first)
+        #expect(done.personId == a)
+        #expect(try snapshot().completions.count == 1)
+    }
+
 }
 
 /// The photo importer, against a temporary folder.

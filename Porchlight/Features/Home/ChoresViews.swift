@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// What the Chores screen has open on top of the board.
+/// What the Pitch in screen has open on top of the board.
 enum ChoreSheet: Identifiable {
     case newChore
     case editChore(Chore)
     case whoDidIt(Chore, DayKey)
+    /// A chore on a day: who did it, undo, edit, archive or delete.
+    case task(Chore, DayKey)
     case editReward(Reward)
 
     var id: String {
@@ -12,23 +14,29 @@ enum ChoreSheet: Identifiable {
         case .newChore: "new"
         case let .editChore(chore): "edit-\(chore.id ?? -1)"
         case let .whoDidIt(chore, day): "who-\(chore.id ?? -1)-\(day)"
+        case let .task(chore, day): "task-\(chore.id ?? -1)-\(day)"
         case let .editReward(reward): "reward-\(reward.id ?? -1)"
         }
     }
 }
 
-/// The chore board: a column per person plus "Anyone", or the week overview.
+/// "Pitch in": what the household does for each other, a column per person plus
+/// "Anyone" for shared chores and companion care, or the week overview. Every row works
+/// the same way: tap its box to check it off, tap the row to open it and fix it.
 struct ChoresScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var store
+    @Environment(CompanionStore.self) private var companions
     @State private var showWeek = ChoresScreen.debugShowsWeek
     @State private var sheet: ChoreSheet?
+    @State private var careRequest: CareLogRequest?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HomeHeader(
-                title: "Chores",
-                subtitle: store.today.formatted(.dateTime.weekday(.wide), calendar: store.calendar) + (showWeek ? " · this week at a glance" : " · tap to check off")
+                title: "Pitch in",
+                subtitle: store.today.formatted(.dateTime.weekday(.wide), calendar: store.calendar)
+                    + (showWeek ? " · this week at a glance" : " · tap a box to check it off, a row to open it")
             ) {
                 HeaderChip(title: "This week", isSelected: showWeek) {
                     withAnimation(.easeInOut(duration: 0.25)) { showWeek.toggle() }
@@ -36,11 +44,18 @@ struct ChoresScreen: View {
                 HeaderChip(title: "New chore", symbol: "plus") { present(.newChore) }
             }
             if showWeek {
-                ChoreWeekView(onToggle: toggle)
+                ChoreWeekView(onToggle: toggle, onOpen: { present(.task($0, $1)) })
                     .transition(.opacity)
             } else {
-                ChoreBoardView(onToggle: { toggle($0, store.today) }, present: present)
-                    .transition(.opacity)
+                TimelineView(.everyMinute) { _ in
+                    ChoreBoardView(
+                        board: store.board(people: model.people, care: companions.careTasks(now: CompanionClock.now())),
+                        onToggle: { toggle($0, store.today) },
+                        onOpenCare: openCare,
+                        present: present
+                    )
+                }
+                .transition(.opacity)
             }
         }
         .padding(.horizontal, 26)
@@ -50,9 +65,11 @@ struct ChoresScreen: View {
             case .newChore: ChoreEditor(chore: nil)
             case let .editChore(chore): ChoreEditor(chore: chore)
             case let .whoDidIt(chore, day): WhoDidItSheet(chore: chore, day: day)
+            case let .task(chore, day): ChoreTaskSheet(chore: chore, day: day) { present(.editChore(chore)) }
             case let .editReward(reward): RewardEditor(reward: reward)
             }
         }
+        .careLogFlow($careRequest)
         #if DEBUG
         .task { openDebugSheet() }
         .fullScreenCover(isPresented: $debugAmbient) {
@@ -97,6 +114,16 @@ struct ChoresScreen: View {
         withoutAnimation { self.sheet = sheet }
     }
 
+    /// Care is logged (or fixed) with the companion's own sheet: who, when, and details.
+    private func openCare(_ task: CareTask) {
+        guard let routineId = task.routine.id else { return }
+        let request = task.slot.entry.map { CareLogRequest.edit($0, companionId: task.companionId) }
+            ?? CareLogRequest(companionId: task.companionId, routineId: routineId)
+        var shown = request
+        shown.returnTitle = "Back to Pitch in"
+        CompanionCover.instantly { careRequest = shown }
+    }
+
     /// Checks a chore off. Owned chores credit their owner; "Anyone" chores ask who did it.
     private func toggle(_ chore: Chore, _ day: DayKey) {
         let isDone = store.snapshot.completions.contains { $0.choreId == chore.id && $0.dayKey == day }
@@ -138,13 +165,12 @@ struct ChoresScreen: View {
 // MARK: - Board
 
 private struct ChoreBoardView: View {
-    @Environment(AppModel.self) private var model
-    @Environment(HomeStore.self) private var store
+    let board: ChoreBoard
     let onToggle: (Chore) -> Void
+    let onOpenCare: (CareTask) -> Void
     let present: (ChoreSheet) -> Void
 
     var body: some View {
-        let board = store.board(people: model.people)
         GeometryReader { proxy in
             let count = CGFloat(max(board.columns.count, 1))
             let fitted = (proxy.size.width - 16 * (count - 1)) / count
@@ -153,7 +179,7 @@ private struct ChoreBoardView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 16) {
                     ForEach(board.columns) { column in
-                        ChoreColumnView(column: column, onToggle: onToggle, present: present)
+                        ChoreColumnView(column: column, onToggle: onToggle, onOpenCare: onOpenCare, present: present)
                             .frame(width: width)
                     }
                 }
@@ -171,6 +197,7 @@ private struct ChoreColumnView: View {
     @Environment(HomeStore.self) private var store
     let column: ChoreBoard.Column
     let onToggle: (Chore) -> Void
+    let onOpenCare: (CareTask) -> Void
     let present: (ChoreSheet) -> Void
 
     private var color: Color { model.color(for: column.owner) }
@@ -185,12 +212,12 @@ private struct ChoreColumnView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            ProgressBar(fraction: column.tasks.isEmpty ? 0 : Double(column.doneCount) / Double(column.tasks.count), fill: AnyShapeStyle(color), height: 8, track: Theme.surface2)
+            ProgressBar(fraction: column.isEmpty ? 0 : Double(column.doneCount) / Double(column.totalCount), fill: AnyShapeStyle(color), height: 8, track: Theme.surface2)
                 .padding(.top, 2)
                 .padding(.bottom, 6)
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
-                    if column.tasks.isEmpty {
+                    if column.isEmpty {
                         Text(column.owner == .everyone ? "Nothing shared today" : "Nothing due today")
                             .font(.body(14, weight: 600))
                             .foregroundStyle(Theme.muted)
@@ -201,23 +228,21 @@ private struct ChoreColumnView: View {
                             }
                     }
                     ForEach(column.tasks) { task in
-                        ChoreRow(task: task, color: color, today: store.today, calendar: store.calendar) { onToggle(task.chore) }
-                            .contextMenu {
-                                Button { present(.editChore(task.chore)) } label: { Label("Edit", systemImage: "pencil") }
-                                Button { store.setArchived(task.chore, true) } label: { Label("Archive", systemImage: "archivebox") }
-                            }
+                        ChoreRow(task: task, color: color, today: store.today, calendar: store.calendar) {
+                            onToggle(task.chore)
+                        } onOpen: {
+                            present(.task(task.chore, store.today))
+                        }
+                    }
+                    ForEach(column.care) { task in
+                        CareTaskRow(task: task) { onOpenCare(task) }
                     }
                 }
             }
             .scrollBounceBehavior(.basedOnSize)
             Spacer(minLength: 0)
             ForEach(column.rewards) { status in
-                RewardCard(status: status)
-                    .contextMenu {
-                        Button { present(.editReward(status.reward)) } label: { Label("Edit", systemImage: "pencil") }
-                        Button { store.restart(status.reward) } label: { Label("Start over", systemImage: "arrow.counterclockwise") }
-                        Button { store.setArchived(status.reward, true) } label: { Label("Archive", systemImage: "archivebox") }
-                    }
+                RewardCard(status: status) { present(.editReward(status.reward)) }
             }
         }
         .padding(.horizontal, 20)
@@ -233,7 +258,7 @@ private struct ChoreColumnView: View {
                 Text(name)
                     .font(.display(20))
                     .lineLimit(1)
-                Text("\(column.doneCount) of \(column.tasks.count) today")
+                Text("\(column.doneCount) of \(column.totalCount) today")
                     .font(.body(13, weight: 700))
                     .foregroundStyle(Theme.muted)
             }
@@ -251,17 +276,45 @@ private struct ChoreColumnView: View {
     }
 }
 
+/// A chore on the board: its box checks it off; the rest of the row opens it.
 private struct ChoreRow: View {
+    @Environment(AppModel.self) private var model
     let task: ChoreBoard.Task
     let color: Color
     let today: DayKey
     let calendar: Calendar
-    let action: () -> Void
+    let onToggle: () -> Void
+    let onOpen: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        HStack(spacing: 0) {
+            Button(action: onToggle) {
+                CheckBox(isOn: task.isDone, color: doneColor)
+                    .padding(.leading, 14)
+                    .padding(.trailing, 12)
+                    .frame(maxHeight: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableStyle())
+            .accessibilityLabel(task.chore.title)
+            .accessibilityValue(task.isDone ? "Done" : "Not done")
+            .accessibilityHint("Checks it off")
+            Button(action: onOpen) { details }
+                .buttonStyle(PressableStyle())
+                .accessibilityLabel("Open \(task.chore.title)")
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+    }
+
+    /// Done by someone else than the owner shows in the doer's color.
+    private var doneColor: Color {
+        guard let person = task.completion?.personId else { return color }
+        return model.color(for: .person(person))
+    }
+
+    private var details: some View {
             HStack(spacing: 12) {
-                CheckBox(isOn: task.isDone, color: color)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(task.chore.title)
                         .font(.body(16, weight: 700))
@@ -271,28 +324,29 @@ private struct ChoreRow: View {
                         .lineLimit(2)
                     HStack(spacing: 4) {
                         if let emoji = task.chore.emoji { Text(emoji).font(.system(size: 12)) }
-                        Text(ChoreSchedule.subtitle(for: task.chore, today: today, calendar: calendar))
+                        Text(subtitle)
                             .font(.body(12, weight: 600))
                             .foregroundStyle(isOverdue ? Theme.accent : Theme.muted)
                     }
                     .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text("+\(task.chore.stars)")
-                    .font(.body(13, weight: 800))
-                    .foregroundStyle(Theme.muted)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 3)
-                    .background(Theme.surface, in: Capsule())
+                StarsTag(stars: task.chore.stars)
             }
-            .padding(14)
-            .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+            .padding(.vertical, 14)
+            .padding(.trailing, 14)
+            .contentShape(Rectangle())
+    }
+
+    /// "Mia pitched in" when someone else did your chore; otherwise when it's due.
+    private var subtitle: String {
+        if let completion = task.completion, let person = completion.personId, person != task.chore.ownerId, task.chore.ownerId != nil {
+            return "\(model.person(person)?.name ?? "Someone") pitched in"
         }
-        .buttonStyle(PressableStyle())
-        .accessibilityLabel(task.chore.title)
-        .accessibilityValue(task.isDone ? "Done" : "Not done")
-        .accessibilityHint("Double-tap to check off. Long-press to edit.")
+        if let completion = task.completion, task.chore.ownerId == nil, let person = completion.personId {
+            return "Done by \(model.person(person)?.name ?? "someone")"
+        }
+        return ChoreSchedule.subtitle(for: task.chore, today: today, calendar: calendar)
     }
 
     private var isOverdue: Bool {
@@ -331,11 +385,36 @@ struct ProgressBar: View {
     }
 }
 
-private struct RewardCard: View {
+/// A reward at the foot of a column; tap to edit it, "Cash in" once it's reached.
+struct RewardCard: View {
     @Environment(HomeStore.self) private var store
     let status: ChoreBoard.RewardStatus
+    let onEdit: () -> Void
 
     var body: some View {
+        Button(action: onEdit) { card }
+            .buttonStyle(PressableStyle())
+            .overlay(alignment: .bottomTrailing) {
+                if status.isReached {
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { store.cashIn(status.reward) }
+                    } label: {
+                        Text("Cash in 🎉")
+                            .font(.body(12.5, weight: 800))
+                            .foregroundStyle(Theme.accentInk)
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 5)
+                            .background(Theme.accent, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 10)
+                    .padding(.bottom, 8)
+                    .accessibilityLabel("Cash in \(status.reward.title)")
+                }
+            }
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text([status.reward.emoji, status.reward.title].compactMap { $0 }.joined(separator: " "))
                 .font(.body(15.5, weight: 700))
@@ -350,22 +429,260 @@ private struct RewardCard: View {
             .padding(.top, 9)
             .padding(.bottom, 6)
             HStack {
+                // Leaves room for the "Cash in" button once the reward is reached.
                 Text("\(min(status.earned, status.reward.targetStars)) / \(status.reward.targetStars) stars" + (status.reward.isShared ? " together" : ""))
                     .font(.body(12.5, weight: 700))
                     .foregroundStyle(Theme.muted)
                     .monospacedDigit()
                 Spacer(minLength: 4)
-                if status.isReached {
-                    Button("Start over") { store.restart(status.reward) }
-                        .font(.body(12.5, weight: 800))
-                        .foregroundStyle(Theme.accent)
-                        .buttonStyle(.plain)
-                }
             }
+            .frame(minHeight: status.isReached ? 28 : nil)
         }
         .padding(12)
+        .padding(.bottom, status.isReached ? -4 : 0)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
         .accessibilityElement(children: .combine)
+        .accessibilityHint("Edit the reward")
+    }
+}
+
+/// "+2" stars on a row.
+struct StarsTag: View {
+    let stars: Int
+
+    var body: some View {
+        Text("+\(stars)")
+            .font(.body(13, weight: 800))
+            .foregroundStyle(Theme.muted)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(Theme.surface, in: Capsule())
+            .accessibilityLabel("\(stars) \(stars == 1 ? "star" : "stars")")
+    }
+}
+
+/// Companion care on the board: "Walk Yo-Yo · Morning 6-10am", or who did it.
+/// Tapping logs it (who, when, details) or opens the log to fix it.
+private struct CareTaskRow: View {
+    @Environment(AppModel.self) private var model
+    let task: CareTask
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                CheckBox(isOn: task.isDone, color: doneColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(task.title)
+                        .font(.body(16, weight: 700))
+                        .foregroundStyle(task.isDone ? Theme.muted : Theme.ink)
+                        .strikethrough(task.isDone, pattern: .solid, color: doneColor.opacity(0.7))
+                        .lineLimit(2)
+                    HStack(spacing: 4) {
+                        Text(task.routine.emoji).font(.system(size: 12))
+                        Text(subtitle)
+                            .font(.body(12, weight: 600))
+                            .foregroundStyle(isLate ? Theme.accent : Theme.muted)
+                    }
+                    .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                StarsTag(stars: task.routine.stars)
+            }
+            .padding(14)
+            .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel(task.title + (task.slot.window.isAllDay ? "" : ", \(task.slot.window.label)"))
+        .accessibilityValue(task.isDone ? "Done" : "Not done")
+        .accessibilityHint(task.isDone ? "Opens the log to fix it" : "Logs it")
+    }
+
+    private var doneColor: Color {
+        guard let first = task.slot.entry?.people.first else { return Theme.everyone }
+        return task.slot.entry?.isTogether == true ? Theme.everyone : model.color(for: .person(first))
+    }
+
+    private var isLate: Bool {
+        task.slot.state == .late || task.slot.state == .due
+    }
+
+    private var subtitle: String {
+        if let entry = task.slot.entry {
+            let names = ListFormat.join(entry.people.compactMap { model.person($0)?.name })
+            return (names.isEmpty ? "Done" : names) + " · " + entry.time.formatted(date: .omitted, time: .shortened)
+        }
+        let window = task.slot.window
+        let when = window.isAllDay ? "any time today" : "\(window.label) · \(window.rangeText)"
+        switch task.slot.state {
+        case .late: return "Late · " + when
+        case .due: return "Due now · " + when
+        default: return when
+        }
+    }
+}
+
+// MARK: - A chore, opened
+
+/// One chore on one day, opened from its row: who did it (and changing that), undo,
+/// and the chore itself (edit, archive, delete). The same "tap to fix" as meals and walks.
+struct ChoreTaskSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(HomeStore.self) private var store
+    @Environment(\.closeWallSheet) private var close
+    let chore: Chore
+    let day: DayKey
+    let onEdit: () -> Void
+
+    @State private var confirmDelete = false
+
+    /// The chore as it is now.
+    private var current: Chore { store.snapshot.chores.first { $0.id == chore.id } ?? chore }
+
+    var body: some View {
+        let completion = store.completion(of: current, on: day)
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 14) {
+                Text(current.emoji ?? "✅")
+                    .font(.system(size: 30))
+                    .frame(width: 60, height: 60)
+                    .background(model.color(for: current.owner).wash(0.14), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(current.title).font(.display(28)).lineLimit(2)
+                    Text(scheduleLine)
+                        .font(.body(14, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                }
+                .padding(.trailing, 40)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                SheetLabel(title: dayTitle, note: completion == nil ? "· not done yet" : "· done")
+                if let completion {
+                    HStack(spacing: 10) {
+                        if let person = completion.personId.flatMap(model.person) {
+                            Avatar(person: person, size: 30)
+                        }
+                        Text(doneLine(completion))
+                            .font(.body(16, weight: 700))
+                        Spacer(minLength: 0)
+                        Button("Undo") {
+                            store.toggle(current, on: day)
+                        }
+                        .buttonStyle(SecondaryButtonStyle())
+                    }
+                }
+                Text(completion == nil ? "Who did it?" : "Someone else did it?")
+                    .font(.body(14, weight: 600))
+                    .foregroundStyle(Theme.muted)
+                FlowLayout(spacing: 10) {
+                    ForEach(model.people) { person in
+                        let isDoer = completion?.personId == person.id
+                        Button {
+                            guard let id = person.id else { return }
+                            store.credit(current, on: day, to: id)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Avatar(person: person, size: 30)
+                                Text(person.name).font(.body(15, weight: 700))
+                            }
+                            .foregroundStyle(Theme.ink)
+                            .padding(.leading, 6)
+                            .padding(.trailing, 14)
+                            .padding(.vertical, 5)
+                            .background(isDoer ? person.color.color.wash(0.14) : Theme.surface, in: Capsule())
+                            .overlay(Capsule().strokeBorder(isDoer ? person.color.color : Theme.line, lineWidth: 2))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(person.name) did it")
+                        .accessibilityAddTraits(isDoer ? .isSelected : [])
+                    }
+                }
+            }
+            .padding(16)
+            .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+            WeekDots(chore: current)
+
+            HStack(spacing: 10) {
+                Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+                    .buttonStyle(SecondaryButtonStyle())
+                Button {
+                    store.setArchived(current, !current.archived)
+                    close()
+                } label: { Label(current.archived ? "Restore" : "Archive", systemImage: "archivebox") }
+                    .buttonStyle(SecondaryButtonStyle())
+                Spacer()
+                if confirmDelete {
+                    Button("Keep it") { confirmDelete = false }
+                        .buttonStyle(SecondaryButtonStyle())
+                    Button("Delete chore") {
+                        store.delete(current)
+                        close()
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                } else {
+                    Button { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
+                        .buttonStyle(SecondaryButtonStyle())
+                }
+            }
+            ErrorLine(message: store.lastError)
+        }
+        .foregroundStyle(Theme.ink)
+    }
+
+    private var scheduleLine: String {
+        let owner = current.ownerId.flatMap(model.person)?.name ?? "Anyone"
+        let pattern = current.recurrence.isOnce
+            ? Recurrence.describeDue(current.anchor, today: store.today, calendar: store.calendar)
+            : current.recurrence.describe(start: current.anchor, calendar: store.calendar)
+        return "\(owner) · \(pattern) · +\(current.stars) \(current.stars == 1 ? "star" : "stars")"
+    }
+
+    private var dayTitle: String {
+        if day == store.today { return "Today" }
+        return day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day(), calendar: store.calendar)
+    }
+
+    private func doneLine(_ completion: ChoreCompletion) -> String {
+        let who = completion.personId.flatMap(model.person)?.name ?? "Someone"
+        let time = completion.completedAt.formatted(date: .omitted, time: .shortened)
+        return completion.dayKey == DayKey(completion.completedAt, calendar: store.calendar) ? "\(who) did it at \(time)" : "\(who) did it"
+    }
+}
+
+/// The chore's week: a dot per day, filled in the color of whoever did it.
+private struct WeekDots: View {
+    @Environment(AppModel.self) private var model
+    @Environment(HomeStore.self) private var store
+    let chore: Chore
+
+    var body: some View {
+        let calendar = store.calendar
+        HStack(spacing: 14) {
+            ForEach(store.week.days, id: \.self) { day in
+                let mark = WeekMark.mark(for: chore, on: day, completions: store.snapshot.completions, calendar: calendar)
+                VStack(spacing: 5) {
+                    Text(day.formatted(.dateTime.weekday(.narrow), calendar: calendar))
+                        .font(.body(11.5, weight: 800))
+                        .foregroundStyle(day == store.today ? Theme.accent : Theme.muted)
+                    switch mark {
+                    case .none:
+                        Circle().fill(Theme.line).frame(width: 8, height: 8).frame(width: 20, height: 20)
+                    case .open:
+                        Circle().strokeBorder(Theme.muted.opacity(day < store.today ? 0.35 : 0.7), lineWidth: 2).frame(width: 20, height: 20)
+                    case let .done(person):
+                        Circle().fill(person.map { model.color(for: .person($0)) } ?? Theme.everyone).frame(width: 20, height: 20)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("This week")
     }
 }
 
@@ -375,6 +692,7 @@ private struct ChoreWeekView: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var store
     let onToggle: (Chore, DayKey) -> Void
+    let onOpen: (Chore, DayKey) -> Void
 
     private var groups: [(owner: Owner, chores: [Chore])] {
         let chores = store.activeChores
@@ -455,6 +773,9 @@ private struct ChoreWeekView: View {
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { onOpen(chore, store.today) }
+            .accessibilityAddTraits(.isButton)
             ForEach(week.days, id: \.self) { day in
                 cell(chore, owner: owner, day: day, calendar: calendar)
                     .frame(width: 64)
@@ -469,7 +790,8 @@ private struct ChoreWeekView: View {
         let mark = WeekMark.mark(for: chore, on: day, completions: store.snapshot.completions, calendar: calendar)
         let canToggle = day <= store.today && mark != .none
         Button {
-            onToggle(chore, day)
+            // A done day opens to fix who did it; an open one checks it off.
+            if case .done = mark { onOpen(chore, day) } else { onToggle(chore, day) }
         } label: {
             switch mark {
             case .none:
@@ -489,7 +811,7 @@ private struct ChoreWeekView: View {
     }
 
     private func starsFooter(week: HomeWeek) -> some View {
-        let totals = StarTotals.byPerson(store.snapshot.completions, in: week)
+        let totals = StarTotals.byPerson(store.snapshot.earnings, in: week)
         return HStack(spacing: 18) {
             ForEach(model.people) { person in
                 HStack(spacing: 8) {
@@ -500,7 +822,7 @@ private struct ChoreWeekView: View {
                 }
             }
             Spacer()
-            Text("Tap a box to catch up on a missed day")
+            Text("Tap a box to catch up on a missed day, a check to fix who did it")
                 .font(.body(13, weight: 600))
                 .foregroundStyle(Theme.muted)
         }

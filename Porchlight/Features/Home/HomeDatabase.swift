@@ -167,6 +167,26 @@ extension AppDatabase {
         }
     }
 
+    /// Says who did a chore on a day: changes the credit of an existing completion, or
+    /// checks it off for that person. Anyone can pitch in on someone else's chore.
+    func creditChore(id: Int64, day: DayKey, personId: Int64, now: Date = .now) throws {
+        let day = try Self.validatedDay(day)
+        try writer.write { db in
+            guard let chore = try Chore.fetchOne(db, id: id) else { throw HomeValidationError.notFound }
+            try Self.requirePerson(personId, in: chore.householdId, db)
+            if var existing = try ChoreCompletion.filter(Column("choreId") == id && Column("day") == day.rawValue).fetchOne(db) {
+                existing.personId = personId
+                try existing.update(db)
+                return
+            }
+            if chore.recurrence.isOnce {
+                try ChoreCompletion.filter(Column("choreId") == id).deleteAll(db)
+            }
+            var completion = ChoreCompletion(choreId: id, day: day.rawValue, personId: personId, stars: chore.stars, completedAt: now)
+            try completion.insert(db)
+        }
+    }
+
     // MARK: Rewards
 
     @discardableResult
@@ -204,6 +224,22 @@ extension AppDatabase {
         let day = try Self.validatedDay(day)
         try writer.write { db in
             try db.execute(sql: "UPDATE reward SET startDay = ? WHERE id = ?", arguments: [day.rawValue, id])
+        }
+    }
+
+    /// Cashes a reward in: records the stars spent on it and starts it over from `day`.
+    /// Stars earned later that same day count toward the next round.
+    @discardableResult
+    func cashInReward(id: Int64, stars: Int, day: DayKey, now: Date = .now) throws -> RewardRedemption {
+        let day = try Self.validatedDay(day)
+        return try writer.write { db in
+            guard let reward = try Reward.fetchOne(db, id: id) else { throw HomeValidationError.notFound }
+            var redemption = RewardRedemption(
+                rewardId: id, personId: reward.ownerId, stars: max(stars, 0), day: day.rawValue, redeemedAt: now
+            )
+            try redemption.insert(db)
+            try db.execute(sql: "UPDATE reward SET startDay = ? WHERE id = ?", arguments: [day.rawValue, id])
+            return redemption
         }
     }
 
@@ -368,6 +404,12 @@ struct HomeSnapshot: Equatable, Sendable {
     /// Completions from `since` on, plus every completion of a one-off chore.
     var completions: [ChoreCompletion] = []
     var rewards: [Reward] = []
+    /// Stars earned from chores and care, from the same window as `completions`.
+    var earnings: [StarEarning] = []
+    /// Every star each person has ever earned.
+    var lifetimeStars: [Int64: Int] = [:]
+    /// Rewards cashed in, newest first.
+    var redemptions: [RewardRedemption] = []
     var lists: [HomeList] = []
     var items: [ListItem] = []
     var meals: [MealPlan] = []
@@ -391,6 +433,12 @@ struct HomeSnapshot: Equatable, Sendable {
             WHERE c.householdId = ? AND (cc.day >= ? OR c.repeatKind = 'once')
             ORDER BY cc.day, cc.id
             """, arguments: [householdId, from])
+        let earnings = try StarLedger.earnings(db, householdId: householdId, from: DayKey(rawValue: from), calendar: household.calendar)
+        let lifetimeStars = try StarLedger.lifetimeStars(db, householdId: householdId)
+        let redemptions = try RewardRedemption.fetchAll(db, sql: """
+            SELECT rr.* FROM rewardRedemption rr JOIN reward r ON r.id = rr.rewardId
+            WHERE r.householdId = ? ORDER BY rr.redeemedAt DESC, rr.id DESC
+            """, arguments: [householdId])
         let lists = try HomeList.filter(Column("householdId") == householdId).order(Column("sortOrder"), Column("id")).fetchAll(db)
         let items = try ListItem.fetchAll(db, sql: """
             SELECT i.* FROM listItem i JOIN homeList l ON l.id = i.listId
@@ -403,8 +451,65 @@ struct HomeSnapshot: Equatable, Sendable {
         let photos = try AmbientPhoto.filter(Column("householdId") == householdId).order(Column("createdAt"), Column("id")).fetchAll(db)
         return HomeSnapshot(
             household: household, people: people, chores: chores, completions: completions, rewards: rewards,
-            lists: lists, items: items, meals: meals, photos: photos
+            earnings: earnings, lifetimeStars: lifetimeStars, redemptions: redemptions, lists: lists, items: items, meals: meals, photos: photos
         )
+    }
+}
+
+/// Where every star comes from: chore completions and care logs, read side by side.
+enum StarLedger {
+    /// Earnings on or after `from`, oldest first. Care given together credits everyone who helped.
+    static func earnings(_ db: Database, householdId: Int64, from: DayKey, calendar: Calendar) throws -> [StarEarning] {
+        let chores = try Row.fetchAll(db, sql: """
+            SELECT cc.id, cc.choreId, cc.personId, cc.stars, cc.day, cc.completedAt, c.title, c.emoji
+            FROM choreCompletion cc JOIN chore c ON c.id = cc.choreId
+            WHERE c.householdId = ? AND cc.day >= ? AND cc.stars > 0
+            """, arguments: [householdId, from.rawValue]).map { row in
+            StarEarning(
+                source: .chore(choreId: row["choreId"], completionId: row["id"]),
+                personId: row["personId"], stars: row["stars"], day: DayKey(rawValue: row["day"]),
+                at: row["completedAt"], title: row["title"], emoji: (row["emoji"] as String?) ?? "✅"
+            )
+        }
+        // A day before `from` covers time zones; days are then computed in the household's calendar.
+        let since = from.adding(days: -1, calendar: calendar).startDate(in: calendar)
+        let care = try Row.fetchAll(db, sql: """
+            SELECT l.id, l.careRoutineId, l.occurredAt, l.stars, p.personId, r.title, r.emoji, c.name
+            FROM careLog l
+            JOIN careLogPerson p ON p.careLogId = l.id
+            JOIN careRoutine r ON r.id = l.careRoutineId
+            JOIN companion c ON c.id = r.companionId
+            WHERE c.householdId = ? AND l.occurredAt >= ? AND l.stars > 0
+            """, arguments: [householdId, since]).compactMap { row -> StarEarning? in
+            let at: Date = row["occurredAt"]
+            let day = DayKey(at, calendar: calendar)
+            guard day >= from else { return nil }
+            let routine: String = row["title"]
+            let name: String = row["name"]
+            return StarEarning(
+                source: .care(routineId: row["careRoutineId"], logId: row["id"]),
+                personId: row["personId"], stars: row["stars"], day: day,
+                at: at, title: "\(routine) \(name)", emoji: row["emoji"]
+            )
+        }
+        return (chores + care).sorted { ($0.at, $0.id) < ($1.at, $1.id) }
+    }
+
+    /// Every star each person has earned, ever.
+    static func lifetimeStars(_ db: Database, householdId: Int64) throws -> [Int64: Int] {
+        let rows = try Row.fetchAll(db, sql: """
+            SELECT personId, SUM(stars) AS stars FROM (
+                SELECT cc.personId, cc.stars FROM choreCompletion cc JOIN chore c ON c.id = cc.choreId
+                WHERE c.householdId = ? AND cc.personId IS NOT NULL
+                UNION ALL
+                SELECT p.personId, l.stars FROM careLog l
+                JOIN careLogPerson p ON p.careLogId = l.id
+                JOIN careRoutine r ON r.id = l.careRoutineId
+                JOIN companion c ON c.id = r.companionId
+                WHERE c.householdId = ?
+            ) GROUP BY personId
+            """, arguments: [householdId, householdId])
+        return Dictionary(rows.map { ($0["personId"] as Int64, $0["stars"] as Int) }, uniquingKeysWith: +)
     }
 }
 

@@ -83,6 +83,56 @@ extension Reward: FetchableRecord, MutablePersistableRecord {
     }
 }
 
+/// A reward cashed in: its stars were spent and it starts over.
+struct RewardRedemption: Codable, Equatable, Identifiable, Sendable {
+    var id: Int64?
+    var rewardId: Int64
+    /// Whose treat it was; nil for a shared goal (or a removed person).
+    var personId: Int64?
+    var stars: Int
+    var day: String
+    var redeemedAt: Date
+
+    var dayKey: DayKey { DayKey(rawValue: day) }
+}
+
+extension RewardRedemption: FetchableRecord, MutablePersistableRecord {
+    mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+}
+
+/// One time someone earned stars: a chore done, or care given to a companion.
+/// Every star total in the app (the board, rewards, Glow) adds these up, so a star
+/// means the same thing wherever it shows.
+struct StarEarning: Equatable, Identifiable, Sendable {
+    enum Source: Equatable, Hashable, Sendable {
+        case chore(choreId: Int64, completionId: Int64)
+        case care(routineId: Int64, logId: Int64)
+    }
+
+    var source: Source
+    /// Who earned them; nil only when that person was removed.
+    var personId: Int64?
+    var stars: Int
+    var day: DayKey
+    var at: Date
+    var title: String
+    var emoji: String
+
+    var id: String {
+        switch source {
+        case let .chore(_, completionId): "chore-\(completionId)-\(personId ?? 0)"
+        case let .care(_, logId): "care-\(logId)-\(personId ?? 0)"
+        }
+    }
+
+    var isCare: Bool {
+        if case .care = source { return true }
+        return false
+    }
+}
+
 // MARK: - Lists and meals
 
 enum ListKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible {

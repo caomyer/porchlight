@@ -41,11 +41,22 @@ final class HomeStore {
 
     var activeChores: [Chore] { snapshot.chores.filter { !$0.archived } }
 
-    func board(people: [Person]) -> ChoreBoard {
+    func board(people: [Person], care: [CareTask] = []) -> ChoreBoard {
         ChoreBoard(
             people: people, chores: snapshot.chores, completions: snapshot.completions,
+            earnings: snapshot.earnings, redemptions: snapshot.redemptions, care: care,
             rewards: snapshot.rewards, today: today, calendar: calendar
         )
+    }
+
+    /// Stars a reward has earned in its current round.
+    func earned(toward reward: Reward) -> Int {
+        RewardProgress.earned(for: reward, earnings: snapshot.earnings, redemptions: snapshot.redemptions)
+    }
+
+    /// The completion of a chore on a day, if it was done.
+    func completion(of chore: Chore, on day: DayKey) -> ChoreCompletion? {
+        snapshot.completions.first { $0.choreId == chore.id && $0.dayKey == day }
     }
 
     func meal(on day: DayKey) -> MealPlan? {
@@ -120,6 +131,12 @@ final class HomeStore {
         perform { try database.deleteChore(id: id) }
     }
 
+    /// Marks who did a chore on a day (checking it off if it wasn't).
+    func credit(_ chore: Chore, on day: DayKey, to personId: Int64) {
+        guard let id = chore.id else { return }
+        perform { try database.creditChore(id: id, day: day, personId: personId) }
+    }
+
     /// Checks a chore off for today (or another day), crediting `personId` for "Anyone" chores.
     func toggle(_ chore: Chore, on day: DayKey? = nil, by personId: Int64? = nil) {
         guard let id = chore.id else { return }
@@ -134,6 +151,14 @@ final class HomeStore {
         return perform { try database.saveReward(draft, id: id, householdId: householdId, today: today) }
     }
 
+    /// Spends a reached reward's stars ("cash in") and starts it over.
+    func cashIn(_ reward: Reward) {
+        guard let id = reward.id else { return }
+        let stars = earned(toward: reward)
+        perform { try database.cashInReward(id: id, stars: stars, day: today) }
+    }
+
+    /// Starts a reward over without cashing it in.
     func restart(_ reward: Reward) {
         guard let id = reward.id else { return }
         perform { try database.restartReward(id: id, from: today) }

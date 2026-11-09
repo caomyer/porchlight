@@ -48,14 +48,21 @@ enum HomeSamples {
 
         // Rewards: personal treats started about a week ago; the shared fund has been going a while.
         let rewards = [
-            (RewardDraft(title: "Fancy coffee run", emoji: "☕", targetStars: 30, ownerId: first), today.adding(days: -9, calendar: calendar)),
-            (RewardDraft(title: "Spa afternoon", emoji: "💆", targetStars: 40, ownerId: second), today.adding(days: -11, calendar: calendar)),
-            (RewardDraft(title: "Date night fund", emoji: "🍷", targetStars: 100, ownerId: nil), today.adding(days: -20, calendar: calendar)),
+            (RewardDraft(title: "Fancy coffee run", emoji: "☕", targetStars: 30, ownerId: first), today.adding(days: -4, calendar: calendar)),
+            (RewardDraft(title: "Spa afternoon", emoji: "💆", targetStars: 80, ownerId: second), today.adding(days: -11, calendar: calendar)),
+            (RewardDraft(title: "Date night fund", emoji: "🍷", targetStars: 250, ownerId: nil), today.adding(days: -20, calendar: calendar)),
         ]
         for (draft, startDay) in rewards {
             let reward = try database.saveReward(draft, householdId: householdId, today: today)
             try database.restartReward(id: reward.id!, from: startDay)
         }
+        // A treat already enjoyed last week, for the Glow page's "Lately".
+        let treat = try database.saveReward(
+            RewardDraft(title: "Ice cream trip", emoji: "🍦", targetStars: 20, ownerId: first), householdId: householdId, today: today
+        )
+        let cashedIn = today.adding(days: -5, calendar: calendar)
+        try database.cashInReward(id: treat.id!, stars: 20, day: cashedIn, now: cashedIn.startDate(in: calendar).addingTimeInterval(17 * 3600))
+        try database.setRewardArchived(id: treat.id!, archived: true)
 
         // Lists
         let groceries = try database.createList(title: "Groceries", kind: .grocery, householdId: householdId)

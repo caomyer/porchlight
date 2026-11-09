@@ -159,6 +159,16 @@ final class CompanionStore {
         return report
     }
 
+    /// Today's companion care, slot by slot, for the Pitch in board.
+    func careTasks(now: Date = CompanionClock.now()) -> [CareTask] {
+        companions.flatMap { summary -> [CareTask] in
+            guard let report = report(for: summary.id, now: now) else { return [] }
+            return ([report.primary].compactMap { $0 } + report.others).flatMap { today in
+                today.slots.map { CareTask(companionId: summary.id, companionName: summary.name, routine: today.routine, slot: $0) }
+            }
+        }
+    }
+
     /// Walks and expected walks for the Today agenda.
     func timelineItems(for day: DayKey) -> [TimelineItem] {
         CompanionTimeline.items(snapshot: snapshot, day: day, now: CompanionClock.now())

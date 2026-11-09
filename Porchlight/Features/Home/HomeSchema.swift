@@ -87,5 +87,17 @@ extension AppDatabase {
                 t.column("createdAt", .datetime).notNull()
             }
         }
+        // Rewards are cashed in, not just restarted, so the family can look back on them.
+        migrator.registerMigration("home v2: reward cash-ins") { db in
+            try db.create(table: "rewardRedemption") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.belongsTo("reward", onDelete: .cascade).notNull()
+                t.belongsTo("person", onDelete: .setNull)
+                t.column("stars", .integer).notNull()
+                t.column("day", .text).notNull()
+                t.column("redeemedAt", .datetime).notNull()
+            }
+            try db.create(index: "rewardRedemption_on_day", on: "rewardRedemption", columns: ["day"])
+        }
     }
 }

@@ -7,6 +7,7 @@ enum Destination: Hashable, Identifiable {
     case companion(Int64)
     case food
     case chores
+    case glow
     case lists
     case photos
     case settings
@@ -25,6 +26,7 @@ enum Destination: Hashable, Identifiable {
         case "calendar": self = .calendar
         case "food": self = .food
         case "chores": self = .chores
+        case "glow": self = .glow
         case "lists": self = .lists
         case "photos": self = .photos
         case "settings": self = .settings
@@ -67,7 +69,8 @@ struct WallView: View {
             items.append(RailItem(destination: .food, title: "Food", icon: .symbol("fork.knife")))
         }
         items += [
-            RailItem(destination: .chores, title: "Chores", icon: .symbol("checkmark.square")),
+            RailItem(destination: .chores, title: "Pitch in", icon: .symbol("checkmark.square")),
+            RailItem(destination: .glow, title: "Glow", icon: .symbol("sparkles")),
             RailItem(destination: .lists, title: "Lists", icon: .symbol("list.bullet")),
             RailItem(destination: .photos, title: "Photos", icon: .symbol("photo")),
         ]
@@ -120,6 +123,7 @@ struct WallView: View {
         case let .companion(id): CompanionScreen(companionId: id)
         case .food: FoodScreen()
         case .chores: ChoresScreen()
+        case .glow: GlowScreen()
         case .lists: ListsScreen()
         case .photos: TodayView()
         case .settings: SettingsView()
