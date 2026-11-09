@@ -21,7 +21,7 @@ struct HomeLogicTests {
     static func chore(
         id: Int64 = 1,
         owner: Int64? = 1,
-        _ recurrence: ChoreRecurrence,
+        _ recurrence: Recurrence,
         anchor: String = "2026-11-01",
         stars: Int = 1,
         archived: Bool = false
@@ -108,11 +108,11 @@ struct HomeLogicTests {
 
     @Test("Recurrence round-trips through its stored columns")
     func recurrenceStorage() {
-        for recurrence: ChoreRecurrence in [.daily, .weekdays([1, 4, 7]), .everyNDays(10), .once] {
+        for recurrence: Recurrence in [.daily, .weekdays([1, 4, 7]), .everyNDays(10), .once] {
             #expect(Self.chore(recurrence).recurrence == recurrence)
         }
-        #expect(Chore.mask(for: [1, 7]) == 0b100_0001)
-        #expect(Chore.weekdays(fromMask: 0b100_0001) == [1, 7])
+        #expect(Recurrence.mask(for: [1, 7]) == 0b100_0001)
+        #expect(Recurrence.weekdays(fromMask: 0b100_0001) == [1, 7])
     }
 
     @Test("Subtitles prefer the time hint, then describe the schedule")
@@ -135,8 +135,8 @@ struct HomeLogicTests {
     func orderedWeekdays() {
         var monday = calendar
         monday.firstWeekday = 2
-        #expect(ChoreSchedule.orderedWeekdays(calendar: calendar) == [1, 2, 3, 4, 5, 6, 7])
-        #expect(ChoreSchedule.orderedWeekdays(calendar: monday) == [2, 3, 4, 5, 6, 7, 1])
+        #expect(Recurrence.orderedWeekdays(calendar: calendar) == [1, 2, 3, 4, 5, 6, 7])
+        #expect(Recurrence.orderedWeekdays(calendar: monday) == [2, 3, 4, 5, 6, 7, 1])
     }
 
     // MARK: Board and stars

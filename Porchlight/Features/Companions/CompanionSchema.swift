@@ -58,6 +58,33 @@ extension AppDatabase {
         migrator.registerMigration("companions v2: no turn rotation") { db in
             try db.alter(table: "careRoutine") { t in t.drop(column: "rotation") }
         }
+        // Routines repeat like chores (some weekdays, monthly...) and count from a start day.
+        // Existing every-N-days routines keep their rhythm by starting on their last log's day.
+        migrator.registerMigration("companions v3: routines share chores' repeat rules") { db in
+            try db.alter(table: "careRoutine") { t in
+                t.add(column: "repeatKind", .text).notNull().defaults(to: "daily")
+                t.add(column: "weekdayMask", .integer).notNull().defaults(to: 0)
+                t.add(column: "anchorDay", .text).notNull().defaults(to: "")
+            }
+            let calendar = try Household.order(Column("id")).fetchOne(db)?.calendar ?? .current
+            let today = DayKey(.now, calendar: calendar)
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT r.id, r.everyDays, MIN(l.occurredAt) AS first, MAX(l.occurredAt) AS last
+                FROM careRoutine r LEFT JOIN careLog l ON l.careRoutineId = r.id
+                GROUP BY r.id
+                """)
+            for row in rows {
+                let everyDays: Int = row["everyDays"]
+                let first: Date? = row["first"]
+                let last: Date? = row["last"]
+                let kind = everyDays > 1 ? "interval" : "daily"
+                let anchor = (everyDays > 1 ? last : first).map { DayKey($0, calendar: calendar) } ?? today
+                try db.execute(
+                    sql: "UPDATE careRoutine SET repeatKind = ?, anchorDay = ? WHERE id = ?",
+                    arguments: [kind, anchor.rawValue, row["id"] as Int64]
+                )
+            }
+        }
     }
 }
 
@@ -90,7 +117,7 @@ struct CareRoutine: Codable, Equatable, Identifiable, Sendable, FetchableRecord,
     var kind: CareKind
     var title: String
     var emoji: String
-    /// 1 for daily routines; N for "every N days".
+    /// The interval of "every N days" routines (see `recurrence`); 1 otherwise.
     var everyDays: Int
     /// Ordered daily windows; one slot each. Routines every N days have one window.
     var windows: [CareWindow]
@@ -99,6 +126,11 @@ struct CareRoutine: Codable, Equatable, Identifiable, Sendable, FetchableRecord,
     /// Minutes after a window opens before a still-open slot is flagged as due.
     var nudgeAfterMinutes: Int?
     var sortOrder: Int
+    /// How it repeats, stored like a chore's (see `recurrence`).
+    var repeatKind: String = "daily"
+    var weekdayMask: Int = 0
+    /// The first day it is expected (`DayKey.rawValue`); empty means "always has been".
+    var anchorDay: String = ""
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
@@ -106,24 +138,46 @@ struct CareRoutine: Codable, Equatable, Identifiable, Sendable, FetchableRecord,
 
     func tracks(_ field: CareField) -> Bool { trackedFields.contains(field) }
 
-    var isDaily: Bool { everyDays <= 1 }
+    /// The same repeat rules chores use. Routines never repeat "just once".
+    var recurrence: Recurrence {
+        get { Recurrence(kind: everyDays > 1 && repeatKind == "daily" ? "interval" : repeatKind, weekdayMask: weekdayMask, intervalDays: everyDays) }
+        set {
+            repeatKind = newValue.kind
+            weekdayMask = newValue.weekdayMask
+            everyDays = newValue.intervalDays
+        }
+    }
 
-    /// Slots per due day.
-    var slotsPerDay: Int { isDaily ? max(windows.count, 1) : 1 }
+    /// The day it starts counting from.
+    var start: DayKey { DayKey(rawValue: anchorDay.isEmpty ? "0000-01-01" : anchorDay) }
+
+    /// Whether care is expected on `day`.
+    func occurs(on day: DayKey, calendar: Calendar) -> Bool {
+        recurrence.occurs(on: day, start: start, calendar: calendar)
+    }
+
+    var isDaily: Bool { recurrence == .daily }
+
+    /// Slots per day it is due.
+    var slotsPerDay: Int { max(windows.count, 1) }
 
     /// The routine's windows, never empty.
     var effectiveWindows: [CareWindow] {
-        let windows = isDaily ? windows : Array(windows.prefix(1))
-        return windows.isEmpty ? [.anyTime] : windows
+        windows.isEmpty ? [.anyTime] : windows
     }
 
     /// Walk-like routines get a paw lane on the calendar.
     var isWalkLike: Bool { kind == .walk }
 
-    /// "Walk · 2× a day", "Water · every 3 days".
-    var cadenceText: String {
-        if !isDaily { return "every \(everyDays) days" }
-        return slotsPerDay == 1 ? "once a day" : "\(slotsPerDay)× a day"
+    /// "2× a day", "every 3 days", "Mon, Thu", "2× on weekdays", "monthly on the 1st".
+    func cadenceText(calendar: Calendar) -> String {
+        let times = slotsPerDay == 1 ? nil : "\(slotsPerDay)×"
+        switch recurrence {
+        case .daily: return times.map { "\($0) a day" } ?? "once a day"
+        default:
+            let pattern = recurrence.describe(start: start, calendar: calendar)
+            return times.map { "\($0) \(pattern)" } ?? pattern
+        }
     }
 }
 

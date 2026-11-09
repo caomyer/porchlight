@@ -3,19 +3,6 @@ import GRDB
 
 // MARK: - Chores
 
-/// How often a chore comes around.
-enum ChoreRecurrence: Hashable, Sendable {
-    case daily
-    /// On these `Calendar` weekdays (1 = Sunday ... 7 = Saturday).
-    case weekdays(Set<Int>)
-    /// Every `n` days, counted from the chore's anchor day.
-    case everyNDays(Int)
-    /// One time, due on the chore's anchor day. Stays on the board until done.
-    case once
-
-    var isOnce: Bool { self == .once }
-}
-
 /// A household chore. Repeating chores start on `anchorDay`; one-off chores are due on it.
 struct Chore: Codable, Equatable, Identifiable, Sendable {
     var id: Int64?
@@ -38,35 +25,13 @@ struct Chore: Codable, Equatable, Identifiable, Sendable {
     var owner: Owner { ownerId.map(Owner.person) ?? .everyone }
     var anchor: DayKey { DayKey(rawValue: anchorDay) }
 
-    var recurrence: ChoreRecurrence {
-        get {
-            switch repeatKind {
-            case "weekdays": .weekdays(Self.weekdays(fromMask: weekdayMask))
-            case "interval": .everyNDays(max(intervalDays, 1))
-            case "once": .once
-            default: .daily
-            }
-        }
+    var recurrence: Recurrence {
+        get { Recurrence(kind: repeatKind, weekdayMask: weekdayMask, intervalDays: intervalDays) }
         set {
-            switch newValue {
-            case .daily:
-                repeatKind = "daily"; weekdayMask = 0; intervalDays = 1
-            case let .weekdays(days):
-                repeatKind = "weekdays"; weekdayMask = Self.mask(for: days); intervalDays = 1
-            case let .everyNDays(n):
-                repeatKind = "interval"; weekdayMask = 0; intervalDays = n
-            case .once:
-                repeatKind = "once"; weekdayMask = 0; intervalDays = 1
-            }
+            repeatKind = newValue.kind
+            weekdayMask = newValue.weekdayMask
+            intervalDays = newValue.intervalDays
         }
-    }
-
-    static func mask(for weekdays: Set<Int>) -> Int {
-        weekdays.filter { (1...7).contains($0) }.reduce(0) { $0 | (1 << ($1 - 1)) }
-    }
-
-    static func weekdays(fromMask mask: Int) -> Set<Int> {
-        Set((1...7).filter { mask & (1 << ($0 - 1)) != 0 })
     }
 }
 

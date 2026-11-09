@@ -43,7 +43,7 @@ struct ChoreDraft: Equatable, Sendable {
     var title = ""
     var emoji: String?
     var ownerId: Int64?
-    var recurrence: ChoreRecurrence = .daily
+    var recurrence: Recurrence = .daily
     /// First day for repeating chores; due day for one-off chores.
     var anchorDay: DayKey
     var timeHint: String?

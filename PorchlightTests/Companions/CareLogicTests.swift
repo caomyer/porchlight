@@ -53,14 +53,15 @@ struct CareLogicTests {
         #expect(future.map(\.state) == [.future, .future])
     }
 
-    @Test("Every-N-days routines only have a slot on due days")
+    @Test("Every-N-days routines only have a slot on due days, counted from their start")
     func everyNDays() {
         let entries = [F.entry(1, day: 4, 9, routine: 11)]
         let byDay = CareLogic.byDay(entries, calendar: calendar)
         let now = F.date(day: 7, 12)
-        #expect(CareLogic.isDue(F.water, on: F.key(5), byDay: byDay, calendar: calendar) == false)
-        #expect(CareLogic.isDue(F.water, on: F.key(6), byDay: byDay, calendar: calendar) == false)
-        #expect(CareLogic.isDue(F.water, on: F.key(7), byDay: byDay, calendar: calendar))
+        #expect(!F.water.occurs(on: F.key(5), calendar: calendar))
+        #expect(!F.water.occurs(on: F.key(6), calendar: calendar))
+        #expect(F.water.occurs(on: F.key(7), calendar: calendar))
+        #expect(!F.water.occurs(on: F.key(1), calendar: calendar), "Nothing is due before the start day")
         #expect(CareLogic.slots(for: F.water, on: F.key(5), byDay: byDay, now: now, calendar: calendar).isEmpty)
         let today = CareLogic.slots(for: F.water, on: F.key(7), byDay: byDay, now: now, calendar: calendar)
         #expect(today.count == 1)
@@ -68,6 +69,18 @@ struct CareLogicTests {
         let logged = CareLogic.slots(for: F.water, on: F.key(4), byDay: byDay, now: now, calendar: calendar)
         #expect(logged.first?.state == .done(onTime: true), "all-day windows are always on time")
         #expect(CareLogic.slots(for: F.water, on: F.key(9), byDay: byDay, now: now, calendar: calendar).isEmpty)
+        #expect(CareLogic.slots(for: F.water, on: F.key(10), byDay: byDay, now: now, calendar: calendar).map(\.state) == [.future])
+    }
+
+    @Test("Routines can repeat on some weekdays, with several times a day")
+    func weekdayRoutines() {
+        var meds = F.walk
+        meds.recurrence = .weekdays([calendar.component(.weekday, from: F.date(day: 7, 12))])
+        meds.anchorDay = F.key(1).rawValue
+        let now = F.date(day: 7, 12)
+        #expect(CareLogic.slots(for: meds, on: F.key(7), byDay: [:], now: now, calendar: calendar).count == 2)
+        #expect(CareLogic.slots(for: meds, on: F.key(6), byDay: [:], now: now, calendar: calendar).isEmpty)
+        #expect(meds.cadenceText(calendar: calendar).hasPrefix("2× every "))
     }
 
     // MARK: Streak

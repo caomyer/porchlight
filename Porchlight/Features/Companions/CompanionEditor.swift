@@ -188,7 +188,7 @@ struct CompanionSettingsList: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(companion.name).font(.body(17, weight: 700))
                 Text(([companion.about.isEmpty ? companion.species.label : companion.about]
-                      + routines.map { "\($0.emoji) \($0.title) \($0.cadenceText)" }).joined(separator: " · "))
+                      + routines.map { "\($0.emoji) \($0.title) \($0.cadenceText(calendar: .current))" }).joined(separator: " · "))
                     .font(.body(13.5, weight: 600))
                     .foregroundStyle(Theme.muted)
                     .lineLimit(1)
@@ -546,7 +546,7 @@ private struct RoutineRow: View {
                 .frame(width: 40, height: 40)
                 .background(CoatPreset.honey.tint.wash(0.25), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(routine.title) · \(routine.routine().cadenceText)").font(.body(15, weight: 700))
+                Text("\(routine.title) · \(routine.routine().cadenceText(calendar: .current))").font(.body(15, weight: 700))
                 Text(meta)
                     .font(.body(12.5, weight: 600))
                     .foregroundStyle(Theme.muted)
@@ -632,7 +632,7 @@ private struct CompanionPreviewCard: View {
                             slot: CareSlot(index: index, window: window, entry: nil, state: .upcoming),
                             title: window.isAllDay ? first.title : window.label,
                             carers: nil,
-                            pendingDetail: window.isAllDay ? "every \(first.everyDays) days" : window.rangeText,
+                            pendingDetail: window.isAllDay ? first.cadenceText(calendar: .current) : window.rangeText,
                             doneDetail: "",
                             compact: true
                         )
@@ -666,6 +666,7 @@ private struct RoutineEditorSheet: View {
 
     @Environment(AppModel.self) private var model
     @State private var draft: CareRoutineDraft
+    @State private var repeatChoice: RepeatChoice?
     @State private var error: String?
     @State private var isShown = false
     @State private var confirmDelete = false
@@ -711,7 +712,7 @@ private struct RoutineEditorSheet: View {
                         }
                         label("How often")
                         cadence
-                        label(draft.everyDays > 1 ? "Time of day" : "Times of day")
+                        label("Times of day")
                         windows
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -781,27 +782,22 @@ private struct RoutineEditorSheet: View {
         draft.kind = kind
     }
 
+    /// The same repeat picker chores use, minus "Just once".
+    @ViewBuilder
     private var cadence: some View {
-        HStack(spacing: 10) {
-            ChoicePill(title: "Daily", isSelected: draft.everyDays == 1) {
-                draft.everyDays = 1
-                if draft.windows.count == 1 && draft.windows[0].isAllDay { draft.windows = CompanionPresets.windows(count: 1) }
+        let calendar = model.calendar
+        if repeatChoice == nil {
+            Color.clear.frame(height: 1).onAppear {
+                repeatChoice = RepeatChoice(recurrence: draft.recurrence, start: draft.startDay ?? DayKey(.now, calendar: calendar), calendar: calendar)
             }
-            ChoicePill(title: "Every few days", isSelected: draft.everyDays > 1) {
-                if draft.everyDays == 1 {
-                    draft.everyDays = 3
-                    draft.windows = [.anyTime]
-                }
-            }
-            Spacer(minLength: 0)
-            if draft.everyDays == 1 {
-                stepper(value: Binding(
-                    get: { draft.windows.count },
-                    set: { count in resizeWindows(to: count) }
-                ), range: 1...4) { "\($0)× a day" }
-            } else {
-                stepper(value: $draft.everyDays, range: 2...CareRules.maxEveryDays) { "every \($0) days" }
-            }
+        } else {
+            RepeatPicker(
+                choice: Binding(get: { repeatChoice! }, set: { repeatChoice = $0 }),
+                kinds: [.daily, .weekdays, .interval, .monthly],
+                calendar: calendar,
+                today: DayKey(.now, calendar: calendar),
+                maxInterval: CareRules.maxEveryDays
+            )
         }
     }
 
@@ -817,14 +813,22 @@ private struct RoutineEditorSheet: View {
 
     private var windows: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if draft.everyDays > 1 {
+            HStack(spacing: 12) {
                 Toggle(isOn: Binding(
                     get: { draft.windows.first?.isAllDay ?? true },
-                    set: { draft.windows = [$0 ? .anyTime : CareWindow.hours("Morning", 7, 11)] }
+                    set: { draft.windows = $0 ? [.anyTime] : CompanionPresets.windows(count: 1) }
                 )) {
                     Text("Any time of day").font(.body(15, weight: 600))
                 }
                 .tint(Theme.good)
+                .fixedSize()
+                Spacer(minLength: 0)
+                if !(draft.windows.first?.isAllDay ?? true) {
+                    stepper(value: Binding(
+                        get: { draft.windows.count },
+                        set: { count in resizeWindows(to: count) }
+                    ), range: 1...4) { "\($0)× a day" }
+                }
             }
             ForEach(draft.windows.indices, id: \.self) { index in
                 if !draft.windows[index].isAllDay {
@@ -866,6 +870,10 @@ private struct RoutineEditorSheet: View {
     }
 
     private func save() {
+        if let repeatChoice {
+            draft.recurrence = repeatChoice.recurrence
+            draft.startDay = repeatChoice.startDay(calendar: model.calendar)
+        }
         do {
             let checked = try CareRules.validated(draft, companionId: 0, sortOrder: 0)
             var result = draft

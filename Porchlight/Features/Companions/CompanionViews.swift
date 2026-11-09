@@ -233,11 +233,21 @@ struct SlotGrid: View {
     }
 
     private var nextDueText: String {
-        guard let last = today.lastEntry else { return "Not due today" }
         let calendar = store.snapshot.calendar
-        let due = calendar.date(byAdding: .day, value: today.routine.everyDays, to: calendar.startOfDay(for: last.time)) ?? last.time
-        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: report.now), to: due).day ?? 0
-        return "\(today.routine.kind.pastVerb) \(CareText.ago(last.time, now: report.now)) · next in \(days) \(days == 1 ? "day" : "days")"
+        let routine = today.routine
+        let todayKey = DayKey(report.now, calendar: calendar)
+        let next = routine.recurrence.nextDay(onOrAfter: todayKey.adding(days: 1, calendar: calendar), start: routine.start, calendar: calendar)
+        let when: String
+        if let next {
+            let days = Recurrence.days(from: todayKey, to: next, calendar: calendar)
+            when = days == 1 ? "next tomorrow" : days < 7
+                ? "next " + next.formatted(.dateTime.weekday(.wide), calendar: calendar)
+                : "next in \(days) days"
+        } else {
+            when = "not due today"
+        }
+        guard let last = today.lastEntry else { return when.prefix(1).uppercased() + when.dropFirst() }
+        return "\(routine.kind.pastVerb) \(CareText.ago(last.time, now: report.now)) · \(when)"
     }
 }
 

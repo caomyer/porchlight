@@ -31,7 +31,8 @@ enum CareFixture {
 
     static let water = CareRoutine(
         id: 11, companionId: 2, kind: .water, title: "Water", emoji: "💧", everyDays: 3,
-        windows: [.anyTime], trackedFields: [], stars: 1, nudgeAfterMinutes: nil, sortOrder: 0
+        windows: [.anyTime], trackedFields: [], stars: 1, nudgeAfterMinutes: nil, sortOrder: 0,
+        repeatKind: "interval", anchorDay: key(4).rawValue
     )
 
     static func entry(

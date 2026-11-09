@@ -12,7 +12,7 @@ enum HomeSamples {
         let weekday = calendar.component(.weekday, from: today.startDate(in: calendar))
         let start = today.adding(days: -27, calendar: calendar)
 
-        func chore(_ emoji: String, _ title: String, _ owner: Int64?, _ recurrence: ChoreRecurrence, anchor: DayKey? = nil, hint: String?, stars: Int) throws -> Chore {
+        func chore(_ emoji: String, _ title: String, _ owner: Int64?, _ recurrence: Recurrence, anchor: DayKey? = nil, hint: String?, stars: Int) throws -> Chore {
             try database.saveChore(
                 ChoreDraft(title: title, emoji: emoji, ownerId: owner, recurrence: recurrence, anchorDay: anchor ?? start, timeHint: hint, stars: stars),
                 householdId: householdId

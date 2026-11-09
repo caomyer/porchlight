@@ -49,7 +49,7 @@ struct CompanionPersistenceTests {
             }
         }
         #expect(CompanionPresets.routines(for: .cat).map(\.kind) == [.feed, .litter])
-        #expect(CompanionPresets.routines(for: .plant).first?.everyDays == 3)
+        #expect(CompanionPresets.routines(for: .plant).first?.recurrence == .everyNDays(3))
     }
 
     @Test("Updating keeps routine ids and history; removed routines go with their logs")
@@ -97,14 +97,16 @@ struct CompanionPersistenceTests {
         #expect(check { $0.windows[0] = CareWindow("Morning", start: 600, end: 500) } as? CareValidationError == .invalidWindow("Morning"))
         #expect(check { $0.windows[1] = CareWindow("Evening", start: 540, end: 700) } as? CareValidationError == .overlappingWindows)
         #expect(check { $0.windows = Array(repeating: .hours("x", 1, 2), count: 7) } != nil)
-        #expect(check { $0.everyDays = 0 } as? CareValidationError == .invalidCadence)
-        #expect(check { $0.everyDays = 61 } as? CareValidationError == .invalidCadence)
+        #expect(check { $0.recurrence = .everyNDays(0) } as? CareValidationError == .invalidCadence)
+        #expect(check { $0.recurrence = .everyNDays(61) } as? CareValidationError == .invalidCadence)
+        #expect(check { $0.recurrence = .weekdays([]) } as? CareValidationError == .invalidCadence)
+        #expect(check { $0.recurrence = .once } as? CareValidationError == .invalidCadence)
         #expect(check { $0.stars = 11 } as? CareValidationError == .invalidStars)
         #expect(check { $0.nudgeAfterMinutes = 2 } as? CareValidationError == .invalidNudge)
         #expect(check { $0.windows[0].label = "" } as? ValidationError == .emptyName)
     }
 
-    @Test("Validation sorts windows, dedupes fields and keeps one window for every-N-days")
+    @Test("Validation sorts windows, dedupes fields, and keeps the repeat rule and its start")
     func validationCleanup() throws {
         var draft = CareRoutineDraft(
             kind: .walk, emoji: "  ", windows: [.hours("Evening", 17, 20), .hours("Morning", 6, 10)],
@@ -114,9 +116,17 @@ struct CompanionPersistenceTests {
         #expect(routine.windows.map(\.label) == ["Morning", "Evening"])
         #expect(routine.trackedFields == [.pee])
         #expect(routine.emoji == CareKind.walk.defaultEmoji)
-        draft.everyDays = 3
-        let sparse = try CareRules.validated(draft, companionId: 1, sortOrder: 0)
-        #expect(sparse.windows.count == 1)
+        draft.recurrence = .weekdays([2, 5])
+        let today = DayKey(rawValue: "2026-11-08")
+        let weekly = try CareRules.validated(draft, companionId: 1, sortOrder: 0, today: today)
+        #expect(weekly.windows.count == 2, "Any repeat can have several times a day")
+        #expect(weekly.recurrence == .weekdays([2, 5]))
+        #expect(weekly.start == today, "A routine without a start day starts today")
+        draft.recurrence = .everyNDays(3)
+        draft.startDay = DayKey(rawValue: "2026-11-01")
+        let sparse = try CareRules.validated(draft, companionId: 1, sortOrder: 0, today: today)
+        #expect(sparse.recurrence == .everyNDays(3) && sparse.everyDays == 3)
+        #expect(sparse.anchorDay == "2026-11-01")
     }
 
     @Test("Companion names are validated")
@@ -320,5 +330,33 @@ struct CompanionPersistenceTests {
         #expect(!columns.contains("rotation"))
         #expect(routine?.title == "Walk")
         #expect(logs == 1)
+    }
+
+    @Test("Upgrading gives routines chores' repeat rules; every-N-days ones start on their last log")
+    func routinesGetRepeatRules() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "companions v2: no turn rotation")
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO household (id, name, timeZoneIdentifier, firstWeekday, createdAt) VALUES (1, 'Home', 'UTC', 1, '2026-01-01 00:00:00')")
+            try db.execute(sql: """
+                INSERT INTO companion (id, householdId, name, species, coat, captionTone, sortOrder, createdAt)
+                VALUES (1, 1, 'Fern', 'plant', 'honey', 'cheeky', 0, '2026-01-01 00:00:00')
+                """)
+            try db.execute(sql: """
+                INSERT INTO careRoutine (id, companionId, kind, title, emoji, everyDays, windows, trackedFields, sortOrder)
+                VALUES (1, 1, 'water', 'Water', '💧', 3, '[]', '[]', 0), (2, 1, 'clean', 'Dust', '🫧', 1, '[]', '[]', 1)
+                """)
+            try db.execute(sql: """
+                INSERT INTO careLog (careRoutineId, occurredAt, createdAt) VALUES
+                (1, '2026-01-02 08:00:00', '2026-01-02 08:00:00'), (1, '2026-01-05 08:00:00', '2026-01-05 08:00:00'),
+                (2, '2026-01-03 08:00:00', '2026-01-03 08:00:00')
+                """)
+        }
+        let db = try AppDatabase(queue)
+        let routines = try db.writer.read { db in try CareRoutine.order(Column("id")).fetchAll(db) }
+        #expect(routines[0].recurrence == .everyNDays(3))
+        #expect(routines[0].anchorDay == "2026-01-05", "Watering keeps its rhythm from the last time it was done")
+        #expect(routines[1].recurrence == .daily)
+        #expect(routines[1].anchorDay == "2026-01-03", "A daily routine starts on its first log")
     }
 }

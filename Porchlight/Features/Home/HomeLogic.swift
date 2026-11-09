@@ -5,25 +5,9 @@ import Foundation
 // MARK: - Recurrence
 
 enum ChoreSchedule {
-    /// Whole days from `from` to `to` (negative when `to` is earlier). DST-safe.
-    static func days(from: DayKey, to: DayKey, calendar: Calendar) -> Int {
-        calendar.dateComponents([.day], from: from.startDate(in: calendar), to: to.startDate(in: calendar)).day ?? 0
-    }
-
     /// Whether the chore's pattern lands on `day`. One-off chores land on their due day only.
     static func occurs(_ chore: Chore, on day: DayKey, calendar: Calendar) -> Bool {
-        switch chore.recurrence {
-        case .once:
-            return day == chore.anchor
-        case .daily:
-            return day >= chore.anchor
-        case let .weekdays(weekdays):
-            guard day >= chore.anchor else { return false }
-            return weekdays.contains(calendar.component(.weekday, from: day.startDate(in: calendar)))
-        case let .everyNDays(n):
-            let offset = days(from: chore.anchor, to: day, calendar: calendar)
-            return offset >= 0 && offset % max(n, 1) == 0
-        }
+        chore.recurrence.occurs(on: day, start: chore.anchor, calendar: calendar)
     }
 
     /// Whether the chore belongs on the board for `day`.
@@ -45,41 +29,13 @@ enum ChoreSchedule {
         return describe(chore, today: today, calendar: calendar)
     }
 
+    /// "every day", "Mon, Wed", "monthly on the 3rd", or "due Fri" for a one-off.
+    /// A repeating chore that hasn't started yet says when it starts.
     static func describe(_ chore: Chore, today: DayKey, calendar: Calendar) -> String {
-        switch chore.recurrence {
-        case .daily:
-            return "every day"
-        case let .weekdays(days):
-            return describe(weekdays: days, calendar: calendar)
-        case let .everyNDays(n):
-            return n == 1 ? "every day" : n == 7 ? "every week" : "every \(n) days"
-        case .once:
-            let offset = days(from: today, to: chore.anchor, calendar: calendar)
-            switch offset {
-            case ..<0: return "overdue"
-            case 0: return "due today"
-            case 1: return "due tomorrow"
-            case 2...6: return "due " + chore.anchor.formatted(.dateTime.weekday(.wide), calendar: calendar)
-            default: return "due " + chore.anchor.formatted(.dateTime.month(.abbreviated).day(), calendar: calendar)
-            }
-        }
-    }
-
-    /// "weekdays", "weekends", or "Mon, Wed, Fri" in the calendar's week order.
-    static func describe(weekdays days: Set<Int>, calendar: Calendar) -> String {
-        if days.count == 7 { return "every day" }
-        if days == [2, 3, 4, 5, 6] { return "weekdays" }
-        if days == [1, 7] { return "weekends" }
-        let symbols = calendar.shortWeekdaySymbols
-        return orderedWeekdays(calendar: calendar)
-            .filter(days.contains)
-            .map { symbols[$0 - 1] }
-            .joined(separator: ", ")
-    }
-
-    /// Weekday numbers in display order, starting on the calendar's first weekday.
-    static func orderedWeekdays(calendar: Calendar) -> [Int] {
-        (0..<7).map { (calendar.firstWeekday - 1 + $0) % 7 + 1 }
+        if chore.recurrence.isOnce { return Recurrence.describeDue(chore.anchor, today: today, calendar: calendar) }
+        let pattern = chore.recurrence.describe(start: chore.anchor, calendar: calendar)
+        guard chore.anchor > today else { return pattern }
+        return pattern + ", from " + chore.anchor.formatted(.dateTime.month(.abbreviated).day(), calendar: calendar)
     }
 }
 

@@ -23,21 +23,21 @@ enum CompanionPresets {
         case .bird:
             return [
                 CareRoutineDraft(kind: .feed, windows: [.hours("Morning", 7, 10)], stars: 1),
-                CareRoutineDraft(kind: .clean, title: "Clean cage", emoji: "🫧", everyDays: 7, windows: [.anyTime], stars: 2),
+                CareRoutineDraft(kind: .clean, title: "Clean cage", emoji: "🫧", recurrence: .everyNDays(7), windows: [.anyTime], stars: 2),
             ]
         case .rabbit:
             return [
                 CareRoutineDraft(kind: .feed, windows: [breakfast, dinner], stars: 1),
-                CareRoutineDraft(kind: .clean, title: "Clean hutch", emoji: "🧺", everyDays: 3, windows: [.anyTime], stars: 2),
+                CareRoutineDraft(kind: .clean, title: "Clean hutch", emoji: "🧺", recurrence: .everyNDays(3), windows: [.anyTime], stars: 2),
             ]
         case .fish:
             return [
                 CareRoutineDraft(kind: .feed, windows: [.hours("Morning", 7, 10)], stars: 1),
-                CareRoutineDraft(kind: .clean, title: "Clean tank", emoji: "🫧", everyDays: 14, windows: [.anyTime], stars: 3),
+                CareRoutineDraft(kind: .clean, title: "Clean tank", emoji: "🫧", recurrence: .everyNDays(14), windows: [.anyTime], stars: 3),
             ]
         case .plant:
             return [
-                CareRoutineDraft(kind: .water, everyDays: 3, windows: [.anyTime], stars: 1),
+                CareRoutineDraft(kind: .water, recurrence: .everyNDays(3), windows: [.anyTime], stars: 1),
             ]
         case .other:
             return [
@@ -94,8 +94,8 @@ enum CompanionPresets {
     static func welcome(name: String, routines: [CareRoutineDraft]) -> String {
         guard let first = routines.first else { return "\(name) has joined the household." }
         let noun = first.kind.noun(title: first.title)
-        if first.everyDays > 1 {
-            return "\(name) has joined the household and expects a \(noun) every \(first.everyDays) days. Zero excuses."
+        if case let .everyNDays(days) = first.recurrence {
+            return "\(name) has joined the household and expects a \(noun) every \(days) days. Zero excuses."
         }
         let count = max(first.windows.count, 1)
         let times = count == 1 ? "one \(noun)" : "\(number(count)) \(noun)s"

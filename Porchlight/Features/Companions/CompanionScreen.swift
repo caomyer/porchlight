@@ -191,6 +191,7 @@ private struct MoodMeter: View {
 }
 
 private struct StatTiles: View {
+    @Environment(CompanionStore.self) private var store
     let report: CompanionReport
 
     var body: some View {
@@ -214,7 +215,7 @@ private struct StatTiles: View {
 
     private var cadence: String {
         guard let routine = report.primaryRoutine else { return "" }
-        return routine.isDaily ? "\(routine.slotsPerDay)×/day" : "every \(routine.everyDays)d"
+        return routine.isDaily ? "\(routine.slotsPerDay)×/day" : routine.cadenceText(calendar: store.snapshot.calendar)
     }
 
     private func businessValue(_ stats: CareLogic.WeekStats, routine: CareRoutine?) -> String {

@@ -12,7 +12,9 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
     var kind: CareKind
     var title: String
     var emoji: String
-    var everyDays: Int
+    var recurrence: Recurrence
+    /// The day it starts; nil means today when saved.
+    var startDay: DayKey?
     var windows: [CareWindow]
     var trackedFields: [CareField]
     var stars: Int
@@ -22,7 +24,8 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
         kind: CareKind,
         title: String? = nil,
         emoji: String? = nil,
-        everyDays: Int = 1,
+        recurrence: Recurrence = .daily,
+        startDay: DayKey? = nil,
         windows: [CareWindow],
         trackedFields: [CareField] = [],
         stars: Int = 1,
@@ -31,7 +34,8 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
         self.kind = kind
         self.title = title ?? kind.defaultTitle
         self.emoji = emoji ?? kind.defaultEmoji
-        self.everyDays = everyDays
+        self.recurrence = recurrence
+        self.startDay = startDay
         self.windows = windows
         self.trackedFields = trackedFields
         self.stars = stars
@@ -40,8 +44,8 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
 
     init(_ routine: CareRoutine) {
         self.init(
-            kind: routine.kind, title: routine.title, emoji: routine.emoji, everyDays: routine.everyDays,
-            windows: routine.windows, trackedFields: routine.trackedFields,
+            kind: routine.kind, title: routine.title, emoji: routine.emoji, recurrence: routine.recurrence,
+            startDay: routine.anchorDay.isEmpty ? nil : routine.start, windows: routine.windows, trackedFields: routine.trackedFields,
             stars: routine.stars, nudgeAfterMinutes: routine.nudgeAfterMinutes
         )
         routineId = routine.id
@@ -49,11 +53,14 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
 
     /// The routine as it would be stored, for previews and the logic.
     func routine(companionId: Int64 = 0, sortOrder: Int = 0) -> CareRoutine {
-        CareRoutine(
+        var routine = CareRoutine(
             id: routineId, companionId: companionId, kind: kind, title: title, emoji: emoji,
-            everyDays: max(everyDays, 1), windows: windows, trackedFields: trackedFields,
-            stars: stars, nudgeAfterMinutes: nudgeAfterMinutes, sortOrder: sortOrder
+            everyDays: 1, windows: windows, trackedFields: trackedFields,
+            stars: stars, nudgeAfterMinutes: nudgeAfterMinutes, sortOrder: sortOrder,
+            anchorDay: startDay?.rawValue ?? ""
         )
+        routine.recurrence = recurrence
+        return routine
     }
 }
 
@@ -181,10 +188,16 @@ enum CareRules {
         return (note?.isEmpty ?? true) ? nil : note
     }
 
-    static func validated(_ draft: CareRoutineDraft, companionId: Int64, sortOrder: Int) throws -> CareRoutine {
+    /// `today` starts routines that have no start day yet.
+    static func validated(_ draft: CareRoutineDraft, companionId: Int64, sortOrder: Int, today: DayKey = DayKey(.now, calendar: .current)) throws -> CareRoutine {
         let title = try Names.validated(draft.title)
         let emoji = draft.emoji.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard draft.everyDays >= 1, draft.everyDays <= maxEveryDays else { throw CareValidationError.invalidCadence }
+        switch draft.recurrence {
+        case let .everyNDays(n) where !(1...maxEveryDays).contains(n): throw CareValidationError.invalidCadence
+        case let .weekdays(days) where days.filter({ (1...7).contains($0) }).isEmpty: throw CareValidationError.invalidCadence
+        case .once: throw CareValidationError.invalidCadence
+        default: break
+        }
         var windows = try draft.windows.map { window in
             let label = try Names.validated(window.label)
             guard window.start >= 0, window.end <= 24 * 60, window.start < window.end else {
@@ -193,7 +206,6 @@ enum CareRules {
             return CareWindow(label, start: window.start, end: window.end)
         }
         guard !windows.isEmpty else { throw CareValidationError.noWindows }
-        if draft.everyDays > 1 { windows = Array(windows.prefix(1)) }
         guard windows.count <= maxWindows else { throw CareValidationError.tooManyWindows(limit: maxWindows) }
         windows.sort { $0.start < $1.start }
         for (earlier, later) in zip(windows, windows.dropFirst()) where later.start < earlier.end {
@@ -203,12 +215,15 @@ enum CareRules {
         if let nudge = draft.nudgeAfterMinutes, !(5...720).contains(nudge) { throw CareValidationError.invalidNudge }
         var fieldsSeen = Set<CareField>()
         let fields = draft.trackedFields.filter { fieldsSeen.insert($0).inserted }
-        return CareRoutine(
+        var routine = CareRoutine(
             id: draft.routineId, companionId: companionId, kind: draft.kind, title: title,
             emoji: emoji.isEmpty ? draft.kind.defaultEmoji : String(emoji.prefix(2)),
-            everyDays: draft.everyDays, windows: windows, trackedFields: fields,
-            stars: draft.stars, nudgeAfterMinutes: draft.nudgeAfterMinutes, sortOrder: sortOrder
+            everyDays: 1, windows: windows, trackedFields: fields,
+            stars: draft.stars, nudgeAfterMinutes: draft.nudgeAfterMinutes, sortOrder: sortOrder,
+            anchorDay: (draft.startDay ?? today).rawValue
         )
+        routine.recurrence = draft.recurrence
+        return routine
     }
 }
 
@@ -244,11 +259,13 @@ extension AppDatabase {
             companion.captionTone = draft.tone
             try companion.save(db)
             let companionId = companion.id!
+            let calendar = try Household.fetchOne(db, id: householdId)?.calendar ?? .current
+            let today = DayKey(now, calendar: calendar)
 
             let existingIds = try Set(Int64.fetchAll(db, sql: "SELECT id FROM careRoutine WHERE companionId = ?", arguments: [companionId]))
             var keptIds = Set<Int64>()
             for (index, routineDraft) in draft.routines.enumerated() {
-                var routine = try CareRules.validated(routineDraft, companionId: companionId, sortOrder: index)
+                var routine = try CareRules.validated(routineDraft, companionId: companionId, sortOrder: index, today: today)
                 if let id = routine.id, existingIds.contains(id) {
                     try routine.update(db)
                     keptIds.insert(id)

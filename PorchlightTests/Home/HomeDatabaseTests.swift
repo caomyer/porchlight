@@ -30,7 +30,7 @@ struct HomeDatabaseTests {
         try db.homeSnapshot(since: DayKey(rawValue: "2026-10-01"))
     }
 
-    private func draft(_ title: String = "Dishes", owner: Int64?, _ recurrence: ChoreRecurrence = .daily, stars: Int = 1) -> ChoreDraft {
+    private func draft(_ title: String = "Dishes", owner: Int64?, _ recurrence: Recurrence = .daily, stars: Int = 1) -> ChoreDraft {
         ChoreDraft(title: title, emoji: "🍽️", ownerId: owner, recurrence: recurrence, anchorDay: DayKey(rawValue: "2026-11-01"), timeHint: " after dinner ", stars: stars)
     }
 

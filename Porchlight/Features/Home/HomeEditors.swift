@@ -10,26 +10,10 @@ struct ChoreEditor: View {
     @Environment(\.closeWallSheet) private var close
     let chore: Chore?
 
-    private enum Repeat: String, CaseIterable, Identifiable {
-        case daily, weekdays, interval, once
-        var id: String { rawValue }
-        var label: String {
-            switch self {
-            case .daily: "Every day"
-            case .weekdays: "Some days"
-            case .interval: "Every few days"
-            case .once: "Just once"
-            }
-        }
-    }
-
     @State private var title = ""
     @State private var emoji = ""
     @State private var ownerId: Int64?
-    @State private var repeatKind = Repeat.daily
-    @State private var weekdays: Set<Int> = []
-    @State private var interval = 3
-    @State private var dueDate = Date.now
+    @State private var repeatChoice: RepeatChoice?
     @State private var timeHint = ""
     @State private var stars = 1
     @State private var error: String?
@@ -60,13 +44,14 @@ struct ChoreEditor: View {
                 }
             }
             EditorRow(label: "Repeats") {
-                HStack(spacing: 8) {
-                    ForEach(Repeat.allCases) { kind in
-                        ChoiceChip(title: kind.label, isSelected: repeatKind == kind) { repeatKind = kind }
-                    }
+                if repeatChoice != nil {
+                    RepeatPicker(
+                        choice: Binding(get: { repeatChoice! }, set: { repeatChoice = $0 }),
+                        calendar: store.calendar,
+                        today: store.today,
+                        maxInterval: HomeLimits.interval.upperBound
+                    )
                 }
-                repeatDetail
-                    .frame(minHeight: 44, alignment: .leading)
             }
             EditorRow(label: "When, roughly") {
                 HStack(spacing: 8) {
@@ -101,96 +86,28 @@ struct ChoreEditor: View {
         .onAppear(perform: load)
     }
 
-    @ViewBuilder
-    private var repeatDetail: some View {
-        switch repeatKind {
-        case .daily:
-            Text("Shows up every day.")
-                .font(.body(14, weight: 600))
-                .foregroundStyle(Theme.muted)
-        case .weekdays:
-            HStack(spacing: 6) {
-                ForEach(ChoreSchedule.orderedWeekdays(calendar: store.calendar), id: \.self) { day in
-                    let isOn = weekdays.contains(day)
-                    Button {
-                        if isOn { weekdays.remove(day) } else { weekdays.insert(day) }
-                    } label: {
-                        Text(store.calendar.veryShortWeekdaySymbols[day - 1])
-                            .font(.body(15, weight: 700))
-                            .foregroundStyle(isOn ? Theme.surface : Theme.ink)
-                            .frame(width: 42, height: 42)
-                            .background(isOn ? Theme.ink : Theme.surface2, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(store.calendar.weekdaySymbols[day - 1])
-                    .accessibilityAddTraits(isOn ? .isSelected : [])
-                }
-            }
-        case .interval:
-            HStack(spacing: 12) {
-                CountStepper(value: $interval, range: 2...HomeLimits.interval.upperBound, suffix: "days")
-                Text(chore == nil ? "starting today" : "counting from when it started")
-                    .font(.body(14, weight: 600))
-                    .foregroundStyle(Theme.muted)
-            }
-        case .once:
-            HStack(spacing: 12) {
-                Text("Due")
-                    .font(.body(15, weight: 700))
-                DatePicker("Due", selection: $dueDate, displayedComponents: .date)
-                    .labelsHidden()
-                    .tint(Theme.accent)
-                Text("It stays on the board until it's done.")
-                    .font(.body(14, weight: 600))
-                    .foregroundStyle(Theme.muted)
-            }
-        }
-    }
-
     private func load() {
         guard !loaded else { return }
         loaded = true
         let calendar = store.calendar
-        weekdays = [calendar.component(.weekday, from: .now)]
-        dueDate = store.week.last.startDate(in: calendar)
         guard let chore else {
             ownerId = model.people.first?.id
+            repeatChoice = RepeatChoice(recurrence: .daily, start: store.today, calendar: calendar)
             return
         }
+        repeatChoice = RepeatChoice(recurrence: chore.recurrence, start: chore.anchor, calendar: calendar)
         title = chore.title
         emoji = chore.emoji ?? ""
         ownerId = chore.ownerId
         timeHint = chore.timeHint ?? ""
         stars = chore.stars
-        switch chore.recurrence {
-        case .daily: repeatKind = .daily
-        case let .weekdays(days): repeatKind = .weekdays; weekdays = days
-        case let .everyNDays(n): repeatKind = .interval; interval = max(n, 2)
-        case .once: repeatKind = .once; dueDate = chore.anchor.startDate(in: calendar)
-        }
     }
 
     private func save() {
-        let calendar = store.calendar
-        let recurrence: ChoreRecurrence = switch repeatKind {
-        case .daily: .daily
-        case .weekdays: .weekdays(weekdays)
-        case .interval: .everyNDays(interval)
-        case .once: .once
-        }
-        // Repeating chores keep their start day while the pattern stays the same, so
-        // "every 3 days" doesn't shift when only the title changes.
-        let anchor: DayKey
-        if case .once = recurrence {
-            anchor = DayKey(dueDate, calendar: calendar)
-        } else if let chore, !chore.recurrence.isOnce, chore.recurrence == recurrence {
-            anchor = chore.anchor
-        } else {
-            anchor = store.today
-        }
+        guard let repeatChoice else { return }
         let draft = ChoreDraft(
-            title: title, emoji: emoji, ownerId: ownerId, recurrence: recurrence,
-            anchorDay: anchor, timeHint: timeHint, stars: stars
+            title: title, emoji: emoji, ownerId: ownerId, recurrence: repeatChoice.recurrence,
+            anchorDay: repeatChoice.startDay(calendar: store.calendar), timeHint: timeHint, stars: stars
         )
         if store.saveChore(draft, id: chore?.id) {
             close()

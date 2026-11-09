@@ -87,17 +87,8 @@ enum CareLogic {
         return filled
     }
 
-    /// Whether an every-N-days routine expects care on `day`: nothing logged in the N-1 days before it.
-    static func isDue(_ routine: CareRoutine, on day: DayKey, byDay: [DayKey: [CareEntry]], calendar: Calendar) -> Bool {
-        guard !routine.isDaily else { return true }
-        for back in 1..<routine.everyDays where byDay[day.adding(days: -back, calendar: calendar)]?.isEmpty == false {
-            return false
-        }
-        return true
-    }
-
     /// The slots for a routine on one day, with their state relative to `now`.
-    /// An every-N-days routine has no slot on days it isn't due (unless it was logged anyway).
+    /// A routine has no slots on days it isn't due (unless it was logged anyway).
     static func slots(
         for routine: CareRoutine,
         on day: DayKey,
@@ -108,7 +99,7 @@ enum CareLogic {
         let windows = routine.effectiveWindows
         let dayEntries = byDay[day] ?? []
         let today = DayKey(now, calendar: calendar)
-        if !routine.isDaily && dayEntries.isEmpty && (day > today || !isDue(routine, on: day, byDay: byDay, calendar: calendar)) {
+        if dayEntries.isEmpty && !routine.occurs(on: day, calendar: calendar) {
             return []
         }
         let filled = assign(dayEntries, to: windows, calendar: calendar)
@@ -270,7 +261,7 @@ enum CareLogic {
 
     /// Time between expected care: 12 h for twice a day, 3 days for every 3 days.
     static func interval(for routine: CareRoutine) -> TimeInterval {
-        routine.isDaily ? 24 * 3600 / Double(routine.slotsPerDay) : Double(routine.everyDays) * 24 * 3600
+        routine.recurrence.averageDaysBetween * 24 * 3600 / Double(routine.slotsPerDay)
     }
 
     /// 0...1. Peaks right after care, settles, then decays as the time since the last
