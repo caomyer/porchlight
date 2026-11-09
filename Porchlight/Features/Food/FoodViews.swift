@@ -179,6 +179,11 @@ struct FoodScreen: View {
 struct FoodTodayCard: View {
     @Environment(FoodStore.self) private var store
     @State private var capture: CaptureRequest?
+    @State private var openEntryId: OpenEntry?
+
+    private struct OpenEntry: Identifiable {
+        var id: Int64
+    }
 
     var body: some View {
         if store.isEnabled {
@@ -188,6 +193,11 @@ struct FoodTodayCard: View {
             }
             .wallCover(item: $capture) { request in
                 CaptureSheet(request: request, doneTitle: "Done") { present(nil) }
+            }
+            .wallCover(item: $openEntryId) { open in
+                if let entry = store.snapshot.entries.first(where: { $0.id == open.id }) {
+                    MealDetailSheet(entry: entry) { CompanionCover.instantly { openEntryId = nil } }
+                }
             }
         }
     }
@@ -231,7 +241,13 @@ struct FoodTodayCard: View {
     @ViewBuilder
     private func plate(today: DayKey, slot: String, index: Int) -> some View {
         if let entry = store.entries(on: today, slot: slot).last {
-            Polaroid(entry: entry, rotation: [-2, 1.5, -1][index % 3], emojiSize: 40, captionSize: 15, plate: 0.44)
+            Button {
+                if let id = entry.id { CompanionCover.instantly { openEntryId = OpenEntry(id: id) } }
+            } label: {
+                Polaroid(entry: entry, rotation: [-2, 1.5, -1][index % 3], emojiSize: 40, captionSize: 15, plate: 0.44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(slot): \(entry.title)")
         } else {
             Button { present(CaptureRequest(day: today, slot: slot)) } label: {
                 EmptyPolaroid(label: "snap \(slot.lowercased())", showsPlate: false, captionSize: 14)

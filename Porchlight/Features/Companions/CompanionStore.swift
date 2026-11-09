@@ -132,8 +132,11 @@ final class CompanionStore {
     }
 
     private func apply(_ snapshot: CompanionSnapshot) {
-        reportCache = [:]
+        // Store first, then drop cached reports. Observers hear about the change in
+        // `willSet`, so a report built then still sees the old snapshot; clearing
+        // afterwards keeps it from outliving the change.
         self.snapshot = snapshot
+        reportCache = [:]
     }
 
     // MARK: Reads
@@ -144,6 +147,9 @@ final class CompanionStore {
 
     /// Everything a companion's card and page show, as of `now` (cached per minute).
     func report(for companionId: Int64, now: Date = CompanionClock.now()) -> CompanionReport? {
+        // Read the snapshot even on a cache hit, so views that only ask for a report
+        // still refresh when a log is added, fixed or removed.
+        let snapshot = snapshot
         let minute = Int(now.timeIntervalSince1970 / 60)
         let key = "\(companionId)-\(minute)"
         if let cached = reportCache[key] { return cached }
@@ -200,6 +206,12 @@ final class CompanionStore {
             lastError = error.userMessage
             return nil
         }
+    }
+
+    /// Saves edits to a log. Returns false, with `lastError` set, when they are rejected.
+    @discardableResult
+    func updateLog(id: Int64, _ draft: CareLogDraft) -> Bool {
+        perform { _ = try database.updateCareLog(id: id, draft) }
     }
 
     func deleteLog(id: Int64) {

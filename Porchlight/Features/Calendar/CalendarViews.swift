@@ -315,8 +315,8 @@ func ownerName(_ owner: Owner, people: [Person]) -> String {
     }
 }
 
-/// The small sheet shown when an event is tapped.
-private struct EventDetail: View {
+/// The small sheet shown when an event is tapped, here or on Today.
+struct EventDetail: View {
     let event: CalendarEvent
     let calendar: Calendar
 

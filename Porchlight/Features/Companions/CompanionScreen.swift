@@ -314,6 +314,7 @@ private struct PawTrailCard: View {
 private struct DiaryCard: View {
     let report: CompanionReport
     @Environment(CompanionStore.self) private var store
+    @Environment(\.openCareLog) private var openCareLog
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -351,8 +352,20 @@ private struct DiaryCard: View {
         let business = CareText.business(entry.log, spaced: true)
         if !business.isEmpty { head = head + Text("  \(business)").font(.body(12)) }
         let story = entry.log.note ?? item.caption
-        return HStack(alignment: .top, spacing: 10) {
-            CarerAvatar(carers: Carers(entry.people, snapshot: snapshot))
+        return Button { openCareLog?(.edit(entry, companionId: report.id)) } label: {
+            diaryRow(entry, head: head, story: story)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button("Delete this log", systemImage: "trash", role: .destructive) {
+                store.deleteLog(id: entry.id)
+            }
+        }
+    }
+
+    private func diaryRow(_ entry: CareEntry, head: Text, story: String?) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            CarerAvatar(carers: Carers(entry.people, snapshot: store.snapshot))
             VStack(alignment: .leading, spacing: 2) {
                 head
                 if let story {
@@ -366,11 +379,6 @@ private struct DiaryCard: View {
             Spacer(minLength: 0)
         }
         .contentShape(Rectangle())
-        .contextMenu {
-            Button("Delete this log", systemImage: "trash", role: .destructive) {
-                store.deleteLog(id: entry.id)
-            }
-        }
     }
 
     /// "Today 8:12am", "Fri 6:40pm".

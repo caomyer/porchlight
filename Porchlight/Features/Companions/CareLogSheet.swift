@@ -1,24 +1,43 @@
 import SwiftUI
 
-/// Which routine to log for which companion.
+/// Which routine to log for which companion, or which log to fix.
 struct CareLogRequest: Identifiable, Equatable {
     var companionId: Int64
     var routineId: Int64
+    /// Set to edit an existing log instead of adding one.
+    var logId: Int64?
     /// The celebration's button, e.g. "Back to today".
     var returnTitle = "Back to today"
     /// Skip the form and show the celebration (DEBUG screenshots only).
     var celebrateOnly = false
 
-    var id: String { "\(companionId)-\(routineId)" }
+    var id: String { "\(companionId)-\(routineId)-\(logId ?? 0)" }
+
+    /// Opens a logged entry for editing.
+    static func edit(_ entry: CareEntry, companionId: Int64) -> CareLogRequest {
+        CareLogRequest(companionId: companionId, routineId: entry.log.careRoutineId, logId: entry.id)
+    }
 }
 
 extension View {
-    /// Presents the log sheet, then the celebration, over the whole wall.
+    /// Presents the log sheet, then the celebration, over the whole wall. Views
+    /// inside can open it through `openCareLog`.
     func careLogFlow(_ request: Binding<CareLogRequest?>) -> some View {
-        wallCover(item: request) { item in
-            CareLogFlow(request: item) { CompanionCover.instantly { request.wrappedValue = nil } }
-        }
+        environment(\.openCareLog, OpenCareLogAction { next in CompanionCover.instantly { request.wrappedValue = next } })
+            .wallCover(item: request) { item in
+                CareLogFlow(request: item) { CompanionCover.instantly { request.wrappedValue = nil } }
+            }
     }
+}
+
+/// Opens the log sheet for a routine, or a logged entry to fix.
+struct OpenCareLogAction {
+    let open: @MainActor (CareLogRequest) -> Void
+    @MainActor func callAsFunction(_ request: CareLogRequest) { open(request) }
+}
+
+extension EnvironmentValues {
+    @Entry var openCareLog: OpenCareLogAction? = nil
 }
 
 enum CompanionCover {
@@ -50,8 +69,14 @@ private struct CareLogFlow: View {
                         .transition(.opacity)
                 } else if !request.celebrateOnly {
                     WallSheet(width: 640, onClose: close) {
-                        CareLogForm(report: report, routine: routine) { result in
-                            withAnimation(.easeOut(duration: 0.3)) { celebration = result }
+                        if let logId = request.logId {
+                            if let entry = store.snapshot.entries(of: routine.id).first(where: { $0.id == logId }) {
+                                CareLogForm(report: report, routine: routine, editing: entry, onSaved: { _ in }, onClose: close)
+                            }
+                        } else {
+                            CareLogForm(report: report, routine: routine, onSaved: { result in
+                                withAnimation(.easeOut(duration: 0.3)) { celebration = result }
+                            }, onClose: close)
                         }
                     }
                 }
@@ -74,11 +99,15 @@ private struct CareLogFlow: View {
     }
 }
 
-/// The "Who walked Yo-Yo?" form. Only the routine's tracked fields are shown.
+/// The "Who walked Yo-Yo?" form, also used to fix a logged entry. Only the
+/// routine's tracked fields are shown.
 private struct CareLogForm: View {
     let report: CompanionReport
     let routine: CareRoutine
+    /// The log being fixed; nil when logging a new one.
+    var editing: CareEntry?
     let onSaved: (Celebration) -> Void
+    let onClose: () -> Void
 
     @Environment(CompanionStore.self) private var store
     @Environment(AppModel.self) private var model
@@ -88,34 +117,67 @@ private struct CareLogForm: View {
     @State private var pee = true
     @State private var poo = true
     @State private var vibe: CareVibe = .smooth
-    @State private var endedMinutesAgo = 0
+    @State private var when: LogTime = .justNow
     @State private var note = ""
     @State private var didSetDefaults = false
+    @State private var confirmingDelete = false
+    @FocusState private var noteFocused: Bool
 
     private static let durations = [10, 20, 30, 45, 60]
-    private static let endedOptions = [0, 15, 30, 60, 120, 240]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
                 CompanionFace(look: report.look, expression: report.expression, size: 56)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(routine.kind.question(name: report.name, title: routine.title))
+                    Text(title)
                         .font(.display(30))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Text("Tap everyone who came along")
+                    Text(editing == nil ? "Tap everyone who came along" : "Fix who, when or how it went")
                         .font(.body(14, weight: 600))
                         .foregroundStyle(Theme.muted)
                 }
                 .padding(.trailing, 44)
             }
+            ScrollViewReader { proxy in
+                FittedScrollView {
+                    sections
+                }
+                .onChange(of: noteFocused) { _, focused in
+                    guard focused else { return }
+                    // After the keyboard has shrunk the sheet.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("note", anchor: .bottom) }
+                    }
+                }
+            }
+            buttons
+                .padding(.top, 22)
+        }
+        .onAppear(perform: setDefaults)
+    }
+
+    /// Everything between the title and the buttons; scrolls only when space runs out.
+    private var sections: some View {
+        VStack(alignment: .leading, spacing: 0) {
             label(routine.kind == .walk ? "Walkers" : "Who")
             FlowLayout(spacing: 14) {
                 ForEach(model.people) { person in
                     personButton(person)
                 }
             }
+            label(routine.tracks(.duration) ? "Started" : "When", note: timingNote)
+            WhenPicker(
+                time: $when,
+                now: report.now,
+                lasting: routine.tracks(.duration) ? duration : 0,
+                justNowTitle: routine.tracks(.duration) ? "Just got back" : "Just now",
+                showsChoices: isToday,
+                earliest: dayRange.lowerBound,
+                latest: dayRange.upperBound,
+                calendar: store.snapshot.calendar
+            )
             if routine.tracks(.duration) {
                 label("How long")
                 FlowLayout(spacing: 8) {
@@ -147,39 +209,62 @@ private struct CareLogForm: View {
             TextField("Optional: what happened?", text: $note)
                 .font(.body(15, weight: 600))
                 .submitLabel(.done)
+                .focused($noteFocused)
                 .fieldStyle()
-            HStack {
-                Menu {
-                    ForEach(Self.endedOptions, id: \.self) { minutes in
-                        Button(minutes == 0 ? "Just now" : "\(CompanionReport.durationText(minutes)) ago") { endedMinutesAgo = minutes }
+                .id("note")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        HStack(spacing: 10) {
+            if editing != nil {
+                if confirmingDelete {
+                    Button("Keep it") { confirmingDelete = false }
+                        .buttonStyle(SecondaryButtonStyle())
+                    Button("Remove \(noun)", role: .destructive, action: delete)
+                        .buttonStyle(PrimaryButtonStyle())
+                } else {
+                    Button { confirmingDelete = true } label: {
+                        Label("Remove", systemImage: "trash")
                     }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(timingText)
-                        Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold))
-                    }
-                    .font(.body(14, weight: 600))
-                    .foregroundStyle(Theme.muted)
+                    .buttonStyle(SecondaryButtonStyle())
                 }
-                Spacer()
-                if let error = store.lastError {
-                    Text(error).font(.body(13, weight: 600)).foregroundStyle(Theme.accent).lineLimit(2)
+            }
+            Spacer(minLength: 8)
+            if let error = store.lastError {
+                Text(error).font(.body(13, weight: 600)).foregroundStyle(Theme.accent).lineLimit(2)
+            }
+            if !confirmingDelete {
+                if editing != nil {
+                    Button("Cancel", action: onClose).buttonStyle(SecondaryButtonStyle())
                 }
                 Button(action: save) {
-                    Label("Save \(routine.kind.noun(title: routine.title))", systemImage: "checkmark")
+                    Label(editing == nil ? "Save \(noun)" : "Save changes", systemImage: "checkmark")
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(people.isEmpty)
             }
-            .padding(.top, 22)
         }
-        .onAppear(perform: setDefaults)
     }
 
-    private func label(_ text: String) -> some View {
-        SectionLabel(text)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+    private var noun: String { routine.kind.noun(title: routine.title) }
+
+    private var title: String {
+        guard editing != nil else { return routine.kind.question(name: report.name, title: routine.title) }
+        return "Edit " + noun
+    }
+
+    private func label(_ text: String, note: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            SectionLabel(text)
+            if let note {
+                Text(note).font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted)
+            }
+        }
+        .padding(.top, 16)
+        .padding(.bottom, 8)
     }
 
     private func personButton(_ person: Person) -> some View {
@@ -223,22 +308,48 @@ private struct CareLogForm: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private var endedAt: Date { report.now.addingTimeInterval(-Double(endedMinutesAgo) * 60) }
-
-    private var startedAt: Date {
-        routine.tracks(.duration) ? endedAt.addingTimeInterval(-Double(duration) * 60) : endedAt
+    /// The log's day: today for a new one, or the day of the one being fixed.
+    private var day: DayKey {
+        DayKey(editing?.time ?? report.now, calendar: store.snapshot.calendar)
     }
 
-    private var timingText: String {
+    private var isToday: Bool { day == report.today }
+
+    /// The day's start up to now, or its last minute for an earlier day.
+    private var dayRange: ClosedRange<Date> {
         let calendar = store.snapshot.calendar
-        let ended = endedMinutesAgo == 0 ? "Ended just now" : "Ended \(CompanionReport.durationText(endedMinutesAgo)) ago"
-        guard routine.tracks(.duration) else { return endedMinutesAgo == 0 ? "Just now" : ended }
-        return "\(ended) · started \(CareText.timeWithPeriod(startedAt, calendar: calendar))"
+        let start = day.startDate(in: calendar)
+        let end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-60) ?? start
+        return start...max(start, min(end, CompanionClock.now()))
+    }
+
+    private var startedAt: Date {
+        let lasting = routine.tracks(.duration) ? duration : 0
+        return min(max(when.start(now: CompanionClock.now(), lasting: lasting), dayRange.lowerBound), dayRange.upperBound)
+    }
+
+    /// "back by 6:32pm" next to the Started label, so the saved times are never a guess.
+    private var timingNote: String? {
+        guard routine.tracks(.duration) else { return nil }
+        let end = when.start(now: report.now, lasting: duration).addingTimeInterval(Double(duration) * 60)
+        return "back by \(CareText.timeWithPeriod(end, calendar: store.snapshot.calendar))"
     }
 
     private func setDefaults() {
         guard !didSetDefaults else { return }
         didSetDefaults = true
+        store.lastError = nil
+        if let editing {
+            let draft = CareLogDraft(editing)
+            people = draft.people
+            when = .at(draft.occurredAt)
+            duration = draft.durationMinutes ?? duration
+            pee = draft.pee ?? false
+            poo = draft.poo ?? false
+            vibe = draft.vibe ?? vibe
+            note = draft.note ?? ""
+            return
+        }
         if let first = model.people.first?.id {
             people = [first]
         }
@@ -260,8 +371,18 @@ private struct CareLogForm: View {
             vibe: routine.tracks(.vibe) ? vibe : nil,
             note: note
         )
+        if let editing {
+            if store.updateLog(id: editing.id, draft) { onClose() }
+            return
+        }
         guard store.log(routineId: routine.id ?? -1, draft) != nil else { return }
         onSaved(Celebration.after(report: report, routine: routine, people: people, names: store.snapshot.names, calendar: store.snapshot.calendar))
+    }
+
+    private func delete() {
+        guard let editing else { return }
+        store.deleteLog(id: editing.id)
+        onClose()
     }
 }
 

@@ -173,6 +173,7 @@ struct SlotGrid: View {
     var style: Style = .card
 
     @Environment(CompanionStore.self) private var store
+    @Environment(\.openCareLog) private var openCareLog
 
     var body: some View {
         let calendar = store.snapshot.calendar
@@ -188,18 +189,33 @@ struct SlotGrid: View {
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                     ForEach(today.slots) { slot in
-                        SlotTile(
-                            slot: slot,
-                            title: style == .card ? slotTitle(slot) : shortLabels[safe: slot.index] ?? slot.window.label,
-                            carers: slot.entry.map { Carers($0.people, snapshot: store.snapshot) },
-                            pendingDetail: pendingDetail(slot),
-                            doneDetail: slot.entry.map {
-                                style == .card ? CareText.doneDetail($0, calendar: calendar) : CareText.time($0.time, calendar: calendar)
-                            } ?? ""
-                        )
+                        Button { open(slot) } label: {
+                            SlotTile(
+                                slot: slot,
+                                title: style == .card ? slotTitle(slot) : shortLabels[safe: slot.index] ?? slot.window.label,
+                                carers: slot.entry.map { Carers($0.people, snapshot: store.snapshot) },
+                                pendingDetail: pendingDetail(slot),
+                                doneDetail: slot.entry.map {
+                                    style == .card ? CareText.doneDetail($0, calendar: calendar) : CareText.time($0.time, calendar: calendar)
+                                } ?? ""
+                            )
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(openCareLog == nil)
                     }
                 }
             }
+        }
+    }
+
+    /// A done slot opens its log to fix; an open one starts a new log.
+    private func open(_ slot: CareSlot) {
+        guard let openCareLog, let routineId = today.routine.id else { return }
+        if let entry = slot.entry {
+            openCareLog(.edit(entry, companionId: report.id))
+        } else {
+            openCareLog(CareLogRequest(companionId: report.id, routineId: routineId))
         }
     }
 

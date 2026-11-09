@@ -59,7 +59,8 @@ enum CompanionTimeline {
             subtitle: subtitle.isEmpty ? nil : subtitle,
             owner: entry.people.count == 1 ? .person(entry.people[0]) : .everyone,
             leading: face,
-            trailing: AnyView(CarerAvatar(carers: Carers(entry.people, snapshot: snapshot)))
+            trailing: AnyView(CarerAvatar(carers: Carers(entry.people, snapshot: snapshot))),
+            target: companion.id.map { .careLog(companionId: $0, routineId: entry.log.careRoutineId, logId: entry.id) }
         )
     }
 
@@ -103,7 +104,8 @@ enum CompanionTimeline {
             subtitle: lead,
             owner: .everyone,
             leading: face,
-            trailing: AnyView(PawDot(carers: nil, size: 24))
+            trailing: AnyView(PawDot(carers: nil, size: 24)),
+            target: companion.id.flatMap { companionId in routine.id.map { .careDue(companionId: companionId, routineId: $0) } }
         )
     }
 

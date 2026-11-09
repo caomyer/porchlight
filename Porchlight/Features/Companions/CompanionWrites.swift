@@ -107,6 +107,27 @@ struct CareLogDraft: Equatable, Sendable {
     var note: String?
 }
 
+extension CareLogDraft {
+    /// The log as it stands, for editing.
+    init(_ entry: CareEntry) {
+        self.init(
+            people: entry.people, occurredAt: entry.log.occurredAt, durationMinutes: entry.log.durationMinutes,
+            pee: entry.log.pee, poo: entry.log.poo, vibe: entry.log.vibe, note: entry.log.note
+        )
+    }
+}
+
+extension CareLog {
+    /// Copies the draft's details, keeping only the fields the routine tracks.
+    mutating func apply(_ draft: CareLogDraft, note: String?, routine: CareRoutine) {
+        durationMinutes = routine.tracks(.duration) ? draft.durationMinutes : nil
+        pee = routine.tracks(.pee) ? draft.pee : nil
+        poo = routine.tracks(.poo) ? draft.poo : nil
+        vibe = routine.tracks(.vibe) ? draft.vibe : nil
+        self.note = note
+    }
+}
+
 // MARK: - Validation
 
 enum CareValidationError: Error, Equatable, LocalizedError {
@@ -122,6 +143,7 @@ enum CareValidationError: Error, Equatable, LocalizedError {
     case noteTooLong(limit: Int)
     case inTheFuture
     case unknownRoutine
+    case unknownLog
 
     var errorDescription: String? {
         switch self {
@@ -137,6 +159,7 @@ enum CareValidationError: Error, Equatable, LocalizedError {
         case let .noteTooLong(limit): "Notes can be at most \(limit) characters."
         case .inTheFuture: "That time hasn't happened yet."
         case .unknownRoutine: "That routine no longer exists."
+        case .unknownLog: "That log was already removed."
         }
     }
 }
@@ -148,6 +171,16 @@ enum CareRules {
     static let noteLimit = 280
 
     /// Cleans up and checks a routine draft. Returns the routine to store.
+    /// Checks a log's people, duration, note and time; returns the trimmed note, nil when empty.
+    static func validatedNote(_ draft: CareLogDraft, now: Date) throws -> String? {
+        guard !draft.people.isEmpty else { throw CareValidationError.noWalkers }
+        if let duration = draft.durationMinutes, !(1...600).contains(duration) { throw CareValidationError.invalidDuration }
+        let note = draft.note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let note, note.count > noteLimit { throw CareValidationError.noteTooLong(limit: noteLimit) }
+        guard draft.occurredAt <= now.addingTimeInterval(5 * 60) else { throw CareValidationError.inTheFuture }
+        return (note?.isEmpty ?? true) ? nil : note
+    }
+
     static func validated(_ draft: CareRoutineDraft, companionId: Int64, sortOrder: Int) throws -> CareRoutine {
         let title = try Names.validated(draft.title)
         let emoji = draft.emoji.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -252,30 +285,37 @@ extension AppDatabase {
     /// Records that people did a routine.
     @discardableResult
     func logCare(routineId: Int64, _ draft: CareLogDraft, now: Date = .now) throws -> CareLog {
-        guard !draft.people.isEmpty else { throw CareValidationError.noWalkers }
-        if let duration = draft.durationMinutes, !(1...600).contains(duration) { throw CareValidationError.invalidDuration }
-        let note = draft.note?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let note, note.count > CareRules.noteLimit { throw CareValidationError.noteTooLong(limit: CareRules.noteLimit) }
-        guard draft.occurredAt <= now.addingTimeInterval(5 * 60) else { throw CareValidationError.inTheFuture }
+        let note = try CareRules.validatedNote(draft, now: now)
         return try writer.write { db in
             guard let routine = try CareRoutine.fetchOne(db, id: routineId) else { throw CareValidationError.unknownRoutine }
-            var log = CareLog(
-                careRoutineId: routineId,
-                occurredAt: draft.occurredAt,
-                durationMinutes: routine.tracks(.duration) ? draft.durationMinutes : nil,
-                pee: routine.tracks(.pee) ? draft.pee : nil,
-                poo: routine.tracks(.poo) ? draft.poo : nil,
-                vibe: routine.tracks(.vibe) ? draft.vibe : nil,
-                note: (note?.isEmpty ?? true) ? nil : note,
-                stars: routine.stars,
-                createdAt: now
-            )
+            var log = CareLog(careRoutineId: routineId, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now)
+            log.apply(draft, note: note, routine: routine)
             try log.insert(db)
-            var seen = Set<Int64>()
-            for personId in draft.people where seen.insert(personId).inserted {
-                try CareLogPerson(careLogId: log.id!, personId: personId).insert(db)
-            }
+            try Self.replacePeople(of: log.id!, with: draft.people, in: db)
             return log
+        }
+    }
+
+    /// Fixes a logged routine: who, when, how long and the details. The routine and
+    /// the stars it earned stay as they were.
+    func updateCareLog(id: Int64, _ draft: CareLogDraft, now: Date = .now) throws -> CareLog {
+        let note = try CareRules.validatedNote(draft, now: now)
+        return try writer.write { db in
+            guard var log = try CareLog.fetchOne(db, id: id) else { throw CareValidationError.unknownLog }
+            guard let routine = try CareRoutine.fetchOne(db, id: log.careRoutineId) else { throw CareValidationError.unknownRoutine }
+            log.occurredAt = draft.occurredAt
+            log.apply(draft, note: note, routine: routine)
+            try log.update(db)
+            try CareLogPerson.filter(Column("careLogId") == id).deleteAll(db)
+            try Self.replacePeople(of: id, with: draft.people, in: db)
+            return log
+        }
+    }
+
+    private static func replacePeople(of logId: Int64, with people: [Int64], in db: Database) throws {
+        var seen = Set<Int64>()
+        for personId in people where seen.insert(personId).inserted {
+            try CareLogPerson(careLogId: logId, personId: personId).insert(db)
         }
     }
 

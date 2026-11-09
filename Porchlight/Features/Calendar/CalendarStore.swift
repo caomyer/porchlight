@@ -203,7 +203,8 @@ final class CalendarStore {
                 subtitle: subtitle,
                 owner: event.owner,
                 leading: AnyView(EventMark(event: event, color: color(for: event.owner))),
-                trailing: AnyView(OwnerAvatar(owner: event.owner, people: people))
+                trailing: AnyView(OwnerAvatar(owner: event.owner, people: people)),
+                target: .event(event.id)
             )
         }
     }

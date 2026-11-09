@@ -107,6 +107,16 @@ struct TimelineItem: Identifiable {
     var leading: AnyView
     /// Optional view on the right, e.g. a walker's avatar or a ghost paw.
     var trailing: AnyView?
+    /// What tapping the row opens; nil leaves it inert.
+    var target: TimelineTarget? = nil
+}
+
+/// What a Today row opens: a logged walk or meal to fix, a due walk to log, an event's details.
+enum TimelineTarget: Hashable, Sendable {
+    case careLog(companionId: Int64, routineId: Int64, logId: Int64)
+    case careDue(companionId: Int64, routineId: Int64)
+    case meal(Int64)
+    case event(String)
 }
 
 /// A whole-day chip shown above the timeline ("Aunt Rosa visiting").

@@ -38,6 +38,13 @@ struct MealSlot: Equatable, Sendable {
     /// The slot a meal eaten at `date` most likely belongs to, among `enabled` slot names.
     /// Late-night eating counts as a snack; if the matching slot is not enabled, the
     /// enabled slot with the closest typical time wins.
+    /// A slot's usual time on a day, e.g. dinner at 6:30pm.
+    static func usualTime(of slot: String, on day: DayKey, calendar: Calendar) -> Date {
+        let start = day.startDate(in: calendar)
+        let minute = named(slot).typicalMinute ?? 12 * 60
+        return calendar.date(byAdding: .minute, value: minute, to: start) ?? start
+    }
+
     static func guess(at date: Date, calendar: Calendar, enabled: [String]) -> String? {
         guard !enabled.isEmpty else { return nil }
         let parts = calendar.dateComponents([.hour, .minute], from: date)

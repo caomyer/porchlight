@@ -132,5 +132,7 @@ final class WallTourTests: XCTestCase {
         let keyboardTop = app.keyboards.firstMatch.exists ? app.keyboards.firstMatch.frame.minY : screen.maxY
         let frame = element.frame
         XCTAssertTrue(frame.minY >= screen.minY && frame.maxY <= keyboardTop, "\(message): \(frame) vs keyboard at \(keyboardTop)")
+        // The keyboard's frame leaves out its suggestion bar; only a hittable field is really in view.
+        XCTAssertTrue(element.isHittable, "\(message): it is covered")
     }
 }

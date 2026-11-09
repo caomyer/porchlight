@@ -15,8 +15,18 @@ struct CaptureRequest: Identifiable, Equatable {
 @Observable
 final class CaptureForm {
     let day: DayKey
-    var slot: String
+    var slot: String {
+        didSet { slotWasPicked = true }
+    }
     let slotWasGuessed: Bool
+    /// Set once someone taps a meal; until then picking a time re-guesses it.
+    private(set) var slotWasPicked = false
+    /// When it was eaten: now for today, else the meal's usual time that day.
+    var time: LogTime {
+        didSet { reguessSlot() }
+    }
+    @ObservationIgnored private let calendar: Calendar
+    @ObservationIgnored private let enabledSlots: [String]
     var source: MealSource = .home
     var eaterIds: Set<Int64>
     var rating: MealRating = .again
@@ -31,8 +41,13 @@ final class CaptureForm {
     init(request: CaptureRequest, store: FoodStore, now: Date) {
         day = request.day
         let guessed = MealSlot.guess(at: now, calendar: store.calendar, enabled: store.slots) ?? store.slots.first ?? "Lunch"
-        slot = request.slot ?? guessed
+        let slot = request.slot ?? guessed
+        self.slot = slot
         slotWasGuessed = request.slot == nil
+        calendar = store.calendar
+        enabledSlots = store.slots
+        time = request.day == store.today(now) ? .justNow : .at(MealSlot.usualTime(of: slot, on: request.day, calendar: store.calendar))
+        slotWasPicked = request.slot != nil
         eaterIds = Set(store.people.compactMap(\.id))
         let drawing = store.pageDrawing(for: request.day)
         note = PageEditor(day: request.day, drawing: drawing)
@@ -51,14 +66,23 @@ final class CaptureForm {
         return fallback
     }
 
+    /// The meal's day, up to now if that's today.
+    func timeRange(now: Date) -> ClosedRange<Date> {
+        let start = day.startDate(in: calendar)
+        let end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-60) ?? start
+        return start...max(start, min(end, now))
+    }
+
+    private func reguessSlot() {
+        guard !slotWasPicked, case let .at(date) = time,
+              let guess = MealSlot.guess(at: date, calendar: calendar, enabled: enabledSlots), guess != slot else { return }
+        slot = guess
+        slotWasPicked = false
+    }
+
     func draft(now: Date, calendar: Calendar, today: DayKey) -> MealDraft {
-        let eatenAt: Date
-        if day == today {
-            eatenAt = now
-        } else {
-            let minute = MealSlot.named(slot).typicalMinute ?? 12 * 60
-            eatenAt = calendar.date(byAdding: .minute, value: minute, to: day.startDate(in: calendar)) ?? now
-        }
+        let range = timeRange(now: now)
+        let eatenAt = min(max(time.start(now: now), range.lowerBound), range.upperBound)
         return MealDraft(
             day: day,
             slot: slot,
@@ -389,10 +413,14 @@ private struct CaptureFormView: View {
             .padding(.top, 12)
 
             label("Meal")
-            FlowLayout(spacing: 8) {
-                ForEach(store.slots, id: \.self) { slot in
-                    FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: form.slot == slot) { form.slot = slot }
+            HStack(alignment: .center, spacing: 8) {
+                FlowLayout(spacing: 8) {
+                    ForEach(store.slots, id: \.self) { slot in
+                        FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: form.slot == slot) { form.slot = slot }
+                    }
                 }
+                Spacer(minLength: 4)
+                AtTimeField(time: $form.time, range: form.timeRange(now: .now), calendar: store.calendar)
             }
 
             label("Made by")

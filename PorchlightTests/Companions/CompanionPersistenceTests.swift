@@ -158,6 +158,58 @@ struct CompanionPersistenceTests {
         #expect(feedEntry.log.stars == 1)
     }
 
+    @Test("Fixing a log changes who, when and the details, keeping its stars and creation time")
+    func updateLog() throws {
+        let home = try home()
+        let id = try dog(home)
+        let walk = try home.db.writer.read(CompanionSnapshot.fetch).routines(of: id)[0]
+        let now = Date.now
+        let original = try home.db.logCare(routineId: walk.id!, CareLogDraft(
+            people: [home.people[0]], occurredAt: now.addingTimeInterval(-600), durationMinutes: 20, pee: true, poo: true, vibe: .smooth
+        ), now: now)
+        let stored = try #require(try home.db.writer.read(CompanionSnapshot.fetch).entries.first)
+
+        let earlier = now.addingTimeInterval(-3 * 3600)
+        let updated = try home.db.updateCareLog(id: original.id!, CareLogDraft(
+            people: [home.people[1], home.people[0]], occurredAt: earlier, durationMinutes: 45,
+            pee: false, poo: true, vibe: .soggy, note: " Rainy "
+        ), now: now)
+        #expect(updated.id == original.id)
+
+        let entries = try home.db.writer.read(CompanionSnapshot.fetch).entries
+        #expect(entries.count == 1)
+        let entry = try #require(entries.first)
+        #expect(Set(entry.people) == Set(home.people))
+        #expect(abs(entry.time.timeIntervalSince(earlier)) < 0.01)
+        #expect(entry.log.durationMinutes == 45)
+        #expect(entry.log.pee == false)
+        #expect(entry.log.vibe == .soggy)
+        #expect(entry.log.note == "Rainy")
+        #expect(entry.log.stars == stored.log.stars)
+        #expect(entry.log.createdAt == stored.log.createdAt)
+        #expect(entry.log.careRoutineId == walk.id)
+    }
+
+    @Test("Invalid fixes are rejected and leave the log as it was")
+    func invalidUpdate() throws {
+        let home = try home()
+        let id = try dog(home)
+        let walk = try home.db.writer.read(CompanionSnapshot.fetch).routines(of: id)[0]
+        let now = Date.now
+        let log = try home.db.logCare(routineId: walk.id!, CareLogDraft(people: [home.people[0]], occurredAt: now.addingTimeInterval(-600)), now: now)
+        #expect(throws: CareValidationError.noWalkers) {
+            try home.db.updateCareLog(id: log.id!, CareLogDraft(people: [], occurredAt: now), now: now)
+        }
+        #expect(throws: CareValidationError.inTheFuture) {
+            try home.db.updateCareLog(id: log.id!, CareLogDraft(people: [home.people[1]], occurredAt: now.addingTimeInterval(3600)), now: now)
+        }
+        #expect(throws: CareValidationError.unknownLog) {
+            try home.db.updateCareLog(id: 999, CareLogDraft(people: [home.people[0]], occurredAt: now), now: now)
+        }
+        let entry = try #require(try home.db.writer.read(CompanionSnapshot.fetch).entries.first)
+        #expect(entry.people == [home.people[0]])
+    }
+
     @Test("Logging rejects missing walkers, odd durations, long notes and future times")
     func logValidation() throws {
         let home = try home()
@@ -213,7 +265,7 @@ struct CompanionPersistenceTests {
         #expect(snapshot.entries.isEmpty)
     }
 
-    @Test("The report ties it together: slots, turns, streak and podium")
+    @Test("The report ties it together: slots, streak and podium")
     func report() throws {
         let home = try home()
         let id = try dog(home)

@@ -23,6 +23,7 @@ struct MealDetailSheet: View {
                     .padding(.top, 8)
                 if let editing {
                     MealEditForm(
+                        entry: current,
                         edit: Binding(get: { editing }, set: { self.editing = $0 }),
                         error: store.lastError,
                         onCancel: { self.editing = nil },
@@ -126,6 +127,7 @@ struct MealEdit: Equatable {
     var source: MealSource
     var rating: MealRating?
     var eaterIds: Set<Int64>
+    var time: LogTime
 
     init(entry: JournalEntry, eaterIds: [Int64]) {
         title = entry.title
@@ -133,15 +135,23 @@ struct MealEdit: Equatable {
         source = entry.source
         rating = entry.rating
         self.eaterIds = Set(eaterIds)
+        time = .at(entry.eatenAt)
     }
 
-    /// Moving a meal to another slot moves its time to that slot's usual hour, so the
-    /// day's timeline keeps meals in order; otherwise the original time stays.
+    /// The meal's day, up to now if that's today.
+    static func timeRange(for entry: JournalEntry, calendar: Calendar, now: Date = .now) -> ClosedRange<Date> {
+        let start = entry.dayKey.startDate(in: calendar)
+        let end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-60) ?? start
+        return start...max(start, min(end, now))
+    }
+
+    /// The chosen time. Moving a meal to another slot without picking a time moves it
+    /// to that slot's usual hour, so the day's timeline keeps meals in order.
     func draft(for entry: JournalEntry, calendar: Calendar) -> MealDraft {
-        var eatenAt = entry.eatenAt
-        if slot != entry.slot {
-            let minute = MealSlot.named(slot).typicalMinute ?? 12 * 60
-            eatenAt = calendar.date(byAdding: .minute, value: minute, to: entry.dayKey.startDate(in: calendar)) ?? eatenAt
+        let range = Self.timeRange(for: entry, calendar: calendar)
+        var eatenAt = min(max(time.start(now: .now), range.lowerBound), range.upperBound)
+        if slot != entry.slot, time == .at(entry.eatenAt) {
+            eatenAt = MealSlot.usualTime(of: slot, on: entry.dayKey, calendar: calendar)
         }
         return MealDraft(
             day: entry.dayKey,
@@ -158,6 +168,7 @@ struct MealEdit: Equatable {
 
 /// Fixes a meal's name, slot, maker, eaters or rating, laid out like the capture form.
 private struct MealEditForm: View {
+    let entry: JournalEntry
     @Binding var edit: MealEdit
     let error: String?
     let onCancel: () -> Void
@@ -183,10 +194,14 @@ private struct MealEditForm: View {
             .padding(.top, 12)
 
             label("Meal")
-            FlowLayout(spacing: 8) {
-                ForEach(slots, id: \.self) { slot in
-                    FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: edit.slot == slot) { edit.slot = slot }
+            HStack(alignment: .center, spacing: 8) {
+                FlowLayout(spacing: 8) {
+                    ForEach(slots, id: \.self) { slot in
+                        FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: edit.slot == slot) { edit.slot = slot }
+                    }
                 }
+                Spacer(minLength: 4)
+                AtTimeField(time: $edit.time, range: timeRange, calendar: store.calendar)
             }
 
             label("Made by")
@@ -234,6 +249,10 @@ private struct MealEditForm: View {
             .padding(.top, 24)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private var timeRange: ClosedRange<Date> {
+        MealEdit.timeRange(for: entry, calendar: store.calendar)
     }
 
     /// This diary's meals, plus the entry's own slot if it was since turned off.
