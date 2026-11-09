@@ -196,11 +196,14 @@ struct FoodTodayCard: View {
                 card(today: today)
             }
             .wallCover(item: $capture) { request in
-                CaptureSheet(request: request, doneTitle: "Done") { present(nil) }
+                CaptureSheet(request: request, doneTitle: "Done", onAnother: { present($0) }) { present(nil) }
             }
             .wallCover(item: $openEntryId) { open in
                 if let entry = store.snapshot.entries.first(where: { $0.id == open.id }) {
-                    MealDetailSheet(entry: entry) { CompanionCover.instantly { openEntryId = nil } }
+                    MealDetailSheet(entry: entry, onAddAnother: { day, slot in
+                        CompanionCover.instantly { openEntryId = nil }
+                        present(CaptureRequest(day: day, slot: slot))
+                    }) { CompanionCover.instantly { openEntryId = nil } }
                 }
             }
         }
@@ -244,14 +247,16 @@ struct FoodTodayCard: View {
 
     @ViewBuilder
     private func plate(today: DayKey, slot: String, index: Int) -> some View {
-        if let entry = store.entries(on: today, slot: slot).last {
+        let entries = store.entries(on: today, slot: slot)
+        if let entry = entries.last {
+            // The latest dish on top; the meal sheet switches between all of them.
             Button {
                 if let id = entry.id { CompanionCover.instantly { openEntryId = OpenEntry(id: id) } }
             } label: {
-                Polaroid(entry: entry, rotation: [-2, 1.5, -1][index % 3], emojiSize: 40, captionSize: 15, plate: 0.44)
+                Polaroid(entry: entry, rotation: [-2, 1.5, -1][index % 3], emojiSize: 40, captionSize: 15, plate: 0.44, extra: entries.count - 1)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(slot): \(entry.title)")
+            .accessibilityLabel(entries.count > 1 ? "\(slot): \(entry.title) and \(entries.count - 1) more" : "\(slot): \(entry.title)")
         } else {
             Button { present(CaptureRequest(day: today, slot: slot)) } label: {
                 EmptyPolaroid(label: "snap \(slot.lowercased())", showsPlate: false, captionSize: 14)

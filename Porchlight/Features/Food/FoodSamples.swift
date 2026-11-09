@@ -47,6 +47,7 @@ enum FoodSamples {
     private static let extras: [(Int, Int, Dish)] = [
         (5, 2, out("🍡", "Mochi", nil, 0xF2D4DC, .favorite, at: sushiBar)),
         (3, 2, home("🥖", "Garlic bread", nil, 0xEFD9AE, .fine)),
+        (6, 0, home("☕", "Oat latte", 0, 0xE6D5C3, .fine)),
     ]
 
     /// Handwritten lines per day of `week`: text and writer (index into people) or a fixed ink.
