@@ -35,7 +35,9 @@ final class CompanionEditorTests: XCTestCase {
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap()
         name.typeText("!\n")
-        XCTAssertTrue((name.value as? String)?.hasSuffix("!") == true, "Typing should reach the name field")
+        // Wait for the field to show it; a busy simulator updates the value late.
+        let typed = expectation(for: NSPredicate(format: "value ENDSWITH '!'"), evaluatedWith: name)
+        wait(for: [typed], timeout: 5)
 
         addRoutine.tap()
         XCTAssertTrue(app.staticTexts["New routine"].waitForExistence(timeout: 5), "Add routine should open the routine editor")

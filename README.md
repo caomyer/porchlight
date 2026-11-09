@@ -50,8 +50,14 @@ scripts/device-tour.sh /tmp/porchlight-device-tour
 ```
 
 UI tests (screen tour, handwriting round trip, meal editing, several dishes per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
-The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator too (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
-Reset the calendar permission first (`xcrun simctl privacy <udid> reset calendar com.mingyucao.porchlight`) so the first-run test sees the prompt.
+The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
+`scripts/test.sh` runs the unit tests and then the UI tests on an iOS 17.5 iPad simulator, resetting the calendar permission so the first-run test sees the prompt.
+It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
+Each checkout builds into its own DerivedData folder, so worktrees can test side by side, but two UI suites at once slow each other enough to time out.
+
+```bash
+scripts/test.sh
+```
 
 ## Install on the wall iPad
 
