@@ -2,6 +2,7 @@ import XCTest
 
 /// Scrollable screens must follow a finger. The wall watches every touch for its
 /// idle timer, and that watcher must never steal pans from a scroll view.
+@MainActor
 final class ScrollingTests: XCTestCase {
     func testSettingsScrollsToTheLastSection() {
         let app = XCUIApplication()

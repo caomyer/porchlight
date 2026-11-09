@@ -42,6 +42,7 @@ enum DebugSnapshot {
         try? report.joined(separator: "\n").write(to: folder.appendingPathComponent("\(name).txt"), atomically: true, encoding: .utf8)
     }
 
+    @MainActor
     private static func canvases(in view: UIView) -> [PKCanvasView] {
         if let canvas = view as? PKCanvasView { return [canvas] }
         return view.subviews.flatMap(canvases(in:))

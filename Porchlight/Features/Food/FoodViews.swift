@@ -186,14 +186,13 @@ struct FoodTodayCard: View {
                 let today = store.today(context.date)
                 card(today: today)
             }
-            .fullScreenCover(item: $capture) { request in
+            .wallCover(item: $capture) { request in
                 CaptureSheet(request: request, doneTitle: "Done") { present(nil) }
-                    .presentationBackground(.clear)
             }
         }
     }
 
-    /// The capture sheet draws its own dimmed backdrop, so the cover appears without sliding.
+    /// The capture sheet draws its own dimmed backdrop and fades itself in.
     private func present(_ request: CaptureRequest?) {
         var transaction = Transaction()
         transaction.disablesAnimations = true

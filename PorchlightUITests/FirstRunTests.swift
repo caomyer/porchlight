@@ -5,6 +5,7 @@ import XCTest
 /// `-resetData` uses the sample storage sandbox, so real data is never touched.
 /// Run after `xcrun simctl privacy <udid> reset calendar com.mingyucao.porchlight`
 /// so the permission prompt appears.
+@MainActor
 final class FirstRunTests: XCTestCase {
     private func snapshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

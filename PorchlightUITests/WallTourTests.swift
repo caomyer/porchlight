@@ -3,6 +3,7 @@ import XCTest
 /// Walks every wall screen with sample data and attaches a screenshot of each,
 /// so the real iPad's rendering can be reviewed from the test results.
 /// Sample launches use their own storage sandbox and never touch real data.
+@MainActor
 final class WallTourTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = true

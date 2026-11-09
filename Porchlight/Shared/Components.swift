@@ -25,28 +25,57 @@ private extension UIColor {
 }
 
 /// Lays children out left to right, wrapping onto new lines.
+///
+/// Always reports a finite size: a parent that probes with an unbounded width (an
+/// HStack weighing a Spacer does) gets the widest row back, not infinity, which would
+/// otherwise make the parent re-lay out without ever settling.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
     var lineSpacing: CGFloat? = nil
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let rows = arrange(subviews, width: proposal.width ?? .infinity)
-        let width = rows.map(\.width).max() ?? 0
-        let height = rows.map(\.height).reduce(0, +) + CGFloat(max(rows.count - 1, 0)) * (lineSpacing ?? spacing)
-        return CGSize(width: proposal.width ?? width, height: height)
+    struct Cache {
+        var sizes: [CGSize]
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+    func makeCache(subviews: Subviews) -> Cache {
+        Cache(sizes: subviews.map { $0.sizeThatFits(.unspecified) })
+    }
+
+    func updateCache(_ cache: inout Cache, subviews: Subviews) {
+        cache = makeCache(subviews: subviews)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGSize {
+        let rows = arrange(cache.sizes, width: proposal.width ?? .infinity)
+        let contentWidth = rows.map(\.width).max() ?? 0
+        let height = rows.map(\.height).reduce(0, +) + CGFloat(max(rows.count - 1, 0)) * (lineSpacing ?? spacing)
+        // Fill a finite proposal so leading-aligned rows sit flush; never claim infinity.
+        let width = proposal.width.flatMap { $0.isFinite ? max($0, 0) : nil } ?? contentWidth
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
         var y = bounds.minY
-        for row in arrange(subviews, width: bounds.width) {
+        for row in arrange(cache.sizes, width: bounds.width) {
             var x = bounds.minX
             for index in row.indices {
-                let size = subviews[index].sizeThatFits(.unspecified)
+                let size = cache.sizes[index]
                 subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2), proposal: ProposedViewSize(size))
                 x += size.width + spacing
             }
             y += row.height + (lineSpacing ?? spacing)
         }
+    }
+
+    // The default implementations place every subview to merge their guides, which
+    // nested inside stacks that probe repeatedly multiplies into a hang. Flow rows
+    // have no guide worth exposing, so parents use the frame's edges.
+    func explicitAlignment(of guide: HorizontalAlignment, in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGFloat? {
+        nil
+    }
+
+    func explicitAlignment(of guide: VerticalAlignment, in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGFloat? {
+        nil
     }
 
     private struct Row {
@@ -55,10 +84,9 @@ struct FlowLayout: Layout {
         var height: CGFloat = 0
     }
 
-    private func arrange(_ subviews: Subviews, width: CGFloat) -> [Row] {
+    private func arrange(_ sizes: [CGSize], width: CGFloat) -> [Row] {
         var rows: [Row] = [Row()]
-        for index in subviews.indices {
-            let size = subviews[index].sizeThatFits(.unspecified)
+        for (index, size) in sizes.enumerated() {
             let needed = rows[rows.count - 1].indices.isEmpty ? size.width : rows[rows.count - 1].width + spacing + size.width
             if needed > width, !rows[rows.count - 1].indices.isEmpty {
                 rows.append(Row())

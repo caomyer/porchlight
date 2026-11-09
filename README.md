@@ -49,7 +49,7 @@ Review the real iPad's rendering (sample data lives in a separate storage sandbo
 scripts/device-tour.sh /tmp/porchlight-device-tour
 ```
 
-UI tests (screen tour, handwriting round trip, meal editing, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
+UI tests (screen tour, handwriting round trip, meal editing, editing a companion and adding a routine, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
 The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator too (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
 Reset the calendar permission first (`xcrun simctl privacy <udid> reset calendar com.mingyucao.porchlight`) so the first-run test sees the prompt.
 

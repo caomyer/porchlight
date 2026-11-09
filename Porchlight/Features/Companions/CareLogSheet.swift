@@ -19,22 +19,11 @@ extension View {
             CareLogFlow(request: item) { CompanionCover.instantly { request.wrappedValue = nil } }
         }
     }
-
-    /// A full-screen cover with a clear background, so a `WallSheet` can dim the whole wall.
-    /// Present it inside `CompanionCover.instantly` so it fades in place instead of sliding up.
-    func wallCover<Item: Identifiable, Content: View>(item: Binding<Item?>, @ViewBuilder content: @escaping (Item) -> Content) -> some View {
-        fullScreenCover(item: item) { value in
-            content(value)
-                .presentationBackground(.clear)
-                // Covers don't inherit the wall's kiosk chrome.
-                .statusBarHidden(true)
-                .persistentSystemOverlays(.hidden)
-        }
-    }
 }
 
 enum CompanionCover {
-    /// Runs a state change with system transitions (like a cover's slide) turned off.
+    /// Runs a state change with animations turned off, so a wall layer appears in place
+    /// and fades itself in.
     @MainActor
     static func instantly(_ change: () -> Void) {
         var transaction = Transaction()

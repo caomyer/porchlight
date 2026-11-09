@@ -75,6 +75,7 @@ struct RootView: View {
                     .task { weather.start() }
             }
         }
+        .hostsWallLayers()
         .kioskMode()
         .preferredColorScheme(.light)
         #if DEBUG

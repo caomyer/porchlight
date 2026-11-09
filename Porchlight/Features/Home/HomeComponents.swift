@@ -224,7 +224,7 @@ extension View {
         width: CGFloat = 640,
         @ViewBuilder content: @escaping (Item) -> Sheet
     ) -> some View {
-        fullScreenCover(item: item) { value in
+        wallCover(item: item) { value in
             FadingWallSheet(width: width, onDismiss: { withoutAnimation { item.wrappedValue = nil } }) {
                 content(value)
             }
@@ -232,7 +232,7 @@ extension View {
     }
 }
 
-/// Runs a state change with system presentation animations turned off.
+/// Runs a state change with animations turned off, so a wall layer appears in place.
 @MainActor
 func withoutAnimation(_ change: () -> Void) {
     var transaction = Transaction()
@@ -263,9 +263,6 @@ private struct FadingWallSheet<Content: View>: View {
         }
         .opacity(isVisible ? 1 : 0)
         .scaleEffect(isVisible ? 1 : 0.985)
-        .presentationBackground(.clear)
-        .statusBarHidden(true)
-        .persistentSystemOverlays(.hidden)
         .onAppear {
             withAnimation(.easeOut(duration: 0.2)) { isVisible = true }
         }
