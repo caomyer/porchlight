@@ -48,7 +48,7 @@ enum HomeSamples {
 
         // Rewards: personal treats started about a week ago; the shared fund has been going a while.
         let rewards = [
-            (RewardDraft(title: "Fancy coffee run", emoji: "☕", targetStars: 30, ownerId: first), today.adding(days: -4, calendar: calendar)),
+            (RewardDraft(title: "Fancy coffee run", emoji: "☕", targetStars: 20, ownerId: first), today.adding(days: -4, calendar: calendar)),
             (RewardDraft(title: "Spa afternoon", emoji: "💆", targetStars: 80, ownerId: second), today.adding(days: -11, calendar: calendar)),
             (RewardDraft(title: "Date night fund", emoji: "🍷", targetStars: 250, ownerId: nil), today.adding(days: -20, calendar: calendar)),
         ]

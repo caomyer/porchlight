@@ -23,6 +23,9 @@ enum CompanionSamples {
         draft.about = "Toy poodle"
         draft.birthDate = calendar.date(byAdding: .month, value: -51, to: now)
         draft.tone = .cheeky
+        // The routines started with the 34 days of history below.
+        let started = DayKey(now, calendar: calendar).adding(days: -34, calendar: calendar)
+        for index in draft.routines.indices { draft.routines[index].startDay = started }
         let companionId = try database.saveCompanion(draft, householdId: householdId, now: now)
         let routines = try database.writer.read { db in
             try CareRoutine.filter(Column("companionId") == companionId).order(Column("sortOrder")).fetchAll(db)
