@@ -10,7 +10,7 @@ The product plan and UX mocks live in [.lavish/porchlight.html](.lavish/porchlig
 - **Today**: big clock, local weather, one timeline mixing calendar events, care logs (walks, feeding) and meals, plus companion cards, today's plates and countdowns.
 - **Calendar**: Week, Month and Day views of every calendar on the iPad (via EventKit), colored by person, with paw and plate lanes.
 - **Companions**: pets, plants or anything cared for; routines with time windows, logging who did it and when with a celebration, tap any logged walk to fix or remove it, a weekly page with paw trail, podium, mood meter and cheeky captions.
-- **Food diary**: snap a meal with the camera, home-cooked or delivery, a polaroid week where any meal can be fixed or removed, and a handwritten paper month written with Apple Pencil (one fixed-ratio page per day, zoomed for writing).
+- **Food diary**: snap a meal with the camera, home-cooked, delivery or dining out (with the restaurant picked from live Apple Maps search), several dishes per meal, a polaroid week where any meal can be fixed or removed, and a handwritten paper month written with Apple Pencil (one fixed-ratio page per day, zoomed for writing).
 - **Chores and rewards**, **Lists and meal plan**, and an **Ambient** photo frame with a night clock.
 
 ## Develop
@@ -49,7 +49,7 @@ Review the real iPad's rendering (sample data lives in a separate storage sandbo
 scripts/device-tour.sh /tmp/porchlight-device-tour
 ```
 
-UI tests (screen tour, handwriting round trip, meal editing, editing a companion and adding a routine, fixing logged walks and meals from Today, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
+UI tests (screen tour, handwriting round trip, meal editing, several dishes per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
 The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator too (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
 Reset the calendar permission first (`xcrun simctl privacy <udid> reset calendar com.mingyucao.porchlight`) so the first-run test sees the prompt.
 

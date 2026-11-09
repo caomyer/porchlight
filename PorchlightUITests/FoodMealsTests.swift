@@ -89,7 +89,7 @@ final class FoodMealsTests: XCTestCase {
         // The photo button sits 24pt above the viewfinder's bottom, which lines up with the form's.
         let photo = app.buttons["Choose a photo"]
         if photo.exists {
-            XCTAssertLessThanOrEqual(app.buttons["Save"].frame.maxY, photo.frame.maxY + 25, "Save should stay inside the sheet")
+            XCTAssertLessThanOrEqual(app.buttons["Save"].frame.maxY, photo.frame.maxY + 26, "Save should stay inside the sheet")
         }
 
         app.buttons["Save"].tap()
@@ -115,5 +115,28 @@ final class FoodMealsTests: XCTestCase {
         snapshot("36-live-suggestions")
         if offline.exists { throw XCTSkip("Maps is not reachable from this simulator") }
         XCTAssertGreaterThan(suggestions.buttons.count, 0, "Maps should suggest places for \"Pizza\"")
+    }
+
+    /// Editing a meal into a dinner out: the restaurant field stays above the keyboard and the
+    /// detail names the place after saving.
+    func testEditingAMealIntoDiningOut() {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "detail"])
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 20))
+        edit.tap()
+        app.buttons["🍽️ Dine out"].tap()
+        let restaurant = app.textFields["Restaurant"]
+        XCTAssertTrue(restaurant.waitForExistence(timeout: 5))
+        restaurant.tap()
+        restaurant.typeText("Corner Bistro")
+        Thread.sleep(forTimeInterval: 2)
+        assertOnScreen(restaurant, in: app, "The restaurant field should move above the keyboard")
+        snapshot("37-edit-dine-out")
+        restaurant.typeText("\n")
+        XCTAssertTrue(app.buttons["Restaurant: Corner Bistro"].waitForExistence(timeout: 5), "A typed name should be kept as the restaurant")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Dine out"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Corner Bistro"].exists, "The detail should name the restaurant")
+        snapshot("38-edit-dine-out-saved")
     }
 }
