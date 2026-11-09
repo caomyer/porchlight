@@ -30,6 +30,8 @@ final class CaptureForm {
     var source: MealSource = .home
     var eaterIds: Set<Int64>
     var rating: MealRating = .again
+    /// The restaurant, for delivery or eating out.
+    var place: PlaceDraft?
     var title = ""
     var photo: UIImage?
     /// Today's page; the note strip writes on `noteLine` of it.
@@ -57,6 +59,9 @@ final class CaptureForm {
     var emoji: String {
         DishIllustration.suggestEmoji(for: title) ?? DishIllustration.fallbackEmoji
     }
+
+    /// The form's height; it grows to fit the restaurant field.
+    var formHeight: CGFloat { source.hasPlace ? 676 : 620 }
 
     func ink(people: [Person], fallback: PageInk) -> PageInk {
         if let chosenInk { return chosenInk }
@@ -91,7 +96,8 @@ final class CaptureForm {
             rating: rating,
             eaterIds: Array(eaterIds),
             noteLine: note.hasChanges ? noteLine : nil,
-            eatenAt: eatenAt
+            eatenAt: eatenAt,
+            place: source.hasPlace ? place : nil
         )
     }
 }
@@ -101,6 +107,8 @@ final class CaptureForm {
 struct CaptureSheet: View {
     let request: CaptureRequest
     var doneTitle = "Back to diary"
+    /// Starts a fresh capture for the same meal ("Snap another"), e.g. a second dish.
+    var onAnother: ((CaptureRequest) -> Void)?
     /// Debug screenshots only: start on the "Saved" overlay for this entry.
     var previewSaved: JournalEntry?
     let onClose: () -> Void
@@ -110,11 +118,18 @@ struct CaptureSheet: View {
     @State private var saved: JournalEntry?
     @State private var isSaving = false
     @State private var error: String?
+    /// The restaurant field (low in the form) is being typed into.
+    @State private var lowFieldFocused = false
 
     var body: some View {
         ZStack {
             if let saved {
-                SavedOverlay(entry: saved, doneTitle: doneTitle, onDone: onClose)
+                SavedOverlay(
+                    entry: saved,
+                    doneTitle: doneTitle,
+                    onAnother: onAnother.map { another in { another(CaptureRequest(day: saved.dayKey, slot: saved.slot)) } },
+                    onDone: onClose
+                )
                     .transition(.opacity)
             } else {
                 Color(hex: 0x14_0F0A).opacity(0.38)
@@ -127,8 +142,11 @@ struct CaptureSheet: View {
             }
         }
         // The dish name field is near the top, well above the keyboard; re-centering the
-        // tall sheet above the keyboard would push that field off screen.
-        .ignoresSafeArea(.keyboard)
+        // tall sheet above the keyboard would push that field off screen. The restaurant
+        // field sits lower, so while it is typed into the sheet does move up.
+        .onPreferenceChange(KeyboardAvoidanceKey.self) { lowFieldFocused = $0 }
+        .ignoresSafeArea(lowFieldFocused ? [] : .keyboard)
+        .animation(.easeOut(duration: 0.25), value: lowFieldFocused)
         .onAppear {
             if form == nil { form = CaptureForm(request: request, store: store, now: .now) }
             if let previewSaved { saved = previewSaved }
@@ -141,7 +159,7 @@ struct CaptureSheet: View {
                 form.photo = image
                 Task { await save(form) }
             }
-            .frame(width: 370, height: 600)
+            .frame(width: 370, height: form.formHeight)
             CaptureFormView(form: form, isSaving: isSaving, error: error) {
                 Task { await save(form) }
             }
@@ -151,6 +169,7 @@ struct CaptureSheet: View {
         .padding(.trailing, 28)
         .padding(.vertical, 22)
         .frame(width: 920)
+        .animation(.easeInOut(duration: 0.2), value: form.formHeight)
         .background(SurfaceShape(cornerRadius: 28, elevation: 2.5))
         .overlay(alignment: .topTrailing) {
             Button(action: onClose) {
@@ -423,11 +442,16 @@ private struct CaptureFormView: View {
                 AtTimeField(time: $form.time, range: form.timeRange(now: .now), calendar: store.calendar)
             }
 
-            label("Made by")
+            label("From")
             HStack(spacing: 8) {
                 ForEach(MealSource.allCases, id: \.self) { source in
                     FoodChoicePill("\(source.emoji) \(source.label)", isSelected: form.source == source) { form.source = source }
                 }
+            }
+            if form.source.hasPlace {
+                RestaurantField(place: $form.place, prompt: form.source == .dineOut ? "Where? Search restaurants" : "From where? Search restaurants")
+                    .padding(.top, 10)
+                    .zIndex(1)
             }
 
             label("Who ate")
@@ -481,7 +505,7 @@ private struct CaptureFormView: View {
             .foregroundStyle(Theme.muted)
         }
         .padding(.top, 14)
-        .frame(height: 600, alignment: .topLeading)
+        .frame(height: form.formHeight, alignment: .topLeading)
     }
 
     private var subtitle: String {
@@ -620,6 +644,7 @@ private struct NoteStrip: View {
 private struct SavedOverlay: View {
     let entry: JournalEntry
     let doneTitle: String
+    var onAnother: (() -> Void)?
     let onDone: () -> Void
 
     @Environment(FoodStore.self) private var store
@@ -647,9 +672,17 @@ private struct SavedOverlay: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 520)
                 .padding(.top, 8)
-            Button(doneTitle, action: onDone)
-                .buttonStyle(SecondaryButtonStyle())
-                .padding(.top, 22)
+            HStack(spacing: 12) {
+                if let onAnother {
+                    Button(action: onAnother) {
+                        Label("Snap another \(entry.slot.lowercased()) dish", systemImage: "plus")
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                }
+                Button(doneTitle, action: onDone)
+                    .buttonStyle(SecondaryButtonStyle())
+            }
+            .padding(.top, 22)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PersonColor.ochre.color.wash(0.2, over: Theme.background))
@@ -666,8 +699,14 @@ private struct SavedOverlay: View {
     private var summary: String {
         let people = store.eaters(of: entry)
         let who = store.ateTogether(entry) ? "for everyone" : "for " + ListFormat.join(people.map(\.name))
-        let how = entry.source == .home ? "Home-cooked" : "Delivered"
+        let slot = entry.slot.lowercased()
+        let place = store.place(of: entry)?.name
+        let what = switch entry.source {
+        case .home: "Home-cooked \(slot)"
+        case .delivery: place.map { "\(slot.prefix(1).uppercased() + slot.dropFirst()) delivered from \($0)" } ?? "Delivered \(slot)"
+        case .dineOut: place.map { "\(slot.prefix(1).uppercased() + slot.dropFirst()) out at \($0)" } ?? "\(slot.prefix(1).uppercased() + slot.dropFirst()) out"
+        }
         let note = entry.noteLine != nil ? ", plus a handwritten note" : ""
-        return "\(how) \(entry.slot.lowercased()) \(who)\(note). It's on the calendar now, next to the rest of your day."
+        return "\(what) \(who)\(note). It's on the calendar now, next to the rest of your day."
     }
 }

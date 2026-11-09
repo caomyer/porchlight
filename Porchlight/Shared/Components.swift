@@ -120,6 +120,22 @@ struct Pill: View {
     }
 }
 
+/// Set by a text field low in a sheet while it is focused, so the sheet moves above the
+/// keyboard even if it otherwise stays put (see `WallSheet.staysAboveKeyboard`).
+struct KeyboardAvoidanceKey: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
+extension View {
+    /// Asks the enclosing sheet to move above the keyboard while `needed`.
+    func needsRoomAboveKeyboard(_ needed: Bool) -> some View {
+        preference(key: KeyboardAvoidanceKey.self, value: needed)
+    }
+}
+
 /// A modal sheet on the wall: dims the screen and centers a paper card.
 struct WallSheet<Content: View>: View {
     var width: CGFloat = 640
@@ -128,6 +144,9 @@ struct WallSheet<Content: View>: View {
     var staysAboveKeyboard = false
     var onClose: () -> Void
     @ViewBuilder var content: () -> Content
+
+    /// A field low in the sheet is being typed into (`needsRoomAboveKeyboard`).
+    @State private var lowFieldFocused = false
 
     var body: some View {
         ZStack {
@@ -151,7 +170,9 @@ struct WallSheet<Content: View>: View {
                     .accessibilityLabel("Close")
                 }
         }
-        .ignoresSafeArea(staysAboveKeyboard ? .keyboard : [])
+        .onPreferenceChange(KeyboardAvoidanceKey.self) { lowFieldFocused = $0 }
+        .ignoresSafeArea(staysAboveKeyboard && !lowFieldFocused ? .keyboard : [])
+        .animation(.easeOut(duration: 0.25), value: lowFieldFocused)
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 }

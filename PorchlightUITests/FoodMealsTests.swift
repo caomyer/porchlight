@@ -1,0 +1,119 @@
+import XCTest
+
+/// Several dishes in one meal, and eating out with a restaurant picked by search.
+/// Sample launches use their own storage sandbox and never touch real data.
+@MainActor
+final class FoodMealsTests: XCTestCase {
+    override func setUp() {
+        continueAfterFailure = false
+    }
+
+    private func launch(_ arguments: [String]) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-sampleHousehold"] + arguments
+        app.launch()
+        _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
+        Thread.sleep(forTimeInterval: 4)
+        return app
+    }
+
+    private func snapshot(_ name: String) {
+        let screenshot = XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        // For local review: `TEST_RUNNER_SHOT_DIR=/some/folder xcodebuild test ...`
+        if let folder = ProcessInfo.processInfo.environment["SHOT_DIR"] {
+            try? screenshot.pngRepresentation.write(to: URL(fileURLWithPath: folder).appendingPathComponent("\(name).png"))
+        }
+    }
+
+    private func assertOnScreen(_ element: XCUIElement, in app: XCUIApplication, _ message: String) {
+        let screen = app.windows.firstMatch.frame
+        let keyboardTop = app.keyboards.firstMatch.exists ? app.keyboards.firstMatch.frame.minY : screen.maxY
+        let frame = element.frame
+        XCTAssertTrue(frame.minY >= screen.minY && frame.maxY <= keyboardTop, "\(message): \(frame) vs keyboard at \(keyboardTop)")
+    }
+
+    private func button(_ app: XCUIApplication, startingWith prefix: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
+    }
+
+    /// A dinner with two dishes opens on the first, switches to the second, and offers another.
+    func testSeveralDishesInOneMeal() {
+        let app = launch(["-startScreen", "food"])
+        let stack = app.descendants(matching: .any)["Dinner: Sushi night and 1 more"]
+        XCTAssertTrue(stack.waitForExistence(timeout: 20), "Saturday's dinner should show as a stack of two")
+        stack.tap()
+
+        XCTAssertTrue(app.staticTexts["Sushi night"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Sakura Sushi Bar"].exists, "The detail should name the restaurant")
+        let mochi = app.buttons["Mochi"]
+        XCTAssertTrue(mochi.exists, "The other dish of the meal should be one tap away")
+        snapshot("30-meal-two-dishes")
+
+        mochi.tap()
+        XCTAssertTrue(app.staticTexts["Mochi"].waitForExistence(timeout: 5), "Picking the other dish should show it")
+        snapshot("31-meal-second-dish")
+
+        app.buttons["Add another dinner dish"].tap()
+        XCTAssertTrue(app.textFields["What was it? e.g. Dan dan noodles"].waitForExistence(timeout: 5), "Adding another should open the capture form")
+        XCTAssertTrue(app.staticTexts["Dinner"].exists, "The capture form should be for the same meal")
+        snapshot("32-another-dinner-dish")
+    }
+
+    /// Logs a meal out: picks a restaurant from earlier spots by typing, saves, and sees it named.
+    func testDineOutWithARestaurant() {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
+        let dish = app.textFields["What was it? e.g. Dan dan noodles"]
+        XCTAssertTrue(dish.waitForExistence(timeout: 20))
+        dish.tap()
+        dish.typeText("Salmon nigiri\n")
+
+        app.buttons["🍽️ Dine out"].tap()
+        let restaurant = app.textFields["Restaurant"]
+        XCTAssertTrue(restaurant.waitForExistence(timeout: 5), "Dining out should ask where")
+        restaurant.tap()
+        restaurant.typeText("Saku")
+        let spot = button(app, startingWith: "Sakura Sushi Bar")
+        XCTAssertTrue(spot.waitForExistence(timeout: 10), "A place eaten at before should be suggested while typing")
+        Thread.sleep(forTimeInterval: 1)
+        assertOnScreen(restaurant, in: app, "The restaurant field should stay above the keyboard")
+        assertOnScreen(spot, in: app, "Suggestions should stay above the keyboard")
+        snapshot("33-restaurant-suggestions")
+
+        spot.tap()
+        XCTAssertTrue(app.buttons["Restaurant: Sakura Sushi Bar"].waitForExistence(timeout: 5), "The picked restaurant should show as a card")
+        snapshot("34-restaurant-picked")
+        // The photo button sits 24pt above the viewfinder's bottom, which lines up with the form's.
+        let photo = app.buttons["Choose a photo"]
+        if photo.exists {
+            XCTAssertLessThanOrEqual(app.buttons["Save"].frame.maxY, photo.frame.maxY + 25, "Save should stay inside the sheet")
+        }
+
+        app.buttons["Save"].tap()
+        let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "out at Sakura Sushi Bar")).firstMatch
+        XCTAssertTrue(saved.waitForExistence(timeout: 10), "The saved note should say where it was eaten")
+        snapshot("35-dine-out-saved")
+    }
+
+    /// Live Maps suggestions appear while typing a new restaurant (needs the network).
+    func testLiveRestaurantSearch() throws {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
+        let dish = app.textFields["What was it? e.g. Dan dan noodles"]
+        XCTAssertTrue(dish.waitForExistence(timeout: 20))
+        app.buttons["🛵 Delivery"].tap()
+        let restaurant = app.textFields["Restaurant"]
+        XCTAssertTrue(restaurant.waitForExistence(timeout: 5))
+        restaurant.tap()
+        restaurant.typeText("Pizza")
+        let suggestions = app.descendants(matching: .any)["Restaurant suggestions"]
+        XCTAssertTrue(suggestions.waitForExistence(timeout: 10))
+        let offline = app.staticTexts["Can't reach Maps. The name you type is saved as is."]
+        Thread.sleep(forTimeInterval: 4)
+        snapshot("36-live-suggestions")
+        if offline.exists { throw XCTSkip("Maps is not reachable from this simulator") }
+        XCTAssertGreaterThan(suggestions.buttons.count, 0, "Maps should suggest places for \"Pizza\"")
+    }
+}

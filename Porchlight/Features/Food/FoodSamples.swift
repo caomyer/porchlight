@@ -13,14 +13,23 @@ enum FoodSamples {
         let source: MealSource
         let tint: Int
         var rating: MealRating = .again
+        var place: PlaceDraft?
     }
+
+    private static let sushiBar = PlaceDraft(name: "Sakura Sushi Bar", address: "412 Valencia St, San Francisco", latitude: 37.765, longitude: -122.422, category: "Restaurant")
+    private static let pizzeria = PlaceDraft(name: "Tony's Corner Pizza", address: "1570 Stockton St, San Francisco", latitude: 37.800, longitude: -122.409, category: "Restaurant")
+    private static let phoHouse = PlaceDraft(name: "Pho Saigon House", address: "735 Larkin St, San Francisco", latitude: 37.784, longitude: -122.417, category: "Restaurant")
 
     private static func home(_ emoji: String, _ title: String, _ who: Int?, _ tint: Int, _ rating: MealRating = .again) -> Dish {
         Dish(emoji: emoji, title: title, who: who, source: .home, tint: tint, rating: rating)
     }
 
-    private static func delivery(_ emoji: String, _ title: String, _ who: Int?, _ tint: Int, _ rating: MealRating = .again) -> Dish {
-        Dish(emoji: emoji, title: title, who: who, source: .delivery, tint: tint, rating: rating)
+    private static func delivery(_ emoji: String, _ title: String, _ who: Int?, _ tint: Int, _ rating: MealRating = .again, from place: PlaceDraft? = nil) -> Dish {
+        Dish(emoji: emoji, title: title, who: who, source: .delivery, tint: tint, rating: rating, place: place)
+    }
+
+    private static func out(_ emoji: String, _ title: String, _ who: Int?, _ tint: Int, _ rating: MealRating = .again, at place: PlaceDraft) -> Dish {
+        Dish(emoji: emoji, title: title, who: who, source: .dineOut, tint: tint, rating: rating, place: place)
     }
 
     /// The last seven days (six days ago ... today): breakfast, lunch, dinner.
@@ -29,9 +38,15 @@ enum FoodSamples {
         [home("🥣", "Granola", 0, 0xE9DCC4, .fine), nil, home("🍛", "Chicken curry", nil, 0xF1C78F)],
         [home("🥯", "Bagel", 1, 0xE6D3B8, .fine), delivery("🍱", "Bento box", 0, 0xD9E2EE), home("🌮", "Taco night", nil, 0xF2C6A8)],
         [home("🍳", "Eggs & toast", nil, 0xF5E2A6), delivery("🥪", "Banh mi", 1, 0xE8D7C2), home("🍲", "Miso salmon", nil, 0xCBDDE6, .favorite)],
-        [home("🥣", "Oatmeal", 0, 0xEADFCB, .fine), delivery("🍜", "Pho", nil, 0xF0D5B8), delivery("🍕", "Pizza", nil, 0xF4C3B4, .meh)],
-        [nil, home("🥙", "Falafel wrap", 1, 0xDCE6CF), delivery("🍣", "Sushi night", nil, 0xE5D0DA, .favorite)],
+        [home("🥣", "Oatmeal", 0, 0xEADFCB, .fine), out("🍜", "Pho", nil, 0xF0D5B8, at: phoHouse), delivery("🍕", "Pizza", nil, 0xF4C3B4, .meh, from: pizzeria)],
+        [nil, home("🥙", "Falafel wrap", 1, 0xDCE6CF), out("🍣", "Sushi night", nil, 0xE5D0DA, .favorite, at: sushiBar)],
         [home("🥑", "Avocado toast", 1, 0xD7E5C2), nil, nil],
+    ]
+
+    /// Second dishes in a slot of `week`: day index, slot index, dish.
+    private static let extras: [(Int, Int, Dish)] = [
+        (5, 2, out("🍡", "Mochi", nil, 0xF2D4DC, .favorite, at: sushiBar)),
+        (3, 2, home("🥖", "Garlic bread", nil, 0xEFD9AE, .fine)),
     ]
 
     /// Handwritten lines per day of `week`: text and writer (index into people) or a fixed ink.
@@ -65,12 +80,12 @@ enum FoodSamples {
         let slots = MealSlot.defaultNames
         let times = [8 * 60 + 40, 12 * 60 + 30, 19 * 60]
 
-        func add(_ dish: Dish, day: DayKey, slot: Int) throws {
+        func add(_ dish: Dish, day: DayKey, slot: Int, later minutes: Int = 0) throws {
             let eaters = dish.who.map { [people[min($0, people.count - 1)].id!] } ?? people.compactMap(\.id)
-            let eatenAt = calendar.date(byAdding: .minute, value: times[slot], to: day.startDate(in: calendar)) ?? .now
+            let eatenAt = calendar.date(byAdding: .minute, value: times[slot] + minutes, to: day.startDate(in: calendar)) ?? .now
             let draft = MealDraft(
                 day: day, slot: slots[slot], source: dish.source, title: dish.title, emoji: dish.emoji,
-                tint: dish.tint, rating: dish.rating, eaterIds: eaters, eatenAt: eatenAt
+                tint: dish.tint, rating: dish.rating, eaterIds: eaters, eatenAt: eatenAt, place: dish.place
             )
             try database.addMeal(draft, journalId: journalId, photos: photos, now: eatenAt)
         }
@@ -89,6 +104,10 @@ enum FoodSamples {
             }
             let drawing = SampleHandwriting.page(lines: lines)
             try database.savePage(journalId: journalId, day: day, drawing: drawing.dataRepresentation())
+        }
+
+        for (index, slot, dish) in extras {
+            try add(dish, day: today.adding(days: index - 6, calendar: calendar), slot: slot, later: 25)
         }
 
         // A memory for "On this day".

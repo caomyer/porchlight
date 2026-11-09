@@ -140,7 +140,7 @@ struct FoodScreen: View {
             .zIndex(1)
         }
         if let request = capture {
-            CaptureSheet(request: request, previewSaved: debugSaved) {
+            CaptureSheet(request: request, onAnother: { capture = $0 }, previewSaved: debugSaved) {
                 withAnimation(.easeInOut(duration: 0.2)) { capture = nil }
             }
             .id(request.id)
@@ -148,9 +148,13 @@ struct FoodScreen: View {
             .zIndex(2)
         }
         if let entry = openEntry {
-            MealDetailSheet(entry: entry) {
+            MealDetailSheet(entry: entry, onAddAnother: { day, slot in
+                openEntry = nil
+                capture = CaptureRequest(day: day, slot: slot)
+            }) {
                 withAnimation(.easeInOut(duration: 0.2)) { openEntry = nil }
             }
+            .id(entry.id)
             .zIndex(3)
         }
     }

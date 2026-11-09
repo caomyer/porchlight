@@ -1,26 +1,43 @@
 import SwiftUI
 
 /// A logged meal up close: the big polaroid, its details, and ways to fix or remove it.
+/// When the slot holds several meals they sit under the polaroid to switch between,
+/// with a way to add another.
 struct MealDetailSheet: View {
     let entry: JournalEntry
+    /// Opens the capture sheet for another meal in this day's slot.
+    var onAddAnother: ((DayKey, String) -> Void)?
     let onClose: () -> Void
 
     @Environment(FoodStore.self) private var store
     @State private var confirmingDelete = false
     @State private var editing: MealEdit?
+    /// The meal shown, when another one of the slot was picked.
+    @State private var selectedId: Int64?
 
     /// The entry as it is now, so saved edits show right away.
     private var current: JournalEntry {
-        store.snapshot.entries.first { $0.id == entry.id } ?? entry
+        let id = selectedId ?? entry.id
+        return store.snapshot.entries.first { $0.id == id } ?? entry
+    }
+
+    /// Every meal logged in the shown meal's slot that day, in time order.
+    private var slotMeals: [JournalEntry] {
+        store.entries(on: current.dayKey, slot: current.slot)
     }
 
     var body: some View {
         WallSheet(width: 640, staysAboveKeyboard: true, onClose: onClose) {
             HStack(alignment: .top, spacing: 26) {
-                Polaroid(entry: current, rotation: -2, emojiSize: 84, captionSize: 22, plate: 0.5, badgeSize: 26)
-                    .environment(\.foodPreferFullPhoto, true)
-                    .frame(width: 220)
-                    .padding(.top, 8)
+                VStack(spacing: 18) {
+                    Polaroid(entry: current, rotation: -2, emojiSize: 84, captionSize: 22, plate: 0.5, badgeSize: 26)
+                        .environment(\.foodPreferFullPhoto, true)
+                        .frame(width: 220)
+                        .id(current.id)
+                    if editing == nil { slotStrip }
+                }
+                .frame(width: 220)
+                .padding(.top, 8)
                 if let editing {
                     MealEditForm(
                         entry: current,
@@ -36,6 +53,66 @@ struct MealDetailSheet: View {
         }
     }
 
+    /// The slot's other meals as thumbnails, and a tile to add one more.
+    @ViewBuilder
+    private var slotStrip: some View {
+        let meals = slotMeals
+        if meals.count > 1 {
+            VStack(alignment: .leading, spacing: 8) {
+                SheetLabel(title: current.slot, note: "· \(meals.count) dishes")
+                FlowLayout(spacing: 8) {
+                    ForEach(meals) { meal in
+                        Button { select(meal) } label: {
+                            MealThumbnail(entry: meal, size: 46)
+                                .padding(3)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(meal.id == current.id ? Theme.ink : .clear, lineWidth: 2)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(meal.title)
+                        .accessibilityAddTraits(meal.id == current.id ? .isSelected : [])
+                    }
+                    if onAddAnother != nil { addTile }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if onAddAnother != nil {
+            Button(action: addAnother) {
+                Label("Another \(current.slot.lowercased()) dish", systemImage: "plus")
+                    .font(.body(14, weight: 700))
+            }
+            .buttonStyle(SecondaryButtonStyle())
+        }
+    }
+
+    private var addTile: some View {
+        Button(action: addAnother) {
+            Image(systemName: "plus")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(Theme.muted)
+                .frame(width: 46, height: 46)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .strokeBorder(Theme.muted.opacity(0.55), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                }
+                .padding(3)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add another \(current.slot.lowercased()) dish")
+    }
+
+    private func select(_ meal: JournalEntry) {
+        selectedId = meal.id
+        confirmingDelete = false
+    }
+
+    private func addAnother() {
+        onAddAnother?(current.dayKey, current.slot)
+    }
+
     private var details: some View {
         let entry = current
         return VStack(alignment: .leading, spacing: 0) {
@@ -49,6 +126,9 @@ struct MealDetailSheet: View {
                 .padding(.top, 4)
             VStack(alignment: .leading, spacing: 10) {
                 detail(entry.source.emoji, entry.source.label)
+                if let place = store.place(of: entry) {
+                    placeDetail(place)
+                }
                 if let rating = entry.rating {
                     detail(rating.emoji, rating.phrase.prefix(1).uppercased() + rating.phrase.dropFirst())
                 }
@@ -65,7 +145,7 @@ struct MealDetailSheet: View {
                 if !confirmingDelete {
                     Button {
                         store.lastError = nil
-                        editing = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).compactMap(\.id))
+                        editing = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).compactMap(\.id), place: store.place(of: entry))
                     } label: {
                         Label("Edit", systemImage: "pencil")
                     }
@@ -75,10 +155,7 @@ struct MealDetailSheet: View {
                 if confirmingDelete {
                     Button("Keep it") { confirmingDelete = false }
                         .buttonStyle(SecondaryButtonStyle())
-                    Button("Remove meal") {
-                        store.deleteMeal(entry)
-                        onClose()
-                    }
+                    Button("Remove meal") { remove(entry) }
                     .buttonStyle(PrimaryButtonStyle())
                 } else {
                     Button {
@@ -92,6 +169,35 @@ struct MealDetailSheet: View {
             .padding(.top, 28)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    /// Removes the meal; the sheet stays open on the slot's next meal if there is one.
+    private func remove(_ entry: JournalEntry) {
+        let rest = slotMeals.filter { $0.id != entry.id }
+        store.deleteMeal(entry)
+        confirmingDelete = false
+        if let next = rest.first {
+            selectedId = next.id
+        } else {
+            onClose()
+        }
+    }
+
+    private func placeDetail(_ place: FoodPlace) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("📍").font(.system(size: 18)).frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(place.name).font(.body(16, weight: 600))
+                let more = [place.category, place.address].compactMap { $0 }.joined(separator: " · ")
+                if !more.isEmpty {
+                    Text(more)
+                        .font(.body(13.5, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func save() {
@@ -128,14 +234,16 @@ struct MealEdit: Equatable {
     var rating: MealRating?
     var eaterIds: Set<Int64>
     var time: LogTime
+    var place: PlaceDraft?
 
-    init(entry: JournalEntry, eaterIds: [Int64]) {
+    init(entry: JournalEntry, eaterIds: [Int64], place: FoodPlace? = nil) {
         title = entry.title
         slot = entry.slot
         source = entry.source
         rating = entry.rating
         self.eaterIds = Set(eaterIds)
         time = .at(entry.eatenAt)
+        self.place = place.map(PlaceDraft.init)
     }
 
     /// The meal's day, up to now if that's today.
@@ -161,7 +269,8 @@ struct MealEdit: Equatable {
             rating: rating,
             eaterIds: Array(eaterIds),
             noteLine: entry.noteLine,
-            eatenAt: eatenAt
+            eatenAt: eatenAt,
+            place: source.hasPlace ? place : nil
         )
     }
 }
@@ -204,11 +313,16 @@ private struct MealEditForm: View {
                 AtTimeField(time: $edit.time, range: timeRange, calendar: store.calendar)
             }
 
-            label("Made by")
+            label("From")
             FlowLayout(spacing: 8) {
                 ForEach(MealSource.allCases, id: \.self) { source in
                     FoodChoicePill("\(source.emoji) \(source.label)", isSelected: edit.source == source) { edit.source = source }
                 }
+            }
+            if edit.source.hasPlace {
+                RestaurantField(place: $edit.place, prompt: edit.source == .dineOut ? "Where? Search restaurants" : "From where? Search restaurants")
+                    .padding(.top, 10)
+                    .zIndex(1)
             }
 
             label("Who ate")

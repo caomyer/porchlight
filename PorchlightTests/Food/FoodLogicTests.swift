@@ -191,4 +191,12 @@ struct FoodLogicTests {
         #expect(ListFormat.join(["James", "Mia"]) == "James and Mia")
         #expect(ListFormat.join(["a", "b", "c"]) == "a, b and c")
     }
+
+    @MainActor
+    @Test("Restaurant addresses drop the household's own country")
+    func addressCountry() {
+        let us = Locale(identifier: "en_US")
+        #expect(RestaurantSearch.withoutHomeCountry("744 Laurel St, San Carlos, CA 94070, United States", locale: us) == "744 Laurel St, San Carlos, CA 94070")
+        #expect(RestaurantSearch.withoutHomeCountry("1 Rue de Rivoli, Paris, France", locale: us) == "1 Rue de Rivoli, Paris, France")
+    }
 }

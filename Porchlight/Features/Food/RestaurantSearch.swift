@@ -63,7 +63,7 @@ final class RestaurantSearch {
     private func receive(_ results: [MKLocalSearchCompletion]) {
         completions = Array(results.prefix(Self.maxSuggestions))
         suggestions = completions.enumerated().map { index, completion in
-            Suggestion(id: index, title: completion.title, subtitle: completion.subtitle)
+            Suggestion(id: index, title: completion.title, subtitle: Self.withoutHomeCountry(completion.subtitle))
         }
         isSearching = false
         isOffline = false
@@ -92,7 +92,7 @@ final class RestaurantSearch {
     static func place(from item: MKMapItem, fallback: PlaceDraft) -> PlaceDraft {
         var place = fallback
         place.name = item.name ?? fallback.name
-        place.address = address(of: item) ?? fallback.address
+        place.address = address(of: item).map { withoutHomeCountry($0) } ?? fallback.address
         let coordinate = coordinate(of: item)
         place.latitude = coordinate.latitude
         place.longitude = coordinate.longitude
@@ -116,6 +116,14 @@ final class RestaurantSearch {
         guard let postal = item.placemark.postalAddress else { return nil }
         let line = [postal.street, postal.city].filter { !$0.isEmpty }.joined(separator: ", ")
         return line.isEmpty ? nil : line
+    }
+
+    /// Drops a trailing ", United States" (the household's own country) from an address line.
+    static func withoutHomeCountry(_ address: String, locale: Locale = .current) -> String {
+        guard let region = locale.region?.identifier,
+              let country = locale.localizedString(forRegionCode: region) else { return address }
+        let suffix = ", " + country
+        return address.hasSuffix(suffix) ? String(address.dropLast(suffix.count)) : address
     }
 
     /// "Restaurant", "Cafe", "Food market".

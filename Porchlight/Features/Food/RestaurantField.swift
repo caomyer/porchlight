@@ -53,6 +53,7 @@ struct RestaurantField: View {
             keyboardTop = .infinity
         }
         .animation(.easeOut(duration: 0.15), value: isFocused)
+        .needsRoomAboveKeyboard(isFocused)
         .onAppear { text = place?.name ?? "" }
     }
 
@@ -130,12 +131,23 @@ struct RestaurantField: View {
         CGFloat(max(rows.count, 1)) * rowHeight + 12
     }
 
+    private var roomBelow: CGFloat {
+        min(keyboardTop, UIScreen.main.bounds.height) - 12 - (fieldFrame.maxY + 6)
+    }
+
+    private var roomAbove: CGFloat { fieldFrame.minY - 6 - 12 }
+
     /// Opens upward when the list would run under the keyboard (or off screen) below the field.
     private var opensUp: Bool {
-        let bottomLimit = min(keyboardTop, UIScreen.main.bounds.height) - 12
-        let roomBelow = bottomLimit - (fieldFrame.maxY + 6)
-        let roomAbove = fieldFrame.minY - 6 - 12
-        return roomBelow < dropdownHeight && roomAbove > roomBelow
+        roomBelow < dropdownHeight && roomAbove > roomBelow
+    }
+
+    /// Rows that fit beside the field. Upward, the list stops short so it stays over
+    /// the sheet rather than its title and close button.
+    private var visibleRowCount: Int {
+        let room = opensUp ? roomAbove : roomBelow
+        let fitting = Int(((room - 12) / rowHeight).rounded(.down))
+        return max(2, min(opensUp ? 4 : RestaurantSearch.maxSuggestions, fitting))
     }
 
     private var dropdown: some View {
@@ -155,7 +167,7 @@ struct RestaurantField: View {
                 .padding(.horizontal, 14)
                 .frame(height: rowHeight)
             }
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+            ForEach(Array(rows.prefix(visibleRowCount).enumerated()), id: \.element.id) { index, row in
                 if index > 0 { Divider().overlay(Theme.line).padding(.leading, 52) }
                 Button { pick(row) } label: { rowLabel(row) }
                     .buttonStyle(.plain)

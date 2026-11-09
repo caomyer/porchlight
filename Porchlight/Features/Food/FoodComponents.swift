@@ -146,8 +146,8 @@ struct Polaroid: View {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(FoodStyle.polaroidPaper)
                     .shadow(color: FoodStyle.shadow.opacity(0.18), radius: 2, y: 1)
-                    .rotationEffect(.degrees(layer == 0 ? 5 : -4))
-                    .offset(x: layer == 0 ? 3 : -2, y: layer == 0 ? 2 : 3)
+                    .rotationEffect(.degrees(layer == 0 ? 6 : -5))
+                    .offset(x: layer == 0 ? 6 : -4, y: layer == 0 ? 3 : 5)
             }
         }
         .overlay(alignment: .topTrailing) {
