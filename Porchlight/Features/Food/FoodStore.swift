@@ -66,7 +66,7 @@ final class FoodStore {
         guard isEnabled else { return [] }
         return entries(on: day).compactMap { entry in
             guard let id = entry.id else { return nil }
-            var subtitle = entry.source.label
+            var subtitle = place(of: entry).map { "\(entry.source.label) · \($0.name)" } ?? entry.source.label
             if let rating = entry.rating { subtitle += " · \(rating.emoji) \(rating.phrase)" }
             return TimelineItem(
                 id: "food-\(id)",
@@ -140,6 +140,12 @@ final class FoodStore {
         let eaters = eaters(of: entry)
         if eaters.count == 1, let id = eaters[0].id, !ateTogether(entry) { return .person(id) }
         return .everyone
+    }
+
+    /// The restaurant a meal was eaten at or delivered from.
+    func place(of entry: JournalEntry) -> FoodPlace? {
+        guard let id = entry.placeId else { return nil }
+        return snapshot.places.first { $0.id == id }
     }
 
     func photoURL(_ file: String?) -> URL? { file.map(photos.url(for:)) }

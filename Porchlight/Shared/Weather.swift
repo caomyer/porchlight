@@ -69,9 +69,7 @@ final class WeatherStore {
     }
 
     private func coordinate() async -> CLLocationCoordinate2D? {
-        if let saved = UserDefaults.standard.array(forKey: Self.coordinateKey) as? [Double], saved.count == 2 {
-            return CLLocationCoordinate2D(latitude: saved[0], longitude: saved[1])
-        }
+        if let saved = Self.savedCoordinate { return saved }
         guard let location = await locator.locate() else { return nil }
         let rounded = [
             (location.coordinate.latitude * 100).rounded() / 100,
@@ -79,6 +77,12 @@ final class WeatherStore {
         ]
         UserDefaults.standard.set(rounded, forKey: Self.coordinateKey)
         return CLLocationCoordinate2D(latitude: rounded[0], longitude: rounded[1])
+    }
+
+    /// The household's approximate location, once weather has found it.
+    static var savedCoordinate: CLLocationCoordinate2D? {
+        guard let saved = UserDefaults.standard.array(forKey: coordinateKey) as? [Double], saved.count == 2 else { return nil }
+        return CLLocationCoordinate2D(latitude: saved[0], longitude: saved[1])
     }
 
     /// Forgets the cached location, e.g. after the household moves.

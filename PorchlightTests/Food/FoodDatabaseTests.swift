@@ -239,4 +239,105 @@ struct FoodDatabaseTests {
         #expect(counts == [0, 0, 0, 0])
         #expect(try db.foodSnapshot() == .empty)
     }
+
+    @Test("A slot holds several meals, kept in time order")
+    func severalMealsInOneSlot() throws {
+        var first = draft("Pho")
+        first.eatenAt = Date(timeIntervalSince1970: 2_000)
+        var second = draft("Banh mi")
+        second.eatenAt = Date(timeIntervalSince1970: 1_000)
+        try db.addMeal(first, journalId: journal.id!, photos: photos)
+        try db.addMeal(second, journalId: journal.id!, photos: photos)
+        let lunch = try db.foodSnapshot().entries.filter { $0.slot == "Lunch" }
+        #expect(lunch.map(\.title) == ["Banh mi", "Pho"])
+    }
+
+    @Test("Eating out names a restaurant with its map details")
+    func dineOutPlace() throws {
+        var meal = draft("Margherita")
+        meal.source = .dineOut
+        meal.place = PlaceDraft(name: " Una Pizza ", address: "235 12th St, San Francisco", latitude: 37.77, longitude: -122.41,
+                                category: "Restaurant", phone: "+1 415", url: "https://example.com", mapsId: "I123")
+        let entry = try db.addMeal(meal, journalId: journal.id!, photos: photos)
+        let snapshot = try db.foodSnapshot()
+        let place = try #require(snapshot.places.first)
+        #expect(snapshot.places.count == 1)
+        #expect(entry.placeId == place.id)
+        #expect(place.name == "Una Pizza")
+        #expect(place.address == "235 12th St, San Francisco")
+        #expect(place.latitude == 37.77 && place.longitude == -122.41)
+        #expect(place.category == "Restaurant" && place.mapsId == "I123")
+        #expect(snapshot.entries.first?.source == .dineOut)
+    }
+
+    @Test("The same restaurant is reused, matched by Maps id or by name and address")
+    func placesAreReused() throws {
+        func meal(_ place: PlaceDraft, source: MealSource = .dineOut) -> MealDraft {
+            var meal = draft()
+            meal.source = source
+            meal.place = place
+            return meal
+        }
+        let a = try db.addMeal(meal(PlaceDraft(name: "Una Pizza", mapsId: "I1")), journalId: journal.id!, photos: photos)
+        let b = try db.addMeal(meal(PlaceDraft(name: "Una Pizza Napoletana", address: "235 12th St", mapsId: "I1")), journalId: journal.id!, photos: photos)
+        let c = try db.addMeal(meal(PlaceDraft(name: "taqueria"), source: .delivery), journalId: journal.id!, photos: photos)
+        let d = try db.addMeal(meal(PlaceDraft(name: "Taqueria", address: nil)), journalId: journal.id!, photos: photos)
+        #expect(a.placeId == b.placeId)
+        #expect(c.placeId == d.placeId)
+        #expect(a.placeId != c.placeId)
+        let places = try db.foodSnapshot().places
+        #expect(places.count == 2)
+        // A known place picks up details it was missing.
+        #expect(places.first { $0.mapsId == "I1" }?.address == "235 12th St")
+    }
+
+    @Test("Home-cooked meals and blank names have no restaurant; long names are refused")
+    func placeValidation() throws {
+        var home = draft()
+        home.place = PlaceDraft(name: "Una Pizza")
+        #expect(try db.addMeal(home, journalId: journal.id!, photos: photos).placeId == nil)
+        var blank = draft()
+        blank.source = .dineOut
+        blank.place = PlaceDraft(name: "   ")
+        #expect(try db.addMeal(blank, journalId: journal.id!, photos: photos).placeId == nil)
+        var long = draft()
+        long.source = .dineOut
+        long.place = PlaceDraft(name: String(repeating: "x", count: AppDatabase.placeNameLimit + 1))
+        #expect(throws: FoodError.placeNameTooLong(limit: AppDatabase.placeNameLimit)) {
+            try db.addMeal(long, journalId: journal.id!, photos: photos)
+        }
+        #expect(try db.foodSnapshot().places.isEmpty)
+    }
+
+    @Test("Editing a meal can add, change or drop its restaurant")
+    func editPlace() throws {
+        let entry = try db.addMeal(draft(), journalId: journal.id!, photos: photos)
+        var edit = draft()
+        edit.source = .dineOut
+        edit.place = PlaceDraft(name: "Una Pizza")
+        let out = try db.updateMeal(id: entry.id!, edit)
+        #expect(out.placeId != nil)
+        edit.source = .home
+        let back = try db.updateMeal(id: entry.id!, edit)
+        #expect(back.placeId == nil)
+        // The restaurant stays known for next time.
+        #expect(try db.foodSnapshot().places.map(\.name) == ["Una Pizza"])
+    }
+
+    @Test("Restaurants are listed most recently eaten at first, and go with the household")
+    func placeOrderAndCascade() throws {
+        func meal(_ name: String, at seconds: TimeInterval) -> MealDraft {
+            var meal = draft()
+            meal.source = .dineOut
+            meal.place = PlaceDraft(name: name)
+            meal.eatenAt = Date(timeIntervalSince1970: seconds)
+            return meal
+        }
+        try db.addMeal(meal("Old spot", at: 1_000), journalId: journal.id!, photos: photos)
+        try db.addMeal(meal("New spot", at: 5_000), journalId: journal.id!, photos: photos)
+        try db.addMeal(meal("Old spot", at: 500), journalId: journal.id!, photos: photos)
+        #expect(try db.foodSnapshot().places.map(\.name) == ["New spot", "Old spot"])
+        try db.writer.write { db in _ = try Household.deleteAll(db) }
+        #expect(try db.writer.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM foodPlace") } == 0)
+    }
 }

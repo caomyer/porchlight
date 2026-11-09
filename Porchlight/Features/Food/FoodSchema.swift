@@ -33,15 +33,17 @@ extension Journal: FetchableRecord, MutablePersistableRecord {
     }
 }
 
-/// Where a meal came from. Eating out is deliberately left for later.
+/// Where a meal came from.
 enum MealSource: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible {
     case home
     case delivery
+    case dineOut
 
     var label: String {
         switch self {
         case .home: "Home-cooked"
         case .delivery: "Delivery"
+        case .dineOut: "Dine out"
         }
     }
 
@@ -49,7 +51,41 @@ enum MealSource: String, Codable, CaseIterable, Sendable, DatabaseValueConvertib
         switch self {
         case .home: "🏠"
         case .delivery: "🛵"
+        case .dineOut: "🍽️"
         }
+    }
+
+    /// Whether the meal came from a restaurant, so it can name one.
+    var hasPlace: Bool { self != .home }
+}
+
+/// A restaurant the household ate at or ordered from. Picked from a live map search
+/// (with address and location) or just typed in (name only). Shared by every entry
+/// that names it, so a favorite spot is one row.
+struct FoodPlace: Codable, Equatable, Hashable, Identifiable, Sendable {
+    var id: Int64?
+    var householdId: Int64
+    var name: String
+    /// One-line street address, when known.
+    var address: String?
+    var latitude: Double?
+    var longitude: Double?
+    /// e.g. "Restaurant", "Cafe", "Bakery".
+    var category: String?
+    var phone: String?
+    var url: String?
+    /// Apple Maps place id, when the map search provides one; the best key for de-duplication.
+    var mapsId: String?
+    var createdAt: Date
+}
+
+extension FoodPlace: FetchableRecord, MutablePersistableRecord {
+    enum Columns {
+        static let householdId = Column(CodingKeys.householdId)
+    }
+
+    mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
     }
 }
 
@@ -99,6 +135,8 @@ struct JournalEntry: Codable, Equatable, Identifiable, Sendable {
     /// When the meal was eaten; places it in the Today timeline.
     var eatenAt: Date
     var createdAt: Date
+    /// The restaurant, for delivery or dining out.
+    var placeId: Int64?
 }
 
 extension JournalEntry: FetchableRecord, MutablePersistableRecord {
@@ -199,6 +237,25 @@ extension AppDatabase {
                 t.column("updatedAt", .datetime).notNull()
                 t.uniqueKey(["journalId", "day"])
             }
+        }
+        migrator.registerMigration("food v2: restaurants for dine-out and delivery") { db in
+            try db.create(table: "foodPlace") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.belongsTo("household", onDelete: .cascade).notNull()
+                t.column("name", .text).notNull()
+                t.column("address", .text)
+                t.column("latitude", .double)
+                t.column("longitude", .double)
+                t.column("category", .text)
+                t.column("phone", .text)
+                t.column("url", .text)
+                t.column("mapsId", .text)
+                t.column("createdAt", .datetime).notNull()
+            }
+            try db.alter(table: "journalEntry") { t in
+                t.add(column: "placeId", .integer).references("foodPlace", onDelete: .setNull)
+            }
+            try db.create(index: "journalEntry_on_placeId", on: "journalEntry", columns: ["placeId"])
         }
     }
 }

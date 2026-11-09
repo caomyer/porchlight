@@ -152,25 +152,48 @@ private struct WeekStatsCard: View {
     private func split(_ stats: WeekStats) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             GeometryReader { proxy in
-                let total = max(stats.total, 1)
-                let gap: CGFloat = stats.homeCooked > 0 && stats.delivery > 0 ? 3 : 0
-                let home = (proxy.size.width - gap) * CGFloat(stats.homeCooked) / CGFloat(total)
+                let parts = splitParts(stats).filter { $0.count > 0 }
+                let gap: CGFloat = 3
+                let room = proxy.size.width - gap * CGFloat(max(parts.count - 1, 0))
                 HStack(spacing: gap) {
-                    if stats.total == 0 {
+                    if parts.isEmpty {
                         Capsule().fill(Theme.surface2)
                     } else {
-                        if stats.homeCooked > 0 { Capsule().fill(PersonColor.ochre.color).frame(width: home) }
-                        if stats.delivery > 0 { Capsule().fill(PersonColor.blue.color) }
+                        ForEach(parts, id: \.label) { part in
+                            Capsule().fill(part.color).frame(width: room * CGFloat(part.count) / CGFloat(stats.total))
+                        }
                     }
                 }
             }
             .frame(height: 12)
-            HStack {
-                legend(PersonColor.ochre.color, "\(stats.homeCooked) home-cooked")
-                Spacer()
-                legend(PersonColor.blue.color, "\(stats.delivery) delivery")
+            let legends = splitParts(stats).filter { $0.count > 0 || $0.label != MealSource.dineOut.label }
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    ForEach(Array(legends.enumerated()), id: \.element.label) { index, part in
+                        if index > 0 { Spacer(minLength: 8) }
+                        legend(part.color, "\(part.count) \(part.label.lowercased())")
+                    }
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(legends, id: \.label) { part in legend(part.color, "\(part.count) \(part.label.lowercased())") }
+                }
             }
         }
+    }
+
+    private struct SplitPart {
+        let label: String
+        let count: Int
+        let color: Color
+    }
+
+    /// Home-cooked, delivery and eating out, in that order (eating out only shows once it happened).
+    private func splitParts(_ stats: WeekStats) -> [SplitPart] {
+        [
+            SplitPart(label: MealSource.home.label, count: stats.homeCooked, color: PersonColor.ochre.color),
+            SplitPart(label: MealSource.delivery.label, count: stats.delivery, color: PersonColor.blue.color),
+            SplitPart(label: MealSource.dineOut.label, count: stats.dineOut, color: PersonColor.coral.color),
+        ]
     }
 
     private func legend(_ color: Color, _ text: String) -> some View {
@@ -244,13 +267,19 @@ private struct MemoryCard: View {
         let entry = memory.entry
         let people = store.eaters(of: entry)
         let who = store.ateTogether(entry) || people.isEmpty ? "you" : ListFormat.join(people.map(\.name))
-        let how = entry.source == .home ? "home-cooked" : "delivered"
         var text = AttributedString("\(memory.whenText) \(who) had ")
         var dish = AttributedString(entry.title.lowercased())
         dish.font = .hand(20, weight: 700)
         dish.foregroundColor = Theme.ink
         text += dish
-        text += AttributedString(", \(how) \(entry.slot.lowercased())")
+        let slot = entry.slot.lowercased()
+        let place = store.place(of: entry).map { " from \($0.name)" } ?? ""
+        switch entry.source {
+        case .home: text += AttributedString(", home-cooked \(slot)")
+        case .delivery: text += AttributedString(", delivered \(slot)\(place)")
+        case .dineOut:
+            text += AttributedString(store.place(of: entry).map { " for \(slot) at \($0.name)" } ?? ", out for \(slot)")
+        }
         if let rating = entry.rating { text += AttributedString(". Verdict: \(rating.emoji)") }
         return text
     }

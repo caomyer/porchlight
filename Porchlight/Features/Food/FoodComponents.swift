@@ -98,7 +98,8 @@ struct MealThumbnail: View {
 
 // MARK: - Polaroids
 
-/// A meal as a slightly rotated polaroid with a handwritten caption, who ate it and a 🛵 for delivery.
+/// A meal as a slightly rotated polaroid with a handwritten caption, who ate it, a 🛵 for
+/// delivery or 🍽️ for eating out, and more polaroids peeking out behind when the slot has several.
 struct Polaroid: View {
     let entry: JournalEntry
     var rotation: Double = 0
@@ -117,8 +118,8 @@ struct Polaroid: View {
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 2))
                 .overlay(alignment: .topLeading) {
-                    if entry.source == .delivery {
-                        Text("🛵")
+                    if entry.source != .home {
+                        Text(entry.source.emoji)
                             .font(.system(size: 11))
                             .padding(.horizontal, 3)
                             .padding(.vertical, 1)
@@ -139,6 +140,16 @@ struct Polaroid: View {
         .background(FoodStyle.polaroidPaper, in: RoundedRectangle(cornerRadius: 3))
         .shadow(color: FoodStyle.shadow.opacity(0.12), radius: 1, y: 1)
         .shadow(color: FoodStyle.shadow.opacity(0.22), radius: 8, y: 6)
+        .background {
+            // The slot's other meals, as paper corners peeking out of the stack.
+            ForEach(Array((0..<min(extra, 2)).reversed()), id: \.self) { layer in
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(FoodStyle.polaroidPaper)
+                    .shadow(color: FoodStyle.shadow.opacity(0.18), radius: 2, y: 1)
+                    .rotationEffect(.degrees(layer == 0 ? 5 : -4))
+                    .offset(x: layer == 0 ? 3 : -2, y: layer == 0 ? 2 : 3)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             EaterBadge(people: store.eaters(of: entry), everyone: store.ateTogether(entry), size: badgeSize, ringed: true)
                 .offset(x: badgeSize * 0.36, y: -badgeSize * 0.36)
@@ -156,7 +167,7 @@ struct Polaroid: View {
         }
         .rotationEffect(.degrees(rotation))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(entry.slot): \(entry.title)")
+        .accessibilityLabel(extra > 0 ? "\(entry.slot): \(entry.title) and \(extra) more" : "\(entry.slot): \(entry.title)")
     }
 }
 

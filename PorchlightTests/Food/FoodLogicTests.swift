@@ -87,13 +87,18 @@ struct FoodLogicTests {
         )
     }
 
-    @Test("Home-cooked and delivery are counted")
+    @Test("Home-cooked, delivery and eating out are counted")
     func split() {
-        let week = [entry("Pho", day: "2026-11-05", source: .delivery), entry("Tacos", day: "2026-11-03"), entry("Pizza", day: "2026-11-05", source: .delivery), entry("Salad", day: "2026-11-04")]
+        let week = [
+            entry("Pho", day: "2026-11-05", source: .delivery), entry("Tacos", day: "2026-11-03"),
+            entry("Pizza", day: "2026-11-05", source: .delivery), entry("Salad", day: "2026-11-04"),
+            entry("Ramen", day: "2026-11-06", source: .dineOut),
+        ]
         let stats = WeekStats.make(week: week, history: [])
         #expect(stats.homeCooked == 2)
         #expect(stats.delivery == 2)
-        #expect(stats.total == 4)
+        #expect(stats.dineOut == 1)
+        #expect(stats.total == 5)
     }
 
     @Test("A theme needs three dishes and lists them in order")

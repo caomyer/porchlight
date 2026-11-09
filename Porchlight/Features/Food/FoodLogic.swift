@@ -178,18 +178,20 @@ struct DishTheme: Equatable, Sendable {
 struct WeekStats: Equatable, Sendable {
     var homeCooked = 0
     var delivery = 0
+    var dineOut = 0
     /// The most frequent theme with at least 3 meals, and the dishes behind it.
     var theme: DishTheme?
     var themeDishes: [String] = []
     /// Dishes eaten for the first time this week, best rated first.
     var newDishes: [JournalEntry] = []
-    var total: Int { homeCooked + delivery }
+    var total: Int { homeCooked + delivery + dineOut }
 
     /// Stats for the entries of `days` (the week), with `history` as everything logged before it.
     static func make(week entries: [JournalEntry], history: [JournalEntry]) -> WeekStats {
         var stats = WeekStats()
         stats.homeCooked = entries.filter { $0.source == .home }.count
         stats.delivery = entries.filter { $0.source == .delivery }.count
+        stats.dineOut = entries.filter { $0.source == .dineOut }.count
 
         let chronological = entries.sorted { ($0.day, $0.eatenAt) < ($1.day, $1.eatenAt) }
         let themed = DishTheme.all

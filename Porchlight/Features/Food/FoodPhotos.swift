@@ -92,6 +92,7 @@ enum FoodError: Error, Equatable, LocalizedError {
     case unknownSlot(String)
     case nobodyAte
     case titleTooLong(limit: Int)
+    case placeNameTooLong(limit: Int)
     case photoUnreadable
     case mealNotFound
 
@@ -101,6 +102,7 @@ enum FoodError: Error, Equatable, LocalizedError {
         case let .unknownSlot(slot): "\(slot) is not one of this diary's meals."
         case .nobodyAte: "Pick who ate."
         case let .titleTooLong(limit): "Keep the dish name under \(limit) characters."
+        case let .placeNameTooLong(limit): "Keep the restaurant name under \(limit) characters."
         case .photoUnreadable: "That photo could not be saved."
         case .mealNotFound: "That meal was already removed."
         }
