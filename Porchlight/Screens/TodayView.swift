@@ -6,15 +6,8 @@ struct TodayView: View {
     @Environment(CalendarStore.self) private var calendarStore
     @Environment(CompanionStore.self) private var companions
     @Environment(FoodStore.self) private var food
-
-    @State private var careRequest: CareLogRequest?
-    @State private var openMeal: OpenMeal?
-    @State private var openEvent: CalendarEvent?
-
-    /// A meal opened from the timeline, looked up live so edits show at once.
-    private struct OpenMeal: Identifiable {
-        var id: Int64
-    }
+    @Environment(HomeStore.self) private var home
+    @Environment(\.openTimelineTarget) private var openTarget
 
     var body: some View {
         TimelineView(.everyMinute) { context in
@@ -28,10 +21,11 @@ struct TodayView: View {
                         allDay: calendarStore.allDayItems(for: day),
                         items: (calendarStore.timelineItems(for: day)
                             + companions.timelineItems(for: day)
-                            + food.timelineItems(for: day)).sorted { $0.time < $1.time },
+                            + food.timelineItems(for: day)
+                            + home.timelineItems(for: day, people: model.people)).sorted { $0.time < $1.time },
                         tomorrow: calendarStore.timelineItems(for: day.adding(days: 1, calendar: calendar))
                             .filter { $0.kind == .event },
-                        onOpen: open
+                        onOpen: { openTarget?($0) }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     // Cards keep their natural height; the column scrolls if a
@@ -39,6 +33,7 @@ struct TodayView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 16) {
                             CompanionTodayCards()
+                            PitchInTodayCard()
                             FoodTodayCard()
                             CountdownsCard()
                         }
@@ -50,33 +45,6 @@ struct TodayView: View {
                 }
             }
             .padding(Theme.pagePadding)
-        }
-        .careLogFlow($careRequest)
-        .wallCover(item: $openMeal) { meal in
-            if let entry = food.snapshot.entries.first(where: { $0.id == meal.id }) {
-                MealDetailSheet(entry: entry) { CompanionCover.instantly { openMeal = nil } }
-            }
-        }
-        .wallCover(item: $openEvent) { event in
-            WallSheet(width: 540, onClose: { CompanionCover.instantly { openEvent = nil } }) {
-                EventDetail(event: event, calendar: model.calendar)
-            }
-        }
-    }
-
-    /// Opens what a tapped timeline row points at.
-    private func open(_ target: TimelineTarget) {
-        CompanionCover.instantly {
-            switch target {
-            case let .careLog(companionId, routineId, logId):
-                careRequest = CareLogRequest(companionId: companionId, routineId: routineId, logId: logId)
-            case let .careDue(companionId, routineId):
-                careRequest = CareLogRequest(companionId: companionId, routineId: routineId)
-            case let .meal(id):
-                openMeal = OpenMeal(id: id)
-            case let .event(id):
-                openEvent = calendarStore.events.first { $0.id == id }
-            }
         }
     }
 

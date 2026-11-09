@@ -332,6 +332,25 @@ struct CalendarLayoutTests {
         #expect(HourRange.fitting([overnight], days: days, calendar: calendar) == 8...24)
         #expect(HourRange.fitting([overnight], days: [key(10)], calendar: calendar) == 0...21)
     }
+
+    @Test("The hour range also fits the household's moments")
+    func hoursForMoments() {
+        let days = [key(9)]
+        #expect(HourRange.fitting([], moments: [date(9, 6.25)], days: days, calendar: calendar) == 6...21)
+        #expect(HourRange.fitting([], moments: [date(9, 22.5)], days: days, calendar: calendar) == 8...23)
+    }
+
+    @Test("Moment marks sit at their times and never overlap")
+    func momentLayout() {
+        // Far apart: centered on their times.
+        #expect(MomentLayout.tops(centers: [50, 200], size: 28, spacing: 2, limit: 500) == [36, 186])
+        // Close together: each pushed just below the one before.
+        #expect(MomentLayout.tops(centers: [100, 105, 110], size: 28, spacing: 2, limit: 500) == [86, 116, 146])
+        // Near the top: kept inside the grid.
+        #expect(MomentLayout.tops(centers: [0], size: 28, spacing: 2, limit: 500) == [2])
+        // Pushed past the bottom: stacked back up from it.
+        #expect(MomentLayout.tops(centers: [480, 490], size: 28, spacing: 2, limit: 500) == [442, 472])
+    }
 }
 
 // MARK: - Store

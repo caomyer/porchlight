@@ -111,12 +111,33 @@ struct TimelineItem: Identifiable {
     var target: TimelineTarget? = nil
 }
 
-/// What a Today row opens: a logged walk or meal to fix, a due walk to log, an event's details.
+/// What a Today row (or a calendar mark) opens: a logged walk or meal to fix, a due walk
+/// to log, an event's details, or a chore on a day.
 enum TimelineTarget: Hashable, Sendable {
     case careLog(companionId: Int64, routineId: Int64, logId: Int64)
     case careDue(companionId: Int64, routineId: Int64)
     case meal(Int64)
     case event(String)
+    case chore(choreId: Int64, day: DayKey)
+}
+
+/// Opens a `TimelineTarget` with the same sheet wherever it is tapped: Today, the calendar,
+/// a feature's card. Set once by the wall; nil in previews and tests.
+struct OpenTimelineTargetAction {
+    var open: @MainActor (TimelineTarget) -> Void
+
+    @MainActor func callAsFunction(_ target: TimelineTarget) { open(target) }
+}
+
+private struct OpenTimelineTargetKey: EnvironmentKey {
+    static let defaultValue: OpenTimelineTargetAction? = nil
+}
+
+extension EnvironmentValues {
+    var openTimelineTarget: OpenTimelineTargetAction? {
+        get { self[OpenTimelineTargetKey.self] }
+        set { self[OpenTimelineTargetKey.self] = newValue }
+    }
 }
 
 /// A whole-day chip shown above the timeline ("Aunt Rosa visiting").
@@ -128,12 +149,15 @@ struct AllDayItem: Identifiable {
 
 // MARK: - Calendar lanes
 
-/// A row of per-day marks shown under the week grid and inside month cells:
-/// paw prints for walks, mini plates for meals. Provided by features, drawn by Calendar.
+/// A row of per-day marks shown under the week and day grids and inside month cells:
+/// paw prints for walks, mini plates for meals, chores. Provided by features, drawn by Calendar.
 struct CalendarLane: Identifiable {
-    enum Style { case week, month }
+    enum Style: Hashable { case week, day, month }
 
     var id: String
+    /// Where the lane shows. Things with a time (walks, meals) are drawn in the week and day
+    /// grids as moments, so their lanes only summarize the month.
+    var styles: Set<Style> = [.week, .day, .month]
     /// Small label in the week view's left column.
     var label: AnyView
     /// Short legend text, e.g. "walks" or "meals".

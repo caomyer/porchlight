@@ -60,15 +60,7 @@ struct ChoresScreen: View {
         }
         .padding(.horizontal, 26)
         .padding(.vertical, 22)
-        .wallSheet(item: $sheet, width: sheetWidth) { sheet in
-            switch sheet {
-            case .newChore: ChoreEditor(chore: nil)
-            case let .editChore(chore): ChoreEditor(chore: chore)
-            case let .whoDidIt(chore, day): WhoDidItSheet(chore: chore, day: day)
-            case let .task(chore, day): ChoreTaskSheet(chore: chore, day: day) { present(.editChore(chore)) }
-            case let .editReward(reward): RewardEditor(reward: reward)
-            }
-        }
+        .choreSheets($sheet)
         .careLogFlow($careRequest)
         #if DEBUG
         .task { openDebugSheet() }
@@ -105,11 +97,6 @@ struct ChoresScreen: View {
     }
     #endif
 
-    private var sheetWidth: CGFloat {
-        if case .whoDidIt = sheet { return 460 }
-        return 640
-    }
-
     private func present(_ sheet: ChoreSheet) {
         withoutAnimation { self.sheet = sheet }
     }
@@ -124,18 +111,8 @@ struct ChoresScreen: View {
         CompanionCover.instantly { careRequest = shown }
     }
 
-    /// Checks a chore off. Owned chores credit their owner; "Anyone" chores ask who did it.
     private func toggle(_ chore: Chore, _ day: DayKey) {
-        let isDone = store.snapshot.completions.contains { $0.choreId == chore.id && $0.dayKey == day }
-        if chore.ownerId == nil, !isDone {
-            if model.people.count == 1 {
-                store.toggle(chore, on: day, by: model.people.first?.id)
-            } else {
-                present(.whoDidIt(chore, day))
-            }
-        } else {
-            withAnimation(.easeOut(duration: 0.18)) { store.toggle(chore, on: day) }
-        }
+        ChoreCheck.toggle(chore, on: day, store: store, people: model.people, ask: present)
     }
 
     private static var debugShowsWeek: Bool {
@@ -850,7 +827,7 @@ private struct ChoreWeekView: View {
 
 // MARK: - Who did it
 
-private struct WhoDidItSheet: View {
+struct WhoDidItSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var store
     @Environment(\.closeWallSheet) private var close

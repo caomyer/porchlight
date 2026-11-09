@@ -52,8 +52,8 @@ final class CaptureForm {
         DishIllustration.suggestEmoji(for: title) ?? DishIllustration.fallbackEmoji
     }
 
-    /// The form's height; it grows to fit the restaurant field.
-    var formHeight: CGFloat { source.hasPlace ? 676 : 620 }
+    /// The form never gets shorter than this; it grows to fit a restaurant or a day page.
+    static let minimumFormHeight: CGFloat = 620
 
     /// The meal's day, up to now if that's today.
     func timeRange(now: Date) -> ClosedRange<Date> {
@@ -151,7 +151,8 @@ struct CaptureSheet: View {
                 form.photo = image
                 Task { await save(form) }
             }
-            .frame(width: 370, height: form.formHeight)
+            .frame(width: 370)
+            .frame(maxHeight: .infinity)
             CaptureFormView(form: form, isSaving: isSaving, error: error, onWriteNotes: { writingNotes = true }) {
                 Task { await save(form) }
             }
@@ -160,8 +161,10 @@ struct CaptureSheet: View {
         .padding(.leading, 22)
         .padding(.trailing, 28)
         .padding(.vertical, 22)
+        // The viewfinder stretches to the form's height, whatever the form holds.
+        .fixedSize(horizontal: false, vertical: true)
         .frame(width: 920)
-        .animation(.easeInOut(duration: 0.2), value: form.formHeight)
+        .animation(.easeInOut(duration: 0.2), value: form.source.hasPlace)
         .background(SurfaceShape(cornerRadius: 28, elevation: 2.5))
         .overlay(alignment: .topTrailing) {
             Button(action: onClose) {
@@ -495,7 +498,7 @@ private struct CaptureFormView: View {
             .foregroundStyle(Theme.muted)
         }
         .padding(.top, 14)
-        .frame(height: form.formHeight, alignment: .topLeading)
+        .frame(minHeight: CaptureForm.minimumFormHeight, alignment: .topLeading)
     }
 
     private var subtitle: String {

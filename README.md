@@ -7,8 +7,9 @@ The product plan and UX mocks live in [.lavish/porchlight.html](.lavish/porchlig
 
 ## What it does
 
-- **Today**: big clock, local weather, one timeline mixing calendar events, care logs (walks, feeding) and meals, plus companion cards, today's plates and countdowns.
-- **Calendar**: Week, Month and Day views of every calendar on the iPad (via EventKit), colored by person, with paw and plate lanes.
+- **Today**: big clock, local weather, one timeline mixing calendar events, care logs (walks, feeding), meals and chores done, plus companion cards, a Pitch in card with today's chores to check off, today's plates and countdowns.
+- **Calendar**: Week, Month and Day views of every calendar on the iPad (via EventKit), colored by person.
+  Walks, feeds and meals sit in the week and day grids at their times, chores in a Pitch in lane, and each opens the same sheet as on Today.
 - **Companions**: pets, plants or anything cared for; routines with time windows, logging who did it and when with a celebration, tap any logged walk to fix or remove it, a weekly page with paw trail, podium, mood meter and cheeky captions.
 - **Food diary**: snap a meal with the camera, home-cooked, delivery or dining out (with the restaurant picked from live Apple Maps search), several dishes per meal, a polaroid week where any meal can be fixed or removed, and a handwritten paper month written with Apple Pencil (one fixed-ratio page per day, zoomed for writing).
 - **Pitch in**: what everyone does for the household on one board, a column per person plus "Anyone" for shared chores and companion care. Tap a box to check it off, a row to fix who did it, undo, edit or archive it. Chores and routines share one repeat rule (every day, some weekdays, every few days, monthly, just once) with a start day.
@@ -51,7 +52,7 @@ Review the real iPad's rendering (sample data lives in a separate storage sandbo
 scripts/device-tour.sh /tmp/porchlight-device-tour
 ```
 
-UI tests (screen tour, handwriting round trip, meal editing, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
+UI tests (screen tour, handwriting round trip, meal editing, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, chores on Today and in the calendar, walks and meals in the week grid, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
 The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
 `scripts/test.sh` runs the unit tests and then the UI tests on an iOS 17.5 iPad simulator, resetting the calendar permission so the first-run test sees the prompt.
 It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
@@ -73,7 +74,7 @@ With a free Apple ID the install expires after 7 days. `scripts/schedule-deploy.
 
 - `Porchlight/App` - app entry, live stores, kiosk behavior, debug launch hooks
 - `Porchlight/Data` - SQLite (GRDB) core schema: household and people
-- `Porchlight/Shared` - contracts between features (DayKey, TimelineItem, CalendarLane), shared components, weather
+- `Porchlight/Shared` - contracts between features (DayKey, TimelineItem, TimelineTarget, CalendarLane), shared components, weather
 - `Porchlight/Shell` - the wall: side rail, destinations, idle switch to Ambient
 - `Porchlight/Screens`, `Onboarding`, `Settings` - Today, setup and settings
 - `Porchlight/Features/{Calendar,Companions,Food,Home}` - each feature owns its schema, store, views and sample data

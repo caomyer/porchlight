@@ -2,6 +2,10 @@ import SwiftUI
 
 /// The week (7 columns) and day (1 column) views: day headers, the all-day
 /// lane, the time grid with a now line, and feature lanes underneath.
+///
+/// Moments from the household's day (walks, feeds, meals) sit in the grid at their times
+/// beside the events: round marks down the right edge of each week column, and rows like
+/// Today's down the right of the day view. Tapping one opens the same sheet as on Today.
 struct TimeGrid: View {
     let days: [DayKey]
     let today: DayKey
@@ -9,11 +13,20 @@ struct TimeGrid: View {
     let lanes: [CalendarLane]
     /// Day view: wider blocks with full details.
     let isDetailed: Bool
+    /// The household's moments on a day, any order.
+    var moments: (DayKey) -> [TimelineItem] = { _ in [] }
     let onSelect: (CalendarEvent) -> Void
 
     @Environment(CalendarStore.self) private var store
+    @Environment(\.openTimelineTarget) private var openTarget
 
     static let gutter: CGFloat = 52
+    /// Moment marks in the week view, and the room kept for them on the right of each column.
+    static let markSize: CGFloat = 28
+    private static let markRail: CGFloat = 34
+    /// Moment rows in the day view.
+    static let rowHeight: CGFloat = 48
+    private static let rowColumn: CGFloat = 380
     private static let topInset: CGFloat = 10
     private static let allDayRowHeight: CGFloat = 26
 
@@ -22,12 +35,13 @@ struct TimeGrid: View {
     var body: some View {
         let events = days.map { store.events(on: $0) }
         let all = Array(Dictionary(events.joined().map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values)
-        let hours = HourRange.fitting(all, days: days, calendar: calendar)
+        let momentsByDay = days.map { day in moments(day).sorted { ($0.time, $0.id) < ($1.time, $1.id) } }
+        let hours = HourRange.fitting(all, moments: momentsByDay.joined().map(\.time), days: days, calendar: calendar)
         VStack(spacing: 0) {
             dayHeaders
             allDayLane(all)
             GeometryReader { proxy in
-                grid(eventsByDay: events, hours: hours, size: proxy.size)
+                grid(eventsByDay: events, momentsByDay: momentsByDay, hours: hours, size: proxy.size)
             }
             .frame(minHeight: 160)
             ForEach(lanes) { lane in
@@ -106,12 +120,15 @@ struct TimeGrid: View {
 
     // MARK: Time grid
 
-    private func grid(eventsByDay: [[CalendarEvent]], hours: ClosedRange<Int>, size: CGSize) -> some View {
+    private func grid(eventsByDay: [[CalendarEvent]], momentsByDay: [[TimelineItem]], hours: ClosedRange<Int>, size: CGSize) -> some View {
         let hourCount = CGFloat(hours.upperBound - hours.lowerBound)
         let available = size.height - Self.topInset * 2
         let hourHeight = max(isDetailed ? 44 : 28, available / max(hourCount, 1))
         let contentHeight = hourHeight * hourCount + Self.topInset * 2
         let columnWidth = (size.width - Self.gutter) / CGFloat(max(days.count, 1))
+        // Every column keeps the same room for moments, so events line up across the week.
+        let hasMoments = momentsByDay.contains { !$0.isEmpty }
+        let momentRoom: CGFloat = hasMoments ? (isDetailed ? min(Self.rowColumn, columnWidth * 0.4) : Self.markRail) : 0
         let content = ZStack(alignment: .topLeading) {
             // Hour lines and labels.
             ForEach(hours.lowerBound...hours.upperBound, id: \.self) { hour in
@@ -129,7 +146,10 @@ struct TimeGrid: View {
                 }
             }
             ForEach(Array(days.enumerated()), id: \.element) { index, day in
-                dayColumn(day: day, events: eventsByDay[index], hours: hours, hourHeight: hourHeight, width: columnWidth, height: contentHeight)
+                dayColumn(
+                    day: day, events: eventsByDay[index], moments: momentsByDay[index], momentRoom: momentRoom,
+                    hours: hours, hourHeight: hourHeight, width: columnWidth, height: contentHeight
+                )
                     .offset(x: Self.gutter + CGFloat(index) * columnWidth)
             }
         }
@@ -145,7 +165,10 @@ struct TimeGrid: View {
         }
     }
 
-    private func dayColumn(day: DayKey, events: [CalendarEvent], hours: ClosedRange<Int>, hourHeight: CGFloat, width: CGFloat, height: CGFloat) -> some View {
+    private func dayColumn(
+        day: DayKey, events: [CalendarEvent], moments: [TimelineItem], momentRoom: CGFloat,
+        hours: ClosedRange<Int>, hourHeight: CGFloat, width: CGFloat, height: CGFloat
+    ) -> some View {
         let dayStart = day.startDate(in: calendar)
         let timed = events.filter { !$0.isAllDayLike }
         let gridStart = dayStart.addingTimeInterval(Double(hours.lowerBound) * 3600)
@@ -169,7 +192,7 @@ struct TimeGrid: View {
                 let slot = slots[event.id] ?? .init(column: 0, columns: 1)
                 let top = y(max(event.start, dayStart)) + 1
                 let bottom = y(min(event.end, dayEnd))
-                let inner = width - 8
+                let inner = width - 8 - momentRoom
                 let blockWidth = inner / CGFloat(slot.columns) - (slot.columns > 1 ? 2 : 0)
                 EventBlock(
                     event: event,
@@ -183,12 +206,38 @@ struct TimeGrid: View {
                 .offset(x: 4 + CGFloat(slot.column) * (inner / CGFloat(slot.columns)), y: top)
                 .onTapGesture { onSelect(event) }
             }
+            momentLayer(moments, y: y, width: width, height: height, room: momentRoom)
             if isToday, now >= gridStart, now <= gridStart.addingTimeInterval(Double(hours.count - 1) * 3600) {
                 NowLine(width: width)
                     .offset(y: y(now) - 5)
             }
         }
         .frame(width: width, height: height, alignment: .topLeading)
+    }
+
+    // MARK: Moments
+
+    /// Moments down the right of a column, each at its time, nudged down when they would overlap.
+    @ViewBuilder
+    private func momentLayer(_ moments: [TimelineItem], y: (Date) -> CGFloat, width: CGFloat, height: CGFloat, room: CGFloat) -> some View {
+        let size = isDetailed ? Self.rowHeight : Self.markSize
+        let tops = MomentLayout.tops(centers: moments.map { y($0.time) }, size: size, spacing: isDetailed ? 4 : 2, limit: height - 2)
+        ForEach(Array(moments.enumerated()), id: \.element.id) { index, item in
+            Button {
+                if let target = item.target { openTarget?(target) }
+            } label: {
+                if isDetailed {
+                    MomentRow(item: item, color: store.color(for: item.owner), calendar: calendar)
+                        .frame(width: room - 12, height: size)
+                } else {
+                    MomentMark(item: item, color: store.color(for: item.owner))
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(item.target == nil)
+            .accessibilityLabel("\(item.title), \(item.timeLabel ?? ClockFormat.time(item.time, calendar: calendar))")
+            .offset(x: isDetailed ? width - room + 4 : width - room + (room - size) / 2, y: tops[index])
+        }
     }
 
     // MARK: Lanes
@@ -198,7 +247,7 @@ struct TimeGrid: View {
             lane.label
                 .frame(width: Self.gutter)
             ForEach(days, id: \.self) { day in
-                lane.cell(day, .week)
+                lane.cell(day, isDetailed ? .day : .week)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay(alignment: .leading) { VLine() }
             }
@@ -321,5 +370,90 @@ struct AllDayBar: View {
             .background(color.wash(0.18), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
             .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// A moment in the week grid: its face, meal or chore on a round mark, ringed in the
+/// color of who did it; dashed while it is still expected.
+private struct MomentMark: View {
+    let item: TimelineItem
+    let color: Color
+
+    var body: some View {
+        let size = TimeGrid.markSize
+        item.leading
+            .frame(width: 34, height: 34)
+            .scaleEffect((size - 6) / 34)
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .background(Theme.surface, in: Circle())
+            .overlay {
+                if item.kind == .expected {
+                    Circle().strokeBorder(Theme.muted.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5]))
+                } else {
+                    Circle().strokeBorder(color, lineWidth: 2)
+                }
+            }
+            .opacity(item.kind == .expected ? 0.8 : 1)
+            .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+            .contentShape(Circle())
+    }
+}
+
+/// A moment in the day view, read like a Today row: what, when, and who.
+private struct MomentRow: View {
+    let item: TimelineItem
+    let color: Color
+    let calendar: Calendar
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+        HStack(spacing: 10) {
+            item.leading
+                .frame(width: 34, height: 34)
+                .scaleEffect(30 / 34)
+                .frame(width: 30, height: 30)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.title)
+                    .font(.body(14, weight: 700))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                Text(detail)
+                    .font(.body(12, weight: 600))
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if let trailing = item.trailing {
+                trailing
+                    .frame(width: 30, height: 30)
+                    .scaleEffect(0.8)
+            }
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background {
+            if item.kind == .expected {
+                shape.fill(Theme.surface.opacity(0.7))
+                    .overlay(shape.strokeBorder(Theme.muted.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
+            } else {
+                shape.fill(Theme.surface)
+                    .overlay(shape.strokeBorder(Theme.line, lineWidth: 1.5))
+                    .overlay(alignment: .leading) {
+                        UnevenRoundedRectangle(topLeadingRadius: 11, bottomLeadingRadius: 11)
+                            .fill(color.opacity(0.85))
+                            .frame(width: 4)
+                    }
+            }
+        }
+        .clipShape(shape)
+        .contentShape(shape)
+    }
+
+    /// "8:26 · 💧💩 · James' 1st walk this week"
+    private var detail: String {
+        let time = item.timeLabel ?? ClockFormat.time(item.time, calendar: calendar)
+        return [time, item.subtitle].compactMap { $0 }.joined(separator: " · ")
     }
 }

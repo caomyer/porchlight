@@ -384,7 +384,7 @@ struct HomeLogicTests {
             people: people, chores: [], completions: [], earnings: [], care: [careTask(done: true), careTask(done: false)],
             rewards: [], today: day("2026-11-04"), calendar: calendar
         )
-        let anyone = try? #require(board.columns.first { $0.owner == .everyone })
+        let anyone = board.columns.first { $0.owner == .everyone }
         #expect(anyone?.totalCount == 2)
         #expect(anyone?.doneCount == 1)
         #expect(careTask(done: false).title == "Walk Yo-Yo · morning")
@@ -415,5 +415,42 @@ struct HomeLogicTests {
         #expect(summary.sparks.count == 3)
         #expect(summary.feed.first?.isCashIn == true || summary.feed.first?.day == day("2026-11-04"))
         #expect(summary.feed.contains { $0.isCashIn && $0.text == "Cashed in Ice cream" })
+    }
+
+    // MARK: A day's chores
+
+    @Test("A day's chores: done ones in the order they were done, then what is still open")
+    func dayMarks() {
+        let daily = Self.chore(id: 1, .daily)
+        let monday = Self.chore(id: 2, owner: nil, .weekdays([2]))
+        let archived = Self.chore(id: 3, .daily, archived: true)
+        let oneOff = Self.chore(id: 4, .once, anchor: "2026-11-03")
+        var early = Self.done(3, "2026-11-02", by: 2)
+        early.completedAt = Date(timeIntervalSince1970: 1_000)
+        var late = Self.done(2, "2026-11-02", by: 1)
+        late.completedAt = Date(timeIntervalSince1970: 2_000)
+        let chores = [daily, monday, archived, oneOff]
+
+        let marks = ChoreDay.marks(on: day("2026-11-02"), chores: chores, completions: [late, early], calendar: calendar)
+        #expect(marks.map(\.chore.id) == [3, 2, 1], "Archived chores still show what was done; open ones come last")
+        #expect(marks.map(\.isDone) == [true, true, false])
+
+        let tuesday = ChoreDay.marks(on: day("2026-11-03"), chores: chores, completions: [], calendar: calendar)
+        #expect(tuesday.map(\.chore.id) == [1, 4], "A one-off shows on its due day; Monday chores don't")
+
+        let doneEarly = [Self.done(4, "2026-11-01", by: 1)]
+        let afterDone = ChoreDay.marks(on: day("2026-11-03"), chores: chores, completions: doneEarly, calendar: calendar)
+        #expect(afterDone.map(\.chore.id) == [1], "A one-off done early is no longer due")
+    }
+
+    @Test("A completion sits at its check-off time, or the end of its day when checked off later")
+    func completionTime() {
+        let dayStart = day("2026-11-02").startDate(in: calendar)
+        var onTime = Self.done(1, "2026-11-02", by: 1)
+        onTime.completedAt = dayStart.addingTimeInterval(9 * 3600)
+        #expect(ChoreDay.time(of: onTime, calendar: calendar) == onTime.completedAt)
+        var later = onTime
+        later.completedAt = dayStart.addingTimeInterval(30 * 3600)
+        #expect(ChoreDay.time(of: later, calendar: calendar) == dayStart.addingTimeInterval(24 * 3600 - 60))
     }
 }

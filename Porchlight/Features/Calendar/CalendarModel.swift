@@ -247,9 +247,14 @@ enum AllDayLayout {
 enum HourRange {
     static let standard = 8...21
 
-    static func fitting(_ events: [CalendarEvent], days: [DayKey], calendar: Calendar) -> ClosedRange<Int> {
+    /// The standard hours, widened to fit the timed events and `moments` (walks, meals) on `days`.
+    static func fitting(_ events: [CalendarEvent], moments: [Date] = [], days: [DayKey], calendar: Calendar) -> ClosedRange<Int> {
         var lower = standard.lowerBound
         var upper = standard.upperBound
+        for moment in moments {
+            lower = min(lower, calendar.component(.hour, from: moment))
+            upper = max(upper, calendar.component(.hour, from: moment) + 1)
+        }
         for day in days {
             let dayStart = day.startDate(in: calendar)
             guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { continue }
@@ -263,6 +268,27 @@ enum HourRange {
             }
         }
         return max(0, lower)...min(24, upper)
+    }
+}
+
+// MARK: - Moments
+
+enum MomentLayout {
+    /// Top edges for marks of `size` centered on `centers` (in order), each pushed down just
+    /// enough not to overlap the one before, and pulled back up from the bottom `limit`.
+    static func tops(centers: [CGFloat], size: CGFloat, spacing: CGFloat, limit: CGFloat) -> [CGFloat] {
+        var tops: [CGFloat] = []
+        for center in centers {
+            let wanted = max(2, center - size / 2)
+            tops.append(tops.last.map { max(wanted, $0 + size + spacing) } ?? wanted)
+        }
+        // Marks pushed past the bottom slide back up as a stack.
+        var floor = limit - size
+        for index in tops.indices.reversed() where tops[index] > floor {
+            tops[index] = floor
+            floor -= size + spacing
+        }
+        return tops
     }
 }
 

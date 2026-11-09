@@ -41,6 +41,7 @@ enum Destination: Hashable, Identifiable {
 struct WallView: View {
     @Environment(CompanionStore.self) private var companions
     @Environment(FoodStore.self) private var food
+    @Environment(HomeStore.self) private var home
     @AppStorage(DisplaySettings.ambientMinutesKey) private var ambientMinutes = DisplaySettings.defaultAmbientMinutes
 
     @State private var selection: Destination = WallView.initialDestination
@@ -90,6 +91,7 @@ struct WallView: View {
                 }
             screen
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opensTimelineTargets()
         }
         .background(Theme.background)
         .ignoresSafeArea(.container, edges: .vertical)
@@ -127,7 +129,12 @@ struct WallView: View {
     private var screen: some View {
         switch selection {
         case .today: TodayView()
-        case .calendar: CalendarScreen(lanes: companions.calendarLanes() + food.calendarLanes())
+        case .calendar:
+            CalendarScreen(
+                lanes: home.calendarLanes() + companions.calendarLanes() + food.calendarLanes(),
+                moments: { companions.timelineItems(for: $0) + food.timelineItems(for: $0) },
+                onShowFrom: { home.include(from: $0) }
+            )
         case let .companion(id): CompanionScreen(companionId: id)
         case .food: FoodScreen()
         case .chores: ChoresScreen()

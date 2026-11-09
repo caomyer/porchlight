@@ -41,7 +41,7 @@ struct MonthGrid: View {
                     HStack(spacing: 0) {
                         ForEach(Array(week.enumerated()), id: \.element) { index, date in
                             let day = DayKey(date, calendar: calendar)
-                            cell(day: day, date: date, isInMonth: calendar.component(.month, from: date) == month, height: rowHeight)
+                            cell(day: day, date: date, isInMonth: calendar.component(.month, from: date) == month)
                                 .overlay(alignment: .trailing) {
                                     if index < 6 { Rectangle().fill(Theme.line).frame(width: 1) }
                                 }
@@ -58,34 +58,25 @@ struct MonthGrid: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
     }
 
-    private func cell(day: DayKey, date: Date, isInMonth: Bool, height: CGFloat) -> some View {
+    private func cell(day: DayKey, date: Date, isInMonth: Bool) -> some View {
         let events = isInMonth ? sorted(store.events(on: day)) : []
         let showsLanes = isInMonth && day <= today && !lanes.isEmpty
-        let room = height - 12 - Self.dayNumberHeight - (showsLanes ? CGFloat(lanes.count) * Self.laneHeight : 0)
-        let capacity = max(0, Int(room / Self.entryHeight))
-        let visible = events.count > capacity ? Array(events.prefix(max(capacity - 1, 0))) : events
-        let hidden = events.count - visible.count
         let sticker = events.lazy.compactMap(\.sticker).first
 
         return VStack(alignment: .leading, spacing: 3) {
             dayNumber(day: day, date: date, isInMonth: isInMonth)
-            ForEach(visible) { event in
-                MonthEntry(event: event, color: store.color(for: event.owner))
+            // Events take the room the lane marks leave, however many lines those wrap to.
+            GeometryReader { proxy in
+                entries(events, room: proxy.size.height)
             }
-            if hidden > 0 {
-                Text("+\(hidden) more")
-                    .font(.body(11, weight: 700))
-                    .foregroundStyle(Theme.muted)
-                    .padding(.leading, 2)
-            }
-            Spacer(minLength: 0)
             if showsLanes {
-                VStack(alignment: .leading, spacing: 2) {
+                FlowLayout(spacing: 7, lineSpacing: 4) {
                     ForEach(lanes) { lane in
                         lane.cell(day, .month)
-                            .frame(height: Self.laneHeight - 2, alignment: .leading)
+                            .frame(minHeight: Self.laneHeight - 8)
                     }
                 }
+                .padding(.bottom, 1)
             }
         }
         .padding(.horizontal, 7)
@@ -103,6 +94,25 @@ struct MonthGrid: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { if isInMonth { onSelectDay(day) } }
+    }
+
+    /// As many event lines as fit, then "+N more".
+    private func entries(_ events: [CalendarEvent], room: CGFloat) -> some View {
+        let capacity = max(0, Int((room + 3) / Self.entryHeight))
+        let visible = events.count > capacity ? Array(events.prefix(max(capacity - 1, 0))) : events
+        let hidden = events.count - visible.count
+        return VStack(alignment: .leading, spacing: 3) {
+            ForEach(visible) { event in
+                MonthEntry(event: event, color: store.color(for: event.owner))
+            }
+            if hidden > 0 {
+                Text("+\(hidden) more")
+                    .font(.body(11, weight: 700))
+                    .foregroundStyle(Theme.muted)
+                    .padding(.leading, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func dayNumber(day: DayKey, date: Date, isInMonth: Bool) -> some View {

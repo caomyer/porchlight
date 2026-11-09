@@ -117,7 +117,7 @@ enum CompanionTimeline {
     }
 }
 
-/// Paw lanes under the week grid and inside month cells.
+/// Paw lanes inside month cells (the week and day grids show each walk at its time).
 enum CompanionLanes {
     static func lanes(snapshot: CompanionSnapshot) -> [CalendarLane] {
         snapshot.companions.compactMap { companion in
@@ -127,12 +127,13 @@ enum CompanionLanes {
             let look = CompanionLook(companion)
             return CalendarLane(
                 id: "companion-\(companionId)",
+                styles: [.month],
                 label: AnyView(CompanionFace(look: look, size: 24).accessibilityLabel(companion.name)),
                 title: "walks",
                 cell: { day, style in
                     let marks = marks(routines: routines, snapshot: snapshot, day: day, now: CompanionClock.now())
                     switch style {
-                    case .week: return AnyView(WeekPaws(marks: marks))
+                    case .week, .day: return AnyView(WeekPaws(marks: marks))
                     case .month: return AnyView(MonthPaws(count: marks.compactMap { $0 }.count, tint: look.tint))
                     }
                 }

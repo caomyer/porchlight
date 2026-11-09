@@ -1,10 +1,14 @@
 import SwiftUI
 
 /// The Calendar destination: Week / Month / Day.
-/// `lanes` come from other features (walks, meals) and are drawn under the week
-/// grid and inside month cells.
+/// Other features add to it: `moments` (walks, feeds, meals) are drawn in the week and day
+/// grids at their times, and `lanes` (chores, and month summaries of walks and meals) under
+/// the grids and inside month cells.
 struct CalendarScreen: View {
     var lanes: [CalendarLane]
+    var moments: (DayKey) -> [TimelineItem] = { _ in [] }
+    /// Told the first day on screen, so features can load older days as the calendar pages back.
+    var onShowFrom: (DayKey) -> Void = { _ in }
 
     @Environment(AppModel.self) private var model
     @Environment(CalendarStore.self) private var store
@@ -35,7 +39,10 @@ struct CalendarScreen: View {
             }
         }
         .task(id: visibleInterval) {
-            if let visibleInterval { store.show(visibleInterval) }
+            if let visibleInterval {
+                store.show(visibleInterval)
+                onShowFrom(DayKey(visibleInterval.start, calendar: calendar))
+            }
         }
         #if DEBUG
         .onAppear {
@@ -120,7 +127,7 @@ struct CalendarScreen: View {
             }
             LegendItem(color: Theme.everyone, title: "Both")
             if withLanes {
-                ForEach(lanes) { lane in
+                ForEach(lanes(for: mode)) { lane in
                     HStack(spacing: 6) {
                         lane.label
                             .frame(maxWidth: 20, maxHeight: 18)
@@ -135,6 +142,16 @@ struct CalendarScreen: View {
         .fixedSize()
     }
 
+    /// The lanes this mode shows.
+    private func lanes(for mode: CalendarMode) -> [CalendarLane] {
+        let style: CalendarLane.Style = switch mode {
+        case .week: .week
+        case .day: .day
+        case .month: .month
+        }
+        return lanes.filter { $0.styles.contains(style) }
+    }
+
     // MARK: Content
 
     @ViewBuilder
@@ -146,8 +163,9 @@ struct CalendarScreen: View {
                 days: calendar.weekDays(containing: anchor).map { DayKey($0, calendar: calendar) },
                 today: today,
                 now: now,
-                lanes: lanes,
+                lanes: lanes(for: .week),
                 isDetailed: false,
+                moments: moments,
                 onSelect: select
             )
         case .day:
@@ -155,15 +173,16 @@ struct CalendarScreen: View {
                 days: [DayKey(anchor, calendar: calendar)],
                 today: today,
                 now: now,
-                lanes: lanes,
+                lanes: lanes(for: .day),
                 isDetailed: true,
+                moments: moments,
                 onSelect: select
             )
         case .month:
             MonthGrid(
                 anchor: anchor,
                 today: today,
-                lanes: lanes,
+                lanes: lanes(for: .month),
                 onSelectDay: { day in
                     withAnimation(.easeInOut(duration: 0.2)) {
                         anchor = day.startDate(in: calendar)

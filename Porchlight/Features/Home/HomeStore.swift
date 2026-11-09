@@ -15,6 +15,8 @@ final class HomeStore {
     var lastError: String?
 
     @ObservationIgnored private var observation: Task<Void, Never>?
+    /// The earliest day a screen asked for (the calendar paging back), when before the usual window.
+    @ObservationIgnored private var requestedStart: DayKey?
     @ObservationIgnored private var dayWatch: Task<Void, Never>?
 
     init(database: AppDatabase, photoLibrary: AmbientPhotoLibrary = .shared) {
@@ -90,14 +92,29 @@ final class HomeStore {
 
     // MARK: Observation
 
-    /// Completions and meals are read from two weeks before this week, enough for every screen.
+    /// Completions and meals are read from two weeks before this week, enough for every screen
+    /// but the calendar, which widens the window with `include(from:)` as it pages back.
     private static func windowStart(for today: DayKey, calendar: Calendar) -> DayKey {
         HomeWeek(containing: today, calendar: calendar).first.adding(days: -14, calendar: calendar)
     }
 
+    private var since: DayKey {
+        let usual = Self.windowStart(for: today, calendar: calendar)
+        return requestedStart.map { min($0, usual) } ?? usual
+    }
+
+    /// Makes sure completions from `day` on are loaded, for a calendar showing older weeks.
+    func include(from day: DayKey) {
+        guard day < since else { return }
+        requestedStart = day
+        // Read synchronously so the newly shown weeks don't flash empty, then keep listening.
+        if let wider = try? database.homeSnapshot(since: day) { snapshot = wider }
+        observe()
+    }
+
     private func observe() {
         observation?.cancel()
-        let since = Self.windowStart(for: today, calendar: calendar)
+        let since = since
         observation = Task { [weak self, database] in
             do {
                 for try await snapshot in database.homeUpdates(since: since) {

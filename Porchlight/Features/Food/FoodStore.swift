@@ -82,12 +82,13 @@ final class FoodStore {
         }
     }
 
-    /// Mini-plate lanes for the week grid and month cells.
+    /// Mini-plate lanes for month cells (the week and day grids show each meal at its time).
     func calendarLanes() -> [CalendarLane] {
         guard isEnabled else { return [] }
         return [
             CalendarLane(
                 id: "meals",
+                styles: [.month],
                 label: AnyView(MealsLaneLabel()),
                 title: "meals",
                 cell: { [self] day, style in AnyView(MealPlatesCell(store: self, day: day, style: style)) }
