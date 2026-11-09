@@ -384,6 +384,36 @@ struct HomeDatabaseTests {
         #expect(try snapshot().completions.count == 1)
     }
 
+
+    @Test("Cashing in twice in a row records it once")
+    func cashInOnce() throws {
+        let reward = try db.saveReward(RewardDraft(title: "Ice cream", emoji: "🍦", targetStars: 1, ownerId: a), householdId: householdId, today: today)
+        try db.cashInReward(id: reward.id!, stars: 3, day: today, after: nil)
+        #expect(throws: HomeValidationError.alreadyCashedIn) { try db.cashInReward(id: reward.id!, stars: 3, day: today, after: nil) }
+        #expect(try snapshot().redemptions.count == 1)
+    }
+
+    @Test("A chore can't be credited on a day it isn't due; a one-off is re-credited where it was done")
+    func creditOnlyWhenDue() throws {
+        let weekly = try db.saveChore(draft(owner: a, .weekdays([2])), householdId: householdId) // Mondays
+        #expect(throws: HomeValidationError.notDue) { try db.creditChore(id: weekly.id!, day: today, personId: b) } // a Wednesday
+        let once = try db.saveChore(draft("Fix the faucet", owner: nil, .once), householdId: householdId)
+        try db.toggleChore(id: once.id!, day: DayKey(rawValue: "2026-11-02"), personId: a)
+        try db.creditChore(id: once.id!, day: today, personId: b)
+        let done = try #require(try snapshot().completions.first { $0.choreId == once.id })
+        #expect(done.day == "2026-11-02" && done.personId == b)
+    }
+
+    @Test("Care done together counts once toward a shared goal, but credits each helper")
+    func togetherCountsOnce() throws {
+        let walk = try dog(stars: 2)
+        let goal = try db.saveReward(RewardDraft(title: "Day out", emoji: "🎡", targetStars: 50, ownerId: nil), householdId: householdId, today: DayKey(rawValue: "2026-11-01"))
+        try db.logCare(routineId: walk, CareLogDraft(people: [a, b], occurredAt: at("2026-11-03", 8)), now: at("2026-11-04", 9))
+        let home = try snapshot()
+        #expect(RewardProgress.earned(for: home.rewards.first { $0.id == goal.id }!, earnings: home.earnings) == 2)
+        #expect(home.earnings.count == 2)
+    }
+
 }
 
 /// The photo importer, against a temporary folder.

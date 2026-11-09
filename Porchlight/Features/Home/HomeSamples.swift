@@ -61,7 +61,7 @@ enum HomeSamples {
             RewardDraft(title: "Ice cream trip", emoji: "🍦", targetStars: 20, ownerId: first), householdId: householdId, today: today
         )
         let cashedIn = today.adding(days: -5, calendar: calendar)
-        try database.cashInReward(id: treat.id!, stars: 20, day: cashedIn, now: cashedIn.startDate(in: calendar).addingTimeInterval(17 * 3600))
+        try database.cashInReward(id: treat.id!, stars: 20, day: cashedIn, after: nil, now: cashedIn.startDate(in: calendar).addingTimeInterval(17 * 3600))
         try database.setRewardArchived(id: treat.id!, archived: true)
 
         // Lists

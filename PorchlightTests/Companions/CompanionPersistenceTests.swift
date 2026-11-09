@@ -355,8 +355,18 @@ struct CompanionPersistenceTests {
         let db = try AppDatabase(queue)
         let routines = try db.writer.read { db in try CareRoutine.order(Column("id")).fetchAll(db) }
         #expect(routines[0].recurrence == .everyNDays(3))
-        #expect(routines[0].anchorDay == "2026-01-05", "Watering keeps its rhythm from the last time it was done")
+        // Last watered long ago, so it's overdue: it starts again today rather than hiding until its next turn.
+        #expect(routines[0].anchorDay == DayKey(.now, calendar: Calendar(identifier: .gregorian).withZone("UTC")).rawValue)
         #expect(routines[1].recurrence == .daily)
         #expect(routines[1].anchorDay == "2026-01-03", "A daily routine starts on its first log")
+    }
+
+}
+
+private extension Calendar {
+    func withZone(_ identifier: String) -> Calendar {
+        var calendar = self
+        calendar.timeZone = TimeZone(identifier: identifier)!
+        return calendar
     }
 }

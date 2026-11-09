@@ -44,7 +44,7 @@ struct HomeLogicTests {
             StarEarning(
                 source: .chore(choreId: completion.choreId, completionId: Int64(index + 1)),
                 personId: completion.personId, stars: completion.stars, day: completion.dayKey,
-                at: completion.completedAt, title: "Chore \(completion.choreId)", emoji: "✅"
+                at: completion.completedAt, recordedAt: completion.completedAt, title: "Chore \(completion.choreId)", emoji: "✅"
             )
         }
     }

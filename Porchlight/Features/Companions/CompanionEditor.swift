@@ -188,7 +188,7 @@ struct CompanionSettingsList: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(companion.name).font(.body(17, weight: 700))
                 Text(([companion.about.isEmpty ? companion.species.label : companion.about]
-                      + routines.map { "\($0.emoji) \($0.title) \($0.cadenceText(calendar: .current))" }).joined(separator: " · "))
+                      + routines.map { "\($0.emoji) \($0.title) \($0.cadenceText(calendar: model.calendar))" }).joined(separator: " · "))
                     .font(.body(13.5, weight: 600))
                     .foregroundStyle(Theme.muted)
                     .lineLimit(1)
@@ -536,6 +536,7 @@ struct CompanionEditorForm: View {
 
 /// One routine in the editor: "Walk · 2× a day", windows and tags.
 private struct RoutineRow: View {
+    @Environment(AppModel.self) private var model
     let routine: CareRoutineDraft
     let onEdit: () -> Void
 
@@ -546,7 +547,7 @@ private struct RoutineRow: View {
                 .frame(width: 40, height: 40)
                 .background(CoatPreset.honey.tint.wash(0.25), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(routine.title) · \(routine.routine().cadenceText(calendar: .current))").font(.body(15, weight: 700))
+                Text("\(routine.title) · \(routine.routine().cadenceText(calendar: model.calendar))").font(.body(15, weight: 700))
                 Text(meta)
                     .font(.body(12.5, weight: 600))
                     .foregroundStyle(Theme.muted)
@@ -600,6 +601,7 @@ private struct RoutineRow: View {
 
 /// The live preview: what the Today card will look like.
 private struct CompanionPreviewCard: View {
+    @Environment(AppModel.self) private var model
     let draft: CompanionDraft
 
     var body: some View {
@@ -632,7 +634,7 @@ private struct CompanionPreviewCard: View {
                             slot: CareSlot(index: index, window: window, entry: nil, state: .upcoming),
                             title: window.isAllDay ? first.title : window.label,
                             carers: nil,
-                            pendingDetail: window.isAllDay ? first.cadenceText(calendar: .current) : window.rangeText,
+                            pendingDetail: window.isAllDay ? first.cadenceText(calendar: model.calendar) : window.rangeText,
                             doneDetail: "",
                             compact: true
                         )

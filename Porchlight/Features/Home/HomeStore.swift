@@ -54,6 +54,18 @@ final class HomeStore {
         RewardProgress.earned(for: reward, earnings: snapshot.earnings, redemptions: snapshot.redemptions)
     }
 
+    /// The day to open a chore on from outside the board: today if it was done or is due
+    /// today, a one-off's done day, or else the latest day this week it was due.
+    func dayToOpen(_ chore: Chore) -> DayKey {
+        if chore.recurrence.isOnce {
+            return snapshot.completions.first { $0.choreId == chore.id }?.dayKey ?? today
+        }
+        if completion(of: chore, on: today) != nil || ChoreSchedule.occurs(chore, on: today, calendar: calendar) { return today }
+        return week.days.filter { $0 <= today }.reversed().first {
+            completion(of: chore, on: $0) != nil || ChoreSchedule.occurs(chore, on: $0, calendar: calendar)
+        } ?? today
+    }
+
     /// The completion of a chore on a day, if it was done.
     func completion(of chore: Chore, on day: DayKey) -> ChoreCompletion? {
         snapshot.completions.first { $0.choreId == chore.id && $0.dayKey == day }
@@ -155,7 +167,14 @@ final class HomeStore {
     func cashIn(_ reward: Reward) {
         guard let id = reward.id else { return }
         let stars = earned(toward: reward)
-        perform { try database.cashInReward(id: id, stars: stars, day: today) }
+        let known = snapshot.redemptions.filter { $0.rewardId == id }.compactMap(\.id).max()
+        perform {
+            do {
+                try database.cashInReward(id: id, stars: stars, day: today, after: known)
+            } catch HomeValidationError.alreadyCashedIn {
+                // A second tap before the board refreshed: the first one already did it.
+            }
+        }
     }
 
     /// Starts a reward over without cashing it in.

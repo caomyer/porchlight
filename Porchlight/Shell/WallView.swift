@@ -79,7 +79,15 @@ struct WallView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Rail(items: destinations, selection: $selection)
+            // The rail never sets the wall's height: with many destinations it is taller
+            // than the space left by the keyboard, which would keep sheets from moving up.
+            // It stays full height behind the keyboard instead.
+            Color.clear
+                .frame(width: Theme.railWidth)
+                .overlay(alignment: .top) {
+                    Rail(items: destinations, selection: $selection)
+                        .ignoresSafeArea(.keyboard)
+                }
             screen
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

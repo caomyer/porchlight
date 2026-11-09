@@ -140,7 +140,7 @@ struct ChoreBoard: Equatable {
             owner: .everyone,
             tasks: tasks(for: nil),
             care: care,
-            weekStars: weekEarnings.filter { earning in
+            weekStars: weekEarnings.counted.filter { earning in
                 switch earning.source {
                 case let .chore(choreId, _): sharedChoreIds.contains(choreId)
                 case .care: true
@@ -190,9 +190,10 @@ enum RewardProgress {
             .filter { $0.rewardId == reward.id && $0.dayKey == start }
             .map(\.redeemedAt)
             .max() ?? .distantPast
-        return earnings
-            .filter { $0.day > start || ($0.day == start && $0.at >= cutoff) }
-            .filter { reward.ownerId == nil || $0.personId == reward.ownerId }
+        // A shared goal counts each thing done once, however many helped.
+        let pool = reward.ownerId == nil ? earnings.counted : earnings.filter { $0.personId == reward.ownerId }
+        return pool
+            .filter { $0.day > start || ($0.day == start && $0.recordedAt >= cutoff) }
             .map(\.stars)
             .reduce(0, +)
     }
@@ -482,11 +483,12 @@ struct GlowSummary: Equatable {
                 favorite: favorite
             )
         }
-        weekStars = thisWeek.map(\.stars).reduce(0, +)
-        lastWeekStars = previous.map(\.stars).reduce(0, +)
+        // The porch light counts each thing done once; people's cards credit every helper.
+        weekStars = thisWeek.counted.map(\.stars).reduce(0, +)
+        lastWeekStars = previous.counted.map(\.stars).reduce(0, +)
         let sameDayLastWeek = today.adding(days: -7, calendar: calendar)
-        lastWeekSoFar = previous.filter { $0.day <= sameDayLastWeek }.map(\.stars).reduce(0, +)
-        sparks = thisWeek
+        lastWeekSoFar = previous.counted.filter { $0.day <= sameDayLastWeek }.map(\.stars).reduce(0, +)
+        sparks = thisWeek.counted
 
         let titles = Dictionary(rewards.compactMap { reward in reward.id.map { ($0, reward) } }, uniquingKeysWith: { first, _ in first })
         let earned = earnings.map { earning in

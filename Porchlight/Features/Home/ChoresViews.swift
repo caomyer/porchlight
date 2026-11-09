@@ -575,31 +575,37 @@ struct ChoreTaskSheet: View {
                         .buttonStyle(SecondaryButtonStyle())
                     }
                 }
-                Text(completion == nil ? "Who did it?" : "Someone else did it?")
-                    .font(.body(14, weight: 600))
-                    .foregroundStyle(Theme.muted)
-                FlowLayout(spacing: 10) {
-                    ForEach(model.people) { person in
-                        let isDoer = completion?.personId == person.id
-                        Button {
-                            guard let id = person.id else { return }
-                            store.credit(current, on: day, to: id)
-                        } label: {
-                            HStack(spacing: 8) {
-                                Avatar(person: person, size: 30)
-                                Text(person.name).font(.body(15, weight: 700))
+                if completion != nil || isDue {
+                    Text(completion == nil ? "Who did it?" : "Someone else did it?")
+                        .font(.body(14, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                    FlowLayout(spacing: 10) {
+                        ForEach(model.people) { person in
+                            let isDoer = completion?.personId == person.id
+                            Button {
+                                guard let id = person.id else { return }
+                                store.credit(current, on: day, to: id)
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Avatar(person: person, size: 30)
+                                    Text(person.name).font(.body(15, weight: 700))
+                                }
+                                .foregroundStyle(Theme.ink)
+                                .padding(.leading, 6)
+                                .padding(.trailing, 14)
+                                .padding(.vertical, 5)
+                                .background(isDoer ? person.color.color.wash(0.14) : Theme.surface, in: Capsule())
+                                .overlay(Capsule().strokeBorder(isDoer ? person.color.color : Theme.line, lineWidth: 2))
                             }
-                            .foregroundStyle(Theme.ink)
-                            .padding(.leading, 6)
-                            .padding(.trailing, 14)
-                            .padding(.vertical, 5)
-                            .background(isDoer ? person.color.color.wash(0.14) : Theme.surface, in: Capsule())
-                            .overlay(Capsule().strokeBorder(isDoer ? person.color.color : Theme.line, lineWidth: 2))
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(person.name) did it")
+                            .accessibilityAddTraits(isDoer ? .isSelected : [])
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("\(person.name) did it")
-                        .accessibilityAddTraits(isDoer ? .isSelected : [])
                     }
+                } else {
+                    Text("Not due that day.")
+                        .font(.body(14, weight: 600))
+                        .foregroundStyle(Theme.muted)
                 }
             }
             .padding(16)
@@ -632,6 +638,11 @@ struct ChoreTaskSheet: View {
             ErrorLine(message: store.lastError)
         }
         .foregroundStyle(Theme.ink)
+    }
+
+    /// One-offs can be done any day; repeating chores only on the days they come around.
+    private var isDue: Bool {
+        current.recurrence.isOnce || ChoreSchedule.occurs(current, on: day, calendar: store.calendar)
     }
 
     private var scheduleLine: String {
@@ -774,7 +785,7 @@ private struct ChoreWeekView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .onTapGesture { onOpen(chore, store.today) }
+            .onTapGesture { onOpen(chore, store.dayToOpen(chore)) }
             .accessibilityAddTraits(.isButton)
             ForEach(week.days, id: \.self) { day in
                 cell(chore, owner: owner, day: day, calendar: calendar)

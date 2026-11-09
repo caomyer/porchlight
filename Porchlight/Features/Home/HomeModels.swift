@@ -116,7 +116,10 @@ struct StarEarning: Equatable, Identifiable, Sendable {
     var personId: Int64?
     var stars: Int
     var day: DayKey
+    /// When it happened (a walk's start time), as shown.
     var at: Date
+    /// When it was written down. Unlike `at`, nobody can edit it, so reward rounds split on it.
+    var recordedAt: Date
     var title: String
     var emoji: String
 
@@ -130,6 +133,18 @@ struct StarEarning: Equatable, Identifiable, Sendable {
     var isCare: Bool {
         if case .care = source { return true }
         return false
+    }
+
+    /// Identifies what was done, regardless of who helped.
+    var deed: Source { source }
+}
+
+extension Array where Element == StarEarning {
+    /// One earning per thing done: care done together credits each helper, but counts once
+    /// toward household totals (shared goals, the Anyone column, the porch light).
+    var counted: [StarEarning] {
+        var seen = Set<StarEarning.Source>()
+        return filter { seen.insert($0.deed).inserted }
     }
 }
 

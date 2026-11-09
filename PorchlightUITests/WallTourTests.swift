@@ -20,10 +20,15 @@ final class WallTourTests: XCTestCase {
     }
 
     private func snapshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        let screenshot = XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+        // For local review: `TEST_RUNNER_SHOT_DIR=/some/folder xcodebuild test ...`
+        if let folder = ProcessInfo.processInfo.environment["SHOT_DIR"] {
+            try? screenshot.pngRepresentation.write(to: URL(fileURLWithPath: folder).appendingPathComponent("\(name).png"))
+        }
     }
 
     func testScreens() {

@@ -14,6 +14,8 @@ enum HomeValidationError: Error, Equatable, LocalizedError {
     case invalidDay
     case unknownPerson
     case notFound
+    case notDue
+    case alreadyCashedIn
 
     var errorDescription: String? {
         switch self {
@@ -27,6 +29,8 @@ enum HomeValidationError: Error, Equatable, LocalizedError {
         case .invalidDay: "That day isn't valid."
         case .unknownPerson: "That person isn't part of this household."
         case .notFound: "That item no longer exists."
+        case .notDue: "That chore isn't due that day."
+        case .alreadyCashedIn: "That reward was just cashed in."
         }
     }
 }
@@ -174,13 +178,18 @@ extension AppDatabase {
         try writer.write { db in
             guard let chore = try Chore.fetchOne(db, id: id) else { throw HomeValidationError.notFound }
             try Self.requirePerson(personId, in: chore.householdId, db)
-            if var existing = try ChoreCompletion.filter(Column("choreId") == id && Column("day") == day.rawValue).fetchOne(db) {
+            // A one-off is done once, whichever day: re-credit it where it is.
+            let existing = chore.recurrence.isOnce
+                ? try ChoreCompletion.filter(Column("choreId") == id).fetchOne(db)
+                : try ChoreCompletion.filter(Column("choreId") == id && Column("day") == day.rawValue).fetchOne(db)
+            if var existing {
                 existing.personId = personId
                 try existing.update(db)
                 return
             }
-            if chore.recurrence.isOnce {
-                try ChoreCompletion.filter(Column("choreId") == id).deleteAll(db)
+            let calendar = try Household.fetchOne(db, id: chore.householdId)?.calendar ?? .current
+            guard chore.recurrence.isOnce || ChoreSchedule.occurs(chore, on: day, calendar: calendar) else {
+                throw HomeValidationError.notDue
             }
             var completion = ChoreCompletion(choreId: id, day: day.rawValue, personId: personId, stars: chore.stars, completedAt: now)
             try completion.insert(db)
@@ -229,11 +238,15 @@ extension AppDatabase {
 
     /// Cashes a reward in: records the stars spent on it and starts it over from `day`.
     /// Stars earned later that same day count toward the next round.
+    /// `after` is the latest cash-in the caller knew of, so a second tap (or another
+    /// screen) can't cash the same round in twice.
     @discardableResult
-    func cashInReward(id: Int64, stars: Int, day: DayKey, now: Date = .now) throws -> RewardRedemption {
+    func cashInReward(id: Int64, stars: Int, day: DayKey, after known: Int64? = nil, now: Date = .now) throws -> RewardRedemption {
         let day = try Self.validatedDay(day)
         return try writer.write { db in
             guard let reward = try Reward.fetchOne(db, id: id) else { throw HomeValidationError.notFound }
+            let latest = try Int64.fetchOne(db, sql: "SELECT MAX(id) FROM rewardRedemption WHERE rewardId = ?", arguments: [id])
+            guard latest == known, stars > 0 else { throw HomeValidationError.alreadyCashedIn }
             var redemption = RewardRedemption(
                 rewardId: id, personId: reward.ownerId, stars: max(stars, 0), day: day.rawValue, redeemedAt: now
             )
@@ -468,13 +481,13 @@ enum StarLedger {
             StarEarning(
                 source: .chore(choreId: row["choreId"], completionId: row["id"]),
                 personId: row["personId"], stars: row["stars"], day: DayKey(rawValue: row["day"]),
-                at: row["completedAt"], title: row["title"], emoji: (row["emoji"] as String?) ?? "✅"
+                at: row["completedAt"], recordedAt: row["completedAt"], title: row["title"], emoji: (row["emoji"] as String?) ?? "✅"
             )
         }
         // A day before `from` covers time zones; days are then computed in the household's calendar.
         let since = from.adding(days: -1, calendar: calendar).startDate(in: calendar)
         let care = try Row.fetchAll(db, sql: """
-            SELECT l.id, l.careRoutineId, l.occurredAt, l.stars, p.personId, r.title, r.emoji, c.name
+            SELECT l.id, l.careRoutineId, l.occurredAt, l.createdAt, l.stars, p.personId, r.title, r.emoji, c.name
             FROM careLog l
             JOIN careLogPerson p ON p.careLogId = l.id
             JOIN careRoutine r ON r.id = l.careRoutineId
@@ -489,7 +502,7 @@ enum StarLedger {
             return StarEarning(
                 source: .care(routineId: row["careRoutineId"], logId: row["id"]),
                 personId: row["personId"], stars: row["stars"], day: day,
-                at: at, title: "\(routine) \(name)", emoji: row["emoji"]
+                at: at, recordedAt: row["createdAt"], title: "\(routine) \(name)", emoji: row["emoji"]
             )
         }
         return (chores + care).sorted { ($0.at, $0.id) < ($1.at, $1.id) }

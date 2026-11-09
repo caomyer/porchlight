@@ -78,7 +78,11 @@ extension AppDatabase {
                 let first: Date? = row["first"]
                 let last: Date? = row["last"]
                 let kind = everyDays > 1 ? "interval" : "daily"
-                let anchor = (everyDays > 1 ? last : first).map { DayKey($0, calendar: calendar) } ?? today
+                var anchor = (everyDays > 1 ? last : first).map { DayKey($0, calendar: calendar) } ?? today
+                // An every-N-days routine that was already due (or overdue) stays due today.
+                if everyDays > 1, Recurrence.days(from: anchor, to: today, calendar: calendar) >= everyDays {
+                    anchor = today
+                }
                 try db.execute(
                     sql: "UPDATE careRoutine SET repeatKind = ?, anchorDay = ? WHERE id = ?",
                     arguments: [kind, anchor.rawValue, row["id"] as Int64]
