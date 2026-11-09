@@ -188,12 +188,11 @@ struct SlotGrid: View {
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                     ForEach(today.slots) { slot in
-                        let turn = today.turns[slot.index].flatMap { store.snapshot.person($0)?.name }
                         SlotTile(
                             slot: slot,
                             title: style == .card ? slotTitle(slot) : shortLabels[safe: slot.index] ?? slot.window.label,
                             carers: slot.entry.map { Carers($0.people, snapshot: store.snapshot) },
-                            pendingDetail: pendingDetail(slot, turn: turn),
+                            pendingDetail: pendingDetail(slot),
                             doneDetail: slot.entry.map {
                                 style == .card ? CareText.doneDetail($0, calendar: calendar) : CareText.time($0.time, calendar: calendar)
                             } ?? ""
@@ -208,15 +207,13 @@ struct SlotGrid: View {
         slot.window.isAllDay ? today.routine.title : slot.window.label
     }
 
-    private func pendingDetail(_ slot: CareSlot, turn: String?) -> String {
-        if style == .hero { return turn ?? slot.window.rangeText }
-        let when: String
+    private func pendingDetail(_ slot: CareSlot) -> String {
+        if style == .hero { return slot.window.rangeText }
         switch slot.state {
-        case .due: when = "Due now"
-        case .late: when = "Late"
-        default: when = slot.window.isAllDay ? "Due today" : slot.window.rangeText
+        case .due: return "Due now"
+        case .late: return "Late"
+        default: return slot.window.isAllDay ? "Due today" : slot.window.rangeText
         }
-        return [when, turn.map(CareText.turn)].compactMap { $0 }.joined(separator: " · ")
     }
 
     private var nextDueText: String {

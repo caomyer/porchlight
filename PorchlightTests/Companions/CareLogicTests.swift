@@ -70,29 +70,6 @@ struct CareLogicTests {
         #expect(CareLogic.slots(for: F.water, on: F.key(9), byDay: byDay, now: now, calendar: calendar).isEmpty)
     }
 
-    // MARK: Turns
-
-    @Test("Turns continue the rotation after whoever did the last one")
-    func turns() {
-        let rotation = [F.james, F.mia]
-        #expect(CareLogic.nextTurns(rotation: rotation, entries: [], count: 2) == [F.james, F.mia])
-        #expect(CareLogic.nextTurns(rotation: rotation, entries: [F.entry(1, 8, by: [F.mia])], count: 1) == [F.james])
-        #expect(CareLogic.nextTurns(rotation: rotation, entries: [F.entry(1, 8, by: [F.james])], count: 3) == [F.mia, F.james, F.mia])
-    }
-
-    @Test("Turns skip by the latest log, ignore outsiders, and continue after the last walker of a joint log")
-    func turnsEdgeCases() {
-        let rotation = [F.james, F.mia, F.ava]
-        let latestIsMia = [F.entry(1, day: 6, 18, by: [F.james]), F.entry(2, 8, by: [F.mia])]
-        #expect(CareLogic.nextTurns(rotation: rotation, entries: latestIsMia.reversed(), count: 1) == [F.ava])
-        let outsider = [F.entry(1, 7, by: [F.james]), F.entry(2, 9, by: [99])]
-        #expect(CareLogic.nextTurns(rotation: rotation, entries: outsider, count: 1) == [F.mia])
-        let together = [F.entry(1, 7, by: [F.james, F.mia])]
-        #expect(CareLogic.nextTurns(rotation: rotation, entries: together, count: 1) == [F.ava])
-        #expect(CareLogic.nextTurns(rotation: [], entries: together, count: 2).isEmpty)
-        #expect(CareLogic.nextTurns(rotation: [F.mia], entries: together, count: 2) == [F.mia, F.mia])
-    }
-
     // MARK: Streak
 
     @Test("Streak counts complete days; an unfinished today doesn't break it")
@@ -243,7 +220,5 @@ struct CareLogicTests {
         #expect(CareWindow.anyTime.rangeText == "Any time")
         #expect(CareText.shortLabels(F.walk.windows) == ["AM", "PM"])
         #expect(CareText.shortLabels(CompanionPresets.windows(count: 3)) == ["Mor", "Mid", "Eve"])
-        #expect(CareText.turn("James") == "James' turn")
-        #expect(CareText.turn("Mia") == "Mia's turn")
     }
 }

@@ -21,7 +21,7 @@ struct CompanionPersistenceTests {
     }
 
     private func dog(_ home: Home, name: String = "Yo-Yo") throws -> Int64 {
-        var draft = CompanionDraft.new(species: .dog, rotation: home.people)
+        var draft = CompanionDraft.new(species: .dog)
         draft.name = name
         return try home.db.saveCompanion(draft, householdId: home.householdId)
     }
@@ -35,7 +35,6 @@ struct CompanionPersistenceTests {
         let routines = snapshot.routines(of: id)
         #expect(routines.map(\.kind) == [.walk, .feed])
         #expect(routines[0].windows.map(\.label) == ["Morning", "Evening"])
-        #expect(routines[0].rotation == home.people)
         #expect(routines[0].trackedFields == CareField.allCases)
         #expect(routines[0].stars == 2)
     }
@@ -43,14 +42,14 @@ struct CompanionPersistenceTests {
     @Test("Every species has sensible starting routines")
     func presets() {
         for species in Species.allCases {
-            let routines = CompanionPresets.routines(for: species, rotation: [1])
+            let routines = CompanionPresets.routines(for: species)
             #expect(!routines.isEmpty, "\(species)")
             for routine in routines {
-                #expect(throws: Never.self) { try CareRules.validated(routine, companionId: 1, sortOrder: 0, people: [1]) }
+                #expect(throws: Never.self) { try CareRules.validated(routine, companionId: 1, sortOrder: 0) }
             }
         }
-        #expect(CompanionPresets.routines(for: .cat, rotation: []).map(\.kind) == [.feed, .litter])
-        #expect(CompanionPresets.routines(for: .plant, rotation: []).first?.everyDays == 3)
+        #expect(CompanionPresets.routines(for: .cat).map(\.kind) == [.feed, .litter])
+        #expect(CompanionPresets.routines(for: .plant).first?.everyDays == 3)
     }
 
     @Test("Updating keeps routine ids and history; removed routines go with their logs")
@@ -82,12 +81,11 @@ struct CompanionPersistenceTests {
 
     @Test("Routine validation rejects bad windows, cadences and stars")
     func validation() throws {
-        let people: Set<Int64> = [1, 2]
         func check(_ change: (inout CareRoutineDraft) -> Void) -> Error? {
-            var draft = CompanionPresets.routines(for: .dog, rotation: [1, 2])[0]
+            var draft = CompanionPresets.routines(for: .dog)[0]
             change(&draft)
             do {
-                _ = try CareRules.validated(draft, companionId: 1, sortOrder: 0, people: people)
+                _ = try CareRules.validated(draft, companionId: 1, sortOrder: 0)
                 return nil
             } catch {
                 return error
@@ -106,26 +104,25 @@ struct CompanionPersistenceTests {
         #expect(check { $0.windows[0].label = "" } as? ValidationError == .emptyName)
     }
 
-    @Test("Validation cleans rotation, sorts windows and keeps one window for every-N-days")
+    @Test("Validation sorts windows, dedupes fields and keeps one window for every-N-days")
     func validationCleanup() throws {
         var draft = CareRoutineDraft(
             kind: .walk, emoji: "  ", windows: [.hours("Evening", 17, 20), .hours("Morning", 6, 10)],
-            rotation: [2, 99, 1, 2], trackedFields: [.pee, .pee]
+            trackedFields: [.pee, .pee]
         )
-        let routine = try CareRules.validated(draft, companionId: 1, sortOrder: 0, people: [1, 2])
+        let routine = try CareRules.validated(draft, companionId: 1, sortOrder: 0)
         #expect(routine.windows.map(\.label) == ["Morning", "Evening"])
-        #expect(routine.rotation == [2, 1])
         #expect(routine.trackedFields == [.pee])
         #expect(routine.emoji == CareKind.walk.defaultEmoji)
         draft.everyDays = 3
-        let sparse = try CareRules.validated(draft, companionId: 1, sortOrder: 0, people: [1, 2])
+        let sparse = try CareRules.validated(draft, companionId: 1, sortOrder: 0)
         #expect(sparse.windows.count == 1)
     }
 
     @Test("Companion names are validated")
     func companionName() throws {
         let home = try home()
-        var draft = CompanionDraft.new(species: .cat, rotation: [])
+        var draft = CompanionDraft.new(species: .cat)
         draft.name = "   "
         #expect(throws: ValidationError.emptyName) { try home.db.saveCompanion(draft, householdId: home.householdId) }
         draft.name = String(repeating: "a", count: 41)
@@ -230,7 +227,6 @@ struct CompanionPersistenceTests {
         let snapshot = try home.db.writer.read(CompanionSnapshot.fetch)
         let report = try #require(CompanionReport.make(snapshot: snapshot, companionId: id, now: now))
         #expect(report.primary?.slots.map(\.isDone) == [true, false])
-        #expect(report.primary?.nextTurn == home.people[0], "Mia walked last, so it's James' turn")
         #expect(report.streak == 0)
         #expect(report.weekStats.count == 1)
         #expect(report.leaderboard.first?.carer == .person(home.people[1]))
@@ -243,6 +239,34 @@ struct CompanionPersistenceTests {
         let log = try #require(items.first { $0.kind == .log && $0.title.hasPrefix("Mia walked") })
         #expect(log.title == "Mia walked Yo-Yo · 25 min")
         let expected = items.filter { $0.kind == .expected }
-        #expect(expected.contains { $0.title == "Evening walk" && ($0.subtitle ?? "").contains("James' turn") })
+        let evening = try #require(expected.first { $0.title == "Evening walk" })
+        #expect(!(evening.subtitle ?? "").contains("turn"), "Nobody is assigned a walk; whoever logs it says who")
+        #expect(evening.owner == .everyone)
+    }
+
+    @Test("Upgrading drops turn rotation and keeps routines and their logs")
+    func dropsRotation() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "companions v1: companions, routines and care logs")
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO household (id, name, timeZoneIdentifier, firstWeekday, createdAt) VALUES (1, 'Home', 'UTC', 1, '2026-01-01 00:00:00')")
+            try db.execute(sql: "INSERT INTO person (id, householdId, name, color, sortOrder, createdAt) VALUES (1, 1, 'James', 'blue', 0, '2026-01-01 00:00:00')")
+            try db.execute(sql: """
+                INSERT INTO companion (id, householdId, name, species, coat, captionTone, sortOrder, createdAt)
+                VALUES (1, 1, 'Yo-Yo', 'dog', 'honey', 'cheeky', 0, '2026-01-01 00:00:00')
+                """)
+            try db.execute(sql: """
+                INSERT INTO careRoutine (id, companionId, kind, title, emoji, windows, rotation, trackedFields, sortOrder)
+                VALUES (1, 1, 'walk', 'Walk', '🦮', '[]', '[1]', '[]', 0)
+                """)
+            try db.execute(sql: "INSERT INTO careLog (id, careRoutineId, occurredAt, createdAt) VALUES (1, 1, '2026-01-02 08:00:00', '2026-01-02 08:00:00')")
+        }
+        let db = try AppDatabase(queue)
+        let (columns, routine, logs) = try db.writer.read { db in
+            (try db.columns(in: "careRoutine").map(\.name), try CareRoutine.fetchOne(db, id: 1), try CareLog.fetchCount(db))
+        }
+        #expect(!columns.contains("rotation"))
+        #expect(routine?.title == "Walk")
+        #expect(logs == 1)
     }
 }

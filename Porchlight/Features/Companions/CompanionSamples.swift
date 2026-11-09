@@ -18,7 +18,7 @@ enum CompanionSamples {
                 try db.execute(sql: "DELETE FROM sqlite_sequence WHERE name IN ('companion', 'careRoutine', 'careLog')")
             }
         }
-        var draft = CompanionDraft.new(species: .dog, rotation: ids)
+        var draft = CompanionDraft.new(species: .dog)
         draft.name = "Yo-Yo"
         draft.about = "Toy poodle"
         draft.birthDate = calendar.date(byAdding: .month, value: -51, to: now)

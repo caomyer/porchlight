@@ -239,10 +239,7 @@ private struct CareLogForm: View {
     private func setDefaults() {
         guard !didSetDefaults else { return }
         didSetDefaults = true
-        let today = report.primary?.routine.id == routine.id ? report.primary : report.others.first { $0.routine.id == routine.id }
-        if let turn = today?.nextTurn {
-            people = [turn]
-        } else if let first = model.people.first?.id {
+        if let first = model.people.first?.id {
             people = [first]
         }
         // Start from the usual length of recent logs.
@@ -302,8 +299,7 @@ struct Celebration: Equatable {
         guard let routine = report.primaryRoutine else {
             return Celebration(title: "Nice one!", message: "", stars: 0, confetti: CompanionPresets.confetti(for: report.companion.species))
         }
-        let person = report.primary?.nextTurn.map { [$0] } ?? []
-        return after(report: report, routine: routine, people: person, names: [:], calendar: .current)
+        return after(report: report, routine: routine, people: [], names: [:], calendar: .current)
     }
     #endif
 }

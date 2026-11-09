@@ -12,7 +12,7 @@ struct CompanionOnboardingEditor: View {
     @Environment(CompanionStore.self) private var store
     @Environment(AppModel.self) private var model
 
-    @State private var draft = CompanionDraft.new(species: .dog, rotation: [])
+    @State private var draft = CompanionDraft.new(species: .dog)
     @State private var routinesEdited = false
     @State private var savedPhoto: String?
     @State private var saveTask: Task<Void, Never>?
@@ -74,7 +74,7 @@ struct CompanionOnboardingEditor: View {
             routinesEdited = true
             savedPhoto = first.photoFile
         } else {
-            draft = .new(species: .dog, rotation: model.people.compactMap(\.id))
+            draft = .new(species: .dog)
         }
     }
 
@@ -102,7 +102,7 @@ struct CompanionOnboardingEditor: View {
 
     private func addAnother() {
         saveNow()
-        draft = .new(species: .dog, rotation: model.people.compactMap(\.id))
+        draft = .new(species: .dog)
         routinesEdited = false
         savedPhoto = nil
     }
@@ -140,7 +140,7 @@ struct CompanionSettingsList: View {
                 HStack(spacing: 12) {
                     Button {
                         CompanionCover.instantly {
-                            editing = EditingCompanion(draft: .new(species: .dog, rotation: model.people.compactMap(\.id)))
+                            editing = EditingCompanion(draft: .new(species: .dog))
                         }
                     } label: {
                         Label(store.companions.isEmpty ? "Add a pet or plant" : "Add a companion", systemImage: "plus")
@@ -316,7 +316,7 @@ struct CompanionEditorForm: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 10) {
                             ForEach(draft.routines) { routine in
-                                RoutineRow(routine: routine, people: model.people) {
+                                RoutineRow(routine: routine) {
                                     present(RoutineEditing(draft: routine, isNew: false))
                                 }
                             }
@@ -428,7 +428,7 @@ struct CompanionEditorForm: View {
         guard species != draft.species else { return }
         draft.species = species
         if !routinesEdited {
-            draft.routines = CompanionPresets.routines(for: species, rotation: model.people.compactMap(\.id))
+            draft.routines = CompanionPresets.routines(for: species)
         }
     }
 
@@ -472,7 +472,7 @@ struct CompanionEditorForm: View {
     private var addRoutineRow: some View {
         Button {
             let kind: CareKind = draft.species == .plant ? .water : .custom
-            var routine = CareRoutineDraft(kind: kind, windows: CompanionPresets.windows(count: 1), rotation: model.people.compactMap(\.id))
+            var routine = CareRoutineDraft(kind: kind, windows: CompanionPresets.windows(count: 1))
             routine.title = kind == .custom ? "" : routine.title
             present(RoutineEditing(draft: routine, isNew: true))
         } label: {
@@ -534,10 +534,9 @@ struct CompanionEditorForm: View {
     }
 }
 
-/// One routine in the editor: "Walk · 2× a day", windows, turns and tags.
+/// One routine in the editor: "Walk · 2× a day", windows and tags.
 private struct RoutineRow: View {
     let routine: CareRoutineDraft
-    let people: [Person]
     let onEdit: () -> Void
 
     var body: some View {
@@ -585,8 +584,7 @@ private struct RoutineRow: View {
 
     private var meta: String {
         let windows = routine.routine().effectiveWindows
-        var parts = windows.allSatisfy(\.isAllDay) ? ["Any time of day"] : windows.map { "\($0.label) \($0.rangeText)" }
-        parts.append(RoutineText.turns(routine.rotation, people: people))
+        let parts = windows.allSatisfy(\.isAllDay) ? ["Any time of day"] : windows.map { "\($0.label) \($0.rangeText)" }
         return parts.joined(separator: " · ")
     }
 
@@ -597,19 +595,6 @@ private struct RoutineRow: View {
             tags.append(routine.stars == 1 ? "⭐ 1 per \(noun)" : "⭐ \(routine.stars) each")
         }
         return tags
-    }
-}
-
-enum RoutineText {
-    /// "James ↔ Mia take turns", "always James", "anyone".
-    static func turns(_ rotation: [Int64], people: [Person]) -> String {
-        let names = rotation.compactMap { id in people.first { $0.id == id }?.name }
-        switch names.count {
-        case 0: return "anyone"
-        case 1: return "always \(names[0])"
-        case 2: return "\(names[0]) ↔ \(names[1]) take turns"
-        default: return "turns rotate " + names.joined(separator: " → ")
-        }
     }
 }
 
@@ -731,8 +716,6 @@ private struct RoutineEditorSheet: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     VStack(alignment: .leading, spacing: 0) {
-                        label("Whose turn")
-                        turns
                         label("Log details")
                         FlowLayout(spacing: 6) {
                             ForEach(CareField.allCases, id: \.self) { field in
@@ -851,42 +834,6 @@ private struct RoutineEditorSheet: View {
         }
     }
 
-    private var turns: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                ForEach(model.people) { person in
-                    let id = person.id ?? -1
-                    let position = draft.rotation.firstIndex(of: id)
-                    Button {
-                        if let position { draft.rotation.remove(at: position) } else { draft.rotation.append(id) }
-                    } label: {
-                        Avatar(person: person, size: 42)
-                            .opacity(position == nil ? 0.35 : 1)
-                            .overlay(alignment: .topTrailing) {
-                                if let position {
-                                    Text("\(position + 1)")
-                                        .font(.body(11, weight: 800))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 18, height: 18)
-                                        .background(Theme.ink, in: Circle())
-                                        .offset(x: 4, y: -4)
-                                }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(person.name)
-                    .accessibilityAddTraits(position != nil ? .isSelected : [])
-                }
-            }
-            Text(RoutineText.turns(draft.rotation, people: model.people).prefix(1).uppercased()
-                 + RoutineText.turns(draft.rotation, people: model.people).dropFirst()
-                 + ". Tap in the order turns go.")
-                .font(.body(13, weight: 600))
-                .foregroundStyle(Theme.muted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
     private func stepper(value: Binding<Int>, range: ClosedRange<Int>, text: @escaping (Int) -> String) -> some View {
         HStack(spacing: 0) {
             stepButton("minus", enabled: value.wrappedValue > range.lowerBound) { value.wrappedValue -= 1 }
@@ -919,14 +866,12 @@ private struct RoutineEditorSheet: View {
     }
 
     private func save() {
-        let people = Set(model.people.compactMap(\.id))
         do {
-            let checked = try CareRules.validated(draft, companionId: 0, sortOrder: 0, people: people)
+            let checked = try CareRules.validated(draft, companionId: 0, sortOrder: 0)
             var result = draft
             result.title = checked.title
             result.emoji = checked.emoji
             result.windows = checked.windows
-            result.rotation = checked.rotation
             onSave(result)
             close()
         } catch {

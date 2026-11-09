@@ -28,7 +28,7 @@ enum CompanionTimeline {
                 let state = CompanionReport.routineToday(routine, entries: entries, today: today, now: now, calendar: calendar)
                 for slot in state.slots where slot.isPendingToday {
                     items.append(expectedItem(
-                        slot, routine: routine, companion: companion, turn: state.turns[slot.index], entries: entries,
+                        slot, routine: routine, companion: companion, entries: entries,
                         face: face, snapshot: snapshot, now: now
                     ))
                 }
@@ -64,7 +64,7 @@ enum CompanionTimeline {
     }
 
     private static func expectedItem(
-        _ slot: CareSlot, routine: CareRoutine, companion: Companion, turn: Int64?, entries: [CareEntry],
+        _ slot: CareSlot, routine: CareRoutine, companion: Companion, entries: [CareEntry],
         face: AnyView, snapshot: CompanionSnapshot, now: Date
     ) -> TimelineItem {
         let calendar = snapshot.calendar
@@ -94,15 +94,14 @@ enum CompanionTimeline {
         case .due: lead = "Due now · \(slot.window.rangeText)"
         default: lead = slot.window.isAllDay ? "Due today" : "Usually \(slot.window.rangeText)"
         }
-        let turnText = turn.flatMap { snapshot.person($0)?.name }.map(CareText.turn)
         return TimelineItem(
             id: "care-expected-\(routine.id ?? 0)-\(slot.index)",
             kind: .expected,
             time: time,
             timeLabel: label,
             title: expectedTitle(slot, routine: routine, companion: companion),
-            subtitle: [lead, turnText].compactMap { $0 }.joined(separator: " · "),
-            owner: turn.map { .person($0) } ?? .everyone,
+            subtitle: lead,
+            owner: .everyone,
             leading: face,
             trailing: AnyView(PawDot(carers: nil, size: 24))
         )

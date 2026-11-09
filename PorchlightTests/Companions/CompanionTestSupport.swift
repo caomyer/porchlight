@@ -26,12 +26,12 @@ enum CareFixture {
     static let walk = CareRoutine(
         id: 10, companionId: 1, kind: .walk, title: "Walk", emoji: "🦮", everyDays: 1,
         windows: [.hours("Morning", 6, 10), .hours("Evening", 17, 20)],
-        rotation: [james, mia], trackedFields: CareField.allCases, stars: 2, nudgeAfterMinutes: 60, sortOrder: 0
+        trackedFields: CareField.allCases, stars: 2, nudgeAfterMinutes: 60, sortOrder: 0
     )
 
     static let water = CareRoutine(
         id: 11, companionId: 2, kind: .water, title: "Water", emoji: "💧", everyDays: 3,
-        windows: [.anyTime], rotation: [], trackedFields: [], stars: 1, nudgeAfterMinutes: nil, sortOrder: 0
+        windows: [.anyTime], trackedFields: [], stars: 1, nudgeAfterMinutes: nil, sortOrder: 0
     )
 
     static func entry(

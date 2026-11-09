@@ -41,7 +41,7 @@ struct CareSlot: Equatable, Identifiable, Sendable {
     var isPendingToday: Bool { [.upcoming, .open, .due, .late].contains(state) }
 }
 
-/// Pure care computations: slots, turns, streaks, stats and mood.
+/// Pure care computations: slots, streaks, stats and mood.
 /// Everything takes `now` and a calendar so it is deterministic and testable.
 enum CareLogic {
     static func minuteOfDay(_ date: Date, calendar: Calendar) -> Int {
@@ -132,22 +132,6 @@ enum CareLogic {
             }
             return CareSlot(index: index, window: window, entry: filled[index], state: state)
         }
-    }
-
-    // MARK: Turns
-
-    /// The next `count` people whose turn it is, continuing the rotation after
-    /// whoever did the most recent log. With nobody in the rotation, nobody's turn.
-    static func nextTurns(rotation: [Int64], entries: [CareEntry], count: Int) -> [Int64] {
-        guard !rotation.isEmpty, count > 0 else { return [] }
-        var start = 0
-        let latestFirst = entries.sorted { $0.time > $1.time }
-        if let last = latestFirst.first(where: { $0.people.contains(where: rotation.contains) }) {
-            // Together: continue after the walker who comes last in the rotation.
-            let positions = last.people.compactMap { rotation.firstIndex(of: $0) }
-            start = (positions.max()! + 1) % rotation.count
-        }
-        return (0..<count).map { rotation[(start + $0) % rotation.count] }
     }
 
     // MARK: Streak

@@ -14,7 +14,6 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
     var emoji: String
     var everyDays: Int
     var windows: [CareWindow]
-    var rotation: [Int64]
     var trackedFields: [CareField]
     var stars: Int
     var nudgeAfterMinutes: Int?
@@ -25,7 +24,6 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
         emoji: String? = nil,
         everyDays: Int = 1,
         windows: [CareWindow],
-        rotation: [Int64] = [],
         trackedFields: [CareField] = [],
         stars: Int = 1,
         nudgeAfterMinutes: Int? = nil
@@ -35,7 +33,6 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
         self.emoji = emoji ?? kind.defaultEmoji
         self.everyDays = everyDays
         self.windows = windows
-        self.rotation = rotation
         self.trackedFields = trackedFields
         self.stars = stars
         self.nudgeAfterMinutes = nudgeAfterMinutes
@@ -44,7 +41,7 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
     init(_ routine: CareRoutine) {
         self.init(
             kind: routine.kind, title: routine.title, emoji: routine.emoji, everyDays: routine.everyDays,
-            windows: routine.windows, rotation: routine.rotation, trackedFields: routine.trackedFields,
+            windows: routine.windows, trackedFields: routine.trackedFields,
             stars: routine.stars, nudgeAfterMinutes: routine.nudgeAfterMinutes
         )
         routineId = routine.id
@@ -54,7 +51,7 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
     func routine(companionId: Int64 = 0, sortOrder: Int = 0) -> CareRoutine {
         CareRoutine(
             id: routineId, companionId: companionId, kind: kind, title: title, emoji: emoji,
-            everyDays: max(everyDays, 1), windows: windows, rotation: rotation, trackedFields: trackedFields,
+            everyDays: max(everyDays, 1), windows: windows, trackedFields: trackedFields,
             stars: stars, nudgeAfterMinutes: nudgeAfterMinutes, sortOrder: sortOrder
         )
     }
@@ -72,8 +69,8 @@ struct CompanionDraft: Equatable, Sendable {
     var tone: CompanionTone = .cheeky
     var routines: [CareRoutineDraft] = []
 
-    static func new(species: Species, rotation: [Int64]) -> CompanionDraft {
-        CompanionDraft(species: species, routines: CompanionPresets.routines(for: species, rotation: rotation))
+    static func new(species: Species) -> CompanionDraft {
+        CompanionDraft(species: species, routines: CompanionPresets.routines(for: species))
     }
 
     init(companionId: Int64? = nil, name: String = "", species: Species = .dog, coat: CoatPreset = .honey,
@@ -151,7 +148,7 @@ enum CareRules {
     static let noteLimit = 280
 
     /// Cleans up and checks a routine draft. Returns the routine to store.
-    static func validated(_ draft: CareRoutineDraft, companionId: Int64, sortOrder: Int, people: Set<Int64>) throws -> CareRoutine {
+    static func validated(_ draft: CareRoutineDraft, companionId: Int64, sortOrder: Int) throws -> CareRoutine {
         let title = try Names.validated(draft.title)
         let emoji = draft.emoji.trimmingCharacters(in: .whitespacesAndNewlines)
         guard draft.everyDays >= 1, draft.everyDays <= maxEveryDays else { throw CareValidationError.invalidCadence }
@@ -171,14 +168,12 @@ enum CareRules {
         }
         guard (0...maxStars).contains(draft.stars) else { throw CareValidationError.invalidStars }
         if let nudge = draft.nudgeAfterMinutes, !(5...720).contains(nudge) { throw CareValidationError.invalidNudge }
-        var seen = Set<Int64>()
-        let rotation = draft.rotation.filter { people.contains($0) && seen.insert($0).inserted }
         var fieldsSeen = Set<CareField>()
         let fields = draft.trackedFields.filter { fieldsSeen.insert($0).inserted }
         return CareRoutine(
             id: draft.routineId, companionId: companionId, kind: draft.kind, title: title,
             emoji: emoji.isEmpty ? draft.kind.defaultEmoji : String(emoji.prefix(2)),
-            everyDays: draft.everyDays, windows: windows, rotation: rotation, trackedFields: fields,
+            everyDays: draft.everyDays, windows: windows, trackedFields: fields,
             stars: draft.stars, nudgeAfterMinutes: draft.nudgeAfterMinutes, sortOrder: sortOrder
         )
     }
@@ -195,7 +190,6 @@ extension AppDatabase {
         let about = draft.about.trimmingCharacters(in: .whitespacesAndNewlines)
         guard about.count <= 60 else { throw ValidationError.nameTooLong(limit: 60) }
         return try writer.write { db in
-            let people = try Set(Int64.fetchAll(db, sql: "SELECT id FROM person WHERE householdId = ?", arguments: [householdId]))
             var companion: Companion
             if let id = draft.companionId, let existing = try Companion.fetchOne(db, id: id), existing.householdId == householdId {
                 companion = existing
@@ -221,7 +215,7 @@ extension AppDatabase {
             let existingIds = try Set(Int64.fetchAll(db, sql: "SELECT id FROM careRoutine WHERE companionId = ?", arguments: [companionId]))
             var keptIds = Set<Int64>()
             for (index, routineDraft) in draft.routines.enumerated() {
-                var routine = try CareRules.validated(routineDraft, companionId: companionId, sortOrder: index, people: people)
+                var routine = try CareRules.validated(routineDraft, companionId: companionId, sortOrder: index)
                 if let id = routine.id, existingIds.contains(id) {
                     try routine.update(db)
                     keptIds.insert(id)

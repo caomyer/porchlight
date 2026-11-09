@@ -52,7 +52,7 @@ struct CaptionEngineTests {
 
         let plant = CareRoutine(
             id: 1, companionId: 1, kind: .water, title: "Water", emoji: "💧", everyDays: 3, windows: [.anyTime],
-            rotation: [], trackedFields: [], stars: 1, nudgeAfterMinutes: nil, sortOrder: 0
+            trackedFields: [], stars: 1, nudgeAfterMinutes: nil, sortOrder: 0
         )
         let entries = (0..<20).map { F.entry(Int64($0 + 1), day: 1 + $0 % 7, 9 + $0 / 7, routine: 1) }
         for tone in [CompanionTone.wholesome, .cheeky, .dramatic] {
@@ -93,9 +93,9 @@ struct CaptionEngineTests {
         #expect(CareKind.walk.question(name: "Yo-Yo", title: "Walk") == "Who walked Yo-Yo?")
         #expect(CareKind.water.buttonTitle(name: "Fern", title: "Water") == "I watered Fern")
         #expect(CareKind.custom.question(name: "Rex", title: "Brush teeth") == "Who did brush teeth?")
-        #expect(CompanionPresets.welcome(name: "Yo-Yo", routines: CompanionPresets.routines(for: .dog, rotation: []))
+        #expect(CompanionPresets.welcome(name: "Yo-Yo", routines: CompanionPresets.routines(for: .dog))
             == "Yo-Yo has joined the household and expects two walks a day. Zero excuses.")
-        #expect(CompanionPresets.welcome(name: "Fern", routines: CompanionPresets.routines(for: .plant, rotation: []))
+        #expect(CompanionPresets.welcome(name: "Fern", routines: CompanionPresets.routines(for: .plant))
             == "Fern has joined the household and expects a watering every 3 days. Zero excuses.")
     }
 }

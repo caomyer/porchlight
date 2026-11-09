@@ -1,18 +1,14 @@
 import Foundation
 
-/// One routine's state today: its slots and whose turn each open slot is.
+/// One routine's state today: its slots and the latest log.
 struct RoutineToday: Identifiable, Equatable {
     var routine: CareRoutine
     var slots: [CareSlot]
-    /// Slot index -> person whose turn it is, for slots not done yet.
-    var turns: [Int: Int64]
     var lastEntry: CareEntry?
 
     var id: Int64 { routine.id ?? 0 }
     var doneCount: Int { slots.filter(\.isDone).count }
     var isComplete: Bool { slots.allSatisfy(\.isDone) }
-    /// The person whose turn the next open slot is.
-    var nextTurn: Int64? { slots.first { !$0.isDone }.flatMap { turns[$0.index] } }
 }
 
 struct DiaryItem: Identifiable, Equatable {
@@ -112,11 +108,7 @@ struct CompanionReport {
     static func routineToday(_ routine: CareRoutine, entries: [CareEntry], today: DayKey, now: Date, calendar: Calendar) -> RoutineToday {
         let byDay = CareLogic.byDay(entries, calendar: calendar)
         let slots = CareLogic.slots(for: routine, on: today, byDay: byDay, now: now, calendar: calendar)
-        let open = slots.filter { !$0.isDone }
-        let turns = CareLogic.nextTurns(rotation: routine.rotation, entries: entries, count: open.count)
-        var turnBySlot: [Int: Int64] = [:]
-        for (slot, person) in zip(open, turns) { turnBySlot[slot.index] = person }
-        return RoutineToday(routine: routine, slots: slots, turns: turnBySlot, lastEntry: entries.last)
+        return RoutineToday(routine: routine, slots: slots, lastEntry: entries.last)
     }
 
     // MARK: Milestones

@@ -139,7 +139,7 @@ struct SlotTile: View {
     /// "Morning" on Today, "AM" on the hero.
     var title: String
     var carers: Carers?
-    /// The pending line, e.g. "5-8pm · James' turn".
+    /// The pending line, e.g. "5-8pm" or "Due now".
     var pendingDetail: String
     /// The done line, e.g. "8:12 · 25 min · 💧💩".
     var doneDetail: String
@@ -192,11 +192,6 @@ struct SlotTile: View {
 enum CareText {
     /// A plain text heart (not the red emoji) for "together" marks.
     static let heart = "\u{2665}\u{FE0E}"
-
-    /// "James' turn".
-    static func turn(_ name: String) -> String {
-        name.hasSuffix("s") ? "\(name)' turn" : "\(name)'s turn"
-    }
 
     /// "8:12".
     static func time(_ date: Date, calendar: Calendar) -> String {

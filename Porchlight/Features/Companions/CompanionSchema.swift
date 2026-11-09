@@ -54,6 +54,10 @@ extension AppDatabase {
                 t.primaryKey(["careLogId", "personId"])
             }
         }
+        // Whoever is free does the walk; the log sheet asks who did it.
+        migrator.registerMigration("companions v2: no turn rotation") { db in
+            try db.alter(table: "careRoutine") { t in t.drop(column: "rotation") }
+        }
     }
 }
 
@@ -90,8 +94,6 @@ struct CareRoutine: Codable, Equatable, Identifiable, Sendable, FetchableRecord,
     var everyDays: Int
     /// Ordered daily windows; one slot each. Routines every N days have one window.
     var windows: [CareWindow]
-    /// Person ids taking turns, in order. Empty means anyone, no turns.
-    var rotation: [Int64]
     var trackedFields: [CareField]
     var stars: Int
     /// Minutes after a window opens before a still-open slot is flagged as due.

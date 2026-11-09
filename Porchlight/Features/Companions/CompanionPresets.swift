@@ -2,8 +2,8 @@ import Foundation
 
 /// Editable defaults per species: starting routines and mood wording.
 enum CompanionPresets {
-    /// Starting routines for a new companion. `rotation` is who takes turns, in order.
-    static func routines(for species: Species, rotation: [Int64]) -> [CareRoutineDraft] {
+    /// Starting routines for a new companion.
+    static func routines(for species: Species) -> [CareRoutineDraft] {
         let morning = CareWindow.hours("Morning", 6, 10)
         let evening = CareWindow.hours("Evening", 17, 20)
         let breakfast = CareWindow.hours("Breakfast", 6, 9)
@@ -11,37 +11,37 @@ enum CompanionPresets {
         switch species {
         case .dog:
             return [
-                CareRoutineDraft(kind: .walk, windows: [morning, evening], rotation: rotation,
+                CareRoutineDraft(kind: .walk, windows: [morning, evening],
                              trackedFields: CareField.allCases, stars: 2, nudgeAfterMinutes: 60),
-                CareRoutineDraft(kind: .feed, windows: [breakfast, dinner], rotation: rotation, stars: 1),
+                CareRoutineDraft(kind: .feed, windows: [breakfast, dinner], stars: 1),
             ]
         case .cat:
             return [
-                CareRoutineDraft(kind: .feed, windows: [breakfast, dinner], rotation: rotation, stars: 1),
-                CareRoutineDraft(kind: .litter, windows: [.hours("Evening", 18, 22)], rotation: rotation, stars: 1),
+                CareRoutineDraft(kind: .feed, windows: [breakfast, dinner], stars: 1),
+                CareRoutineDraft(kind: .litter, windows: [.hours("Evening", 18, 22)], stars: 1),
             ]
         case .bird:
             return [
-                CareRoutineDraft(kind: .feed, windows: [.hours("Morning", 7, 10)], rotation: rotation, stars: 1),
-                CareRoutineDraft(kind: .clean, title: "Clean cage", emoji: "🫧", everyDays: 7, windows: [.anyTime], rotation: rotation, stars: 2),
+                CareRoutineDraft(kind: .feed, windows: [.hours("Morning", 7, 10)], stars: 1),
+                CareRoutineDraft(kind: .clean, title: "Clean cage", emoji: "🫧", everyDays: 7, windows: [.anyTime], stars: 2),
             ]
         case .rabbit:
             return [
-                CareRoutineDraft(kind: .feed, windows: [breakfast, dinner], rotation: rotation, stars: 1),
-                CareRoutineDraft(kind: .clean, title: "Clean hutch", emoji: "🧺", everyDays: 3, windows: [.anyTime], rotation: rotation, stars: 2),
+                CareRoutineDraft(kind: .feed, windows: [breakfast, dinner], stars: 1),
+                CareRoutineDraft(kind: .clean, title: "Clean hutch", emoji: "🧺", everyDays: 3, windows: [.anyTime], stars: 2),
             ]
         case .fish:
             return [
-                CareRoutineDraft(kind: .feed, windows: [.hours("Morning", 7, 10)], rotation: rotation, stars: 1),
-                CareRoutineDraft(kind: .clean, title: "Clean tank", emoji: "🫧", everyDays: 14, windows: [.anyTime], rotation: rotation, stars: 3),
+                CareRoutineDraft(kind: .feed, windows: [.hours("Morning", 7, 10)], stars: 1),
+                CareRoutineDraft(kind: .clean, title: "Clean tank", emoji: "🫧", everyDays: 14, windows: [.anyTime], stars: 3),
             ]
         case .plant:
             return [
-                CareRoutineDraft(kind: .water, everyDays: 3, windows: [.anyTime], rotation: rotation, stars: 1),
+                CareRoutineDraft(kind: .water, everyDays: 3, windows: [.anyTime], stars: 1),
             ]
         case .other:
             return [
-                CareRoutineDraft(kind: .custom, windows: [.hours("Morning", 7, 11)], rotation: rotation, stars: 1),
+                CareRoutineDraft(kind: .custom, windows: [.hours("Morning", 7, 11)], stars: 1),
             ]
         }
     }
