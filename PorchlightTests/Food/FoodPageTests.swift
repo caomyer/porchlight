@@ -11,22 +11,6 @@ struct FoodPageTests {
         #expect(PageGeometry.lineRect(0) == CGRect(x: 0, y: 28, width: 139, height: 22))
         #expect(PageGeometry.lineRect(1).minY == 50)
         #expect(PageGeometry.lineRect(4).maxY == 138)
-        #expect(PageGeometry.lineIndex(forY: 10) == 0)
-        #expect(PageGeometry.lineIndex(forY: 49.9) == 0)
-        #expect(PageGeometry.lineIndex(forY: 50) == 1)
-        #expect(PageGeometry.lineIndex(forY: 500) == 4)
-    }
-
-    @Test("The next free line skips lines that have ink")
-    func nextFreeLine() {
-        #expect(PageGeometry.nextFreeLine(strokeBounds: []) == 0)
-        let first = CGRect(x: 9, y: 31, width: 60, height: 14)
-        #expect(PageGeometry.nextFreeLine(strokeBounds: [first]) == 1)
-        let third = PageGeometry.lineRect(2).insetBy(dx: 10, dy: 4)
-        #expect(PageGeometry.nextFreeLine(strokeBounds: [first, third]) == 1)
-        let all = (0..<5).map { PageGeometry.lineRect($0).insetBy(dx: 10, dy: 4) }
-        #expect(PageGeometry.nextFreeLine(strokeBounds: all) == 4)
-        #expect(PageGeometry.nextFreeLine(strokeBounds: [.null]) == 0)
     }
 
     @Test("A zoomed viewport maps page points to view points and back")
@@ -57,28 +41,14 @@ struct FoodPageTests {
         #expect(139 * scale <= 560 - 44)
     }
 
-    @Test("A note strip shows exactly one ruled line, offset to that line")
-    func strip() {
-        let viewport = PageViewport.strip(line: 1, width: 334)
-        #expect(abs(viewport.scale - 334 / 139) < 0.0001)
-        #expect(viewport.origin == CGPoint(x: 0, y: 50))
-        #expect(abs(viewport.stripHeight - 22 * 334 / 139) < 0.0001)
-        // The top-left of line 2 is the strip's top-left corner.
-        let corner = CGPoint(x: 0, y: 50).applying(viewport.toView)
-        #expect(abs(corner.x) < 0.0001 && abs(corner.y) < 0.0001)
-        // The line's rule lands on the strip's bottom edge.
-        let rule = CGPoint(x: 139, y: 72).applying(viewport.toView)
-        #expect(abs(rule.x - 334) < 0.0001 && abs(rule.y - viewport.stripHeight) < 0.0001)
-    }
-
-    @Test("Ink drawn in the strip and in the zoomed editor lands on the same page spot")
+    @Test("Ink drawn at one zoom lands on the same page spot at another")
     func drawingRoundTrip() {
-        let strip = PageViewport.strip(line: 2, width: 334)
-        // A stroke across the middle of the strip, in strip view coordinates.
-        let stroke = Self.stroke(from: CGPoint(x: 40, y: strip.stripHeight / 2), to: CGPoint(x: 200, y: strip.stripHeight / 2), width: 1.3 * strip.scale)
-        let page = PKDrawing(strokes: [stroke]).inPage(from: strip)
+        // A stroke across line 3 of the page in the fitted 3.6x editor, in view coordinates.
+        let fitted = PageViewport(scale: 3.6, origin: .zero)
+        let y = PageGeometry.lineRect(2).midY * fitted.scale
+        let stroke = Self.stroke(from: CGPoint(x: 40, y: y), to: CGPoint(x: 200, y: y), width: 1.3 * fitted.scale)
+        let page = PKDrawing(strokes: [stroke]).inPage(from: fitted)
         let bounds = page.bounds
-        #expect(PageGeometry.lineIndex(forY: bounds.midY) == 2)
         #expect(abs(bounds.midY - PageGeometry.lineRect(2).midY) < 1)
 
         // The same page in the 4x editor, then back to page space: unchanged.
@@ -88,7 +58,6 @@ struct FoodPageTests {
         let back = inEditor.inPage(from: editor)
         #expect(abs(back.bounds.minX - bounds.minX) < 0.01)
         #expect(abs(back.bounds.width - bounds.width) < 0.01)
-        #expect(PageGeometry.nextFreeLine(strokeBounds: back.strokeBounds) == 0)
     }
 
     @Test("Each person's default pen follows their color")
@@ -140,8 +109,11 @@ struct SampleHandwritingTests {
     func strokes() {
         let drawing = SampleHandwriting.page(lines: [("pancakes", .brick), ("pesto pasta!", .midnight)])
         #expect(drawing.strokes.count > 6)
-        let lines = Set(drawing.strokeBounds.map { PageGeometry.lineIndex(forY: $0.midY) })
-        #expect(lines == [0, 1])
+        // Every stroke sits on the first two ruled lines.
+        #expect(drawing.strokes.allSatisfy { stroke in
+            let midY = stroke.renderBounds.midY
+            return midY >= PageGeometry.lineRect(0).minY && midY < PageGeometry.lineRect(1).maxY
+        })
         #expect(drawing.bounds.minX >= 5 && drawing.bounds.maxX <= PageGeometry.size.width)
 
         // The month cell image actually shows the ink.

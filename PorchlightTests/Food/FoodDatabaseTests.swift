@@ -74,19 +74,17 @@ struct FoodDatabaseTests {
         #expect(snapshot.eaters[entry.id!] == [james])
     }
 
-    @Test("Editing a meal changes its details and eaters, keeping photo, day and note")
+    @Test("Editing a meal changes its details and eaters, keeping photo and day")
     func updateMeal() throws {
         let james = people[0].id!, mia = people[1].id!
         let stored = try photos.save(image())
-        var original = draft("Pho", eaters: [james])
-        original.noteLine = 2
+        let original = draft("Pho", eaters: [james])
         _ = try db.addMeal(original, journalId: journal.id!, photo: stored, photos: photos)
         let entry = try #require(try db.foodSnapshot().entries.first)
 
         var edit = draft("Dan dan noodles", slot: "Dinner", eaters: [mia, james], day: "2026-01-01")
         edit.source = .delivery
         edit.rating = .fine
-        edit.noteLine = nil
         let updated = try db.updateMeal(id: entry.id!, edit)
 
         let snapshot = try db.foodSnapshot()
@@ -99,7 +97,6 @@ struct FoodDatabaseTests {
         #expect(row.source == .delivery)
         #expect(row.rating == .fine)
         #expect(row.dayKey == entry.dayKey)
-        #expect(row.noteLine == 2)
         #expect(row.photoFile == stored.photoFile && row.thumbnailFile == stored.thumbnailFile)
         #expect(row.createdAt == entry.createdAt)
         #expect(Set(snapshot.eaters[entry.id!] ?? []) == [james, mia])
@@ -216,14 +213,18 @@ struct FoodDatabaseTests {
         #expect(try db.pageDrawing(journalId: journal.id!, day: day) == nil)
     }
 
-    @Test("A meal and its note page are written together")
-    func mealWithPage() throws {
+    @Test("Notes live on the day's page; meals no longer carry a note line")
+    func notesBelongToTheDay() throws {
+        let columns = try db.writer.read { db in try db.columns(in: "journalEntry").map(\.name) }
+        #expect(!columns.contains("noteLine"))
+        let day = DayKey(rawValue: "2026-11-07")
         let ink = PKDrawing(strokes: [FoodPageTests.stroke(from: CGPoint(x: 10, y: 60), to: CGPoint(x: 80, y: 60), width: 1.3)])
-        var meal = draft()
-        meal.noteLine = 9
-        let entry = try db.addMeal(meal, journalId: journal.id!, page: ink.dataRepresentation(), photos: photos)
-        #expect(entry.noteLine == 4)
-        #expect(try db.foodSnapshot().pages["2026-11-07"] != nil)
+        try db.addMeal(draft(), journalId: journal.id!, photos: photos)
+        try db.savePage(journalId: journal.id!, day: day, drawing: ink.dataRepresentation())
+        try db.addMeal(draft("Banh mi"), journalId: journal.id!, photos: photos)
+        // A second meal leaves the day's shared page as it was.
+        #expect(try db.pageDrawing(journalId: journal.id!, day: day) != nil)
+        #expect(try db.foodSnapshot().pages.count == 1)
     }
 
     @Test("Deleting a person or the household cascades")

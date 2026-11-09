@@ -136,9 +136,6 @@ struct MealDetailSheet: View {
                     EaterBadge(people: store.eaters(of: entry), everyone: store.ateTogether(entry), size: 26)
                     Text(whoText).font(.body(16, weight: 600))
                 }
-                if let line = entry.noteLine {
-                    detail("✍️", "Note on line \(line + 1) of the day's page")
-                }
             }
             .padding(.top, 18)
             HStack {
@@ -268,7 +265,6 @@ struct MealEdit: Equatable {
             title: title,
             rating: rating,
             eaterIds: Array(eaterIds),
-            noteLine: entry.noteLine,
             eatenAt: eatenAt,
             place: source.hasPlace ? place : nil
         )

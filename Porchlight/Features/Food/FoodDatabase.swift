@@ -13,7 +13,6 @@ struct MealDraft: Equatable, Sendable {
     var tint: Int?
     var rating: MealRating? = .again
     var eaterIds: [Int64]
-    var noteLine: Int?
     var eatenAt: Date
     /// The restaurant, kept only for delivery and dining out.
     var place: PlaceDraft?
@@ -187,18 +186,16 @@ extension AppDatabase {
 
     // MARK: Entries
 
-    /// Logs a meal, optionally with an already-saved photo and the day's updated page,
-    /// all in one transaction. If the write fails, the photo files are removed.
+    /// Logs a meal, optionally with an already-saved photo, in one transaction.
+    /// If the write fails, the photo files are removed.
     @discardableResult
     func addMeal(
         _ draft: MealDraft,
         journalId: Int64,
         photo: FoodPhotoStore.Stored? = nil,
-        page: Data? = nil,
         photos: FoodPhotoStore,
         now: Date = .now
     ) throws -> JournalEntry {
-        let page = page.map(Self.nonBlank)
         do {
             return try writer.write { db in
                 guard let journal = try Journal.fetchOne(db, id: journalId) else { throw FoodError.noJournal }
@@ -208,9 +205,6 @@ extension AppDatabase {
                 try inserted.insert(db)
                 for personId in Set(draft.eaterIds) {
                     try JournalEntryEater(entryId: inserted.id!, personId: personId).insert(db)
-                }
-                if let page {
-                    try Self.writePage(db, journalId: journalId, day: draft.day, drawing: page, now: now)
                 }
                 return inserted
             }
@@ -233,7 +227,6 @@ extension AppDatabase {
             arguments: StatementArguments([journal.householdId] + ids.map { $0 as (any DatabaseValueConvertible) })
         ) ?? 0
         guard members == ids.count else { throw FoodError.nobodyAte }
-        let noteLine = draft.noteLine.map { min(max($0, 0), PageGeometry.lineCount - 1) }
         let emoji = draft.emoji?.trimmingCharacters(in: .whitespacesAndNewlines)
         return JournalEntry(
             journalId: journal.id!,
@@ -246,7 +239,6 @@ extension AppDatabase {
             rating: draft.rating,
             photoFile: photo?.photoFile,
             thumbnailFile: photo?.thumbnailFile,
-            noteLine: noteLine,
             eatenAt: draft.eatenAt,
             createdAt: now
         )
@@ -299,8 +291,7 @@ extension AppDatabase {
         return inserted.id
     }
 
-    /// Changes a logged meal's details and who ate it. The photo, note line and creation
-    /// time stay; the day comes from the entry, not the draft. A new title gets a fresh
+    /// Changes a logged meal's details and who ate it. The photo and creation time stay; the day comes from the entry, not the draft. A new title gets a fresh
     /// illustration unless the draft names one.
     @discardableResult
     func updateMeal(id: Int64, _ draft: MealDraft, now: Date = .now) throws -> JournalEntry {
@@ -309,7 +300,6 @@ extension AppDatabase {
                   let journal = try Journal.fetchOne(db, id: existing.journalId) else { throw FoodError.mealNotFound }
             var draft = draft
             draft.day = existing.dayKey
-            draft.noteLine = existing.noteLine
             let titleChanged = draft.title.trimmingCharacters(in: .whitespacesAndNewlines) != existing.title
             if !titleChanged {
                 draft.emoji = draft.emoji ?? existing.emoji

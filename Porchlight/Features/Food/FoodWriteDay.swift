@@ -2,10 +2,15 @@ import PencilKit
 import SwiftUI
 
 /// Writing on one day: the same page as the month cell, zoomed so it is comfortable
-/// to write on. Ink is saved in page coordinates when the sheet closes.
+/// to write on. Ink is saved in page coordinates when the sheet closes. From the month,
+/// the day's meals sit beside the page to open (and fix) or add to.
 struct WriteDaySheet: View {
     let day: DayKey
     let today: DayKey
+    /// Opens a meal of the day; the sheet saves its ink and closes first.
+    var onOpenMeal: ((JournalEntry) -> Void)?
+    /// Starts logging a meal on the day; the sheet saves its ink and closes first.
+    var onAddMeal: ((DayKey) -> Void)?
     let onClose: () -> Void
 
     @Environment(FoodStore.self) private var store
@@ -131,15 +136,21 @@ struct WriteDaySheet: View {
                 }
             }
 
-            SheetLabel(title: "Actual size on the calendar").padding(.top, 20).padding(.bottom, 8)
-            DayPageView(
-                day: day,
-                numberColor: day == today ? Theme.accent : Theme.ink,
-                image: editor.map { $0.drawing.pageImage(scale: 1, displayScale: displayScale) }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 2))
-            .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.line))
-            .shadow(color: FoodStyle.shadow.opacity(0.18), radius: 7, y: 6)
+            HStack(alignment: .top, spacing: 22) {
+                VStack(alignment: .leading, spacing: 8) {
+                    SheetLabel(title: onOpenMeal == nil ? "Actual size on the calendar" : "Actual size")
+                    DayPageView(
+                        day: day,
+                        numberColor: day == today ? Theme.accent : Theme.ink,
+                        image: editor.map { $0.drawing.pageImage(scale: 1, displayScale: displayScale) }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                    .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.line))
+                    .shadow(color: FoodStyle.shadow.opacity(0.18), radius: 7, y: 6)
+                }
+                if onOpenMeal != nil { meals }
+            }
+            .padding(.top, 20)
 
             SheetLabel(title: "Pen", note: store.isErasing ? "Eraser" : store.ink.name).padding(.top, 20).padding(.bottom, 10)
             InkPalette(selected: store.isErasing ? nil : store.ink, size: 32, spacing: 12) { ink in
@@ -180,6 +191,44 @@ struct WriteDaySheet: View {
         .frame(height: stageSize.height)
     }
 
+    /// The day's meals as thumbnails to open, and a tile to log one more.
+    private var meals: some View {
+        let entries = store.entries(on: day)
+        return VStack(alignment: .leading, spacing: 8) {
+            SheetLabel(title: "Meals", note: entries.isEmpty ? nil : "· tap to fix")
+            FlowLayout(spacing: 8) {
+                ForEach(entries) { entry in
+                    Button { leave { onOpenMeal?(entry) } } label: {
+                        MealThumbnail(entry: entry, size: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(entry.slot): \(entry.title)")
+                }
+                if onAddMeal != nil, day <= today {
+                    Button { leave { onAddMeal?(day) } } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(Theme.muted)
+                            .frame(width: 44, height: 44)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .strokeBorder(Theme.muted.opacity(0.55), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                            }
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Log a meal on this day")
+                }
+            }
+            if entries.isEmpty {
+                Text(day <= today ? "Nothing logged yet." : "Nothing logged.")
+                    .font(.body(13, weight: 600))
+                    .foregroundStyle(Theme.muted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var subtitle: String {
         if day == today { return "Writing on today's page" }
         let weekday = day.startDate(in: store.calendar).formatted(.dateTime.weekday(.wide))
@@ -209,8 +258,21 @@ struct WriteDaySheet: View {
 
     /// Ink is saved on any close: there is Undo for mistakes, and nothing is lost by accident.
     private func close() {
-        if let editor, editor.hasChanges { store.savePage(editor.drawing, for: day) }
+        saveInk()
         onClose()
+    }
+
+    /// Saves the ink, then hands over to a meal sheet (which replaces this one, so two
+    /// editors never hold the same page).
+    private func leave(then next: () -> Void) {
+        saveInk()
+        next()
+    }
+
+    private func saveInk() {
+        guard let editor, editor.hasChanges else { return }
+        store.savePage(editor.drawing, for: day)
+        editor.markSaved()
     }
 }
 

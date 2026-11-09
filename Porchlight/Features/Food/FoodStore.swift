@@ -198,14 +198,14 @@ final class FoodStore {
 
     // MARK: Edits
 
-    /// Saves the photo (off the main actor), then the meal and the day's page together.
-    func addMeal(_ draft: MealDraft, photo: UIImage?, page: PKDrawing?) async throws -> JournalEntry {
+    /// Saves the photo (off the main actor), then the meal.
+    func addMeal(_ draft: MealDraft, photo: UIImage?) async throws -> JournalEntry {
         guard let journalId = journal?.id else { throw FoodError.noJournal }
         let photos = photos
         let stored = try await Task.detached(priority: .userInitiated) {
             try photo.map { try photos.save($0) }
         }.value
-        return try database.addMeal(draft, journalId: journalId, photo: stored, page: page?.dataRepresentation(), photos: photos)
+        return try database.addMeal(draft, journalId: journalId, photo: stored, photos: photos)
     }
 
     /// Saves edits to a logged meal. Returns false, with `lastError` set, when they are rejected.

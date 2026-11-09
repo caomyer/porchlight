@@ -107,8 +107,10 @@ struct Polaroid: View {
     var captionSize: CGFloat = 16
     var plate: CGFloat = 0.51
     var badgeSize: CGFloat = 22
-    /// How many more meals share this slot ("+1").
+    /// How many more meals share this slot; they peek out behind.
     var extra = 0
+    /// The corner badge; "+1" for `extra` by default, e.g. "2/3" in a swipeable stack.
+    var badge: String?
 
     @Environment(FoodStore.self) private var store
 
@@ -156,7 +158,7 @@ struct Polaroid: View {
         }
         .overlay(alignment: .bottomTrailing) {
             if extra > 0 {
-                Text("+\(extra)")
+                Text(badge ?? "+\(extra)")
                     .font(.body(10, weight: 800))
                     .foregroundStyle(Theme.surface)
                     .padding(.horizontal, 5)
@@ -168,6 +170,86 @@ struct Polaroid: View {
         .rotationEffect(.degrees(rotation))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(extra > 0 ? "\(entry.slot): \(entry.title) and \(extra) more" : "\(entry.slot): \(entry.title)")
+    }
+}
+
+/// A slot's dishes as a stack of polaroids: swipe sideways to bring the next dish to the
+/// top (it wraps around), tap to open the one on top. One dish is a plain button.
+struct PolaroidStack: View {
+    let entries: [JournalEntry]
+    var rotation: Double = 0
+    var emojiSize: CGFloat = 38
+    var captionSize: CGFloat = 16
+    let onOpen: (JournalEntry) -> Void
+
+    @State private var index = 0
+    @State private var drag: CGFloat = 0
+    /// -1 when the last swipe went left, 1 when right; the outgoing card leaves that way.
+    @State private var direction: CGFloat = -1
+
+    /// How far a swipe must travel to change dishes.
+    static let threshold: CGFloat = 36
+
+    var body: some View {
+        let current = entries[min(index, entries.count - 1)]
+        if entries.count == 1 {
+            Button { onOpen(current) } label: { card(current) }
+                .buttonStyle(.plain)
+        } else {
+            card(current)
+                .id(current.id)
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.9)),
+                    removal: .opacity.combined(with: .offset(x: direction * 70)).combined(with: .scale(scale: 0.96))
+                ))
+                .offset(x: drag * 0.55)
+                .rotationEffect(.degrees(Double(drag) / 14))
+                .contentShape(Rectangle())
+                .onTapGesture { onOpen(current) }
+                .gesture(
+                    DragGesture(minimumDistance: 12)
+                        .onChanged { drag = $0.translation.width }
+                        .onEnded { value in
+                            let travel = value.predictedEndTranslation.width
+                            if abs(value.translation.width) > Self.threshold || abs(travel) > Self.threshold * 3 {
+                                step(travel < 0 ? 1 : -1)
+                            } else {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { drag = 0 }
+                            }
+                        }
+                )
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Swipe left or right for the other dishes")
+                .accessibilityAction { onOpen(current) }
+                .accessibilityAdjustableAction { change in
+                    switch change {
+                    case .increment: step(1)
+                    case .decrement: step(-1)
+                    @unknown default: break
+                    }
+                }
+        }
+    }
+
+    private func card(_ entry: JournalEntry) -> some View {
+        Polaroid(
+            entry: entry,
+            rotation: rotation,
+            emojiSize: emojiSize,
+            captionSize: captionSize,
+            extra: entries.count - 1,
+            badge: entries.count > 1 ? "\(min(index, entries.count - 1) + 1)/\(entries.count)" : nil
+        )
+    }
+
+    /// Brings the next (1) or previous (-1) dish to the top.
+    private func step(_ offset: Int) {
+        direction = offset > 0 ? -1 : 1
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            index = (index + offset + entries.count) % entries.count
+            drag = 0
+        }
     }
 }
 

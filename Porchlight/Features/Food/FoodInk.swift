@@ -25,11 +25,6 @@ extension PKDrawing {
         transformed(using: viewport.toPage)
     }
 
-    /// The page-space bounds of each stroke.
-    var strokeBounds: [CGRect] {
-        strokes.map(\.renderBounds)
-    }
-
     /// The page rendered at `scale` view points per page point, for the month and minis.
     ///
     /// Strokes are drawn with Core Graphics from their sampled points instead of

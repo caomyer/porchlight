@@ -20,7 +20,7 @@ enum FoodDebugPhoto {
             eaterIds: store.people.compactMap(\.id),
             eatenAt: now
         )
-        _ = try? await store.addMeal(draft, photo: image(), page: nil)
+        _ = try? await store.addMeal(draft, photo: image())
     }
 
     /// A 1600 x 1200 "photo": warm tablecloth, a plate and a bowl.

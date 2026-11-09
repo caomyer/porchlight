@@ -98,12 +98,9 @@ private struct PolaroidGrid: View {
     @ViewBuilder
     private func cell(day: DayKey, slot: String, rotation: Double, width: CGFloat) -> some View {
         let entries = store.entries(on: day, slot: slot)
-        if let entry = entries.first {
-            Button { onOpen(entry) } label: {
-                Polaroid(entry: entry, rotation: rotation, emojiSize: width * 0.44, captionSize: width < 70 ? 14 : 16, extra: entries.count - 1)
-            }
-            .buttonStyle(.plain)
-            .frame(width: width)
+        if !entries.isEmpty {
+            PolaroidStack(entries: entries, rotation: rotation, emojiSize: width * 0.44, captionSize: width < 70 ? 14 : 16, onOpen: onOpen)
+                .frame(width: width)
         } else if day <= today {
             Button { onSnap(day, slot) } label: {
                 EmptyPolaroid(label: day == today ? "snap \(slot.lowercased())" : "not logged")

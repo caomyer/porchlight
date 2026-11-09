@@ -91,7 +91,7 @@ struct FoodScreen: View {
             let month = monthDate(today: today)
             let name = month.formatted(.dateTime.month(.wide))
             let sameYear = store.calendar.isDate(month, equalTo: today.startDate(in: store.calendar), toGranularity: .year)
-            return (sameYear ? name : month.formatted(.dateTime.month(.wide).year())) + " · tap a day to write"
+            return (sameYear ? name : month.formatted(.dateTime.month(.wide).year())) + " · tap a day to write or fix its meals"
         }
     }
 
@@ -133,7 +133,18 @@ struct FoodScreen: View {
     @ViewBuilder
     private func overlays(today: DayKey) -> some View {
         if let day = writingDay {
-            WriteDaySheet(day: day, today: today) {
+            WriteDaySheet(
+                day: day,
+                today: today,
+                onOpenMeal: { entry in
+                    writingDay = nil
+                    openEntry = entry
+                },
+                onAddMeal: { day in
+                    writingDay = nil
+                    capture = CaptureRequest(day: day)
+                }
+            ) {
                 withAnimation(.easeInOut(duration: 0.2)) { writingDay = nil }
             }
             .transition(.opacity)

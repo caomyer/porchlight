@@ -152,4 +152,49 @@ final class FoodMealsTests: XCTestCase {
         XCTAssertTrue(app.textFields["What was it? e.g. Dan dan noodles"].waitForExistence(timeout: 5), "Adding another should open the capture form")
         XCTAssertTrue(app.staticTexts["Breakfast"].exists, "The capture form should be for breakfast")
     }
+
+    /// Swiping a two-dish cell in the week brings the other dish to the top; tapping opens it.
+    func testSwipingBetweenDishesInTheWeek() {
+        let app = launch(["-startScreen", "food"])
+        let stack = app.descendants(matching: .any)["Dinner: Sushi night and 1 more"]
+        XCTAssertTrue(stack.waitForExistence(timeout: 20))
+        stack.swipeLeft()
+        let next = app.descendants(matching: .any)["Dinner: Mochi and 1 more"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5), "Swiping should bring the other dish to the top")
+        snapshot("40-week-swiped")
+        next.swipeRight()
+        XCTAssertTrue(stack.waitForExistence(timeout: 5), "Swiping back should return to the first dish")
+        stack.swipeLeft()
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        next.tap()
+        XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 5), "Tapping should open the dish on top")
+        XCTAssertTrue(app.staticTexts["Mochi"].exists)
+    }
+
+    /// The month's day sheet lists the day's meals; one tap opens the same meal sheet as the week.
+    func testOpeningAMealFromTheMonth() {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "write"])
+        let meal = app.buttons["Breakfast: Avocado toast"]
+        XCTAssertTrue(meal.waitForExistence(timeout: 20), "The day sheet should list the day's meals")
+        snapshot("41-month-day-meals")
+        meal.tap()
+        XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 5), "A meal from the month should open its sheet")
+        XCTAssertTrue(app.staticTexts["Avocado toast"].exists)
+        XCTAssertFalse(app.staticTexts["Writing on today's page"].exists, "The day sheet should give way to the meal")
+        snapshot("42-month-meal-opened")
+    }
+
+    /// Notes go on the day's one shared page, opened from the capture form.
+    func testWritingDayNotesFromTheCaptureForm() {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
+        let write = app.buttons["Write on today's page"]
+        XCTAssertTrue(write.waitForExistence(timeout: 20), "The capture form should offer the day's page")
+        snapshot("43-capture-day-notes")
+        write.tap()
+        XCTAssertTrue(app.staticTexts["Writing on today's page"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Log a meal on this day"].exists, "Writing from a meal keeps the meal list out of the way")
+        snapshot("44-capture-writing-notes")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.textFields["What was it? e.g. Dan dan noodles"].waitForExistence(timeout: 5), "Done should return to the meal form")
+    }
 }

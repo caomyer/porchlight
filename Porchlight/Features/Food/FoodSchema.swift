@@ -130,8 +130,6 @@ struct JournalEntry: Codable, Equatable, Identifiable, Sendable {
     /// File names inside the photo folder (see `FoodPhotoStore`).
     var photoFile: String?
     var thumbnailFile: String?
-    /// The ruled line (0-based) of the day's page that holds this entry's note, if any.
-    var noteLine: Int?
     /// When the meal was eaten; places it in the Today timeline.
     var eatenAt: Date
     var createdAt: Date
@@ -256,6 +254,11 @@ extension AppDatabase {
                 t.add(column: "placeId", .integer).references("foodPlace", onDelete: .setNull)
             }
             try db.create(index: "journalEntry_on_placeId", on: "journalEntry", columns: ["placeId"])
+        }
+        migrator.registerMigration("food v3: notes belong to the day's page, not a meal") { db in
+            try db.alter(table: "journalEntry") { t in
+                t.drop(column: "noteLine")
+            }
         }
     }
 }

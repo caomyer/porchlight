@@ -28,6 +28,11 @@ final class PageEditor {
         hasChanges = true
     }
 
+    /// The ink was saved; later changes count as new.
+    func markSaved() {
+        hasChanges = false
+    }
+
     func undo() {
         guard let previous = history.popLast() else { return }
         drawing = previous
@@ -35,8 +40,6 @@ final class PageEditor {
         revision += 1
     }
 
-    /// Strokes' page-space bounds, used to find the next free line.
-    var nextFreeLine: Int { PageGeometry.nextFreeLine(strokeBounds: drawing.strokeBounds) }
 }
 
 /// A PencilKit canvas showing part of a page through `viewport`. Strokes are converted

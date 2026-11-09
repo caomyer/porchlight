@@ -34,11 +34,6 @@ final class CaptureForm {
     var place: PlaceDraft?
     var title = ""
     var photo: UIImage?
-    /// Today's page; the note strip writes on `noteLine` of it.
-    let note: PageEditor
-    let noteLine: Int
-    /// An ink picked in this sheet; otherwise the single eater's own pen.
-    var chosenInk: PageInk?
 
     init(request: CaptureRequest, store: FoodStore, now: Date) {
         day = request.day
@@ -51,9 +46,6 @@ final class CaptureForm {
         time = request.day == store.today(now) ? .justNow : .at(MealSlot.usualTime(of: slot, on: request.day, calendar: store.calendar))
         slotWasPicked = request.slot != nil
         eaterIds = Set(store.people.compactMap(\.id))
-        let drawing = store.pageDrawing(for: request.day)
-        note = PageEditor(day: request.day, drawing: drawing)
-        noteLine = PageGeometry.nextFreeLine(strokeBounds: drawing.strokeBounds)
     }
 
     var emoji: String {
@@ -62,14 +54,6 @@ final class CaptureForm {
 
     /// The form's height; it grows to fit the restaurant field.
     var formHeight: CGFloat { source.hasPlace ? 676 : 620 }
-
-    func ink(people: [Person], fallback: PageInk) -> PageInk {
-        if let chosenInk { return chosenInk }
-        if eaterIds.count == 1, let person = people.first(where: { $0.id == eaterIds.first }) {
-            return PageInk.defaultInk(for: person.color)
-        }
-        return fallback
-    }
 
     /// The meal's day, up to now if that's today.
     func timeRange(now: Date) -> ClosedRange<Date> {
@@ -95,15 +79,14 @@ final class CaptureForm {
             title: title,
             rating: rating,
             eaterIds: Array(eaterIds),
-            noteLine: note.hasChanges ? noteLine : nil,
             eatenAt: eatenAt,
             place: source.hasPlace ? place : nil
         )
     }
 }
 
-/// The "Snap a meal" sheet: live camera (or a photo picker), the meal form, an optional
-/// Apple Pencil note on today's page, then a polaroid that develops and drops in.
+/// The "Snap a meal" sheet: live camera (or a photo picker), the meal form with a way to
+/// write on the day's shared page, then a polaroid that develops and drops in.
 struct CaptureSheet: View {
     let request: CaptureRequest
     var doneTitle = "Back to diary"
@@ -120,6 +103,8 @@ struct CaptureSheet: View {
     @State private var error: String?
     /// The restaurant field (low in the form) is being typed into.
     @State private var lowFieldFocused = false
+    /// The day's shared page is open for writing, over the form.
+    @State private var writingNotes = false
 
     var body: some View {
         ZStack {
@@ -138,6 +123,13 @@ struct CaptureSheet: View {
                 if let form {
                     sheet(form)
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    if writingNotes {
+                        WriteDaySheet(day: form.day, today: store.today()) {
+                            withAnimation(.easeInOut(duration: 0.2)) { writingNotes = false }
+                        }
+                        .transition(.opacity)
+                        .zIndex(1)
+                    }
                 }
             }
         }
@@ -160,7 +152,7 @@ struct CaptureSheet: View {
                 Task { await save(form) }
             }
             .frame(width: 370, height: form.formHeight)
-            CaptureFormView(form: form, isSaving: isSaving, error: error) {
+            CaptureFormView(form: form, isSaving: isSaving, error: error, onWriteNotes: { writingNotes = true }) {
                 Task { await save(form) }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -193,8 +185,7 @@ struct CaptureSheet: View {
         do {
             let entry = try await store.addMeal(
                 form.draft(now: now, calendar: store.calendar, today: store.today(now)),
-                photo: form.photo,
-                page: form.note.hasChanges ? form.note.drawing : nil
+                photo: form.photo
             )
             error = nil
             withAnimation(.easeInOut(duration: 0.3)) { saved = entry }
@@ -407,6 +398,7 @@ private struct CaptureFormView: View {
     @Bindable var form: CaptureForm
     let isSaving: Bool
     let error: String?
+    let onWriteNotes: () -> Void
     let onSave: () -> Void
 
     @Environment(FoodStore.self) private var store
@@ -476,10 +468,8 @@ private struct CaptureFormView: View {
                 }
             }
 
-            label("Note", note: "optional · Apple Pencil · lands on line \(form.noteLine + 1) of \(pageName)")
-            NoteStrip(form: form)
-            InkPalette(selected: form.ink(people: store.people, fallback: store.ink)) { form.chosenInk = $0 }
-                .padding(.top, 10)
+            label("Day notes", note: "optional · one page per day, shared by everyone")
+            DayNotesRow(day: form.day, pageName: pageName, onWrite: onWriteNotes)
 
             Spacer(minLength: 12)
             HStack(spacing: 8) {
@@ -565,77 +555,44 @@ struct WhoButton: View {
     }
 }
 
-/// One ruled line of the day's page, zoomed into a writing strip, with a mini page
-/// beside it that shows where the note lands.
-private struct NoteStrip: View {
-    let form: CaptureForm
+/// The day's shared page as a small paper preview, with a way to write on it.
+/// Notes belong to the day, not to a meal, so everyone writes on the same page.
+struct DayNotesRow: View {
+    let day: DayKey
+    /// e.g. "today's page".
+    let pageName: String
+    let onWrite: () -> Void
 
     @Environment(FoodStore.self) private var store
-    @Environment(\.displayScale) private var displayScale
 
-    static let width: CGFloat = 334
+    static let previewScale: CGFloat = 0.62
 
     var body: some View {
-        let viewport = PageViewport.strip(line: form.noteLine, width: Self.width)
-        let height = viewport.stripHeight
-        HStack(spacing: 12) {
-            ZStack(alignment: .topLeading) {
-                PagePaper(number: dayNumber, scale: viewport.scale, numberColor: Theme.accent)
-                    .frame(width: PageGeometry.size.width * viewport.scale, height: PageGeometry.size.height * viewport.scale)
-                    .offset(y: -viewport.origin.y * viewport.scale)
-                // Same Core Graphics underlay as the day editor (see FoodWriteDay).
-                Image(uiImage: form.note.drawing.pageImage(scale: viewport.scale, displayScale: displayScale))
-                    .offset(y: -viewport.origin.y * viewport.scale)
-                PageCanvas(
-                    editor: form.note,
-                    revision: form.note.revision,
-                    viewport: viewport,
-                    ink: form.ink(people: store.people, fallback: store.ink),
-                    tip: store.tip,
-                    isErasing: false,
-                    allowsFinger: store.allowsFingerDrawing
-                )
-                .frame(width: Self.width, height: height)
+        let hasInk = store.snapshot.pages[day.rawValue] != nil
+        HStack(spacing: 16) {
+            Button(action: onWrite) {
+                DayPageView(day: day, scale: Self.previewScale, numberColor: day == store.today() ? Theme.accent : Theme.ink)
+                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                    .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.line))
+                    .shadow(color: FoodStyle.shadow.opacity(0.22), radius: 6, y: 5)
+                    .rotationEffect(.degrees(-1.5))
             }
-            .frame(width: Self.width, height: height, alignment: .topLeading)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Theme.line))
-            .overlay(alignment: .topTrailing) {
-                if form.note.canUndo {
-                    Button { form.note.undo() } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Theme.muted)
-                            .frame(width: 26, height: 26)
-                            .background(Theme.surface2, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(4)
-                    .accessibilityLabel("Undo note")
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open \(pageName)")
+            VStack(alignment: .leading, spacing: 10) {
+                Text(hasInk ? "Anyone can add to \(pageName)." : "Nothing written on \(pageName) yet.")
+                    .font(.body(14, weight: 600))
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(action: onWrite) {
+                    Label("Write on \(pageName)", systemImage: "pencil.and.scribble")
+                        .font(.body(14, weight: 700))
                 }
+                .buttonStyle(SecondaryButtonStyle())
             }
-
-            DayPageView(
-                day: form.day,
-                scale: 0.5,
-                numberColor: Theme.accent,
-                image: form.note.drawing.pageImage(scale: 0.5, displayScale: displayScale)
-            )
-            .overlay(alignment: .topLeading) {
-                let line = PageGeometry.lineRect(form.noteLine)
-                Rectangle()
-                    .fill(Theme.accent.opacity(0.22))
-                    .overlay(Rectangle().stroke(Theme.accent, lineWidth: 1.5))
-                    .frame(width: line.width * 0.5, height: line.height * 0.5)
-                    .offset(y: line.minY * 0.5)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 2))
-            .shadow(color: FoodStyle.shadow.opacity(0.25), radius: 6, y: 5)
-            .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.line))
+            Spacer(minLength: 0)
         }
     }
-
-    private var dayNumber: String { String(Int(form.day.rawValue.suffix(2)) ?? 0) }
 }
 
 // MARK: - Saved
@@ -706,7 +663,6 @@ private struct SavedOverlay: View {
         case .delivery: place.map { "\(slot.prefix(1).uppercased() + slot.dropFirst()) delivered from \($0)" } ?? "Delivered \(slot)"
         case .dineOut: place.map { "\(slot.prefix(1).uppercased() + slot.dropFirst()) out at \($0)" } ?? "\(slot.prefix(1).uppercased() + slot.dropFirst()) out"
         }
-        let note = entry.noteLine != nil ? ", plus a handwritten note" : ""
-        return "\(what) \(who)\(note). It's on the calendar now, next to the rest of your day."
+        return "\(what) \(who). It's on the calendar now, next to the rest of your day."
     }
 }

@@ -2,16 +2,16 @@ import CoreGraphics
 import SwiftUI
 import UIKit
 
-/// The one handwritten page every day has. Ink is stored in these canonical page
-/// coordinates (points at 1x), so the month cell, the zoomed day editor and the meal
-/// note strip are all the same page at different scales: nothing ever reflows.
+/// The one handwritten page every day has, shared by everyone in the household. Ink is
+/// stored in these canonical page coordinates (points at 1x), so the month cell, the
+/// zoomed day editor and the previews are all the same page at different scales:
+/// nothing ever reflows.
 enum PageGeometry {
     static let size = CGSize(width: 139, height: 137)
     static var bounds: CGRect { CGRect(origin: .zero, size: size) }
     /// The date row sits above the first ruled line.
     static let firstLineTop: CGFloat = 28
     static let lineHeight: CGFloat = 22
-    static let lineCount = 5
     /// Left inset of the day number.
     static let margin: CGFloat = 9
 
@@ -20,19 +20,6 @@ enum PageGeometry {
         CGRect(x: 0, y: firstLineTop + CGFloat(index) * lineHeight, width: size.width, height: lineHeight)
     }
 
-    /// The writing line containing page point `y`, clamped to the ruled lines.
-    static func lineIndex(forY y: CGFloat) -> Int {
-        let raw = Int(((y - firstLineTop) / lineHeight).rounded(.down))
-        return min(max(raw, 0), lineCount - 1)
-    }
-
-    /// The first line with no ink on it, given the page-space bounds of each stroke.
-    /// A stroke belongs to the line holding its vertical center. When every line is
-    /// used, the last line is returned so a note can still be added.
-    static func nextFreeLine(strokeBounds: [CGRect]) -> Int {
-        let used = Set(strokeBounds.filter { !$0.isNull && !$0.isInfinite }.map { lineIndex(forY: $0.midY) })
-        return (0..<lineCount).first { !used.contains($0) } ?? lineCount - 1
-    }
 }
 
 /// How a piece of the page is shown on screen: page point `origin` lands at the
@@ -68,13 +55,6 @@ struct PageViewport: Equatable, Sendable {
         return max(scale, 0.1)
     }
 
-    /// One ruled line stretched across a strip `width` points wide (the meal note pad).
-    static func strip(line: Int, width: CGFloat) -> PageViewport {
-        PageViewport(scale: width / PageGeometry.size.width, origin: CGPoint(x: 0, y: PageGeometry.lineRect(line).minY))
-    }
-
-    /// The view height that shows exactly one ruled line in a strip.
-    var stripHeight: CGFloat { PageGeometry.lineHeight * scale }
 }
 
 // MARK: - Pens
