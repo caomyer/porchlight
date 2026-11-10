@@ -28,6 +28,17 @@ struct FoodScreen: View {
                 overlays(today: today)
             }
         }
+        // A meal opens over the whole wall, as from Today or the calendar.
+        .wallCover(item: $openEntry) { entry in
+            if let live = store.snapshot.entries.first(where: { $0.id == entry.id }) {
+                MealDetailSheet(entry: live, onAddAnother: { day, slot in
+                    CompanionCover.instantly { openEntry = nil }
+                    capture = CaptureRequest(day: day, slot: slot)
+                }) {
+                    CompanionCover.instantly { openEntry = nil }
+                }
+            }
+        }
         .onAppear(perform: applyDebugLaunch)
         #if DEBUG
         .task { await FoodDebugPhoto.injectIfRequested(into: store) }
@@ -157,16 +168,6 @@ struct FoodScreen: View {
             .id(request.id)
             .transition(.opacity)
             .zIndex(2)
-        }
-        if let entry = openEntry {
-            MealDetailSheet(entry: entry, onAddAnother: { day, slot in
-                openEntry = nil
-                capture = CaptureRequest(day: day, slot: slot)
-            }) {
-                withAnimation(.easeInOut(duration: 0.2)) { openEntry = nil }
-            }
-            .id(entry.id)
-            .zIndex(3)
         }
     }
 

@@ -147,6 +147,22 @@ struct WallSheet<Content: View>: View {
 
     /// A field low in the sheet is being typed into (`needsRoomAboveKeyboard`).
     @State private var lowFieldFocused = false
+    /// The sheet's area on screen, and the card's height.
+    @State private var area: CGRect?
+    @State private var cardHeight: CGFloat = 0
+
+    /// The card's top never goes above this, in screen points.
+    private var topMargin: CGFloat { 24 }
+
+    /// When the keyboard opens, the wall's content can be pushed up as a whole, and a tall
+    /// sheet centered in it would lose its top. A sheet that stays put gets its top back on
+    /// screen; it still rises as far as it can, so more of it shows above the keyboard.
+    /// While a low field is typed into, that field matters more than the top.
+    private var topOffset: CGFloat {
+        guard staysAboveKeyboard, !lowFieldFocused, let area, cardHeight > 0 else { return 0 }
+        let top = area.midY - cardHeight / 2
+        return max(0, topMargin - top)
+    }
 
     var body: some View {
         ZStack {
@@ -169,6 +185,18 @@ struct WallSheet<Content: View>: View {
                     .padding(18)
                     .accessibilityLabel("Close")
                 }
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.onChange(of: proxy.size.height, initial: true) { _, height in cardHeight = height }
+                    }
+                }
+                .offset(y: topOffset)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            GeometryReader { proxy in
+                Color.clear.onChange(of: proxy.frame(in: .global), initial: true) { _, frame in area = frame }
+            }
         }
         .onPreferenceChange(KeyboardAvoidanceKey.self) { lowFieldFocused = $0 }
         .ignoresSafeArea(staysAboveKeyboard && !lowFieldFocused ? .keyboard : [])

@@ -52,9 +52,23 @@ enum HomeSamples {
             (RewardDraft(title: "Spa afternoon", emoji: "💆", targetStars: 80, ownerId: second), today.adding(days: -11, calendar: calendar)),
             (RewardDraft(title: "Date night fund", emoji: "🍷", targetStars: 250, ownerId: nil), today.adding(days: -20, calendar: calendar)),
         ]
+        var coffeeRun: Reward?
         for (draft, startDay) in rewards {
             let reward = try database.saveReward(draft, householdId: householdId, today: today)
             try database.restartReward(id: reward.id!, from: startDay)
+            if draft.targetStars == 20 { coffeeRun = reward }
+        }
+        // The coffee run should be reached, ready to cash in. How many stars the last few
+        // days hold depends on the hour (today's walks are only seeded once they are past),
+        // so start it on the latest day that still gets there.
+        if let coffeeRun, let id = coffeeRun.id {
+            for daysAgo in 4...20 {
+                let startDay = today.adding(days: -daysAgo, calendar: calendar)
+                try database.restartReward(id: id, from: startDay)
+                let snapshot = try database.homeSnapshot(since: startDay)
+                guard let reward = snapshot.rewards.first(where: { $0.id == id }) else { break }
+                if RewardProgress.earned(for: reward, earnings: snapshot.earnings) >= reward.targetStars { break }
+            }
         }
         // A treat already enjoyed last week, for the Glow page's "Lately".
         let treat = try database.saveReward(

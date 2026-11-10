@@ -42,7 +42,7 @@ final class MealPhotosTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["3 photos ready. Fill in anything else, then Save."].exists)
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Saved to'")).firstMatch.exists,
                        "Taking photos must not save the meal")
-        snapshot("60-capture-three-shots")
+        snapshot("45-capture-three-shots")
 
         app.buttons["Remove photo 2"].tap()
         XCTAssertTrue(photo(app, 2).waitForNonExistence(timeout: 5), "Removing a shot leaves two")
@@ -51,7 +51,7 @@ final class MealPhotosTests: XCTestCase {
         // Closing would lose the photos, so it asks first.
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Discard 2 photos?"].waitForExistence(timeout: 5), "Closing with unsaved photos should ask")
-        snapshot("61-discard-prompt")
+        snapshot("46-discard-prompt")
         app.buttons["Keep editing"].tap()
         XCTAssertTrue(app.staticTexts["Discard 2 photos?"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(photo(app, 1).exists, "Keeping on editing keeps the photos")
@@ -60,12 +60,14 @@ final class MealPhotosTests: XCTestCase {
         dish.tap()
         dish.typeText("Sunday roast\n")
         app.buttons.matching(NSPredicate(format: "label ENDSWITH 'Company'")).firstMatch.tap()
+        // The guessed slot depends on the hour, and in the morning today's sample breakfast
+        // would stack on top. Today's dinner is always empty in the samples.
+        app.buttons["🌙 Dinner"].tap()
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Saved to'")).firstMatch.waitForExistence(timeout: 10))
-        // The slot is guessed from the time the test runs; the dish and its photos are not.
-        let polaroid = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ": Sunday roast, 2 photos")).firstMatch
+        let polaroid = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Dinner: Sunday roast, 2 photos")).firstMatch
         XCTAssertTrue(polaroid.exists, "The saved polaroid should show the meal and its two photos")
-        snapshot("62-saved-with-photos")
+        snapshot("47-saved-with-photos")
     }
 
     /// A saved meal pages through its photos, and Edit removes one only once saved.
@@ -83,13 +85,13 @@ final class MealPhotosTests: XCTestCase {
         let second = expectation(for: NSPredicate(format: "label == 'Avocado toast, photo 2 of 2'"), evaluatedWith: pager)
         wait(for: [second], timeout: 5)
         XCTAssertTrue(app.buttons["Add photo"].exists, "A saved meal can get more photos")
-        snapshot("63-detail-paging")
+        snapshot("48-detail-paging")
 
         app.buttons["Edit"].tap()
         XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5), "Edit shows the photos")
         app.buttons["Remove photo 2"].tap()
         XCTAssertTrue(photo(app, 1).waitForNonExistence(timeout: 5))
-        snapshot("64-edit-photos")
+        snapshot("49-edit-photos")
         app.buttons["Cancel"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["meal-pager"].label.hasSuffix("of 2"), "Cancel keeps both photos")
 
