@@ -1,0 +1,584 @@
+<title>Meal Photos Proposal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+/* Layout: a single reading column of decisions, with full-width iPad mock frames drawn at the wall's real 1112 x 834 pt and scaled to fit. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --good: #5B9F72;
+  --blue: #4C7BB0;
+  --coral: #DD7558;
+  --dim: rgba(20, 15, 10, 0.38);
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+.page { max-width: 1040px; margin: 0 auto; display: grid; gap: 56px; }
+.prose { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(34px, 5vw, 52px); line-height: 1.05; }
+h2 { font-size: 30px; line-height: 1.15; }
+h3 { font-size: 20px; line-height: 1.25; }
+p { margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 19px; color: var(--ink); }
+.muted { color: var(--muted); }
+section { display: grid; gap: 20px; }
+.stack { display: grid; gap: 12px; }
+header.top { display: grid; gap: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); }
+
+/* Problem / decision cards */
+.pairs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.pair { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.pair .was { font-size: 14px; color: var(--muted); }
+.pair .was b { color: var(--ink); font-weight: 700; }
+.pair .now { font-size: 15.5px; }
+.pair .now::before { content: "Proposed  "; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: var(--accent); }
+
+/* The two vocabularies legend */
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.legend .item { display: flex; gap: 18px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; min-width: 0; }
+.legend .item > div:last-child { min-width: 0; display: grid; gap: 4px; }
+
+/* Polaroid primitives (shared by mocks and legend) */
+.pol { position: relative; background: #fff; padding: 7px 7px 0; box-shadow: 0 2px 6px rgba(70,45,20,.12), 0 8px 18px rgba(70,45,20,.08); width: var(--w, 110px); flex: none; }
+.pol .shot { aspect-ratio: 1; display: grid; place-items: center; position: relative; overflow: hidden; font-size: calc(var(--w, 110px) * 0.36); }
+.pol .cap { font-family: var(--hand); font-size: calc(var(--w, 110px) * 0.16); text-align: center; line-height: 1.6; padding-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.pol .who { position: absolute; top: -8px; left: -8px; width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 0 0 2px #fff; z-index: 2; }
+.corner { position: absolute; inset: 0; background: #fff; box-shadow: 0 2px 6px rgba(70,45,20,.12); }
+.corner.c1 { transform: translate(6px, -5px) rotate(4deg); }
+.corner.c2 { transform: translate(11px, -9px) rotate(8deg); }
+.dishbadge { position: absolute; top: -9px; right: -9px; background: var(--ink); color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 7px; z-index: 3; }
+.photochip { position: absolute; left: 6px; bottom: 6px; display: inline-flex; align-items: center; gap: 3px; background: rgba(20,15,10,.62); color: #fff; font: 700 10px/1 var(--body); padding: 4px 6px 4px 5px; border-radius: 999px; }
+.photochip svg { width: 10px; height: 10px; }
+
+/* Food "photos": warm table-top light so they read as real shots, unlike the pastel illustrations */
+.ph1 { background: radial-gradient(circle at 50% 46%, #fff8ee 0 27%, #e9dccb 28% 31%, transparent 32%), linear-gradient(140deg, #6d4a32, #3d2a1e); }
+.ph2 { background: radial-gradient(circle at 46% 52%, #f5efe6 0 29%, #d9cbb6 30% 33%, transparent 34%), linear-gradient(200deg, #8a6a4a, #4a3424); }
+.ph3 { background: radial-gradient(circle at 54% 48%, #fdfbf7 0 25%, #d3c6b4 26% 29%, transparent 30%), linear-gradient(120deg, #5a6b55, #2f3a2c); }
+.ph4 { background: radial-gradient(circle at 50% 50%, #f7f1e8 0 30%, #ccb89d 31% 34%, transparent 35%), linear-gradient(170deg, #9b5d3c, #522f1e); }
+.ph5 { background: radial-gradient(circle at 48% 50%, #faf6ef 0 26%, #c9bfb0 27% 30%, transparent 31%), linear-gradient(150deg, #444f63, #232a38); }
+.ph6 { background: radial-gradient(circle at 52% 47%, #fffaf2 0 28%, #e2d3bd 29% 32%, transparent 33%), linear-gradient(110deg, #7c6a4d, #3e3424); }
+.ill { background: #f2e0c2; }
+.ill.b { background: #d8e6d3; } .ill.c { background: #f4cdbf; } .ill.d { background: #dde3ef; }
+.shot .e { filter: drop-shadow(0 6px 6px rgba(0,0,0,.35)); }
+.ill .e { filter: none; }
+
+/* iPad mock frame: drawn at 1112 x 834 and scaled */
+.device { position: relative; width: 100%; aspect-ratio: 1112 / 834; border-radius: 22px; background: #1c1814; padding: 0; box-shadow: 0 20px 50px rgba(60,40,20,.18); overflow: hidden; }
+.device .screen { position: absolute; left: 0; top: 0; width: 1112px; height: 834px; transform-origin: 0 0; background: var(--paper); overflow: hidden; font-size: 14px; line-height: 1.35; }
+.figcap { font-size: 14px; color: var(--muted); max-width: 72ch; }
+
+/* Wall chrome inside mocks */
+.rail { position: absolute; left: 0; top: 0; bottom: 0; width: 84px; background: #EDE4D4; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 22px; }
+.rail i { width: 34px; height: 34px; border-radius: 10px; background: #e2d7c4; display: block; }
+.rail i.on { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.wallbg { position: absolute; left: 84px; right: 0; top: 0; bottom: 0; padding: 24px; display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
+.wallbg .card { background: var(--surface); border-radius: 20px; box-shadow: 0 2px 10px rgba(70,45,20,.06); }
+.dimmer { position: absolute; inset: 0; background: var(--dim); }
+
+/* Sheets */
+.sheet { position: absolute; background: var(--surface); border-radius: 28px; box-shadow: 0 30px 60px rgba(40,25,10,.28); }
+.x { position: absolute; top: 18px; right: 18px; width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; color: var(--muted); font-weight: 800; }
+.lab { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); margin: 14px 0 7px; display: flex; gap: 8px; align-items: baseline; }
+.lab small { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { background: var(--surface2); border-radius: 999px; padding: 8px 15px; font-weight: 700; font-size: 14.5px; white-space: nowrap; }
+.pill.on { background: var(--ink); color: #fff; }
+.field { background: var(--surface2); border-radius: 12px; padding: 12px 14px; font-weight: 600; font-size: 17px; display: flex; gap: 10px; align-items: center; }
+.field.empty { color: var(--muted); }
+.btn { border-radius: 999px; padding: 13px 22px; font-weight: 800; font-size: 15.5px; display: inline-flex; gap: 8px; align-items: center; border: 0; cursor: pointer; font-family: var(--body); }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.secondary { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.btn:focus-visible, .stepbtn:focus-visible, .vf button:focus-visible, .tray button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.who-av { width: 52px; height: 52px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 20px; box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--sel, transparent); }
+
+/* Viewfinder */
+.vf { position: absolute; border-radius: 22px; overflow: hidden; background: #2b241e; }
+.vf .live { position: absolute; inset: 0; background: radial-gradient(circle at 50% 42%, #f3eadf 0 24%, #cdbda7 25% 28%, transparent 29%), linear-gradient(160deg, #6b4c35, #2f2119); display: grid; place-items: center; font-size: 120px; }
+.vf .live .e { margin-top: -70px; filter: drop-shadow(0 10px 10px rgba(0,0,0,.4)); }
+.vf .bracket { position: absolute; inset: 70px 46px 230px; border: 3px solid rgba(255,255,255,.75); border-radius: 18px; clip-path: polygon(0 0, 22% 0, 22% 3px, 78% 3px, 78% 0, 100% 0, 100% 22%, calc(100% - 3px) 22%, calc(100% - 3px) 78%, 100% 78%, 100% 100%, 78% 100%, 78% calc(100% - 3px), 22% calc(100% - 3px), 22% 100%, 0 100%, 0 78%, 3px 78%, 3px 22%, 0 22%); }
+.vf .hint { position: absolute; left: 0; right: 0; top: 20px; text-align: center; color: #fff; font-weight: 700; font-size: 14px; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.vf .controls { position: absolute; left: 0; right: 0; bottom: 22px; display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+.vf .shutter { width: 84px; height: 84px; border-radius: 50%; background: rgba(255,255,255,.35); display: grid; place-items: center; border: 0; cursor: pointer; padding: 0; }
+.vf .shutter::after { content: ""; width: 70px; height: 70px; border-radius: 50%; background: #fff; transition: transform .12s; }
+.vf .shutter:active::after { transform: scale(.9); }
+.vf .round { width: 52px; height: 52px; border-radius: 14px; background: rgba(255,255,255,.18); border: 0; color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.vf .round svg { width: 24px; height: 24px; }
+.vf .round.lib { border-radius: 12px; background: rgba(255,255,255,.9); color: var(--ink); }
+.vf .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.vf .flash.go { animation: flash .35s ease-out; }
+@keyframes flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+
+/* Tray of taken photos under the viewfinder */
+.tray { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-top: 8px; }
+.tray .t { position: relative; width: 64px; height: 64px; border-radius: 12px; overflow: visible; flex: none; }
+.tray .t .img { position: absolute; inset: 0; border-radius: 12px; display: grid; place-items: center; font-size: 26px; overflow: hidden; }
+.tray .t.cover .img { box-shadow: 0 0 0 3px var(--accent); }
+.tray .t .tag { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.tray .t .rm { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: #fff; border: 2px solid var(--surface); font-weight: 800; font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
+.tray .t button.pick { position: absolute; inset: 0; background: transparent; border: 0; cursor: pointer; border-radius: 12px; }
+.tray .add { width: 64px; height: 64px; border-radius: 12px; border: 2px dashed #cbbda7; display: grid; place-items: center; color: var(--muted); font-size: 12px; font-weight: 700; text-align: center; line-height: 1.2; }
+.tray .count { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 4px; white-space: nowrap; }
+
+/* Step switcher */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; }
+.stepbtn { border: 0; cursor: pointer; font: 700 14px/1 var(--body); padding: 10px 14px; border-radius: 999px; background: var(--surface2); color: var(--ink); display: inline-flex; gap: 8px; align-items: center; }
+.stepbtn .n { width: 20px; height: 20px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-size: 11px; }
+.stepbtn[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.stepbtn[aria-pressed="true"] .n { background: var(--accent); }
+.stepnote { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; display: grid; gap: 4px; max-width: 80ch; }
+.stepnote b { font-family: var(--display); font-weight: 600; font-size: 18px; }
+
+/* Detail pager */
+.pager { position: absolute; background: #fff; padding: 12px 12px 0; box-shadow: 0 4px 14px rgba(70,45,20,.16); }
+.pager .shot { width: 100%; aspect-ratio: 1; display: grid; place-items: center; font-size: 110px; position: relative; overflow: hidden; }
+.pager .dots { position: absolute; bottom: 12px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; }
+.pager .dots span { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.55); }
+.pager .dots span.on { background: #fff; }
+.pager .cap { font-family: var(--hand); font-size: 30px; text-align: center; padding: 4px 0 6px; }
+.strip { position: absolute; display: flex; gap: 8px; }
+.strip .s { width: 52px; height: 52px; border-radius: 9px; display: grid; place-items: center; font-size: 22px; overflow: hidden; }
+.strip .s.on { box-shadow: 0 0 0 3px var(--ink); }
+.strip .s.add { border: 2px dashed #cbbda7; color: var(--muted); font-size: 24px; font-weight: 600; }
+
+/* Menu popover */
+.menu { position: absolute; background: var(--surface); border-radius: 14px; box-shadow: 0 12px 30px rgba(40,25,10,.22); padding: 6px; width: 230px; }
+.menu div { padding: 11px 12px; border-radius: 9px; font-weight: 600; display: flex; gap: 10px; align-items: center; }
+.menu div + div { border-top: 1px solid var(--line); border-radius: 0; }
+
+/* Aggregate gallery */
+.agg { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.aggcard { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.aggcard .demo { background: var(--paper); border-radius: 14px; padding: 26px 18px 18px; display: flex; gap: 22px; justify-content: center; align-items: flex-end; flex-wrap: wrap; min-height: 190px; }
+.aggcard .rule { font-size: 15px; }
+.aggcard .rule b { font-weight: 700; }
+
+/* Decisions table */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 15px; }
+th, td { text-align: left; padding: 13px 16px; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.rec { font-weight: 700; }
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88em; background: var(--surface2); padding: 1px 5px; border-radius: 5px; }
+ul.tight { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+
+@media (prefers-reduced-motion: reduce) { .vf .flash.go { animation: none; } * { transition: none !important; } }
+</style>
+
+<div class="page">
+
+<header class="top">
+  <div class="eyebrow">Porchlight · Food diary · Proposal for approval</div>
+  <h1>Meal photos: shoot, keep editing, add more later</h1>
+  <p class="lede prose">Today the shutter saves the meal on the spot, a saved meal can never get a photo, and the photo library only appears when there is no camera. This proposal turns photos into a tray you fill before saving and can add to any time after, with several photos per dish, while the wall keeps showing one picture per dish.</p>
+  <div class="meta"><span>iPad Pro 10.5", landscape</span><span>Mocks drawn at 1112 x 834 pt</span><span>Nov 9, 2026</span></div>
+</header>
+
+<section>
+  <div class="eyebrow">What changes</div>
+  <div class="pairs">
+    <div class="pair">
+      <p class="was"><b>Shutter saves.</b> Tapping it stores the meal with whatever the form held, so the name, eaters and rating are skipped.</p>
+      <p class="now">The shutter only takes a photo. It lands in a tray under the camera, the camera stays live for another angle, and the meal saves when you tap Save.</p>
+    </div>
+    <div class="pair">
+      <p class="was"><b>No photos after saving.</b> The meal detail and its edit form have no way to add, swap or remove a photo.</p>
+      <p class="now">The meal detail gets an Add photo tile (camera or Photos). Edit lets you remove photos and pick the cover.</p>
+    </div>
+    <div class="pair">
+      <p class="was"><b>Photos library is a fallback.</b> It shows only when the camera is missing or turned off.</p>
+      <p class="now">A Photos button sits beside the shutter at all times and picks several at once.</p>
+    </div>
+    <div class="pair">
+      <p class="was"><b>One photo per meal.</b> A second angle or the dessert plate has nowhere to go.</p>
+      <p class="now">Up to 6 photos per dish. The first is the cover; any photo can be made the cover.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">The rule that keeps the wall readable</div>
+  <h2>One dish, one polaroid. Photos live inside it.</h2>
+  <p class="prose">A meal slot can already hold several dishes, shown as paper corners behind the polaroid and swiped through sideways in the week grid. Photos must not compete with that. So every place that shows many meals at once shows each dish's cover only, with a small camera count when it has more. Paging through a dish's photos happens in one place, the meal detail, where sideways swipes have no other meaning.</p>
+  <div class="legend">
+    <div class="item">
+      <div class="pol" style="--w:92px">
+        <div class="corner c2"></div><div class="corner c1"></div>
+        <div style="position:relative;background:#fff;margin:-7px -7px 0;padding:7px 7px 0">
+          <div class="shot ill"><span class="e">🍝</span></div><div class="cap">Pesto pasta</div>
+        </div>
+        <span class="dishbadge">+2</span>
+      </div>
+      <div><h3>More dishes</h3><p class="muted">Paper corners and a +2 badge. Swipe sideways in the week grid to see the next dish. Unchanged from today.</p></div>
+    </div>
+    <div class="item">
+      <div class="pol" style="--w:92px">
+        <div class="shot ph1"><span class="e">🍝</span><span class="photochip"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 2 4.4 3.5H2.5A1.5 1.5 0 0 0 1 5v7.5A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5V5a1.5 1.5 0 0 0-1.5-1.5h-1.9L10.5 2h-5ZM8 5.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"/></svg>3</span></div>
+        <div class="cap">Pesto pasta</div>
+      </div>
+      <div><h3>More photos</h3><p class="muted">A camera chip with the count, inside the photo. Tap the dish to open it and page through. Never swiped in grids.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">The journey, step by step</div>
+  <h2>Logging a meal</h2>
+  <p class="prose muted">Click through the steps. In step 2 the mock works: tap the shutter or Photos to add shots, tap a shot to make it the cover, tap x to remove it, then Save.</p>
+  <div class="steps" role="group" aria-label="Journey steps">
+    <button class="stepbtn" data-step="1" aria-pressed="true"><span class="n">1</span>Open Snap a meal</button>
+    <button class="stepbtn" data-step="2" aria-pressed="false"><span class="n">2</span>Shoot, keep editing</button>
+    <button class="stepbtn" data-step="3" aria-pressed="false"><span class="n">3</span>Saved</button>
+    <button class="stepbtn" data-step="4" aria-pressed="false"><span class="n">4</span>Later: add a photo</button>
+    <button class="stepbtn" data-step="5" aria-pressed="false"><span class="n">5</span>Fix photos in Edit</button>
+  </div>
+  <div class="device" id="journey"><div class="screen" id="journeyScreen"></div></div>
+  <div class="stepnote" id="stepnote"></div>
+</section>
+
+<section>
+  <div class="eyebrow">Where photos fan out</div>
+  <h2>Every aggregated view, one rule each</h2>
+  <div class="agg">
+    <div class="aggcard">
+      <h3>Today's plates</h3>
+      <div class="demo">
+        <div class="pol" style="--w:104px;transform:rotate(-2deg)"><div class="who" style="background:var(--coral)">M</div><div class="shot ph3"><span class="e">🥑</span><span class="photochip"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 2 4.4 3.5H2.5A1.5 1.5 0 0 0 1 5v7.5A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5V5a1.5 1.5 0 0 0-1.5-1.5h-1.9L10.5 2h-5ZM8 5.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"/></svg>2</span></div><div class="cap">Avocado toast</div></div>
+        <div class="pol" style="--w:104px;transform:rotate(1.5deg)">
+          <div class="corner c1"></div>
+          <div style="position:relative;background:#fff;margin:-7px -7px 0;padding:7px 7px 0"><div class="shot ph4"><span class="e">🍜</span></div><div class="cap">Pho</div></div>
+          <span class="dishbadge">+1</span>
+        </div>
+      </div>
+      <p class="rule"><b>Cover of the slot's latest dish.</b> The camera chip shows that dish's photo count; corners show more dishes. Tap opens the meal detail.</p>
+    </div>
+    <div class="aggcard">
+      <h3>Week grid cell</h3>
+      <div class="demo">
+        <div class="pol" style="--w:96px">
+          <div class="corner c1"></div>
+          <div style="position:relative;background:#fff;margin:-7px -7px 0;padding:7px 7px 0"><div class="shot ph5"><span class="e">🍣</span><span class="photochip"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 2 4.4 3.5H2.5A1.5 1.5 0 0 0 1 5v7.5A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5V5a1.5 1.5 0 0 0-1.5-1.5h-1.9L10.5 2h-5ZM8 5.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"/></svg>4</span></div><div class="cap">Sushi night</div></div>
+          <span class="dishbadge">1/2</span>
+        </div>
+      </div>
+      <p class="rule"><b>Swipe still means next dish.</b> Each dish shows its cover and chip. Photos are never swiped here, so the gesture keeps one meaning.</p>
+    </div>
+    <div class="aggcard">
+      <h3>Month day</h3>
+      <div class="demo" style="gap:6px">
+        <div style="background:var(--surface);border-radius:10px;padding:8px;width:120px;display:grid;gap:6px">
+          <div style="font-weight:800;font-size:13px">12</div>
+          <div style="aspect-ratio:1;border-radius:6px" class="ph2"></div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600">3 meals · 7 photos</div>
+        </div>
+      </div>
+      <p class="rule"><b>One picture per day:</b> the cover of the day's best-rated dish, else the latest dish with a photo. The day sheet lists dishes, each with its chip.</p>
+    </div>
+    <div class="aggcard">
+      <h3>Ambient photo frame</h3>
+      <div class="demo" style="background:#2a241f">
+        <div style="width:220px;aspect-ratio:4/3;border-radius:8px;display:grid;place-items:center;font-size:56px" class="ph6"><span class="e" style="filter:drop-shadow(0 8px 8px rgba(0,0,0,.4))">🥘</span></div>
+      </div>
+      <p class="rule"><b>All photos, newest first, at most 3 per dish</b>, so a 6-angle dinner doesn't take over the slideshow. This is where extra photos pay off most.</p>
+    </div>
+    <div class="aggcard">
+      <h3>Today timeline row</h3>
+      <div class="demo" style="justify-content:flex-start;min-height:0;padding:18px">
+        <div style="display:flex;gap:12px;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;width:100%">
+          <div style="width:34px;height:34px;border-radius:8px;flex:none" class="ph3"></div>
+          <div style="min-width:0"><div style="font-weight:700">Breakfast · Avocado toast</div><div style="font-size:13px;color:var(--muted);font-weight:600">Home-cooked · 2 photos</div></div>
+        </div>
+      </div>
+      <p class="rule"><b>Cover as the thumbnail;</b> the count joins the subtitle instead of a chip, since the thumbnail is too small for one.</p>
+    </div>
+    <div class="aggcard">
+      <h3>On this day</h3>
+      <div class="demo">
+        <div class="pol" style="--w:120px;transform:rotate(2deg)"><div class="shot ph4"><span class="e">🦃</span></div><div class="cap">Practice turkey</div></div>
+      </div>
+      <p class="rule"><b>Cover only, no chip.</b> It's a keepsake card, not a place to browse. Tapping opens the detail for the rest.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Decisions to approve</div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Question</th><th>Recommendation</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Does the shutter ever save?</td><td class="rec">Never. Save is always its own tap.</td><td>The form is pre-filled (slot, eaters, home-cooked, rating), so logging stays two taps: shutter, Save. Every detail can be set first.</td></tr>
+        <tr><td>Photos per dish</td><td class="rec">Up to 6</td><td>Covers angles, the table and dessert without turning one dish into an album. Each full photo is about 1 MB on the iPad.</td></tr>
+        <tr><td>Which photo is the cover?</td><td class="rec">The first, until someone picks another</td><td>Matches how people shoot (best plate first) and needs no extra step.</td></tr>
+        <tr><td>Photos picker</td><td class="rec">Always beside the shutter, multi-select</td><td>Phones take the better food photos; AirDrop or iCloud Photos lands them on the iPad.</td></tr>
+        <tr><td>Swipe in grids</td><td class="rec">Dishes only</td><td>One gesture, one meaning. Photos page only in the meal detail.</td></tr>
+        <tr><td>Ambient frame</td><td class="rec">All photos, max 3 per dish</td><td>More variety without one meal dominating.</td></tr>
+        <tr><td>Made by options</td><td class="rec">Home-cooked, Delivery, Dine out, Company</td><td>Company covers food from work, like the office cafeteria or a catered lunch. It gets its own color in the week stats like the others.</td></tr>
+        <tr><td>Closing with unsaved photos</td><td class="rec">Ask "Discard 2 photos?"</td><td>Photos are the part that's hard to redo; an empty form closes silently as today.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">How it would be built</div>
+  <div class="prose stack">
+    <ul class="tight">
+      <li>A new <code>journalEntryPhoto</code> table (entry, file, thumbnail, order). A migration moves each meal's current <code>photoFile</code> into it as photo 1, then drops the old columns.</li>
+      <li>Photos save to disk when they enter the tray, and the meal row with its photo rows saves in one transaction on Save. Discarded tray photos are deleted at once; the existing sweep catches anything left after a crash.</li>
+      <li>Thumbnails stay the only images aggregated views load, so grids stay as fast as today.</li>
+      <li>UI tests: shoot, then fill the form and save; add a photo to a saved meal; pick from Photos; change the cover; the week grid still swipes dishes.</li>
+    </ul>
+    <p class="muted">Not in this change: video, cropping or filters, and photos on chores or companion logs.</p>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  const CAMERA = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 2 4.4 3.5H2.5A1.5 1.5 0 0 0 1 5v7.5A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5V5a1.5 1.5 0 0 0-1.5-1.5h-1.9L10.5 2h-5ZM8 5.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"/></svg>';
+  const LIB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="15" height="13" rx="2"/><path d="M7 2h12a2 2 0 0 1 2 2v12"/><path d="m4 16 4-4 3 3 2-2 5 5"/></svg>';
+  const FLIP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><path d="M9 13a3 3 0 0 1 5-2.2M15 13a3 3 0 0 1-5 2.2"/></svg>';
+  const SHOTS = [['ph1', '🍝'], ['ph3', '🥗'], ['ph5', '🍷'], ['ph2', '🍰'], ['ph6', '🥖'], ['ph4', '🍝']];
+  const MAX = 6;
+
+  let step = 1;
+  let tray = [];
+  let cover = 0;
+  let nextShot = 0;
+
+  const screen = document.getElementById('journeyScreen');
+  const note = document.getElementById('stepnote');
+
+  function fit() {
+    const frame = document.getElementById('journey');
+    screen.style.transform = 'scale(' + (frame.clientWidth / 1112) + ')';
+  }
+  new ResizeObserver(fit).observe(document.getElementById('journey'));
+
+  function wallBehind() {
+    return '<div class="rail"><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>' +
+      '<div class="wallbg"><div class="card"></div><div style="display:grid;gap:16px;grid-template-rows:1fr 1fr"><div class="card"></div><div class="card"></div></div></div>' +
+      '<div class="dimmer"></div>';
+  }
+
+  function trayHTML(interactive) {
+    let h = '<div class="tray">';
+    tray.forEach(function (s, i) {
+      h += '<div class="t' + (i === cover ? ' cover' : '') + '">' +
+        '<div class="img ' + s[0] + '"><span class="e">' + s[1] + '</span></div>' +
+        (interactive ? '<button class="pick" data-cover="' + i + '" aria-label="Make photo ' + (i + 1) + ' the cover"></button>' : '') +
+        (i === cover ? '<span class="tag">COVER</span>' : '') +
+        (interactive ? '<button class="rm" data-rm="' + i + '" aria-label="Remove photo ' + (i + 1) + '">×</button>' : '') +
+        '</div>';
+    });
+    if (tray.length === 0) {
+      h += '<div class="add" style="border-style:dashed">' + 'none yet' + '</div><span class="count">Shots you take or pick from Photos show up here.</span>';
+    } else if (tray.length < MAX) {
+      h += '<span class="count">' + tray.length + ' of ' + MAX + ' · tap one to make it the cover, × to remove</span>';
+    } else {
+      h += '<span class="count">' + MAX + ' of ' + MAX + ', the most a dish can have</span>';
+    }
+    return h + '</div>';
+  }
+
+  function formHTML(opts) {
+    const named = opts.named;
+    return '<div style="position:absolute;left:462px;top:44px;width:560px">' +
+      '<div style="font-family:var(--display);font-weight:600;font-size:30px">Dinner, probably</div>' +
+      '<div style="color:var(--muted);font-weight:600;margin-top:2px">Guessed from the time of day</div>' +
+      '<div class="field' + (named ? '' : ' empty') + '" style="margin-top:14px"><span>' + (named ? '🍝' : '🍽️') + '</span>' + (named ? 'Pesto pasta<span style="width:2px;height:20px;background:var(--accent);display:inline-block;margin-left:-6px"></span>' : 'What was it? e.g. Dan dan noodles') + '</div>' +
+      '<div class="lab">Photos <small>up to ' + MAX + '</small></div>' + trayHTML(opts.interactive) +
+      '<div class="lab">Meal</div><div class="pills" style="align-items:center"><span class="pill">🌅 Breakfast</span><span class="pill">☀️ Lunch</span><span class="pill on">🌙 Dinner</span><span style="margin-left:auto;color:var(--muted);font-weight:600">at</span><span class="pill" style="background:var(--surface2)">7:12 PM</span></div>' +
+      '<div class="lab">Made by</div><div class="pills"><span class="pill on">🏠 Home-cooked</span><span class="pill">🛵 Delivery</span><span class="pill">🍽️ Dine out</span><span class="pill">🏢 Company</span></div>' +
+      '<div class="lab">Who ate</div><div style="display:flex;gap:18px"><div class="who-av" style="background:var(--blue);--sel:var(--blue)">J</div><div class="who-av" style="background:var(--coral);--sel:var(--coral)">M</div></div>' +
+      '<div class="lab">Would eat again?</div><div class="pills"><span class="pill">😕</span><span class="pill">🙂</span><span class="pill on">😋</span><span class="pill">🤩</span></div>' +
+      '<div class="lab">Day notes <small>optional · Apple Pencil</small></div><div class="field" style="font-size:15px;color:var(--muted);background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line)">✍️ Write on today\'s page</div>' +
+      '<div style="position:absolute;left:0;right:0;top:666px;display:flex;align-items:center;gap:12px">' +
+        '<span style="color:var(--muted);font-weight:600;font-size:14px">' + opts.footnote + '</span>' +
+        '<span style="flex:1"></span>' +
+        '<button class="btn primary" ' + (opts.saveId ? 'id="' + opts.saveId + '"' : '') + '>Save</button></div>' +
+      '</div>';
+  }
+
+  function viewfinderHTML(interactive) {
+    return '<div class="vf" style="left:40px;top:40px;width:384px;height:676px">' +
+      '<div class="live"><span class="e">🍝</span></div><div class="bracket"></div>' +
+      '<div class="hint">' + (tray.length ? 'Added to Photos → · another angle?' : 'Center the plate · tap the shutter') + '</div>' +
+      '<div class="tray-shade" style="position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(transparent,rgba(20,14,10,.5))"></div>' +
+      '<div class="controls">' +
+        '<button class="round lib" ' + (interactive ? 'id="libBtn"' : '') + ' aria-label="Choose from Photos">' + LIB + '</button>' +
+        '<button class="shutter" ' + (interactive ? 'id="shutterBtn"' : '') + ' aria-label="Take photo"></button>' +
+        '<button class="round" aria-label="Switch camera">' + FLIP + '</button>' +
+      '</div><div class="flash" id="flash"></div></div>';
+  }
+
+  function captureScreen(interactive) {
+    const n = tray.length;
+    return wallBehind() +
+      '<div class="sheet" style="left:44px;top:30px;width:1024px;height:774px"><div class="x">×</div>' +
+        viewfinderHTML(interactive) +
+        formHTML({
+          interactive: interactive,
+          named: interactive && n > 0,
+          footnote: n === 0 ? 'Shoot, pick from Photos, or just write and save.' : (n === 1 ? '1 photo ready. Fill in anything else, then Save.' : n + ' photos ready. Fill in anything else, then Save.'),
+          saveId: interactive ? 'saveBtn' : ''
+        }) +
+      '</div>';
+  }
+
+  function savedScreen() {
+    const c = tray[cover] || SHOTS[0];
+    const n = Math.max(tray.length, 1);
+    return wallBehind() +
+      '<div style="position:absolute;inset:0;display:grid;place-items:center">' +
+        '<div style="display:grid;justify-items:center;gap:22px">' +
+          '<div class="pol" style="--w:300px;transform:rotate(-2deg)"><div class="who" style="background:var(--blue);width:34px;height:34px;font-size:15px">♥</div><div class="shot ' + c[0] + '"><span class="e">' + c[1] + '</span>' + (n > 1 ? '<span class="photochip" style="font-size:13px;padding:5px 8px">' + CAMERA + n + '</span>' : '') + '</div><div class="cap">Pesto pasta</div></div>' +
+          '<div style="color:#fff;font-family:var(--display);font-size:30px;font-weight:600;text-shadow:0 2px 10px rgba(0,0,0,.4)">Dinner saved</div>' +
+          '<div style="display:flex;gap:12px"><span class="btn secondary">Add another dish</span><span class="btn primary">Done</span></div>' +
+        '</div></div>';
+  }
+
+  function detailScreen(adding) {
+    const shots = tray.length ? tray : SHOTS.slice(0, 3);
+    const c = shots[cover] || shots[0];
+    let strip = '';
+    shots.forEach(function (s, i) { strip += '<div class="s ' + s[0] + (i === cover ? ' on' : '') + '"><span class="e" style="font-size:22px">' + s[1] + '</span></div>'; });
+    strip += '<div class="s add" aria-label="Add photo">+</div>';
+    let dots = '';
+    shots.forEach(function (s, i) { dots += '<span' + (i === cover ? ' class="on"' : '') + '></span>'; });
+    return wallBehind() +
+      '<div class="sheet" style="left:236px;top:120px;width:640px;height:520px"><div class="x">×</div>' +
+        '<div class="pager" style="left:28px;top:36px;width:250px;transform:rotate(-2deg)"><div class="shot ' + c[0] + '"><span class="e">' + c[1] + '</span><div class="dots">' + dots + '</div></div><div class="cap">Pesto pasta</div></div>' +
+        '<div class="strip" style="left:28px;top:370px">' + strip + '</div>' +
+        '<div style="position:absolute;left:316px;top:36px;right:40px">' +
+          '<div style="font-family:var(--display);font-weight:600;font-size:30px">Pesto pasta</div>' +
+          '<div style="color:var(--muted);font-weight:600;margin-top:4px">Dinner · Sunday, Nov 8 · 7:12 PM</div>' +
+          '<div style="display:grid;gap:10px;margin-top:20px;font-weight:600;font-size:16px">' +
+            '<div>🏠 Home-cooked</div><div>😋 Would eat again</div><div style="display:flex;gap:8px;align-items:center"><span style="width:26px;height:26px;border-radius:50%;background:#D9653B;color:#fff;display:grid;place-items:center;font-size:12px">♥</span>Everyone ate</div><div>📷 ' + shots.length + ' photos</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="position:absolute;left:316px;right:30px;bottom:28px;display:flex;gap:10px"><span class="btn secondary">✎ Edit</span><span style="flex:1"></span><span class="btn secondary">🗑 Remove</span></div>' +
+        (adding ? '<div class="menu" style="left:300px;top:322px"><div>' + CAMERA.replace('<svg', '<svg width="16" height="16"') + 'Take a photo</div><div><span style="width:16px;height:16px;display:inline-grid">' + LIB.replace('<svg', '<svg width="16" height="16"') + '</span>Choose from Photos</div></div>' : '') +
+      '</div>';
+  }
+
+  function editPhotosScreen() {
+    const shots = tray.length ? tray : SHOTS.slice(0, 3);
+    let cells = '';
+    shots.forEach(function (s, i) {
+      cells += '<div style="position:relative;width:96px;height:96px;flex:none"><div class="' + s[0] + '" style="position:absolute;inset:0;border-radius:12px;display:grid;place-items:center;font-size:38px;' + (i === cover ? 'box-shadow:0 0 0 3px var(--accent)' : '') + '"><span class="e">' + s[1] + '</span></div>' +
+        (i === cover ? '<span style="position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px">COVER</span>' : '') +
+        '<span style="position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;border:2px solid var(--surface);display:grid;place-items:center;font-weight:800;font-size:13px">×</span></div>';
+    });
+    cells += '<div style="width:96px;height:96px;border-radius:12px;border:2px dashed #cbbda7;display:grid;place-items:center;color:var(--muted);font-weight:700;font-size:13px;text-align:center;line-height:1.2;flex:none">+<br>Add photo</div>';
+    return wallBehind() +
+      '<div class="sheet" style="left:236px;top:120px;width:640px;height:560px"><div class="x">×</div>' +
+        '<div style="position:absolute;left:28px;top:36px;right:40px">' +
+          '<div style="font-family:var(--display);font-weight:600;font-size:30px">Edit meal</div>' +
+          '<div class="lab" style="margin-top:18px">Photos <small>tap one to make it the cover · up to 6</small></div>' +
+          '<div style="display:flex;gap:14px;flex-wrap:wrap;padding-top:8px">' + cells + '</div>' +
+          '<div class="field" style="margin-top:22px"><span>🍝</span>Pesto pasta</div>' +
+          '<div class="lab">Meal</div><div class="pills" style="align-items:center"><span class="pill">🌅 Breakfast</span><span class="pill">☀️ Lunch</span><span class="pill on">🌙 Dinner</span><span style="margin-left:auto;color:var(--muted);font-weight:600">at</span><span class="pill">7:12 PM</span></div>' +
+          '<div class="lab">Made by</div><div class="pills"><span class="pill on">🏠 Home-cooked</span><span class="pill">🛵 Delivery</span><span class="pill">🍽️ Dine out</span><span class="pill">🏢 Company</span></div>' +
+        '</div>' +
+        '<div style="position:absolute;left:28px;right:30px;bottom:26px;display:flex;gap:10px"><span style="flex:1"></span><span class="btn secondary">Cancel</span><span class="btn primary">Save</span></div>' +
+      '</div>';
+  }
+
+  const NOTES = {
+    1: ['Open Snap a meal', 'The camera is live and the form is already filled with good guesses. The Photos button now sits left of the shutter every time, not only when there is no camera.'],
+    2: ['Shoot, keep editing', 'Each shot lands in the form\u2019s Photos row, the same row Edit uses later, and the camera stays live. Nothing saves yet, so there is time to name the dish, fix who ate, rate it or switch Made by. Try it: tap the shutter or Photos, tap a shot to make it the cover, × to remove it, then Save.'],
+    3: ['Saved', 'Same celebration as today. The polaroid shows the cover, with a camera chip when there is more than one photo.'],
+    4: ['Later: add a photo', 'Tapping the meal anywhere opens its detail. Swipe the big polaroid to page through photos; the strip below jumps to one. The dashed + tile adds a photo to a meal that is already saved, from the camera or from Photos, without opening Edit.'],
+    5: ['Fix photos in Edit', 'Edit shows the photos above the meal details. Tap one to make it the cover, x to remove it, + to add more. Saving keeps the meal’s day and time.']
+  };
+
+  function render() {
+    if (step === 1) { tray = []; cover = 0; nextShot = 0; }
+    if (step === 3 && tray.length === 0) { tray = SHOTS.slice(0, 2); }
+    const views = {
+      1: function () { return captureScreen(false); },
+      2: function () { return captureScreen(true); },
+      3: savedScreen,
+      4: function () { return detailScreen(true); },
+      5: editPhotosScreen
+    };
+    screen.innerHTML = views[step]();
+    note.innerHTML = '<b>' + NOTES[step][0] + '</b><span>' + NOTES[step][1] + '</span>';
+    document.querySelectorAll('.stepbtn').forEach(function (b) { b.setAttribute('aria-pressed', String(Number(b.dataset.step) === step)); });
+    wire();
+    fit();
+  }
+
+  function flash() {
+    const f = document.getElementById('flash');
+    if (!f) return;
+    f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  }
+
+  function add(count) {
+    for (let i = 0; i < count && tray.length < MAX; i++) {
+      tray.push(SHOTS[nextShot % SHOTS.length]);
+      nextShot++;
+    }
+    render();
+  }
+
+  function wire() {
+    const sh = document.getElementById('shutterBtn');
+    if (sh) sh.addEventListener('click', function () { add(1); flash(); });
+    const lib = document.getElementById('libBtn');
+    if (lib) lib.addEventListener('click', function () { add(2); });
+    const save = document.getElementById('saveBtn');
+    if (save) save.addEventListener('click', function () { step = 3; render(); });
+    screen.querySelectorAll('[data-rm]').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const i = Number(b.dataset.rm);
+        tray.splice(i, 1);
+        if (cover >= tray.length) cover = Math.max(0, tray.length - 1);
+        else if (i < cover) cover--;
+        render();
+      });
+    });
+    screen.querySelectorAll('[data-cover]').forEach(function (b) {
+      b.addEventListener('click', function () { cover = Number(b.dataset.cover); render(); });
+    });
+  }
+
+  document.querySelectorAll('.stepbtn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const target = Number(b.dataset.step);
+      if (target === 2 && step !== 2) { tray = []; cover = 0; nextShot = 0; }
+      step = target;
+      render();
+    });
+  });
+
+  render();
+})();
+</script>
