@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// A logged meal up close: the big polaroid, its details, and ways to fix or remove it.
-/// When the slot holds several meals they sit under the polaroid to switch between,
-/// with a way to add another.
+/// A logged meal up close: the big polaroid (swipe it to page through the photos), its
+/// photos with a way to add more, its details, and ways to fix or remove it. When the
+/// slot holds several meals they sit below to switch between, with a way to add another.
 struct MealDetailSheet: View {
     let entry: JournalEntry
     /// Opens the capture sheet for another meal in this day's slot.
@@ -14,6 +14,9 @@ struct MealDetailSheet: View {
     @State private var editing: MealEdit?
     /// The meal shown, when another one of the slot was picked.
     @State private var selectedId: Int64?
+    /// The photo on the polaroid; 0 is the cover.
+    @State private var photoIndex = 0
+    @State private var drag: CGFloat = 0
 
     /// The entry as it is now, so saved edits show right away.
     private var current: JournalEntry {
@@ -29,21 +32,22 @@ struct MealDetailSheet: View {
     var body: some View {
         WallSheet(width: 640, staysAboveKeyboard: true, onClose: onClose) {
             HStack(alignment: .top, spacing: 26) {
-                VStack(spacing: 18) {
-                    Polaroid(entry: current, rotation: -2, emojiSize: 84, captionSize: 22, plate: 0.5, badgeSize: 26)
-                        .environment(\.foodPreferFullPhoto, true)
-                        .frame(width: 220)
-                        .id(current.id)
-                    if editing == nil { slotStrip }
+                // Edit shows the photos in its own row, so the form takes the full width.
+                if editing == nil {
+                    VStack(spacing: 18) {
+                        pager
+                        photoStrip
+                        slotStrip
+                    }
+                    .frame(width: 220)
+                    .padding(.top, 8)
                 }
-                .frame(width: 220)
-                .padding(.top, 8)
                 if let editing {
                     MealEditForm(
                         entry: current,
                         edit: Binding(get: { editing }, set: { self.editing = $0 }),
                         error: store.lastError,
-                        onCancel: { self.editing = nil },
+                        onCancel: cancelEdit,
                         onSave: save
                     )
                 } else {
@@ -51,6 +55,104 @@ struct MealDetailSheet: View {
                 }
             }
         }
+    }
+
+    private var photos: [MealPhoto] { store.photos(of: current) }
+
+    /// The big polaroid. With several photos, swipe it sideways or tap a thumbnail below.
+    private var pager: some View {
+        let count = photos.count
+        let index = min(photoIndex, max(count - 1, 0))
+        return Polaroid(entry: current, rotation: -2, emojiSize: 84, captionSize: 22, plate: 0.5, badgeSize: 26, photoIndex: index, showsPhotoCount: false)
+            .environment(\.foodPreferFullPhoto, true)
+            .frame(width: 220)
+            .overlay(alignment: .bottom) {
+                if count > 1 {
+                    HStack(spacing: 6) {
+                        ForEach(0..<count, id: \.self) { dot in
+                            Circle()
+                                .fill(Color.white.opacity(dot == index ? 1 : 0.55))
+                                .frame(width: 7, height: 7)
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.black.opacity(0.28), in: Capsule())
+                    .padding(.bottom, 52)
+                    .rotationEffect(.degrees(-2))
+                    .allowsHitTesting(false)
+                }
+            }
+            .offset(x: drag * 0.4)
+            .id(current.id)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { if count > 1 { drag = $0.translation.width } }
+                    .onEnded { value in
+                        guard count > 1 else { return }
+                        let travel = value.predictedEndTranslation.width
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if abs(value.translation.width) > 40 || abs(travel) > 120 {
+                                photoIndex = (index + (travel < 0 ? 1 : -1) + count) % count
+                            }
+                            drag = 0
+                        }
+                    }
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(count > 1 ? "\(current.title), photo \(index + 1) of \(count)" : current.title)
+            .accessibilityIdentifier("meal-pager")
+            .accessibilityAdjustableAction { change in
+                guard count > 1 else { return }
+                switch change {
+                case .increment: photoIndex = (index + 1) % count
+                case .decrement: photoIndex = (index - 1 + count) % count
+                @unknown default: break
+                }
+            }
+    }
+
+    /// The meal's photos as thumbnails to jump to, and a tile to add more right away.
+    private var photoStrip: some View {
+        let photos = photos
+        return VStack(alignment: .leading, spacing: 8) {
+            SheetLabel(title: "Photos", note: photos.isEmpty ? nil : "· \(photos.count)")
+            FlowLayout(spacing: 8) {
+                ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                    Button { withAnimation(.easeInOut(duration: 0.2)) { photoIndex = index } } label: {
+                        Color.clear
+                            .frame(width: 46, height: 46)
+                            .overlay {
+                                if let image = MealImages.image(at: store.photoURL(photo.thumbnailFile)) {
+                                    Image(uiImage: image).resizable().scaledToFill()
+                                }
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                            .padding(3)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(index == min(photoIndex, photos.count - 1) ? Theme.ink : .clear, lineWidth: 2)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Photo \(index + 1)")
+                }
+                AddPhotoTile(remaining: AppDatabase.photoLimit - photos.count, size: 46) { images in
+                    Task {
+                        let before = photos.count
+                        if await store.addPhotos(images, to: current) {
+                            withAnimation(.easeInOut(duration: 0.2)) { photoIndex = before }
+                        }
+                    }
+                }
+                .padding(3)
+            }
+            if let error = store.lastError, editing == nil {
+                Text(error).font(.body(12.5, weight: 600)).foregroundStyle(Theme.accent)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// The slot's other meals as thumbnails, and a tile to add one more.
@@ -106,6 +208,7 @@ struct MealDetailSheet: View {
 
     private func select(_ meal: JournalEntry) {
         selectedId = meal.id
+        photoIndex = 0
         confirmingDelete = false
     }
 
@@ -142,7 +245,7 @@ struct MealDetailSheet: View {
                 if !confirmingDelete {
                     Button {
                         store.lastError = nil
-                        editing = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).compactMap(\.id), place: store.place(of: entry))
+                        editing = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).compactMap(\.id), place: store.place(of: entry), photos: store.photos(of: entry))
                     } label: {
                         Label("Edit", systemImage: "pencil")
                     }
@@ -175,6 +278,7 @@ struct MealDetailSheet: View {
         confirmingDelete = false
         if let next = rest.first {
             selectedId = next.id
+            photoIndex = 0
         } else {
             onClose()
         }
@@ -198,10 +302,17 @@ struct MealDetailSheet: View {
     }
 
     private func save() {
-        guard let editing else { return }
-        if store.updateMeal(current, editing.draft(for: current, calendar: store.calendar)) {
+        guard let editing, editing.savingPhotos == 0 else { return }
+        if store.updateMeal(current, editing.draft(for: current, calendar: store.calendar), photos: editing.photos) {
             self.editing = nil
+            photoIndex = 0
         }
+    }
+
+    /// Leaves the edit; photos added during it were never attached, so their files go.
+    private func cancelEdit() {
+        if let editing { store.discard(MealPhotoItem.addedFiles(removedFrom: editing.photos, leaving: [])) }
+        editing = nil
     }
 
     private var dateLine: String {
@@ -232,8 +343,12 @@ struct MealEdit: Equatable {
     var eaterIds: Set<Int64>
     var time: LogTime
     var place: PlaceDraft?
+    /// The meal's photos as they will be saved, cover first.
+    var photos: [MealPhotoItem]
+    /// New photos still being written to disk.
+    var savingPhotos = 0
 
-    init(entry: JournalEntry, eaterIds: [Int64], place: FoodPlace? = nil) {
+    init(entry: JournalEntry, eaterIds: [Int64], place: FoodPlace? = nil, photos: [MealPhoto] = []) {
         title = entry.title
         slot = entry.slot
         source = entry.source
@@ -241,6 +356,7 @@ struct MealEdit: Equatable {
         self.eaterIds = Set(eaterIds)
         time = .at(entry.eatenAt)
         self.place = place.map(PlaceDraft.init)
+        self.photos = photos.map(MealPhotoItem.kept)
     }
 
     /// The meal's day, up to now if that's today.
@@ -298,21 +414,33 @@ private struct MealEditForm: View {
             .fieldStyle()
             .padding(.top, 12)
 
-            label("Meal")
+            label("Photos")
+            MealPhotoRow(items: $edit.photos, pending: edit.savingPhotos, size: 52, emptyText: "No photos yet. Add one from the camera or Photos.") {
+                AddPhotoTile(remaining: AppDatabase.photoLimit - edit.photos.count - edit.savingPhotos, size: 52, onAdd: add)
+            }
+            .onChange(of: edit.photos) { old, new in
+                // A new photo removed again was never attached; its files go now.
+                store.discard(MealPhotoItem.addedFiles(removedFrom: old, leaving: new))
+            }
+
+            // The time rides on the label line, so the meals get the row's full width.
             HStack(alignment: .center, spacing: 8) {
-                FlowLayout(spacing: 8) {
-                    ForEach(slots, id: \.self) { slot in
-                        FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: edit.slot == slot) { edit.slot = slot }
-                    }
-                }
-                Spacer(minLength: 4)
+                SheetLabel(title: "Meal", note: nil)
+                Spacer(minLength: 8)
                 AtTimeField(time: $edit.time, range: timeRange, calendar: store.calendar)
+            }
+            .padding(.top, 6)
+            .padding(.bottom, 4)
+            FlowLayout(spacing: 8) {
+                ForEach(slots, id: \.self) { slot in
+                    FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: edit.slot == slot) { edit.slot = slot }
+                }
             }
 
             label("From")
             FlowLayout(spacing: 8) {
                 ForEach(MealSource.allCases, id: \.self) { source in
-                    FoodChoicePill("\(source.emoji) \(source.label)", isSelected: edit.source == source) { edit.source = source }
+                    FoodChoicePill("\(source.emoji) \(source.label)", isSelected: edit.source == source, compact: true) { edit.source = source }
                 }
             }
             if edit.source.hasPlace {
@@ -355,10 +483,25 @@ private struct MealEditForm: View {
                     .buttonStyle(SecondaryButtonStyle())
                 Button("Save", action: onSave)
                     .buttonStyle(PrimaryButtonStyle())
+                    .disabled(edit.savingPhotos > 0)
             }
             .padding(.top, 24)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    /// Saves new images to disk and adds them to the edit; they attach on Save.
+    private func add(_ images: [UIImage]) {
+        let room = AppDatabase.photoLimit - edit.photos.count - edit.savingPhotos
+        for image in images.prefix(max(room, 0)) {
+            edit.savingPhotos += 1
+            Task {
+                defer { edit.savingPhotos -= 1 }
+                if let stored = try? await store.savePhoto(image) {
+                    edit.photos.append(.added(stored))
+                }
+            }
+        }
     }
 
     private var timeRange: ClosedRange<Date> {

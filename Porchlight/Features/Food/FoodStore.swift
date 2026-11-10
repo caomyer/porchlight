@@ -68,6 +68,9 @@ final class FoodStore {
             guard let id = entry.id else { return nil }
             var subtitle = place(of: entry).map { "\(entry.source.label) · \($0.name)" } ?? entry.source.label
             if let rating = entry.rating { subtitle += " · \(rating.emoji) \(rating.phrase)" }
+            // The thumbnail is too small for a count badge, so the count joins the subtitle.
+            let photoCount = photos(of: entry).count
+            if photoCount > 1 { subtitle += " · \(photoCount) photos" }
             return TimelineItem(
                 id: "food-\(id)",
                 kind: .log,
@@ -96,15 +99,16 @@ final class FoodStore {
         ]
     }
 
-    /// Recent meal photos, offered to Ambient mode as a photo source.
+    /// Recent meal photos for Ambient mode, newest meals first. At most
+    /// `ambientPhotosPerMeal` come from one meal, so a six-angle dinner doesn't take over.
     func recentPhotoURLs(limit: Int) -> [URL] {
         guard isEnabled, limit > 0 else { return [] }
-        return snapshot.entries
-            .filter { $0.photoFile != nil }
-            .sorted { $0.eatenAt > $1.eatenAt }
-            .prefix(limit)
-            .compactMap { $0.photoFile.map(photos.url(for:)) }
+        let meals = snapshot.entries.sorted { $0.eatenAt > $1.eatenAt }
+        return Array(meals.lazy.flatMap { self.photos(of: $0).prefix(Self.ambientPhotosPerMeal) }.prefix(limit))
+            .map { self.photos.url(for: $0.photoFile) }
     }
+
+    static let ambientPhotosPerMeal = 3
 
     // MARK: Reads
 
@@ -151,6 +155,16 @@ final class FoodStore {
 
     func photoURL(_ file: String?) -> URL? { file.map(photos.url(for:)) }
 
+    /// A meal's photos, cover first.
+    func photos(of entry: JournalEntry) -> [MealPhoto] {
+        entry.id.flatMap { snapshot.photos[$0] } ?? []
+    }
+
+    /// The picture shown for the meal wherever many meals appear at once.
+    func cover(of entry: JournalEntry) -> MealPhoto? {
+        photos(of: entry).first
+    }
+
     /// Days that have a meal or ink.
     var activeDays: Set<DayKey> {
         Set(snapshot.entries.map(\.dayKey)).union(snapshot.pages.keys.map(DayKey.init(rawValue:)))
@@ -169,7 +183,7 @@ final class FoodStore {
     }
 
     func memory(today: DayKey) -> FoodMemory? {
-        FoodMemory.find(in: snapshot.entries, today: today, calendar: calendar)
+        FoodMemory.find(in: snapshot.entries, withPhotos: Set(snapshot.photos.keys), today: today, calendar: calendar)
     }
 
     /// The default pen: the chosen ink, else the first person's own color.
@@ -199,26 +213,54 @@ final class FoodStore {
 
     // MARK: Edits
 
-    /// Saves the photo (off the main actor), then the meal.
-    func addMeal(_ draft: MealDraft, photo: UIImage?) async throws -> JournalEntry {
-        guard let journalId = journal?.id else { throw FoodError.noJournal }
+    /// Writes a photo and its thumbnail to disk off the main actor. Not attached to any
+    /// meal yet: pass it to `addMeal`, `addPhotos` or an edit, or `discard` it.
+    func savePhoto(_ image: UIImage) async throws -> FoodPhotoStore.Stored {
         let photos = photos
-        let stored = try await Task.detached(priority: .userInitiated) {
-            try photo.map { try photos.save($0) }
-        }.value
-        return try database.addMeal(draft, journalId: journalId, photo: stored, photos: photos)
+        return try await Task.detached(priority: .userInitiated) { try photos.save(image) }.value
     }
 
-    /// Saves edits to a logged meal. Returns false, with `lastError` set, when they are rejected.
+    /// Deletes saved photos that were never attached, e.g. when a capture is discarded.
+    func discard(_ stored: [FoodPhotoStore.Stored]) {
+        photos.delete(stored.flatMap { [$0.photoFile, $0.thumbnailFile] })
+    }
+
+    /// Logs a meal with its saved photos, cover first. If it throws, the caller still owns
+    /// the photos (keep them for another try, or `discard` them).
+    func addMeal(_ draft: MealDraft, photos stored: [FoodPhotoStore.Stored] = []) throws -> JournalEntry {
+        guard let journalId = journal?.id else { throw FoodError.noJournal }
+        return try database.addMeal(draft, journalId: journalId, photos: stored)
+    }
+
+    /// Adds photos to a meal that is already saved. Returns false, with `lastError` set,
+    /// when they could not be added.
     @discardableResult
-    func updateMeal(_ entry: JournalEntry, _ draft: MealDraft) -> Bool {
+    func addPhotos(_ images: [UIImage], to entry: JournalEntry) async -> Bool {
+        guard let id = entry.id, !images.isEmpty else { return false }
+        var stored: [FoodPhotoStore.Stored] = []
+        do {
+            for image in images { stored.append(try await savePhoto(image)) }
+            try database.addMealPhotos(entryId: id, stored)
+            lastError = nil
+            return true
+        } catch {
+            discard(stored)
+            lastError = error.userMessage
+            return false
+        }
+    }
+
+    /// Saves edits to a logged meal, and its photos when given. Returns false, with
+    /// `lastError` set, when they are rejected.
+    @discardableResult
+    func updateMeal(_ entry: JournalEntry, _ draft: MealDraft, photos items: [MealPhotoItem]? = nil) -> Bool {
         guard let id = entry.id else { return false }
-        return perform { try database.updateMeal(id: id, draft) }
+        return perform { try database.updateMeal(id: id, draft, photos: items, files: photos) }
     }
 
     func deleteMeal(_ entry: JournalEntry) {
         guard let id = entry.id else { return }
-        perform { try database.deleteMeal(id: id, photos: photos) }
+        perform { try database.deleteMeal(id: id, files: photos) }
     }
 
     /// Turns the diary on or off, creating it the first time.

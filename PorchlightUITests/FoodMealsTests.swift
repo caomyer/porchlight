@@ -43,7 +43,7 @@ final class FoodMealsTests: XCTestCase {
     /// A dinner with two dishes opens on the first, switches to the second, and offers another.
     func testSeveralDishesInOneMeal() {
         let app = launch(["-startScreen", "food"])
-        let stack = app.descendants(matching: .any)["Dinner: Sushi night and 1 more"]
+        let stack = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Dinner: Sushi night and 1 more")).firstMatch
         XCTAssertTrue(stack.waitForExistence(timeout: 20), "Saturday's dinner should show as a stack of two")
         stack.tap()
 
@@ -156,10 +156,10 @@ final class FoodMealsTests: XCTestCase {
     /// Swiping a two-dish cell in the week brings the other dish to the top; tapping opens it.
     func testSwipingBetweenDishesInTheWeek() {
         let app = launch(["-startScreen", "food"])
-        let stack = app.descendants(matching: .any)["Dinner: Sushi night and 1 more"]
+        let stack = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Dinner: Sushi night and 1 more")).firstMatch
         XCTAssertTrue(stack.waitForExistence(timeout: 20))
         stack.swipeLeft()
-        let next = app.descendants(matching: .any)["Dinner: Mochi and 1 more"]
+        let next = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Dinner: Mochi and 1 more")).firstMatch
         XCTAssertTrue(next.waitForExistence(timeout: 5), "Swiping should bring the other dish to the top")
         snapshot("40-week-swiped")
         next.swipeRight()
@@ -174,7 +174,7 @@ final class FoodMealsTests: XCTestCase {
     /// The month's day sheet lists the day's meals; one tap opens the same meal sheet as the week.
     func testOpeningAMealFromTheMonth() {
         let app = launch(["-startScreen", "food", "-debugFoodView", "write"])
-        let meal = app.buttons["Breakfast: Avocado toast"]
+        let meal = button(app, startingWith: "Breakfast: Avocado toast")
         XCTAssertTrue(meal.waitForExistence(timeout: 20), "The day sheet should list the day's meals")
         snapshot("41-month-day-meals")
         meal.tap()

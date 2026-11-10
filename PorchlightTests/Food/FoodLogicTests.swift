@@ -82,23 +82,26 @@ struct FoodLogicTests {
     private func entry(_ title: String, day: String, source: MealSource = .home, rating: MealRating? = .again, slot: String = "Dinner") -> JournalEntry {
         JournalEntry(
             id: nil, journalId: 1, day: day, slot: slot, source: source, title: title,
-            emoji: nil, tint: nil, rating: rating, photoFile: nil, thumbnailFile: nil,
+            emoji: nil, tint: nil, rating: rating,
             eatenAt: Date(timeIntervalSince1970: 0), createdAt: Date(timeIntervalSince1970: 0)
         )
     }
 
-    @Test("Home-cooked, delivery and eating out are counted")
+    @Test("Home-cooked, delivery, eating out and company food are counted")
     func split() {
         let week = [
             entry("Pho", day: "2026-11-05", source: .delivery), entry("Tacos", day: "2026-11-03"),
             entry("Pizza", day: "2026-11-05", source: .delivery), entry("Salad", day: "2026-11-04"),
-            entry("Ramen", day: "2026-11-06", source: .dineOut),
+            entry("Ramen", day: "2026-11-06", source: .dineOut), entry("Bento", day: "2026-11-06", source: .company),
         ]
         let stats = WeekStats.make(week: week, history: [])
         #expect(stats.homeCooked == 2)
         #expect(stats.delivery == 2)
         #expect(stats.dineOut == 1)
-        #expect(stats.total == 5)
+        #expect(stats.company == 1)
+        #expect(stats.total == 6)
+        #expect(!MealSource.company.hasPlace, "company food names no restaurant")
+        #expect(MealSource.company.label == "Company")
     }
 
     @Test("A theme needs three dishes and lists them in order")
@@ -179,8 +182,9 @@ struct FoodLogicTests {
         var plain = entry("Toast", day: "2025-11-07", rating: .favorite)
         plain.slot = "Breakfast"
         var photo = entry("Soup", day: "2025-11-07", rating: .fine)
-        photo.photoFile = "meal-x.jpg"
-        #expect(FoodMemory.find(in: [plain, photo], today: today, calendar: calendar)?.entry.title == "Soup")
+        photo.id = 7
+        #expect(FoodMemory.find(in: [plain, photo], withPhotos: [7], today: today, calendar: calendar)?.entry.title == "Soup")
+        #expect(FoodMemory.find(in: [plain, photo], today: today, calendar: calendar)?.entry.title == "Toast", "without photos, the rating wins")
         #expect(FoodMemory.find(in: [plain, entry("Rice", day: "2025-11-07", rating: .fine)], today: today, calendar: calendar)?.entry.title == "Toast")
     }
 

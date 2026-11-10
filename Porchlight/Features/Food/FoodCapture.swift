@@ -1,6 +1,4 @@
-import AVFoundation
 import PencilKit
-import PhotosUI
 import SwiftUI
 
 /// A request to snap a meal: for a day, optionally for a given slot.
@@ -33,7 +31,18 @@ final class CaptureForm {
     /// The restaurant, for delivery or eating out.
     var place: PlaceDraft?
     var title = ""
-    var photo: UIImage?
+    /// Photos taken or picked so far, saved to disk but not attached until Save. Cover first.
+    var photos: [MealPhotoItem] = []
+    /// Photos still being written to disk.
+    var savingPhotos = 0
+
+    /// The photo files this capture owns until it saves.
+    var storedPhotos: [FoodPhotoStore.Stored] {
+        photos.compactMap { if case let .added(stored) = $0 { stored } else { nil } }
+    }
+
+    /// Room left for more photos, counting ones still being saved.
+    var photoRoom: Int { max(AppDatabase.photoLimit - photos.count - savingPhotos, 0) }
 
     init(request: CaptureRequest, store: FoodStore, now: Date) {
         day = request.day
@@ -105,6 +114,8 @@ struct CaptureSheet: View {
     @State private var lowFieldFocused = false
     /// The day's shared page is open for writing, over the form.
     @State private var writingNotes = false
+    /// Closing would throw away photos that were never saved; asking first.
+    @State private var confirmingDiscard = false
 
     var body: some View {
         ZStack {
@@ -119,10 +130,15 @@ struct CaptureSheet: View {
             } else {
                 Color(hex: 0x14_0F0A).opacity(0.38)
                     .ignoresSafeArea()
-                    .onTapGesture(perform: onClose)
+                    .onTapGesture(perform: requestClose)
                 if let form {
                     sheet(form)
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    if confirmingDiscard {
+                        discardPrompt(form)
+                            .transition(.opacity)
+                            .zIndex(2)
+                    }
                     if writingNotes {
                         WriteDaySheet(day: form.day, today: store.today()) {
                             withAnimation(.easeInOut(duration: 0.2)) { writingNotes = false }
@@ -142,15 +158,25 @@ struct CaptureSheet: View {
         .onAppear {
             if form == nil { form = CaptureForm(request: request, store: store, now: .now) }
             if let previewSaved { saved = previewSaved }
+            #if DEBUG
+            // `-debugCaptureShots N` adds N generated photos as if the shutter took them.
+            let shots = UserDefaults.standard.integer(forKey: "debugCaptureShots")
+            if shots > 0, let form, form.photos.isEmpty, form.savingPhotos == 0 {
+                add((0..<shots).map { SamplePhoto.image(palette: $0, emoji: "🍝") }, to: form)
+            }
+            #endif
         }
     }
 
     private func sheet(_ form: CaptureForm) -> some View {
         HStack(alignment: .top, spacing: 28) {
-            Viewfinder(form: form, isSaving: isSaving) { image in
-                form.photo = image
-                Task { await save(form) }
-            }
+            MealViewfinder(
+                emoji: form.emoji,
+                photoCount: form.photos.count + form.savingPhotos,
+                isBusy: isSaving,
+                onShot: { add([$0], to: form) },
+                onPick: { add($0, to: form) }
+            )
             .frame(width: 370)
             .frame(maxHeight: .infinity)
             CaptureFormView(form: form, isSaving: isSaving, error: error, onWriteNotes: { writingNotes = true }) {
@@ -167,7 +193,7 @@ struct CaptureSheet: View {
         .animation(.easeInOut(duration: 0.2), value: form.source.hasPlace)
         .background(SurfaceShape(cornerRadius: 28, elevation: 2.5))
         .overlay(alignment: .topTrailing) {
-            Button(action: onClose) {
+            Button(action: requestClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Theme.muted)
@@ -180,218 +206,78 @@ struct CaptureSheet: View {
         }
     }
 
+    /// Saves each image to disk off the main actor and adds it to the form's photos, up to
+    /// the limit. Nothing is attached to a meal until Save.
+    private func add(_ images: [UIImage], to form: CaptureForm) {
+        for image in images.prefix(form.photoRoom) {
+            form.savingPhotos += 1
+            Task {
+                defer { form.savingPhotos -= 1 }
+                do {
+                    let stored = try await store.savePhoto(image)
+                    if form.photos.count < AppDatabase.photoLimit, saved == nil {
+                        withAnimation(.easeOut(duration: 0.2)) { form.photos.append(.added(stored)) }
+                    } else {
+                        store.discard([stored])
+                    }
+                } catch {
+                    self.error = error.userMessage
+                }
+            }
+        }
+    }
+
     private func save(_ form: CaptureForm) async {
-        guard !isSaving else { return }
+        guard !isSaving, form.savingPhotos == 0 else { return }
         isSaving = true
         defer { isSaving = false }
         let now = Date.now
         do {
-            let entry = try await store.addMeal(
-                form.draft(now: now, calendar: store.calendar, today: store.today(now)),
-                photo: form.photo
-            )
+            let entry = try store.addMeal(form.draft(now: now, calendar: store.calendar, today: store.today(now)), photos: form.storedPhotos)
             error = nil
             withAnimation(.easeInOut(duration: 0.3)) { saved = entry }
         } catch {
             self.error = error.userMessage
         }
     }
-}
 
-// MARK: - Viewfinder
-
-private struct Viewfinder: View {
-    let form: CaptureForm
-    let isSaving: Bool
-    let onShot: (UIImage) -> Void
-
-    @State private var camera = MealCamera()
-    @State private var state: CameraState = .starting
-    @State private var deviceID: String?
-    @State private var captureAngle: CGFloat = 0
-    @State private var flash = false
-    @State private var pickerItem: PhotosPickerItem?
-    @AppStorage("food.cameraFront") private var useFront = true
-
-    enum CameraState { case starting, live, denied, none }
-
-    var body: some View {
-        ZStack {
-            RadialGradient(colors: [Color(hex: 0x6A5341), Color(hex: 0x2A201A)], center: UnitPoint(x: 0.5, y: 0.42), startRadius: 0, endRadius: 330)
-            content
-            if state == .live || form.photo != nil {
-                brackets
-            }
-            VStack {
-                Text(hint)
-                    .font(.body(13, weight: 600))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 18)
-                    .padding(.horizontal, 24)
-                Spacer()
-                bottomControls
-                    .padding(.bottom, 24)
-            }
-            Color.white.opacity(flash ? 0.95 : 0).allowsHitTesting(false)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .task { await startCamera() }
-        .onDisappear { camera.stop() }
-        .onChange(of: pickerItem) { _, item in
-            guard let item else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                    form.photo = image
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if let photo = form.photo {
-            Image(uiImage: photo).resizable().scaledToFill()
-                .frame(width: 370, height: 600)
-                .clipped()
-        } else if state == .live {
-            CameraPreview(camera: camera, deviceID: deviceID) { captureAngle = $0 }
+    /// Closes right away unless that would lose photos that were never saved.
+    private func requestClose() {
+        if saved == nil, let form, !form.storedPhotos.isEmpty {
+            withAnimation(.easeOut(duration: 0.15)) { confirmingDiscard = true }
         } else {
-            // No camera: the plate previews the dish's emoji as you type its name.
-            ZStack {
-                Circle().fill(Color(hex: 0xFBFAF6))
-                Circle().stroke(Color(hex: 0xE7E1D6), lineWidth: 10).padding(26)
-                Text(form.emoji).font(.system(size: 112))
-            }
-            .frame(width: 250, height: 250)
-            .shadow(color: .black.opacity(0.45), radius: 20, y: 24)
-            .offset(y: -20)
-            .animation(.spring(duration: 0.3), value: form.emoji)
+            onClose()
         }
     }
 
-    private var brackets: some View {
-        let corner = 34.0
+    private func discardPrompt(_ form: CaptureForm) -> some View {
+        let count = form.storedPhotos.count
         return ZStack {
-            ForEach(0..<4, id: \.self) { index in
-                Bracket()
-                    .stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: 3, lineCap: .butt))
-                    .frame(width: corner, height: corner)
-                    .rotationEffect(.degrees(Double(index) * 90))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: [.topLeading, .topTrailing, .bottomTrailing, .bottomLeading][index])
-            }
-        }
-        .frame(width: 258, height: 312)
-        .offset(y: -24)
-        .allowsHitTesting(false)
-    }
-
-    private var hint: String {
-        switch state {
-        case .live where form.photo == nil: "Center the plate · tap the shutter"
-        case .denied: "Camera access is off. Turn it on in Settings › Porchlight, or pick a photo."
-        case .none where form.photo == nil: "No camera here. Pick a photo, or just write and save."
-        default: ""
-        }
-    }
-
-    @ViewBuilder
-    private var bottomControls: some View {
-        if form.photo != nil {
-            Button { form.photo = nil } label: {
-                Label("Retake", systemImage: "arrow.counterclockwise")
-                    .font(.body(14, weight: 700))
-                    .foregroundStyle(Theme.ink)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.white.opacity(0.9), in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .disabled(isSaving)
-        } else if state == .live {
-            HStack {
-                Color.clear.frame(width: 48, height: 48)
-                Spacer()
-                Button(action: shoot) {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 74, height: 74)
-                        .padding(5)
-                        .background(Color.white.opacity(0.35), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .disabled(isSaving)
-                .accessibilityLabel("Take photo and save")
-                Spacer()
-                if MealCamera.canSwitch {
-                    Button(action: switchCamera) {
-                        Image(systemName: "arrow.triangle.2.circlepath.camera")
-                            .font(.system(size: 19, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 48, height: 48)
-                            .background(Color.white.opacity(0.18), in: Circle())
+            Color.black.opacity(0.25).ignoresSafeArea()
+                .onTapGesture { confirmingDiscard = false }
+            VStack(alignment: .leading, spacing: 10) {
+                Text(count == 1 ? "Discard 1 photo?" : "Discard \(count) photos?")
+                    .font(.display(26))
+                Text("This meal isn't saved yet, so its photos would go too.")
+                    .font(.body(15, weight: 600))
+                    .foregroundStyle(Theme.muted)
+                HStack(spacing: 10) {
+                    Spacer()
+                    Button("Keep editing") { withAnimation(.easeOut(duration: 0.15)) { confirmingDiscard = false } }
+                        .buttonStyle(SecondaryButtonStyle())
+                    Button("Discard") {
+                        store.discard(form.storedPhotos)
+                        form.photos = []
+                        onClose()
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Switch camera")
-                } else {
-                    Color.clear.frame(width: 48, height: 48)
+                    .buttonStyle(PrimaryButtonStyle())
                 }
+                .padding(.top, 10)
             }
-            .padding(.horizontal, 28)
-        } else if state != .starting {
-            PhotosPicker(selection: $pickerItem, matching: .images) {
-                Label("Choose a photo", systemImage: "photo.on.rectangle")
-                    .font(.body(15, weight: 700))
-                    .foregroundStyle(Theme.ink)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 11)
-                    .background(Color.white.opacity(0.92), in: Capsule())
-            }
+            .padding(26)
+            .frame(width: 440)
+            .background(SurfaceShape(cornerRadius: 24, elevation: 2.5))
         }
-    }
-
-    private func startCamera() async {
-        guard MealCamera.hasCamera else { state = .none; return }
-        guard await MealCamera.requestAccess() else { state = .denied; return }
-        do {
-            try await camera.start(position: useFront ? .front : .back)
-            deviceID = camera.device?.uniqueID
-            state = .live
-        } catch {
-            state = .none
-        }
-    }
-
-    private func switchCamera() {
-        useFront.toggle()
-        Task {
-            try? await camera.start(position: useFront ? .front : .back)
-            deviceID = camera.device?.uniqueID
-        }
-    }
-
-    private func shoot() {
-        withAnimation(.easeOut(duration: 0.05)) { flash = true }
-        withAnimation(.easeOut(duration: 0.45).delay(0.05)) { flash = false }
-        let angle = captureAngle
-        Task {
-            if let image = try? await camera.capture(rotationAngle: angle) {
-                onShot(image)
-            }
-        }
-    }
-}
-
-/// The top-left corner of a viewfinder bracket; rotated for the other corners.
-private struct Bracket: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let radius: CGFloat = 10
-        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
-        path.addQuadCurve(to: CGPoint(x: rect.minX + radius, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        return path
     }
 }
 
@@ -426,21 +312,32 @@ private struct CaptureFormView: View {
             .fieldStyle()
             .padding(.top, 12)
 
-            label("Meal")
+            label("Photos", note: "up to \(AppDatabase.photoLimit)")
+            MealPhotoRow(
+                items: $form.photos,
+                pending: form.savingPhotos,
+                size: 52,
+                emptyText: MealCamera.hasCamera ? "Shots you take or pick from Photos show up here." : "Photos you pick show up here."
+            ) { EmptyView() }
+
+            // The time rides on the label line, so the meals get the row's full width.
             HStack(alignment: .center, spacing: 8) {
-                FlowLayout(spacing: 8) {
-                    ForEach(store.slots, id: \.self) { slot in
-                        FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: form.slot == slot) { form.slot = slot }
-                    }
-                }
-                Spacer(minLength: 4)
+                SheetLabel(title: "Meal", note: nil)
+                Spacer(minLength: 8)
                 AtTimeField(time: $form.time, range: form.timeRange(now: .now), calendar: store.calendar)
+            }
+            .padding(.top, 6)
+            .padding(.bottom, 4)
+            FlowLayout(spacing: 8) {
+                ForEach(store.slots, id: \.self) { slot in
+                    FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: form.slot == slot) { form.slot = slot }
+                }
             }
 
             label("From")
-            HStack(spacing: 8) {
+            FlowLayout(spacing: 8) {
                 ForEach(MealSource.allCases, id: \.self) { source in
-                    FoodChoicePill("\(source.emoji) \(source.label)", isSelected: form.source == source) { form.source = source }
+                    FoodChoicePill("\(source.emoji) \(source.label)", isSelected: form.source == source, compact: true) { form.source = source }
                 }
             }
             if form.source.hasPlace {
@@ -483,7 +380,7 @@ private struct CaptureFormView: View {
                         .lineLimit(2)
                 } else {
                     Image(systemName: "camera").font(.system(size: 13, weight: .semibold))
-                    Text(MealCamera.hasCamera ? "Tap the shutter, or just write and tap Save." : "Pick a photo or just write, then tap Save.")
+                    Text(footnote)
                         .font(.body(13.5, weight: 600))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -493,12 +390,24 @@ private struct CaptureFormView: View {
                     if isSaving { ProgressView().tint(Theme.accentInk) } else { Text("Save") }
                 }
                 .buttonStyle(PrimaryButtonStyle())
-                .disabled(isSaving)
+                .disabled(isSaving || form.savingPhotos > 0)
             }
             .foregroundStyle(Theme.muted)
         }
         .padding(.top, 14)
         .frame(minHeight: CaptureForm.minimumFormHeight, alignment: .topLeading)
+        .onChange(of: form.photos) { old, new in
+            // A photo removed from the row was never saved; its files go now.
+            store.discard(MealPhotoItem.addedFiles(removedFrom: old, leaving: new))
+        }
+    }
+
+    private var footnote: String {
+        switch form.photos.count {
+        case 0: MealCamera.hasCamera ? "Shoot, pick from Photos, or just write and save." : "Pick photos or just write, then tap Save."
+        case 1: "1 photo ready. Fill in anything else, then Save."
+        default: "\(form.photos.count) photos ready. Fill in anything else, then Save."
+        }
     }
 
     private var subtitle: String {
@@ -665,6 +574,7 @@ private struct SavedOverlay: View {
         case .home: "Home-cooked \(slot)"
         case .delivery: place.map { "\(slot.prefix(1).uppercased() + slot.dropFirst()) delivered from \($0)" } ?? "Delivered \(slot)"
         case .dineOut: place.map { "\(slot.prefix(1).uppercased() + slot.dropFirst()) out at \($0)" } ?? "\(slot.prefix(1).uppercased() + slot.dropFirst()) out"
+        case .company: "\(slot.prefix(1).uppercased() + slot.dropFirst()) at work"
         }
         return "\(what) \(who). It's on the calendar now, next to the rest of your day."
     }

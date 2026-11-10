@@ -126,11 +126,14 @@ private struct DayCell: View {
         return "\(day)"
     }
 
-    /// The day's photo, or else its 🤩 favorite, taped to the corner.
+    /// One picture for the day, taped to the corner: the best-rated meal with photos
+    /// (its cover), else the latest with photos, else the 🤩 favorite's illustration.
     private var taped: JournalEntry? {
         guard inMonth else { return nil }
         let entries = store.entries(on: day)
-        return entries.last { $0.photoFile != nil } ?? entries.last { $0.rating == .favorite }
+        let withPhotos = entries.filter { store.cover(of: $0) != nil }
+        return withPhotos.max { ($0.rating?.rawValue ?? 0, $0.eatenAt) < ($1.rating?.rawValue ?? 0, $1.eatenAt) }
+            ?? entries.last { $0.rating == .favorite }
     }
 }
 

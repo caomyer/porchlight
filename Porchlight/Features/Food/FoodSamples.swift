@@ -81,14 +81,22 @@ enum FoodSamples {
         let slots = MealSlot.defaultNames
         let times = [8 * 60 + 40, 12 * 60 + 30, 19 * 60]
 
-        func add(_ dish: Dish, day: DayKey, slot: Int, later minutes: Int = 0) throws {
+        @discardableResult
+        func add(_ dish: Dish, day: DayKey, slot: Int, later minutes: Int = 0) throws -> JournalEntry {
             let eaters = dish.who.map { [people[min($0, people.count - 1)].id!] } ?? people.compactMap(\.id)
             let eatenAt = calendar.date(byAdding: .minute, value: times[slot] + minutes, to: day.startDate(in: calendar)) ?? .now
             let draft = MealDraft(
                 day: day, slot: slots[slot], source: dish.source, title: dish.title, emoji: dish.emoji,
                 tint: dish.tint, rating: dish.rating, eaterIds: eaters, eatenAt: eatenAt, place: dish.place
             )
-            try database.addMeal(draft, journalId: journalId, photos: photos, now: eatenAt)
+            return try database.addMeal(draft, journalId: journalId, now: eatenAt)
+        }
+
+        /// Gives a sample meal generated photos, so covers, counts and paging show without a camera.
+        func photograph(_ entry: JournalEntry, count: Int, palette: Int) throws {
+            guard let id = entry.id else { return }
+            let stored = try (0..<count).map { try photos.save(SamplePhoto.image(palette: palette + $0, emoji: entry.emoji ?? "🍽️")) }
+            try database.addMealPhotos(entryId: id, stored, now: entry.eatenAt)
         }
 
         for (index, meals) in history.enumerated() {
@@ -98,7 +106,11 @@ enum FoodSamples {
         for (index, meals) in week.enumerated() {
             let day = today.adding(days: index - 6, calendar: calendar)
             for (slot, dish) in meals.enumerated() {
-                if let dish { try add(dish, day: day, slot: slot) }
+                guard let dish else { continue }
+                let entry = try add(dish, day: day, slot: slot)
+                // Today's breakfast has two photos; yesterday's dinner three.
+                if index == 6 && slot == 0 { try photograph(entry, count: 2, palette: 0) }
+                if index == 5 && slot == 2 { try photograph(entry, count: 3, palette: 2) }
             }
             let lines = notes[index].map { text, writer, ink in
                 (text, ink ?? PageInk.defaultInk(for: people[min(writer, people.count - 1)].color))
@@ -113,7 +125,47 @@ enum FoodSamples {
 
         // A memory for "On this day".
         let yearAgo = DayKey(calendar.date(byAdding: .year, value: -1, to: today.startDate(in: calendar)) ?? .now, calendar: calendar)
-        try add(home("🦃", "Practice turkey", nil, 0xF1CFA0, .favorite), day: yearAgo, slot: 2)
+        let turkey = try add(home("🦃", "Practice turkey", nil, 0xF1CFA0, .favorite), day: yearAgo, slot: 2)
+        try photograph(turkey, count: 1, palette: 5)
+    }
+}
+
+/// A generated "photo" of a dish: a table, a plate seen from above and the dish's emoji,
+/// lit warm, so sample meals can have photos without a camera.
+enum SamplePhoto {
+    private static let tables: [(UInt32, UInt32)] = [
+        (0x6D4A32, 0x3D2A1E), (0x8A6A4A, 0x4A3424), (0x5A6B55, 0x2F3A2C),
+        (0x9B5D3C, 0x522F1E), (0x444F63, 0x232A38), (0x7C6A4D, 0x3E3424),
+    ]
+
+    static func image(palette: Int, emoji: String) -> UIImage {
+        let size = CGSize(width: 1600, height: 1200)
+        let (top, bottom) = tables[abs(palette) % tables.count]
+        return UIGraphicsImageRenderer(size: size).image { context in
+            let cg = context.cgContext
+            let colors = [UIColor(rgb: top).cgColor, UIColor(rgb: bottom).cgColor]
+            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 1])!
+            cg.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width * 0.8, y: size.height), options: [])
+            // Each angle sits the plate a little differently.
+            let shift = CGFloat((palette % 3) - 1) * 90
+            let plate = CGRect(x: 380 + shift, y: 160, width: 860, height: 860)
+            cg.setShadow(offset: CGSize(width: 0, height: 30), blur: 60, color: UIColor.black.withAlphaComponent(0.45).cgColor)
+            UIColor(white: 0.96, alpha: 1).setFill()
+            cg.fillEllipse(in: plate)
+            cg.setShadow(offset: .zero, blur: 0, color: nil)
+            UIColor(white: 0.88, alpha: 1).setStroke()
+            cg.setLineWidth(26)
+            cg.strokeEllipse(in: plate.insetBy(dx: 70, dy: 70))
+            let text = NSAttributedString(string: emoji, attributes: [.font: UIFont.systemFont(ofSize: 420)])
+            let textSize = text.size()
+            text.draw(at: CGPoint(x: plate.midX - textSize.width / 2, y: plate.midY - textSize.height / 2))
+        }
+    }
+}
+
+private extension UIColor {
+    convenience init(rgb: UInt32) {
+        self.init(red: CGFloat((rgb >> 16) & 0xFF) / 255, green: CGFloat((rgb >> 8) & 0xFF) / 255, blue: CGFloat(rgb & 0xFF) / 255, alpha: 1)
     }
 }
 

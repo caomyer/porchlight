@@ -163,7 +163,7 @@ private struct WeekStatsCard: View {
                 }
             }
             .frame(height: 12)
-            let legends = splitParts(stats).filter { $0.count > 0 || $0.label != MealSource.dineOut.label }
+            let legends = splitParts(stats).filter { $0.count > 0 || ($0.label != MealSource.dineOut.label && $0.label != MealSource.company.label) }
             ViewThatFits(in: .horizontal) {
                 HStack {
                     ForEach(Array(legends.enumerated()), id: \.element.label) { index, part in
@@ -184,12 +184,14 @@ private struct WeekStatsCard: View {
         let color: Color
     }
 
-    /// Home-cooked, delivery and eating out, in that order (eating out only shows once it happened).
+    /// Home-cooked, delivery, eating out and company food, in that order (the last two
+    /// only show once they happened).
     private func splitParts(_ stats: WeekStats) -> [SplitPart] {
         [
             SplitPart(label: MealSource.home.label, count: stats.homeCooked, color: PersonColor.ochre.color),
             SplitPart(label: MealSource.delivery.label, count: stats.delivery, color: PersonColor.blue.color),
             SplitPart(label: MealSource.dineOut.label, count: stats.dineOut, color: PersonColor.coral.color),
+            SplitPart(label: MealSource.company.label, count: stats.company, color: PersonColor.teal.color),
         ]
     }
 
@@ -244,7 +246,7 @@ private struct MemoryCard: View {
                         .foregroundStyle(Theme.muted)
                 }
                 Spacer(minLength: 8)
-                Polaroid(entry: entry, rotation: -4, emojiSize: 54, captionSize: 17, plate: 0.46, badgeSize: 22)
+                Polaroid(entry: entry, rotation: -4, emojiSize: 54, captionSize: 17, plate: 0.46, badgeSize: 22, showsPhotoCount: false)
                     .frame(width: 140)
                 Spacer(minLength: 12)
                 Text(sentence(memory))
@@ -276,6 +278,7 @@ private struct MemoryCard: View {
         case .delivery: text += AttributedString(", delivered \(slot)\(place)")
         case .dineOut:
             text += AttributedString(store.place(of: entry).map { " for \(slot) at \($0.name)" } ?? ", out for \(slot)")
+        case .company: text += AttributedString(" for \(slot) at work")
         }
         if let rating = entry.rating { text += AttributedString(". Verdict: \(rating.emoji)") }
         return text

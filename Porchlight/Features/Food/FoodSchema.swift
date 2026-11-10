@@ -38,12 +38,15 @@ enum MealSource: String, Codable, CaseIterable, Sendable, DatabaseValueConvertib
     case home
     case delivery
     case dineOut
+    /// Food from work, like the office cafeteria or a catered lunch.
+    case company
 
     var label: String {
         switch self {
         case .home: "Home-cooked"
         case .delivery: "Delivery"
         case .dineOut: "Dine out"
+        case .company: "Company"
         }
     }
 
@@ -52,11 +55,12 @@ enum MealSource: String, Codable, CaseIterable, Sendable, DatabaseValueConvertib
         case .home: "🏠"
         case .delivery: "🛵"
         case .dineOut: "🍽️"
+        case .company: "🏢"
         }
     }
 
     /// Whether the meal came from a restaurant, so it can name one.
-    var hasPlace: Bool { self != .home }
+    var hasPlace: Bool { self == .delivery || self == .dineOut }
 }
 
 /// A restaurant the household ate at or ordered from. Picked from a live map search
@@ -127,9 +131,6 @@ struct JournalEntry: Codable, Equatable, Identifiable, Sendable {
     /// Background of the illustration, as 0xRRGGBB.
     var tint: Int?
     var rating: MealRating?
-    /// File names inside the photo folder (see `FoodPhotoStore`).
-    var photoFile: String?
-    var thumbnailFile: String?
     /// When the meal was eaten; places it in the Today timeline.
     var eatenAt: Date
     var createdAt: Date
@@ -145,6 +146,26 @@ extension JournalEntry: FetchableRecord, MutablePersistableRecord {
         static let day = Column(CodingKeys.day)
         static let eatenAt = Column(CodingKeys.eatenAt)
     }
+
+    mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+}
+
+/// One photo of a meal. A meal has up to `AppDatabase.photoLimit`; the first in
+/// `sortOrder` is its cover, the picture shown wherever many meals appear at once.
+struct MealPhoto: Codable, Equatable, Hashable, Identifiable, Sendable {
+    var id: Int64?
+    var entryId: Int64
+    /// File names inside the photo folder (see `FoodPhotoStore`).
+    var photoFile: String
+    var thumbnailFile: String
+    var sortOrder: Int
+    var createdAt: Date
+}
+
+extension MealPhoto: FetchableRecord, MutablePersistableRecord {
+    static let databaseTableName = "journalEntryPhoto"
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
@@ -258,6 +279,27 @@ extension AppDatabase {
         migrator.registerMigration("food v3: notes belong to the day's page, not a meal") { db in
             try db.alter(table: "journalEntry") { t in
                 t.drop(column: "noteLine")
+            }
+        }
+        migrator.registerMigration("food v4: several photos per meal") { db in
+            try db.create(table: "journalEntryPhoto") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.belongsTo("entry", inTable: "journalEntry", onDelete: .cascade).notNull()
+                t.column("photoFile", .text).notNull()
+                t.column("thumbnailFile", .text).notNull()
+                t.column("sortOrder", .integer).notNull()
+                t.column("createdAt", .datetime).notNull()
+            }
+            try db.create(index: "journalEntryPhoto_on_entryId_sortOrder", on: "journalEntryPhoto", columns: ["entryId", "sortOrder"])
+            // Each meal's one photo becomes its first, and so its cover.
+            try db.execute(sql: """
+                INSERT INTO journalEntryPhoto (entryId, photoFile, thumbnailFile, sortOrder, createdAt)
+                SELECT id, photoFile, COALESCE(thumbnailFile, photoFile), 0, createdAt
+                FROM journalEntry WHERE photoFile IS NOT NULL
+                """)
+            try db.alter(table: "journalEntry") { t in
+                t.drop(column: "photoFile")
+                t.drop(column: "thumbnailFile")
             }
         }
     }

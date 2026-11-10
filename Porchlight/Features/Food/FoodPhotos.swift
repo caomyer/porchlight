@@ -16,7 +16,7 @@ struct FoodPhotoStore: Sendable {
         FoodPhotoStore(directory: AppFiles.folder("Photos"))
     }
 
-    struct Stored: Equatable, Sendable {
+    struct Stored: Equatable, Hashable, Sendable {
         var photoFile: String
         var thumbnailFile: String
     }
@@ -95,6 +95,7 @@ enum FoodError: Error, Equatable, LocalizedError {
     case placeNameTooLong(limit: Int)
     case photoUnreadable
     case mealNotFound
+    case tooManyPhotos(limit: Int)
 
     var errorDescription: String? {
         switch self {
@@ -105,6 +106,7 @@ enum FoodError: Error, Equatable, LocalizedError {
         case let .placeNameTooLong(limit): "Keep the restaurant name under \(limit) characters."
         case .photoUnreadable: "That photo could not be saved."
         case .mealNotFound: "That meal was already removed."
+        case let .tooManyPhotos(limit): "A meal can have up to \(limit) photos."
         }
     }
 }

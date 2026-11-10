@@ -33,18 +33,23 @@ enum MealImages {
 
 // MARK: - Illustration
 
-/// A meal's picture: its photo, or its emoji on a white plate over a tablecloth tint.
+/// A meal's picture: one of its photos (the cover unless `photoIndex` says otherwise),
+/// or its emoji on a white plate over a tablecloth tint.
 struct MealIllustration: View {
     let entry: JournalEntry
     /// Plate diameter as a fraction of the square's side.
     var plate: CGFloat = 0.5
     var emojiSize: CGFloat = 38
+    /// Which photo to show; 0 is the cover.
+    var photoIndex = 0
 
     @Environment(FoodStore.self) private var store
     @Environment(\.foodPreferFullPhoto) private var preferFullPhoto
 
     var body: some View {
-        let file = preferFullPhoto ? (entry.photoFile ?? entry.thumbnailFile) : (entry.thumbnailFile ?? entry.photoFile)
+        let photos = store.photos(of: entry)
+        let photo = photos.isEmpty ? nil : photos[min(max(photoIndex, 0), photos.count - 1)]
+        let file = preferFullPhoto ? photo?.photoFile : photo?.thumbnailFile
         if let image = MealImages.image(at: store.photoURL(file)) {
             Color.clear
                 .overlay { Image(uiImage: image).resizable().scaledToFill() }
@@ -111,14 +116,26 @@ struct Polaroid: View {
     var extra = 0
     /// The corner badge; "+1" for `extra` by default, e.g. "2/3" in a swipeable stack.
     var badge: String?
+    /// Which of the meal's photos to show; 0 is the cover.
+    var photoIndex = 0
+    /// Marks a meal with several photos with a small camera count. Off where the polaroid
+    /// is a keepsake ("On this day") or pages through the photos itself.
+    var showsPhotoCount = true
 
     @Environment(FoodStore.self) private var store
 
     var body: some View {
+        let photoCount = store.photos(of: entry).count
         VStack(spacing: 0) {
-            MealIllustration(entry: entry, plate: plate, emojiSize: emojiSize)
+            MealIllustration(entry: entry, plate: plate, emojiSize: emojiSize, photoIndex: photoIndex)
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 2))
+                .overlay(alignment: .bottomLeading) {
+                    if showsPhotoCount, photoCount > 1 {
+                        PhotoCountChip(count: photoCount, size: captionSize * 0.62)
+                            .padding(captionSize * 0.3)
+                    }
+                }
                 .overlay(alignment: .topLeading) {
                     if entry.source != .home {
                         Text(entry.source.emoji)
@@ -169,7 +186,33 @@ struct Polaroid: View {
         }
         .rotationEffect(.degrees(rotation))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(extra > 0 ? "\(entry.slot): \(entry.title) and \(extra) more" : "\(entry.slot): \(entry.title)")
+        .accessibilityLabel(accessibilityText(photoCount: photoCount))
+    }
+
+    private func accessibilityText(photoCount: Int) -> String {
+        var text = "\(entry.slot): \(entry.title)"
+        if extra > 0 { text += " and \(extra) more" }
+        if photoCount > 1 { text += ", \(photoCount) photos" }
+        return text
+    }
+}
+
+/// "📷 3" in a dark pill: the meal has more photos than the one shown. Open the meal to
+/// page through them; in grids, sideways swipes stay for dishes.
+struct PhotoCountChip: View {
+    let count: Int
+    var size: CGFloat = 10
+
+    var body: some View {
+        HStack(spacing: size * 0.3) {
+            Image(systemName: "camera.fill").font(.system(size: size * 0.95, weight: .semibold))
+            Text("\(count)").font(.body(size, weight: 800)).monospacedDigit()
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, size * 0.55)
+        .padding(.vertical, size * 0.32)
+        .background(Color.black.opacity(0.58), in: Capsule())
+        .accessibilityHidden(true)
     }
 }
 
@@ -366,15 +409,18 @@ struct PagerButton: View {
 /// A choice pill in sheets ("☀️ Lunch", "Felt tip"): paper gray, ink when selected.
 struct FoodChoicePill<Label: View>: View {
     let isSelected: Bool
+    /// Tighter, for rows of four or more choices.
+    var compact = false
     let action: () -> Void
     @ViewBuilder var label: () -> Label
 
     var body: some View {
         Button(action: action) {
             label()
-                .font(.body(14.5, weight: 700))
+                .font(.body(compact ? 13.5 : 14.5, weight: 700))
+                .lineLimit(1)
                 .foregroundStyle(isSelected ? Theme.surface : Theme.ink)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, compact ? 11 : 16)
                 .padding(.vertical, 9)
                 .background(isSelected ? Theme.ink : Theme.surface2, in: Capsule())
                 .contentShape(Capsule())
@@ -385,8 +431,8 @@ struct FoodChoicePill<Label: View>: View {
 }
 
 extension FoodChoicePill where Label == Text {
-    init(_ title: String, isSelected: Bool, action: @escaping () -> Void) {
-        self.init(isSelected: isSelected, action: action) { Text(title) }
+    init(_ title: String, isSelected: Bool, compact: Bool = false, action: @escaping () -> Void) {
+        self.init(isSelected: isSelected, compact: compact, action: action) { Text(title) }
     }
 }
 

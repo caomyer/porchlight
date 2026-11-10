@@ -15,14 +15,25 @@ final class LoggedEntryTests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
 
+    /// Logs a walk, then fixes it from Today's timeline. Works at any hour: sample walks
+    /// depend on the time of day, so the test makes its own (10 minutes, a length no
+    /// sample walk has) and changes it to 45, which Yo-Yo's card must show at once.
     func testFixingAWalkFromToday() {
         let app = XCUIApplication()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "today"]
         app.launch()
 
-        // The sample morning walk is James' alone.
-        let walk = button(app, containing: "James walked Yo-Yo")
-        XCTAssertTrue(walk.waitForExistence(timeout: 30), "The morning walk should be a tappable row")
+        let log = button(app, containing: "I walked Yo-Yo")
+        XCTAssertTrue(log.waitForExistence(timeout: 30))
+        log.tap()
+        XCTAssertTrue(app.staticTexts["Who walked Yo-Yo?"].waitForExistence(timeout: 5))
+        app.buttons["10 min"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save walk'")).firstMatch.tap()
+        let done = app.buttons["Back to today"]
+        if done.waitForExistence(timeout: 5) { done.tap() }
+
+        let walk = button(app, containing: "walked Yo-Yo · 10 min")
+        XCTAssertTrue(walk.waitForExistence(timeout: 10), "The new walk should be a tappable row")
         walk.tap()
         XCTAssertTrue(app.staticTexts["Edit walk"].waitForExistence(timeout: 5), "Tapping a logged walk should open it for editing")
         XCTAssertTrue(app.buttons["Just got back"].exists, "Today's log offers quick times")
@@ -30,15 +41,14 @@ final class LoggedEntryTests: XCTestCase {
         snapshot("50-edit-walk")
 
         app.buttons["Mia"].tap()
-        app.buttons["2 hr ago"].tap()
+        app.buttons["45 min"].tap()
         app.buttons["Save changes"].tap()
         XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 5), "Saving should close the editor")
-        XCTAssertTrue(button(app, containing: "James & Mia walked Yo-Yo").waitForExistence(timeout: 5)
-                      || button(app, containing: "Mia & James walked Yo-Yo").exists,
-                      "The timeline should show both walkers")
-        // Yo-Yo's card refreshes too: the morning slot no longer shows the old 8:26 walk.
-        let staleTile = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '8:26 ·'")).firstMatch
-        XCTAssertTrue(staleTile.waitForNonExistence(timeout: 5), "The Today card should show the fixed walk")
+        XCTAssertTrue(button(app, containing: "James & Mia walked Yo-Yo · 45 min").waitForExistence(timeout: 5),
+                      "The timeline should show both walkers and the new length")
+        // Yo-Yo's card refreshes too, not just the timeline.
+        let tile = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' · 45 min'")).firstMatch
+        XCTAssertTrue(tile.waitForExistence(timeout: 5), "The Today card should show the fixed walk")
         snapshot("51-walk-fixed")
     }
 

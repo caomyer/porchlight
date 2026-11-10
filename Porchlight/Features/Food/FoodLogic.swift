@@ -179,12 +179,13 @@ struct WeekStats: Equatable, Sendable {
     var homeCooked = 0
     var delivery = 0
     var dineOut = 0
+    var company = 0
     /// The most frequent theme with at least 3 meals, and the dishes behind it.
     var theme: DishTheme?
     var themeDishes: [String] = []
     /// Dishes eaten for the first time this week, best rated first.
     var newDishes: [JournalEntry] = []
-    var total: Int { homeCooked + delivery + dineOut }
+    var total: Int { homeCooked + delivery + dineOut + company }
 
     /// Stats for the entries of `days` (the week), with `history` as everything logged before it.
     static func make(week entries: [JournalEntry], history: [JournalEntry]) -> WeekStats {
@@ -192,6 +193,7 @@ struct WeekStats: Equatable, Sendable {
         stats.homeCooked = entries.filter { $0.source == .home }.count
         stats.delivery = entries.filter { $0.source == .delivery }.count
         stats.dineOut = entries.filter { $0.source == .dineOut }.count
+        stats.company = entries.filter { $0.source == .company }.count
 
         let chronological = entries.sorted { ($0.day, $0.eatenAt) < ($1.day, $1.eatenAt) }
         let themed = DishTheme.all
@@ -284,13 +286,14 @@ struct FoodMemory: Equatable, Sendable {
 
     /// Looks for meals on this date a year ago (then 2-3 years ago), and otherwise on
     /// the same day of the closest earlier month (11 months ago down to 1).
-    static func find(in entries: [JournalEntry], today: DayKey, calendar: Calendar) -> FoodMemory? {
+    /// `withPhotos` names the meals that have photos, which make better memories.
+    static func find(in entries: [JournalEntry], withPhotos: Set<Int64> = [], today: DayKey, calendar: Calendar) -> FoodMemory? {
         let byDay = Dictionary(grouping: entries, by: \.day)
         let start = today.startDate(in: calendar)
         for months in [12, 24, 36] + Array((1...11).reversed()) {
             guard let date = calendar.date(byAdding: .month, value: -months, to: start) else { continue }
             let key = DayKey(date, calendar: calendar)
-            if let candidates = byDay[key.rawValue], let best = candidates.max(by: memorable) {
+            if let candidates = byDay[key.rawValue], let best = candidates.max(by: { memorable($0, $1, withPhotos: withPhotos) }) {
                 return FoodMemory(entry: best, monthsAgo: months)
             }
         }
@@ -298,9 +301,9 @@ struct FoodMemory: Equatable, Sendable {
     }
 
     /// Photos beat illustrations, then higher ratings, then later meals.
-    private static func memorable(_ a: JournalEntry, _ b: JournalEntry) -> Bool {
-        let left = (a.photoFile != nil ? 1 : 0, a.rating?.rawValue ?? 0, a.eatenAt)
-        let right = (b.photoFile != nil ? 1 : 0, b.rating?.rawValue ?? 0, b.eatenAt)
+    private static func memorable(_ a: JournalEntry, _ b: JournalEntry, withPhotos: Set<Int64>) -> Bool {
+        let left = (withPhotos.contains(a.id ?? -1) ? 1 : 0, a.rating?.rawValue ?? 0, a.eatenAt)
+        let right = (withPhotos.contains(b.id ?? -1) ? 1 : 0, b.rating?.rawValue ?? 0, b.eatenAt)
         return left < right
     }
 }
