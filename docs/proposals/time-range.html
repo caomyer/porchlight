@@ -1,0 +1,277 @@
+<title>Hours Ruler</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+/* Layout: one column; two live mocks (a routine's window, the night hours) at real point sizes, then the choices. Single light look, matching the app and the Meal Time Ruler proposal. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --blue: #4C7BB0;
+  --good: #5B9F72;
+  --band-warm: #F3DFB0;
+  --band-rose: #F0CDBE;
+  --band-night: #D9DCEB;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+.page { max-width: 900px; margin: 0 auto; display: grid; gap: 48px; }
+.prose { max-width: 66ch; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: clamp(32px, 5vw, 46px); line-height: 1.08; }
+h3 { font-size: 18px; }
+p { margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+section { display: grid; gap: 16px; }
+.muted { color: var(--muted); }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lab { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.field { background: var(--surface2); border-radius: 12px; padding: 8px 14px; font-weight: 700; min-width: 120px; }
+.sys { display: inline-flex; background: #e9e9ee; color: #1c1c1e; border-radius: 8px; padding: 6px 11px; font: 500 17px/1.1 -apple-system, system-ui, sans-serif; }
+
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+
+.time { border: 0; cursor: pointer; display: inline-flex; align-items: baseline; gap: 6px; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--line); border-radius: 999px; padding: 6px 14px 7px; color: var(--ink); }
+.time b { font: 600 19px/1 var(--display); font-variant-numeric: tabular-nums; }
+.time span { font: 700 12px/1 var(--body); color: var(--muted); }
+.time.on { box-shadow: inset 0 0 0 2px var(--accent); }
+.to { font-weight: 600; color: var(--muted); }
+.time:focus-visible, .nudge:focus-visible, .done:focus-visible, .track:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.ruler { display: grid; gap: 10px; padding: 14px 16px 12px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; }
+.ruler[hidden] { display: none !important; }
+.track { position: relative; height: 66px; touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none; border-radius: 8px; }
+.bands, .ticks { position: absolute; left: 0; right: 0; }
+.bands { top: 14px; height: 26px; border-radius: 8px; overflow: hidden; background: var(--surface2); }
+.band { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; font: 800 10px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: rgba(42,36,32,.55); white-space: nowrap; overflow: hidden; }
+.band.other { opacity: .45; }
+.ticks { top: 42px; height: 24px; }
+.tick { position: absolute; top: 0; width: 1px; height: 6px; background: var(--muted); opacity: .55; }
+.tick.major { height: 9px; opacity: .9; }
+.tick label { position: absolute; top: 11px; transform: translateX(-50%); font: 700 11px/1 var(--body); color: var(--muted); white-space: nowrap; }
+.thumb { position: absolute; top: 4px; width: 4px; height: 46px; margin-left: -2px; background: var(--muted); border-radius: 2px; }
+.thumb::before { content: ""; position: absolute; left: 50%; top: -8px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 3px var(--surface); }
+.thumb.on { background: var(--accent); }
+.thumb.on::before { background: var(--accent); }
+.foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.readout { font: 600 22px/1 var(--display); font-variant-numeric: tabular-nums; }
+.readout small { font: 700 12px/1 var(--body); color: var(--muted); margin-left: 3px; }
+.readout i { font: 600 15px/1 var(--body); font-style: normal; color: var(--muted); margin: 0 8px; }
+.nudge { border: 0; cursor: pointer; background: var(--surface2); border-radius: 999px; padding: 8px 12px; font: 800 14px/1 var(--body); color: var(--ink); }
+.done { margin-left: auto; border: 0; cursor: pointer; background: var(--ink); color: #fff; border-radius: 999px; padding: 9px 18px; font: 800 14px/1 var(--body); }
+.hint { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+.mock { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 22px 24px; display: grid; gap: 12px; box-shadow: 0 16px 40px rgba(60,40,20,.08); }
+.mock .title { font: 600 22px/1.1 var(--display); }
+.switch { width: 46px; height: 28px; border-radius: 999px; background: var(--good); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+th, td { text-align: left; padding: 12px 14px; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.rec { font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header style="display:grid;gap:14px">
+    <div class="eyebrow">Porchlight · Hours · Proposal for approval</div>
+    <h1>The same ruler for a stretch of hours</h1>
+    <p class="prose" style="font-size:18px">Meal and care times now use the app's pill and day ruler. Two places still show the system's gray boxes, and both pick a stretch of hours rather than one time: a routine's windows (Morning 6 to 10am) in the companion editor, and the night hours in Settings. This proposal gives them the same pills and the same ruler, with two handles, one for each end.</p>
+  </header>
+
+  <section>
+    <div class="eyebrow">Today and proposed</div>
+    <div class="compare">
+      <div class="panel">
+        <h3>Today: two system boxes</h3>
+        <div class="row"><span class="field">Morning</span><span class="sys">6:00 AM</span><span class="to">to</span><span class="sys">10:00 AM</span></div>
+        <p class="muted" style="font-size:14px">Each box opens its own wheel, so the two ends are picked blind to each other and to the routine's other windows.</p>
+      </div>
+      <div class="panel">
+        <h3>Proposed: two pills, one ruler</h3>
+        <div class="row"><span class="field">Morning</span><span class="time" style="cursor:default"><b>6:00</b><span>AM</span></span><span class="to">to</span><span class="time" style="cursor:default"><b>10:00</b><span>AM</span></span></div>
+        <p class="muted" style="font-size:14px">Tapping either pill opens one ruler below the row, with that end's handle active. The stretch between the handles is shaded.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Try it: a walk routine's windows</div>
+    <div class="mock">
+      <div class="title">Walk Yo-Yo · 2× a day</div>
+      <span class="lab">Windows</span>
+      <div class="row">
+        <span class="field">Morning</span>
+        <button class="time on" id="wStart" aria-controls="walkRuler"><b>6:00</b><span>AM</span></button>
+        <span class="to">to</span>
+        <button class="time" id="wEnd" aria-controls="walkRuler"><b>10:00</b><span>AM</span></button>
+      </div>
+      <div class="ruler" id="walkRuler"></div>
+      <div class="row">
+        <span class="field">Evening</span>
+        <span class="time" style="cursor:default"><b>5:00</b><span>PM</span></span>
+        <span class="to">to</span>
+        <span class="time" style="cursor:default"><b>8:00</b><span>PM</span></span>
+      </div>
+      <p class="hint">Drag either handle, or tap the track to move the nearer one. The routine's other windows show faintly, so they don't overlap by accident. 15 minute steps.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Try it: night hours in Settings</div>
+    <div class="mock">
+      <div class="row" style="justify-content:space-between;flex-wrap:nowrap">
+        <div style="display:grid;gap:2px;min-width:0">
+          <b style="font-size:17px">Night mode</b>
+          <span class="muted" style="font-size:14px">Between these hours the photo frame becomes a dim clock and the screen turns down.</span>
+        </div>
+        <span class="switch" aria-hidden="true"></span>
+      </div>
+      <div class="row">
+        <span class="lab" style="margin-right:4px">From</span>
+        <button class="time" id="nStart" aria-controls="nightRuler"><b>9:30</b><span>PM</span></button>
+        <span class="to">to</span>
+        <button class="time" id="nEnd" aria-controls="nightRuler"><b>6:30</b><span>AM</span></button>
+      </div>
+      <div class="ruler" id="nightRuler" hidden></div>
+      <p class="hint">Night crosses midnight, so this ruler runs noon to noon and the night stays one unbroken stretch.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Decisions to approve</div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Question</th><th>Recommendation</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>How a stretch of hours shows</td><td class="rec">Two time pills with "to" between</td><td>Reads like the sentence it is, and matches the meal and walk pills.</td></tr>
+          <tr><td>How it's changed</td><td class="rec">One ruler with two handles, opened from either pill</td><td>Both ends are visible together, so the window can't end before it starts.</td></tr>
+          <tr><td>Steps</td><td class="rec">15 minutes</td><td>Windows and night hours are rough by nature; the nudges still move by 15.</td></tr>
+          <tr><td>Other windows</td><td class="rec">Shown faintly on the same ruler</td><td>Makes overlaps visible while editing one window.</td></tr>
+          <tr><td>Night across midnight</td><td class="rec">Ruler runs noon to noon</td><td>The night stays one stretch instead of two pieces at either end.</td></tr>
+          <tr><td>Where it applies</td><td class="rec">Routine windows, night hours</td><td>The last two system time pickers in the app. Birthdays and repeat start days are dates and stay as they are.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const STEP = 15;
+
+  function fmt(minute) {
+    const m24 = ((minute % 1440) + 1440) % 1440;
+    const h = Math.floor(m24 / 60), m = m24 % 60;
+    return { time: (((h + 11) % 12) + 1) + ':' + String(m).padStart(2, '0'), ampm: h < 12 ? 'AM' : 'PM' };
+  }
+  function pillHTML(minute) { const f = fmt(minute); return '<b>' + f.time + '</b><span>' + f.ampm + '</span>'; }
+
+  function buildRange(el, opts) {
+    const start = opts.start, end = opts.end, span = end - start;
+    let lo = opts.lo, hi = opts.hi, active = opts.active || 'lo';
+    const pct = (minute) => ((minute - start) / span * 100) + '%';
+    let others = '';
+    (opts.others || []).forEach(function (b) {
+      others += '<div class="band other" style="left:' + pct(b[1]) + ';width:calc(' + pct(b[2]) + ' - ' + pct(b[1]) + ');background:' + b[3] + '">' + b[0] + '</div>';
+    });
+    let ticks = '';
+    for (let m = Math.ceil(start / 60) * 60; m <= end; m += 60) {
+      const major = (m / 60) % 3 === 0;
+      const h = (m / 60) % 24;
+      ticks += '<div class="tick' + (major ? ' major' : '') + '" style="left:' + pct(m) + '">' + (major ? '<label>' + (((h + 11) % 12) + 1) + (h < 12 ? 'a' : 'p') + '</label>' : '') + '</div>';
+    }
+    el.innerHTML =
+      '<div class="track" role="group" aria-label="' + opts.label + '" tabindex="0">' +
+        '<div class="bands">' + others + '<div class="band sel" style="background:' + opts.color + '">' + opts.name + '</div></div>' +
+        '<div class="ticks">' + ticks + '</div>' +
+        '<div class="thumb lo" aria-hidden="true"></div><div class="thumb hi" aria-hidden="true"></div>' +
+      '</div>' +
+      '<div class="foot"><span class="readout"></span><button class="nudge" data-d="-15">−15 min</button><button class="nudge" data-d="15">+15 min</button><button class="done">Done</button></div>';
+    const track = el.querySelector('.track'), sel = el.querySelector('.band.sel'), readout = el.querySelector('.readout');
+    const tLo = el.querySelector('.thumb.lo'), tHi = el.querySelector('.thumb.hi');
+
+    function render() {
+      tLo.style.left = pct(lo); tHi.style.left = pct(hi);
+      tLo.classList.toggle('on', active === 'lo'); tHi.classList.toggle('on', active === 'hi');
+      sel.style.left = pct(lo); sel.style.width = 'calc(' + pct(hi) + ' - ' + pct(lo) + ')';
+      const a = fmt(lo), b = fmt(hi);
+      readout.innerHTML = a.time + '<small>' + a.ampm + '</small><i>to</i>' + b.time + '<small>' + b.ampm + '</small>';
+      track.setAttribute('aria-valuetext', a.time + ' ' + a.ampm + ' to ' + b.time + ' ' + b.ampm);
+      opts.onChange(lo, hi, active);
+    }
+    function set(which, minute) {
+      const v = Math.round(minute / STEP) * STEP;
+      if (which === 'lo') lo = Math.max(start, Math.min(hi - STEP, v));
+      else hi = Math.min(end, Math.max(lo + STEP, v));
+      active = which;
+      render();
+    }
+    function fromX(x) { const r = track.getBoundingClientRect(); return start + (x - r.left) / r.width * span; }
+    let dragging = null;
+    track.addEventListener('pointerdown', function (e) {
+      const m = fromX(e.clientX);
+      dragging = Math.abs(m - lo) <= Math.abs(m - hi) ? 'lo' : 'hi';
+      track.setPointerCapture(e.pointerId); set(dragging, m);
+    });
+    track.addEventListener('pointermove', function (e) { if (dragging) set(dragging, fromX(e.clientX)); });
+    track.addEventListener('pointerup', function () { dragging = null; });
+    track.addEventListener('pointercancel', function () { dragging = null; });
+    track.addEventListener('keydown', function (e) {
+      const v = active === 'lo' ? lo : hi;
+      if (e.key === 'ArrowLeft') { set(active, v - STEP); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { set(active, v + STEP); e.preventDefault(); }
+      if (e.key === 'Tab' && !e.shiftKey && active === 'lo') { active = 'hi'; render(); e.preventDefault(); }
+    });
+    el.querySelectorAll('.nudge').forEach(function (b) {
+      b.addEventListener('click', function () { set(active, (active === 'lo' ? lo : hi) + Number(b.dataset.d)); });
+    });
+    el.querySelector('.done').addEventListener('click', opts.onDone);
+    render();
+    return { focus: function (which) { active = which; render(); } };
+  }
+
+  function wire(prefix, rulerEl, opts) {
+    const a = document.getElementById(prefix + 'Start'), b = document.getElementById(prefix + 'End');
+    const r = buildRange(rulerEl, Object.assign({}, opts, {
+      onChange: function (lo, hi, active) {
+        a.innerHTML = pillHTML(lo); b.innerHTML = pillHTML(hi);
+        const open = !rulerEl.hidden;
+        a.classList.toggle('on', open && active === 'lo'); b.classList.toggle('on', open && active === 'hi');
+      },
+      onDone: function () { rulerEl.hidden = true; a.classList.remove('on'); b.classList.remove('on'); }
+    }));
+    [[a, 'lo'], [b, 'hi']].forEach(function (pair) {
+      pair[0].addEventListener('click', function () { rulerEl.hidden = false; r.focus(pair[1]); });
+    });
+  }
+
+  wire('w', document.getElementById('walkRuler'), {
+    start: 6 * 60, end: 24 * 60, lo: 6 * 60, hi: 10 * 60, active: 'lo', name: 'Morning', color: 'var(--band-warm)', label: 'Morning window',
+    others: [['Evening', 17 * 60, 20 * 60, 'var(--band-rose)']]
+  });
+  wire('n', document.getElementById('nightRuler'), {
+    start: 12 * 60, end: 36 * 60, lo: 21 * 60 + 30, hi: 30 * 60 + 30, name: 'Night', color: 'var(--band-night)', label: 'Night hours'
+  });
+})();
+</script>
