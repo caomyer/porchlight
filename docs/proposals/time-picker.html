@@ -1,0 +1,288 @@
+<title>Meal Time Ruler</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+/* Layout: one column; two live mocks of the form row (a meal, a walk) at real point sizes, then the choices. Single light look, matching the app. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --blue: #4C7BB0;
+  --band-breakfast: #F3DFB0;
+  --band-lunch: #DCE9C9;
+  --band-dinner: #F0CDBE;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+.page { max-width: 900px; margin: 0 auto; display: grid; gap: 48px; }
+.prose { max-width: 66ch; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: clamp(32px, 5vw, 46px); line-height: 1.08; }
+h2 { font-size: 26px; }
+p { margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+section { display: grid; gap: 16px; }
+.muted { color: var(--muted); }
+
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.panel h3 { font-size: 18px; }
+
+/* Form bits, at the app's sizes */
+.lab { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.lab small { font-size: 12px; letter-spacing: 0; text-transform: none; font-weight: 600; color: var(--muted); }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pill { border: 0; background: var(--surface2); color: var(--ink); border-radius: 999px; padding: 8px 15px; font: 700 14.5px/1.2 var(--body); white-space: nowrap; }
+.pill.on { background: var(--ink); color: #fff; }
+button.pill { cursor: pointer; }
+.time { border: 0; cursor: pointer; display: inline-flex; align-items: baseline; gap: 6px; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--line); border-radius: 999px; padding: 6px 14px 7px; color: var(--ink); }
+.time b { font: 600 19px/1 var(--display); font-variant-numeric: tabular-nums; }
+.time span { font: 700 12px/1 var(--body); color: var(--muted); }
+.time[aria-expanded="true"] { box-shadow: inset 0 0 0 2px var(--accent); }
+.time:focus-visible, .pill:focus-visible, .nudge:focus-visible, .thumb:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.sys { display: inline-flex; background: #e9e9ee; color: #1c1c1e; border-radius: 8px; padding: 6px 11px; font: 500 17px/1.1 -apple-system, system-ui, sans-serif; }
+
+/* The ruler */
+.ruler { display: grid; gap: 10px; padding: 14px 16px 12px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; }
+.ruler[hidden] { display: none !important; }
+.track { position: relative; height: 66px; touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.bands, .ticks { position: absolute; left: 0; right: 0; }
+.bands { top: 14px; height: 26px; border-radius: 8px; overflow: hidden; background: var(--surface2); }
+.band { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; font: 800 10px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: rgba(42,36,32,.55); }
+.future { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, rgba(134,122,110,.16) 0 6px, transparent 6px 12px); }
+.ticks { top: 42px; height: 24px; }
+.tick { position: absolute; top: 0; width: 1px; height: 6px; background: var(--muted); opacity: .55; }
+.tick.major { height: 9px; opacity: .9; }
+.tick label { position: absolute; top: 11px; transform: translateX(-50%); font: 700 11px/1 var(--body); color: var(--muted); white-space: nowrap; }
+.thumb { position: absolute; top: 4px; width: 4px; height: 46px; margin-left: -2px; background: var(--accent); border-radius: 2px; border: 0; padding: 0; cursor: grab; }
+.thumb::before { content: ""; position: absolute; left: 50%; top: -8px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--surface); }
+.foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.readout { font: 600 28px/1 var(--display); font-variant-numeric: tabular-nums; min-width: 6.5ch; }
+.readout small { font: 700 13px/1 var(--body); color: var(--muted); margin-left: 6px; }
+.nudge { border: 0; cursor: pointer; background: var(--surface2); border-radius: 999px; padding: 8px 12px; font: 800 14px/1 var(--body); color: var(--ink); }
+.done { margin-left: auto; border: 0; cursor: pointer; background: var(--ink); color: #fff; border-radius: 999px; padding: 9px 18px; font: 800 14px/1 var(--body); }
+.hint { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+.mock { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 22px 24px; display: grid; gap: 12px; box-shadow: 0 16px 40px rgba(60,40,20,.08); }
+.mock .title { font: 600 26px/1.1 var(--display); }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+th, td { text-align: left; padding: 12px 14px; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.rec { font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header style="display:grid;gap:14px">
+    <div class="eyebrow">Porchlight · When it happened · Proposal for approval</div>
+    <h1>A time picker that looks like the rest of the wall</h1>
+    <p class="prose" style="font-size:18px">The meal and walk forms use the system's time picker: a gray box that opens an iOS wheel. It works, but it looks borrowed. This proposal draws the time as one of the app's own pills, and tapping it opens a ruler of the day right in the form, with the usual meal times shaded so the time and the meal make sense together.</p>
+  </header>
+
+  <section>
+    <div class="eyebrow">Today and proposed</div>
+    <div class="compare">
+      <div class="panel">
+        <h3>Today: the system picker</h3>
+        <div class="row"><span class="lab">Meal</span><span style="flex:1"></span><span class="muted" style="font-weight:600">at</span><span class="sys">7:12 PM</span></div>
+        <p class="muted" style="font-size:14px">A gray iOS box in SF Pro. Tapping it opens a floating wheel over the form.</p>
+      </div>
+      <div class="panel">
+        <h3>Proposed: the app's own pill</h3>
+        <div class="row"><span class="lab">Meal</span><span style="flex:1"></span><span class="time" style="cursor:default"><b>7:12</b><span>PM</span></span></div>
+        <p class="muted" style="font-size:14px">Paper, ink and the serif numerals used for the clock on Today. Tapping it opens the ruler below, in place.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Try it: logging a meal</div>
+    <div class="mock">
+      <div class="title">Dinner, probably</div>
+      <div class="row" style="justify-content:space-between">
+        <span class="lab">Meal</span>
+        <button class="time" id="mealTime" aria-expanded="true" aria-controls="mealRuler"><b id="mealTimeText">7:12</b><span id="mealTimeAmpm">PM</span></button>
+      </div>
+      <div class="row"><span class="pill">🌅 Breakfast</span><span class="pill">☀️ Lunch</span><span class="pill on" id="mealSlot">🌙 Dinner</span><span class="pill">🍪 Snack</span></div>
+      <div class="ruler" id="mealRuler"></div>
+      <p class="hint">Drag along the day, or nudge by 5 minutes. Before you pick a meal, the shaded band you land in picks it for you, as the time already does today. Later than now is hatched and can't be chosen.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Try it: a walk that started earlier</div>
+    <div class="mock">
+      <div class="title">Who walked Yo-Yo?</div>
+      <div class="row">
+        <span class="lab">Started <small>back by <span id="walkBack">6:52pm</span></small></span>
+      </div>
+      <div class="row">
+        <button class="pill" data-ago="0">Just got back</button>
+        <button class="pill" data-ago="30">30 min ago</button>
+        <button class="pill on" data-ago="60">1 hr ago</button>
+        <button class="pill" data-ago="120">2 hr ago</button>
+        <button class="time" id="walkTime" aria-expanded="false" aria-controls="walkRuler"><b id="walkTimeText">6:32</b><span id="walkTimeAmpm">PM</span></button>
+      </div>
+      <div class="ruler" id="walkRuler" hidden></div>
+      <p class="hint">The quick choices stay. The pill always shows the exact start; tap it for the ruler.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Decisions to approve</div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Question</th><th>Recommendation</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>How the time shows</td><td class="rec">An app pill with serif numerals</td><td>Matches the clock on Today and the other pills in the form.</td></tr>
+          <tr><td>How it's changed</td><td class="rec">A day ruler that opens in place, with ±5 min nudges</td><td>No floating wheel over the form; big targets for fingers on a wall; the nudges handle the last few minutes.</td></tr>
+          <tr><td>Steps</td><td class="rec">5 minutes</td><td>Fine enough for a meal or a walk; dragging stays steady.</td></tr>
+          <tr><td>Meal bands on the ruler</td><td class="rec">Show the diary's meals at their usual times</td><td>Ties the time to the meal it probably was; walks show their routine's windows instead.</td></tr>
+          <tr><td>Times later than now</td><td class="rec">Hatched and out of reach</td><td>Same rule as today, made visible.</td></tr>
+          <tr><td>Where it applies</td><td class="rec">Snap a meal, Edit meal, log or fix a walk or other care</td><td>One control everywhere a time is picked.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const NOW = 19 * 60 + 40; // the mock's "now": 7:40 PM
+  const STEP = 5;
+
+  function fmt(minute) {
+    const h = Math.floor(minute / 60), m = minute % 60;
+    const h12 = ((h + 11) % 12) + 1;
+    return { time: h12 + ':' + String(m).padStart(2, '0'), ampm: h < 12 ? 'AM' : 'PM' };
+  }
+
+  function buildRuler(el, opts) {
+    const start = opts.start, end = opts.end;
+    const span = end - start;
+    let value = opts.value;
+    const pct = (minute) => ((minute - start) / span * 100) + '%';
+    let bands = '';
+    opts.bands.forEach(function (b) {
+      bands += '<div class="band" style="left:' + pct(b[1]) + ';width:calc(' + pct(b[2]) + ' - ' + pct(b[1]) + ');background:' + b[3] + '">' + b[0] + '</div>';
+    });
+    bands += '<div class="future" style="left:' + pct(Math.min(NOW, end)) + ';right:0"></div>';
+    let ticks = '';
+    for (let m = Math.ceil(start / 60) * 60; m <= end; m += 60) {
+      const major = (m / 60) % 3 === 0;
+      ticks += '<div class="tick' + (major ? ' major' : '') + '" style="left:' + pct(m) + '">' + (major ? '<label>' + (((m / 60 + 11) % 12) + 1) + (m < 720 ? 'a' : 'p') + '</label>' : '') + '</div>';
+    }
+    el.innerHTML =
+      '<div class="track" role="slider" aria-label="' + opts.label + '" tabindex="0">' +
+        '<div class="bands">' + bands + '</div><div class="ticks">' + ticks + '</div>' +
+        '<div class="thumb" aria-hidden="true"></div>' +
+      '</div>' +
+      '<div class="foot"><span class="readout"></span><button class="nudge" data-d="-5">−5 min</button><button class="nudge" data-d="5">+5 min</button><button class="done">Done</button></div>';
+    const track = el.querySelector('.track'), thumb = el.querySelector('.thumb'), readout = el.querySelector('.readout');
+
+    function set(minute) {
+      value = Math.max(start, Math.min(Math.min(NOW, end), Math.round(minute / STEP) * STEP));
+      thumb.style.left = pct(value);
+      const f = fmt(value);
+      readout.innerHTML = f.time + '<small>' + f.ampm + '</small>';
+      track.setAttribute('aria-valuetext', f.time + ' ' + f.ampm);
+      opts.onChange(value);
+    }
+    function fromX(clientX) {
+      const r = track.getBoundingClientRect();
+      return start + (clientX - r.left) / r.width * span;
+    }
+    let dragging = false;
+    track.addEventListener('pointerdown', function (e) { dragging = true; track.setPointerCapture(e.pointerId); set(fromX(e.clientX)); });
+    track.addEventListener('pointermove', function (e) { if (dragging) set(fromX(e.clientX)); });
+    track.addEventListener('pointerup', function () { dragging = false; });
+    track.addEventListener('pointercancel', function () { dragging = false; });
+    track.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') { set(value - STEP); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { set(value + STEP); e.preventDefault(); }
+    });
+    el.querySelectorAll('.nudge').forEach(function (b) { b.addEventListener('click', function () { set(value + Number(b.dataset.d)); }); });
+    el.querySelector('.done').addEventListener('click', opts.onDone);
+    set(value);
+    return { set: set, get: function () { return value; } };
+  }
+
+  // Meal: ruler from 6 AM to midnight, the diary's meals shaded.
+  const mealBtn = document.getElementById('mealTime');
+  const mealRulerEl = document.getElementById('mealRuler');
+  const slotEl = document.getElementById('mealSlot');
+  const slots = [['Breakfast', 6 * 60, 10 * 60 + 30, 'var(--band-breakfast)', '🌅'], ['Lunch', 11 * 60 + 30, 14 * 60 + 30, 'var(--band-lunch)', '☀️'], ['Dinner', 17 * 60 + 30, 21 * 60, 'var(--band-dinner)', '🌙']];
+  buildRuler(mealRulerEl, {
+    start: 6 * 60, end: 24 * 60, value: 19 * 60 + 12, label: 'Time eaten', bands: slots,
+    onChange: function (v) {
+      const f = fmt(v);
+      document.getElementById('mealTimeText').textContent = f.time;
+      document.getElementById('mealTimeAmpm').textContent = f.ampm;
+      const slot = slots.find(function (s) { return v >= s[1] && v <= s[2]; });
+      slotEl.textContent = slot ? slot[4] + ' ' + slot[0] : '🍪 Snack';
+    },
+    onDone: function () { mealRulerEl.hidden = true; mealBtn.setAttribute('aria-expanded', 'false'); }
+  });
+  mealBtn.addEventListener('click', function () {
+    const open = mealRulerEl.hidden;
+    mealRulerEl.hidden = !open;
+    mealBtn.setAttribute('aria-expanded', String(open));
+  });
+
+  // Walk: ruler for today up to now, the walk's windows shaded; quick choices stay.
+  const walkBtn = document.getElementById('walkTime');
+  const walkRulerEl = document.getElementById('walkRuler');
+  const duration = 20;
+  let walkRuler;
+  function showWalk(v) {
+    const f = fmt(v);
+    document.getElementById('walkTimeText').textContent = f.time;
+    document.getElementById('walkTimeAmpm').textContent = f.ampm;
+    const back = fmt(v + duration);
+    document.getElementById('walkBack').textContent = back.time + back.ampm.toLowerCase();
+  }
+  walkRuler = buildRuler(walkRulerEl, {
+    start: 6 * 60, end: 24 * 60, value: NOW - 60, label: 'Walk started',
+    bands: [['Morning', 6 * 60, 10 * 60, 'var(--band-breakfast)'], ['Evening', 17 * 60, 20 * 60, 'var(--band-dinner)']],
+    onChange: function (v) {
+      showWalk(v);
+      document.querySelectorAll('[data-ago]').forEach(function (b) {
+        const ago = Number(b.dataset.ago);
+        const at = ago === 0 ? NOW - duration : NOW - ago;
+        b.classList.toggle('on', Math.abs(Math.round(at / 5) * 5 - v) < 1);
+      });
+    },
+    onDone: function () { walkRulerEl.hidden = true; walkBtn.setAttribute('aria-expanded', 'false'); }
+  });
+  walkBtn.addEventListener('click', function () {
+    const open = walkRulerEl.hidden;
+    walkRulerEl.hidden = !open;
+    walkBtn.setAttribute('aria-expanded', String(open));
+  });
+  document.querySelectorAll('[data-ago]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const ago = Number(b.dataset.ago);
+      walkRuler.set(ago === 0 ? NOW - duration : NOW - ago);
+    });
+  });
+})();
+</script>

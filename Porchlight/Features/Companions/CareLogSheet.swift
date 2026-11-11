@@ -176,6 +176,8 @@ private struct CareLogForm: View {
                 showsChoices: isToday,
                 earliest: dayRange.lowerBound,
                 latest: dayRange.upperBound,
+                bands: TimeBand.windows(routine.effectiveWindows),
+                rulerLabel: routine.tracks(.duration) ? "Started" : "When",
                 calendar: store.snapshot.calendar
             )
             if routine.tracks(.duration) {

@@ -20,9 +20,9 @@ enum LogTime: Equatable {
     }
 }
 
-/// "When?" on a log sheet: quick choices for the usual cases and an exact time
-/// field that always shows the resolved time and takes any other one. The range
-/// stays within one day, so only the time is shown.
+/// "When?" on a log sheet: quick choices for the usual cases and a time pill
+/// that always shows the resolved time; tapping it opens a ruler of the day to
+/// take any other one. The range stays within one day, so only the time is shown.
 struct WhenPicker: View {
     @Binding var time: LogTime
     let now: Date
@@ -35,35 +35,36 @@ struct WhenPicker: View {
     let earliest: Date
     /// Latest time allowed; nil means now.
     var latest: Date?
+    /// The usual times shaded on the ruler.
+    var bands: [TimeBand] = []
+    var rulerLabel = "Time"
     var calendar: Calendar = .current
+
+    @State private var rulerOpen = false
 
     private static let offsets = [30, 60, 120]
 
     var body: some View {
-        FlowLayout(spacing: 8) {
-            if showsChoices {
-                ChoicePill(title: justNowTitle, isSelected: time == .justNow) { time = .justNow }
-                ForEach(Self.offsets, id: \.self) { minutes in
-                    ChoicePill(title: Self.agoText(minutes), isSelected: time == .minutesAgo(minutes)) { time = .minutesAgo(minutes) }
+        VStack(alignment: .leading, spacing: 10) {
+            FlowLayout(spacing: 8) {
+                if showsChoices {
+                    ChoicePill(title: justNowTitle, isSelected: time == .justNow) { time = .justNow }
+                    ForEach(Self.offsets, id: \.self) { minutes in
+                        ChoicePill(title: Self.agoText(minutes), isSelected: time == .minutesAgo(minutes)) { time = .minutesAgo(minutes) }
+                    }
                 }
+                TimePill(date: resolved, isOpen: $rulerOpen, calendar: calendar, accessibilityLabel: "Exact time", identifier: "exact-time")
             }
-            DatePicker(
-                "Time",
-                selection: Binding(get: { resolved }, set: { time = .at($0) }),
-                in: earliest...max(earliest, upper),
-                displayedComponents: .hourAndMinute
-            )
-            .labelsHidden()
-            .environment(\.calendar, calendar)
-            .accessibilityLabel("Exact time")
-            .accessibilityIdentifier("exact-time")
+            if rulerOpen {
+                LogTimeRuler(time: $time, range: range, now: now, lasting: lasting, bands: bands, calendar: calendar, accessibilityLabel: rulerLabel, isOpen: $rulerOpen)
+            }
         }
     }
 
-    private var upper: Date { latest ?? now }
+    private var range: ClosedRange<Date> { earliest...max(earliest, latest ?? now) }
 
     private var resolved: Date {
-        min(max(time.start(now: now, lasting: lasting), earliest), upper)
+        min(max(time.start(now: now, lasting: lasting), range.lowerBound), range.upperBound)
     }
 
     /// "30 min ago", "1 hr ago".
@@ -72,31 +73,48 @@ struct WhenPicker: View {
     }
 }
 
-/// "at 6:40 PM": a compact exact-time field for something on a known day.
+/// The time something happened as a pill, e.g. a meal's time on its label line.
+/// The ruler it opens is placed by the form, under the choices it relates to.
 struct AtTimeField: View {
     @Binding var time: LogTime
     let range: ClosedRange<Date>
+    @Binding var isOpen: Bool
     var calendar: Calendar = .current
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text("at")
-                .font(.body(14, weight: 600))
-                .foregroundStyle(Theme.muted)
-            DatePicker(
-                "Time",
-                selection: Binding(
-                    get: { min(max(time.start(now: .now), range.lowerBound), range.upperBound) },
-                    set: { time = .at($0) }
-                ),
-                in: range,
-                displayedComponents: .hourAndMinute
-            )
-            .labelsHidden()
-            .environment(\.calendar, calendar)
-            .accessibilityLabel("Time eaten")
-            .accessibilityIdentifier("time-eaten")
-        }
-        .fixedSize()
+        TimePill(
+            date: min(max(time.start(now: .now), range.lowerBound), range.upperBound),
+            isOpen: $isOpen,
+            calendar: calendar,
+            accessibilityLabel: "Time eaten",
+            identifier: "time-eaten"
+        )
+    }
+}
+
+/// A day ruler that picks an exact `LogTime` within `range`.
+struct LogTimeRuler: View {
+    @Binding var time: LogTime
+    let range: ClosedRange<Date>
+    var now: Date = .now
+    var lasting = 0
+    var bands: [TimeBand] = []
+    var calendar: Calendar = .current
+    var accessibilityLabel = "Time"
+    @Binding var isOpen: Bool
+
+    var body: some View {
+        DayRuler(
+            date: Binding(
+                get: { min(max(time.start(now: now, lasting: lasting), range.lowerBound), range.upperBound) },
+                set: { time = .at($0) }
+            ),
+            range: range,
+            bands: bands,
+            calendar: calendar,
+            accessibilityLabel: accessibilityLabel,
+            onDone: { isOpen = false }
+        )
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 }

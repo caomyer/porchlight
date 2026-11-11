@@ -309,6 +309,7 @@ private struct CaptureFormView: View {
     let onSave: () -> Void
 
     @Environment(FoodStore.self) private var store
+    @State private var timeOpen = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -334,7 +335,7 @@ private struct CaptureFormView: View {
             HStack(alignment: .center, spacing: 8) {
                 SheetLabel(title: "Meal", note: nil)
                 Spacer(minLength: 8)
-                AtTimeField(time: $form.time, range: form.timeRange(now: .now), calendar: store.calendar)
+                AtTimeField(time: $form.time, range: form.timeRange(now: .now), isOpen: $timeOpen, calendar: store.calendar)
             }
             .padding(.top, 6)
             .padding(.bottom, 4)
@@ -342,6 +343,10 @@ private struct CaptureFormView: View {
                 ForEach(store.slots, id: \.self) { slot in
                     FoodChoicePill("\(MealSlot.named(slot).emoji) \(slot)", isSelected: form.slot == slot) { form.slot = slot }
                 }
+            }
+            if timeOpen {
+                LogTimeRuler(time: $form.time, range: form.timeRange(now: .now), bands: TimeBand.meals(store.slots), calendar: store.calendar, accessibilityLabel: "Time eaten", isOpen: $timeOpen)
+                    .padding(.top, 10)
             }
 
             label("From")
