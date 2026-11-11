@@ -1,0 +1,429 @@
+<title>Meal Photo Framing</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+/* Layout: one reading column; the diagnosis is a to-scale diagram of the camera frame, then iPad mocks drawn at 1112 x 834 pt and scaled. Single light look, matching the app. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --good: #5B9F72;
+  --warn: #C2933A;
+  --blue: #4C7BB0;
+  --coral: #DD7558;
+  --dim: rgba(20, 15, 10, 0.38);
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+.page { max-width: 1040px; margin: 0 auto; display: grid; gap: 56px; }
+.prose { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(34px, 5vw, 50px); line-height: 1.06; }
+h2 { font-size: 30px; line-height: 1.15; }
+h3 { font-size: 20px; line-height: 1.25; }
+p { margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 19px; }
+.muted { color: var(--muted); }
+section { display: grid; gap: 20px; }
+header.top { display: grid; gap: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); }
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88em; background: var(--surface2); padding: 1px 5px; border-radius: 5px; }
+
+/* Diagnosis diagram */
+.diag { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 760px) { .diag { grid-template-columns: 1fr; } }
+.scene { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 12px; }
+.scene svg { width: 100%; height: auto; display: block; border-radius: 8px; }
+.toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+.tg { border: 0; cursor: pointer; font: 700 13.5px/1 var(--body); padding: 9px 13px; border-radius: 999px; background: var(--surface2); color: var(--ink); display: inline-flex; gap: 8px; align-items: center; }
+.tg i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.tg[aria-pressed="false"] { opacity: 0.5; }
+.tg:focus-visible, .stepbtn:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 12px 14px; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; vertical-align: -1px; margin-right: 6px; }
+.decisions table { min-width: 640px; }
+td.rec { font-weight: 700; }
+
+/* Principle callout */
+.rule { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; display: grid; gap: 8px; }
+.rule h2 { font-size: 26px; }
+
+/* Device frames */
+.device { position: relative; width: 100%; aspect-ratio: 1112 / 834; border-radius: 22px; background: #1c1814; box-shadow: 0 20px 50px rgba(60,40,20,.18); overflow: hidden; }
+.device .screen { position: absolute; left: 0; top: 0; width: 1112px; height: 834px; transform-origin: 0 0; background: var(--paper); overflow: hidden; font-size: 14px; line-height: 1.35; }
+.steps { display: flex; flex-wrap: wrap; gap: 8px; }
+.stepbtn { border: 0; cursor: pointer; font: 700 14px/1 var(--body); padding: 10px 14px; border-radius: 999px; background: var(--surface2); color: var(--ink); }
+.stepbtn[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; display: grid; gap: 4px; max-width: 80ch; }
+.note b { font-family: var(--display); font-weight: 600; font-size: 18px; }
+
+/* Mock pieces */
+.rail { position: absolute; left: 0; top: 0; bottom: 0; width: 84px; background: #EDE4D4; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 22px; }
+.rail i { width: 34px; height: 34px; border-radius: 10px; background: #e2d7c4; display: block; }
+.wallbg { position: absolute; left: 84px; right: 0; top: 0; bottom: 0; padding: 24px; display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
+.wallbg .card { background: var(--surface); border-radius: 20px; }
+.dimmer { position: absolute; inset: 0; background: var(--dim); }
+.sheet { position: absolute; background: var(--surface); border-radius: 28px; box-shadow: 0 30px 60px rgba(40,25,10,.28); }
+.x { position: absolute; top: 18px; right: 18px; width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; color: var(--muted); font-weight: 800; }
+.lab { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin: 14px 0 7px; display: flex; gap: 8px; align-items: baseline; }
+.lab small { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { background: var(--surface2); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.pill.on { background: var(--ink); color: #fff; }
+.field { background: var(--surface2); border-radius: 12px; padding: 12px 14px; font-weight: 600; font-size: 17px; }
+.btn { border-radius: 999px; padding: 13px 22px; font-weight: 800; font-size: 15.5px; display: inline-flex; gap: 8px; align-items: center; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.secondary { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.cam { position: absolute; overflow: hidden; background: #2b241e; }
+.cam svg { position: absolute; display: block; }
+.shutter { width: 84px; height: 84px; border-radius: 50%; background: rgba(255,255,255,.35); display: grid; place-items: center; }
+.shutter::after { content: ""; width: 70px; height: 70px; border-radius: 50%; background: #fff; }
+.round { width: 52px; height: 52px; border-radius: 14px; background: rgba(255,255,255,.18); color: #fff; display: grid; place-items: center; font-size: 20px; }
+.round.lib { background: rgba(255,255,255,.92); color: var(--ink); }
+.thumbs { display: flex; gap: 10px; align-items: center; }
+.thumb { width: 54px; height: 54px; border-radius: 11px; overflow: hidden; position: relative; flex: none; }
+.thumb.cover { box-shadow: 0 0 0 3px var(--accent); }
+.thumb svg { width: 100%; height: 100%; display: block; }
+.rm { position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; border: 2px solid var(--surface); display: grid; place-items: center; font-size: 11px; font-weight: 800; }
+
+/* Reframe demo */
+.reframe { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+@media (max-width: 680px) { .reframe { grid-template-columns: 1fr; } }
+.window { position: relative; width: 300px; max-width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #2b241e; cursor: grab; touch-action: none; box-shadow: 0 0 0 8px #fff, 0 10px 24px rgba(60,40,20,.2); }
+.window:active { cursor: grabbing; }
+.window svg { position: absolute; left: 0; width: 100%; }
+.window .grid { position: absolute; inset: 0; pointer-events: none; background:
+  linear-gradient(to right, transparent 33.1%, rgba(255,255,255,.45) 33.3%, transparent 33.5%, transparent 66.5%, rgba(255,255,255,.45) 66.7%, transparent 66.9%),
+  linear-gradient(to bottom, transparent 33.1%, rgba(255,255,255,.45) 33.3%, transparent 33.5%, transparent 66.5%, rgba(255,255,255,.45) 66.7%, transparent 66.9%); }
+.window:focus-visible { outline: 3px solid var(--blue); outline-offset: 10px; }
+ul.tight { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+
+<header class="top">
+  <div class="eyebrow">Porchlight · Food diary · Bug report and fix proposal</div>
+  <h1>What you aim at should be what the wall shows</h1>
+  <p class="lede prose">When you snap a meal, the camera shows a tall, narrow slice of the scene. The photo is saved as a wide 4:3 frame, and the wall shows a square from its middle. Those are three different crops, so the polaroid never matches what you framed. This page shows why, and proposes one square frame from the shutter to the wall.</p>
+  <div class="meta"><span>Measured on your iPad: both saved shots are 2048 × 1536</span><span>Nov 10, 2026</span></div>
+</header>
+
+<section>
+  <div class="eyebrow">What happens today</div>
+  <h2>Three different crops of one photo</h2>
+  <div class="diag">
+    <div class="scene">
+      <svg viewBox="0 0 400 300" role="img" aria-label="A 4:3 camera frame of three takeout boxes in a diagonal line, with the viewfinder's narrow slice and the polaroid's square drawn on top" id="sceneSvg"></svg>
+      <div class="toggles" role="group" aria-label="Show crops">
+        <button class="tg" data-layer="vf" aria-pressed="true"><i style="background:#4C7BB0"></i>Viewfinder shows</button>
+        <button class="tg" data-layer="br" aria-pressed="true"><i style="background:#fff;box-shadow:inset 0 0 0 2px #867A6E"></i>Brackets</button>
+        <button class="tg" data-layer="pol" aria-pressed="true"><i style="background:#D9653B"></i>Polaroid shows</button>
+      </div>
+      <p class="muted" style="font-size:13.5px">Illustration of a shot like yours: three takeout boxes on placemats, seen from above. The whole picture is what gets saved.</p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Stage</th><th>Shape</th><th>Share of the photo's width</th></tr></thead>
+        <tbody>
+          <tr><td><span class="swatch" style="background:#4C7BB0"></span>Viewfinder</td><td>Tall panel, 370 × about 690 pt</td><td class="num">about 40%</td></tr>
+          <tr><td><span class="swatch" style="background:#fff;box-shadow:inset 0 0 0 2px #867A6E"></span>Brackets in it</td><td>Taller still, 258 × 312</td><td class="num">about 28%</td></tr>
+          <tr><td><span class="swatch" style="background:#2A2420"></span>Saved photo</td><td>Wide 4:3, 2048 × 1536</td><td class="num">100%</td></tr>
+          <tr><td><span class="swatch" style="background:#D9653B"></span>Polaroid and thumbnail</td><td>Square from the middle</td><td class="num">75%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p class="prose">The camera fills its tall panel, so it crops away the sides of its wide frame. Then the shutter saves the whole frame, and the wall cuts a square from it. The square is nearly twice as wide as what you saw, so dishes you framed out come back, and what you centered in the tall slice ends up small in the middle.</p>
+</section>
+
+<section>
+  <div class="rule">
+    <div class="eyebrow">The fix in one line</div>
+    <h2>One square frame, from the shutter to the wall</h2>
+    <p class="prose">Polaroids, thumbnails and the week grid are all square, and they should stay square so the wall stays tidy. So the camera should show exactly that square. What you see in the viewfinder is the polaroid you get.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Proposed screens</div>
+  <h2>Snapping, picking from Photos, and looking back</h2>
+  <div class="steps" role="group" aria-label="Screens">
+    <button class="stepbtn" data-view="today" aria-pressed="false">Today's capture</button>
+    <button class="stepbtn" data-view="capture" aria-pressed="true">Proposed capture</button>
+    <button class="stepbtn" data-view="detail" aria-pressed="false">Proposed meal detail</button>
+  </div>
+  <div class="device" id="dev"><div class="screen" id="screen"></div></div>
+  <div class="note" id="note"></div>
+</section>
+
+<section>
+  <div class="eyebrow">Photos you pick</div>
+  <h2>Reframe a picked photo by dragging it</h2>
+  <div class="reframe">
+    <div class="window" id="window" tabindex="0" role="slider" aria-label="Photo framing" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+      <svg id="portrait" viewBox="0 0 300 400" aria-hidden="true"></svg>
+      <div class="grid"></div>
+    </div>
+    <div style="display:grid;gap:10px;min-width:0">
+      <h3>Try it: drag the photo up or down</h3>
+      <p>A photo from your phone is usually taller than it is wide. It comes in centered in the square, and dragging moves which part the polaroid shows. Arrow keys work too. Nothing is cut from the file itself, so you can reframe again later from Edit.</p>
+      <p class="muted" id="frameReadout">Showing the middle of the photo.</p>
+    </div>
+  </div>
+</section>
+
+<section class="decisions">
+  <div class="eyebrow">Decisions to approve</div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Question</th><th>Recommendation</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>What shape is a meal photo on the wall?</td><td class="rec">Square, as now</td><td>The week grid, Today's plates and the month all line up on squares. Mixed shapes would make the wall look messy.</td></tr>
+        <tr><td>What does the camera show?</td><td class="rec">Exactly that square</td><td>What you aim at is what you keep. The brackets go away; the square's edges are the frame.</td></tr>
+        <tr><td>Is the rest of the shot thrown away?</td><td class="rec">No. Keep the full photo, store which square to show</td><td>The full shot is already saved today. Keeping it means a picked photo can be reframed later, and the meal detail can show the whole picture.</td></tr>
+        <tr><td>Where do new shots appear while logging?</td><td class="rec">Right under the camera</td><td>Next to where you took them, in the light part of the sheet. It also gives the form back the height that the Photos row took.</td></tr>
+        <tr><td>Photos picked from your library</td><td class="rec">Centered, then drag to reframe</td><td>Most phone photos are tall; a centered square is usually right, and a drag fixes the rest.</td></tr>
+        <tr><td>Photos already saved</td><td class="rec">Keep showing the center square</td><td>Nothing on the wall changes for them, and they can be reframed in Edit.</td></tr>
+        <tr><td>See the whole photo</td><td class="rec">In the meal detail, tap the polaroid</td><td>The square stays the default everywhere; the full shot is one tap away when it matters.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">How it would be built</div>
+  <div class="prose">
+    <ul class="tight">
+      <li>The live preview sits in a square window, so it shows the middle square of the camera frame, top to bottom. On save, the app records that same square, so the viewfinder and the polaroid match exactly.</li>
+      <li>Each photo keeps its full file and gets a crop (a square's position and size, as fractions of the photo). A migration gives existing photos the center square they show today.</li>
+      <li>The thumbnail and a square display copy are made from the crop when the photo is saved or reframed, so grids load as fast as today.</li>
+      <li>Reframing is a drag in a square window, saved with the rest of the edit.</li>
+      <li>Tests: the saved crop equals the viewfinder's square, picked photos start centered, reframing changes the thumbnail, and existing photos keep their look. I'll also check the capture sheet on the iPad's screen with photos added and the keyboard up.</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // A top-down table scene, drawn in a 400 x 300 (4:3) frame: three takeout boxes in a diagonal line.
+  function tableScene(svg, w, h, opts) {
+    opts = opts || {};
+    const s = Math.min(w / 400, h / 300);
+    const ox = (w - 400 * s) / 2, oy = (h - 300 * s) / 2;
+    const parts = [];
+    parts.push('<rect x="0" y="0" width="' + w + '" height="' + h + '" fill="#3a3533"/>');
+    parts.push('<g transform="translate(' + ox + ' ' + oy + ') scale(' + s + ')">');
+    parts.push('<rect x="-40" y="-40" width="480" height="380" fill="#47403b"/>');
+    parts.push('<rect x="-20" y="150" width="60" height="140" rx="10" fill="#8fa86a"/>');
+    // Placemats
+    parts.push('<circle cx="120" cy="105" r="95" fill="#c8553d"/><circle cx="120" cy="105" r="80" fill="#e0a43c"/><circle cx="120" cy="105" r="64" fill="#3f6fa5"/>');
+    parts.push('<circle cx="260" cy="210" r="105" fill="#c8553d"/><circle cx="260" cy="210" r="88" fill="#e0a43c"/><circle cx="260" cy="210" r="70" fill="#3f6fa5"/>');
+    // Boxes
+    function box(x, y, fill, accent) {
+      return '<g transform="translate(' + x + ' ' + y + ') rotate(-22)"><rect x="-58" y="-40" width="116" height="80" rx="9" fill="#f4f1ea"/><rect x="-50" y="-32" width="100" height="64" rx="6" fill="' + fill + '"/><circle cx="18" cy="-6" r="13" fill="' + accent + '"/><circle cx="-14" cy="10" r="10" fill="' + accent + '"/></g>';
+    }
+    parts.push(box(130, 75, '#e39b4a', '#f2c08a'));
+    parts.push(box(205, 155, '#c97a3a', '#efe2c4'));
+    parts.push(box(275, 240, '#7a4b37', '#e6b85c'));
+    // Tissue box at right
+    parts.push('<g transform="translate(345 70) rotate(18)"><rect x="-32" y="-48" width="64" height="96" rx="6" fill="#2f5d8a"/><rect x="-20" y="-30" width="40" height="40" rx="3" fill="#f1ede6"/></g>');
+    parts.push('</g>');
+    if (opts.overlay) parts.push(opts.overlay);
+    svg.innerHTML = parts.join('');
+  }
+
+  // Diagnosis overlays on the 400 x 300 frame.
+  const scene = document.getElementById('sceneSvg');
+  const vfW = 400 * (370 / (690 * 4 / 3)); // visible width of the tall panel
+  const vfX = (400 - vfW) / 2;
+  const brW = vfW * (258 / 370), brH = 300 * (312 / 690);
+  const brX = (400 - brW) / 2, brY = 150 - brH / 2 - 300 * (24 / 690);
+  const layers = { vf: true, br: true, pol: true };
+  function drawScene() {
+    let o = '';
+    if (layers.pol) o += '<rect x="50" y="1.5" width="300" height="297" fill="none" stroke="#D9653B" stroke-width="3"/><text x="56" y="18" fill="#fff" font-family="DM Sans, sans-serif" font-weight="800" font-size="12" style="paint-order:stroke" stroke="#D9653B" stroke-width="4">Polaroid</text>';
+    if (layers.vf) o += '<rect x="0" y="0" width="' + vfX + '" height="300" fill="rgba(20,15,10,.45)"/><rect x="' + (vfX + vfW) + '" y="0" width="' + (400 - vfX - vfW) + '" height="300" fill="rgba(20,15,10,.45)"/><rect x="' + vfX + '" y="1.5" width="' + vfW + '" height="297" fill="none" stroke="#4C7BB0" stroke-width="3"/><text x="' + (vfX + 6) + '" y="292" fill="#fff" font-family="DM Sans, sans-serif" font-weight="800" font-size="12" style="paint-order:stroke" stroke="#4C7BB0" stroke-width="4">Viewfinder</text>';
+    if (layers.br) o += '<rect x="' + brX + '" y="' + brY + '" width="' + brW + '" height="' + brH + '" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="10 ' + (brW - 20) + ' 10 0"/>';
+    tableScene(scene, 400, 300, { overlay: o });
+  }
+  drawScene();
+  document.querySelectorAll('.tg').forEach(function (b) {
+    b.addEventListener('click', function () {
+      layers[b.dataset.layer] = !layers[b.dataset.layer];
+      b.setAttribute('aria-pressed', String(layers[b.dataset.layer]));
+      drawScene();
+    });
+  });
+
+  // A small table-scene tile, cropped like a polaroid (square from the middle of the frame).
+  function tile(seed) {
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '50 0 300 300');
+    tableScene(svg, 400, 300);
+    if (seed) svg.style.filter = 'hue-rotate(' + seed + 'deg) saturate(.9)';
+    return svg.outerHTML;
+  }
+
+  // iPad mocks
+  const screen = document.getElementById('screen');
+  const note = document.getElementById('note');
+  function fit() { screen.style.transform = 'scale(' + (document.getElementById('dev').clientWidth / 1112) + ')'; }
+  new ResizeObserver(fit).observe(document.getElementById('dev'));
+
+  function wall() {
+    return '<div class="rail">' + '<i></i>'.repeat(8) + '</div><div class="wallbg"><div class="card"></div><div style="display:grid;gap:16px;grid-template-rows:1fr 1fr"><div class="card"></div><div class="card"></div></div></div><div class="dimmer"></div>';
+  }
+
+  function form(top, withPhotosRow) {
+    return '<div style="position:absolute;left:432px;top:' + top + 'px;width:556px">' +
+      '<div style="font-family:var(--display);font-weight:600;font-size:30px">Dinner, probably</div>' +
+      '<div style="color:var(--muted);font-weight:600;margin-top:2px">Guessed from the time of day</div>' +
+      '<div class="field" style="margin-top:12px">🍛 Curry night</div>' +
+      (withPhotosRow ? '<div class="lab">Photos <small>up to 6</small></div><div class="thumbs"><div class="thumb cover">' + tile(0) + '<span class="rm">×</span></div><div class="thumb">' + tile(40) + '<span class="rm">×</span></div></div>' : '') +
+      '<div class="lab" style="justify-content:space-between">Meal <span style="font-size:14px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--muted)">at <span class="pill" style="padding:6px 10px">7:12 PM</span></span></div><div class="pills"><span class="pill">🌅 Breakfast</span><span class="pill">☀️ Lunch</span><span class="pill on">🌙 Dinner</span><span class="pill">🍪 Snack</span></div>' +
+      '<div class="lab">From</div><div class="pills"><span class="pill">🏠 Home-cooked</span><span class="pill on">🛵 Delivery</span><span class="pill">🍽️ Dine out</span><span class="pill">🏢 Company</span></div>' +
+      '<div class="lab">Who ate</div><div class="pills"><span class="pill" style="background:#e6edf6">J James</span><span class="pill" style="background:#f8e3dc">M Mia</span></div>' +
+      '<div class="lab">Would eat again?</div><div class="pills"><span class="pill">😐</span><span class="pill">🙂</span><span class="pill on">😋</span><span class="pill">🤩</span></div>' +
+      '</div>';
+  }
+
+  function todayCapture() {
+    // Tall panel showing a narrow slice: the scene scaled to the panel's height.
+    const ph = 690, pw = 370, sw = ph * 4 / 3;
+    return wall() + '<div class="sheet" style="left:96px;top:72px;width:920px;height:' + (ph + 44) + 'px"><div class="x">×</div>' +
+      '<div class="cam" style="left:22px;top:22px;width:' + pw + 'px;height:' + ph + 'px;border-radius:20px">' +
+        '<svg style="left:' + ((pw - sw) / 2) + 'px;top:0" width="' + sw + '" height="' + ph + '" viewBox="0 0 400 300" preserveAspectRatio="none" id="todaySvg"></svg>' +
+        '<div style="position:absolute;left:' + ((pw - 258) / 2) + 'px;top:' + ((ph - 312) / 2 - 24) + 'px;width:258px;height:312px;border:3px solid rgba(255,255,255,.85);border-radius:10px;clip-path:polygon(0 0,15% 0,15% 3px,85% 3px,85% 0,100% 0,100% 13%,calc(100% - 3px) 13%,calc(100% - 3px) 87%,100% 87%,100% 100%,85% 100%,85% calc(100% - 3px),15% calc(100% - 3px),15% 100%,0 100%,0 87%,3px 87%,3px 13%,0 13%)"></div>' +
+        '<div style="position:absolute;left:0;right:0;bottom:24px;display:flex;justify-content:space-between;align-items:center;padding:0 26px"><div class="round lib">▣</div><div class="shutter"></div><div class="round">⟲</div></div>' +
+      '</div>' + form(42, true) +
+      '<div style="position:absolute;left:432px;right:28px;bottom:26px;display:flex;align-items:center;gap:12px"><span style="color:var(--muted);font-weight:600;font-size:14px">2 photos ready. Fill in anything else, then Save.</span><span style="flex:1"></span><span class="btn primary">Save</span></div></div>';
+  }
+
+  function proposedCapture() {
+    const side = 370;
+    return wall() + '<div class="sheet" style="left:96px;top:96px;width:920px;height:640px"><div class="x">×</div>' +
+      '<div style="position:absolute;left:22px;top:22px;width:' + side + 'px;height:596px;border-radius:20px;background:#2b241e"></div>' +
+      '<div class="cam" style="left:22px;top:22px;width:' + side + 'px;height:' + side + 'px;border-radius:20px 20px 4px 4px">' +
+        '<svg style="left:' + (-(side * 4 / 3 - side) / 2) + 'px;top:0" width="' + (side * 4 / 3) + '" height="' + side + '" viewBox="0 0 400 300" preserveAspectRatio="none" id="propSvg"></svg>' +
+        '<div style="position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(255,255,255,.8);border-radius:20px 20px 4px 4px"></div>' +
+        '<div style="position:absolute;left:0;right:0;top:12px;text-align:center;color:#fff;font-weight:700;font-size:13px;text-shadow:0 1px 4px rgba(0,0,0,.6)">This square is your polaroid</div>' +
+      '</div>' +
+      '<div style="position:absolute;left:22px;top:' + (22 + side + 18) + 'px;width:' + side + 'px;display:flex;justify-content:space-between;align-items:center;padding:0 26px"><div class="round lib">▣</div><div class="shutter"></div><div class="round">⟲</div></div>' +
+      '<div style="position:absolute;left:40px;top:' + (22 + side + 124) + 'px;width:' + (side - 36) + 'px">' +
+        '<div style="color:#e9dfcf;font-size:12px;font-weight:800;letter-spacing:.1em;margin-bottom:8px">PHOTOS · 2 OF 6</div>' +
+        '<div class="thumbs"><div class="thumb cover">' + tile(0) + '<span class="rm" style="border-color:#2b241e">×</span></div><div class="thumb">' + tile(40) + '<span class="rm" style="border-color:#2b241e">×</span></div></div>' +
+      '</div>' +
+      form(42, false) +
+      '<div style="position:absolute;left:432px;right:28px;bottom:26px;display:flex;align-items:center;gap:12px"><span style="color:var(--muted);font-weight:600;font-size:14px">2 photos ready. Fill in anything else, then Save.</span><span style="flex:1"></span><span class="btn primary">Save</span></div></div>';
+  }
+
+  function detail() {
+    return wall() + '<div class="sheet" style="left:236px;top:110px;width:640px;height:560px"><div class="x">×</div>' +
+      '<div style="position:absolute;left:28px;top:36px;width:236px;background:#fff;padding:10px 10px 0;transform:rotate(-2deg);box-shadow:0 6px 16px rgba(70,45,20,.2)">' +
+        '<div style="width:216px;height:216px;overflow:hidden">' + tile(0).replace('<svg', '<svg width="216" height="216"') + '</div>' +
+        '<div style="font-family:var(--hand);font-size:26px;text-align:center;padding:4px 0">Curry night</div>' +
+        '<div style="position:absolute;left:16px;bottom:52px;background:rgba(0,0,0,.58);color:#fff;font-size:11px;font-weight:800;padding:4px 8px;border-radius:999px">⤢ Whole photo</div>' +
+      '</div>' +
+      '<div style="position:absolute;left:300px;top:36px;right:36px">' +
+        '<div style="font-family:var(--display);font-weight:600;font-size:30px">Curry night</div>' +
+        '<div style="color:var(--muted);font-weight:600;margin-top:4px">Dinner · Monday, Nov 9</div>' +
+        '<div style="margin-top:18px;display:grid;gap:10px;font-weight:600"><div>🛵 Delivery</div><div>😋 Would eat again</div><div>♥ Everyone ate</div></div>' +
+      '</div>' +
+      '<div style="position:absolute;left:300px;top:250px;right:36px;background:#2b241e;border-radius:12px;overflow:hidden;aspect-ratio:4/3">' +
+        '<svg width="100%" height="100%" viewBox="0 0 400 300" id="fullSvg"></svg>' +
+        '<div style="position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6)">The whole shot, after tapping the polaroid</div>' +
+      '</div>' +
+      '</div>';
+  }
+
+  const NOTES = {
+    today: ['Today: three crops', 'The camera fills the tall panel, so you see a narrow vertical slice of a wide frame, with even taller brackets inside it. The polaroid later shows a square that is nearly twice as wide.'],
+    capture: ['Proposed: the camera is the polaroid', 'A square live window at the top of the panel shows exactly what the polaroid will show. The shutter and Photos buttons sit below it, out of the picture, and new shots line up right under the camera. The form loses its Photos row, so the sheet is shorter too.'],
+    detail: ['Proposed: the whole shot is one tap away', 'The polaroid stays square. Tapping it shows the full photo, so nothing you shot is lost. In Edit, each photo can be reframed by dragging.']
+  };
+
+  let view = 'capture';
+  function render() {
+    screen.innerHTML = view === 'today' ? todayCapture() : view === 'capture' ? proposedCapture() : detail();
+    ['todaySvg', 'propSvg', 'fullSvg'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) tableScene(el, 400, 300);
+    });
+    note.innerHTML = '<b>' + NOTES[view][0] + '</b><span>' + NOTES[view][1] + '</span>';
+    document.querySelectorAll('.stepbtn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === view)); });
+    fit();
+  }
+  document.querySelectorAll('.stepbtn').forEach(function (b) {
+    b.addEventListener('click', function () { view = b.dataset.view; render(); });
+  });
+  render();
+
+  // Reframe demo: a tall 3:4 phone photo in a square window, dragged up or down.
+  const win = document.getElementById('window');
+  const portrait = document.getElementById('portrait');
+  const readout = document.getElementById('frameReadout');
+  // Phone photo: the table scene shot upright, so the boxes run top to bottom.
+  portrait.innerHTML = '<rect width="300" height="400" fill="#3a3533"/>' +
+    '<g transform="translate(300 0) rotate(90)"><rect width="400" height="300" fill="#47403b"/>' +
+    '<circle cx="110" cy="150" r="90" fill="#c8553d"/><circle cx="110" cy="150" r="74" fill="#e0a43c"/><circle cx="110" cy="150" r="58" fill="#3f6fa5"/>' +
+    '<circle cx="290" cy="150" r="96" fill="#c8553d"/><circle cx="290" cy="150" r="80" fill="#e0a43c"/><circle cx="290" cy="150" r="62" fill="#3f6fa5"/>' +
+    '<g transform="translate(95 150)"><rect x="-58" y="-40" width="116" height="80" rx="9" fill="#f4f1ea"/><rect x="-50" y="-32" width="100" height="64" rx="6" fill="#e39b4a"/><circle cx="18" cy="-6" r="13" fill="#f2c08a"/></g>' +
+    '<g transform="translate(200 150)"><rect x="-58" y="-40" width="116" height="80" rx="9" fill="#f4f1ea"/><rect x="-50" y="-32" width="100" height="64" rx="6" fill="#c97a3a"/><circle cx="18" cy="-6" r="13" fill="#efe2c4"/></g>' +
+    '<g transform="translate(305 150)"><rect x="-58" y="-40" width="116" height="80" rx="9" fill="#f4f1ea"/><rect x="-50" y="-32" width="100" height="64" rx="6" fill="#7a4b37"/><circle cx="18" cy="-6" r="13" fill="#e6b85c"/></g></g>';
+  let offset = 0.5; // 0 = top of the photo, 1 = bottom
+  function place() {
+    const side = win.clientWidth;
+    const height = side * 4 / 3;
+    portrait.style.height = height + 'px';
+    portrait.style.top = (-(height - side) * offset) + 'px';
+    win.setAttribute('aria-valuenow', String(Math.round(offset * 100)));
+    readout.textContent = offset < 0.2 ? 'Showing the top of the photo.' : offset > 0.8 ? 'Showing the bottom of the photo.' : 'Showing the middle of the photo.';
+  }
+  new ResizeObserver(place).observe(win);
+  let startY = null, startOffset = 0;
+  win.addEventListener('pointerdown', function (e) { startY = e.clientY; startOffset = offset; win.setPointerCapture(e.pointerId); });
+  win.addEventListener('pointermove', function (e) {
+    if (startY === null) return;
+    const side = win.clientWidth;
+    const travel = side * 4 / 3 - side;
+    offset = Math.min(1, Math.max(0, startOffset - (e.clientY - startY) / travel));
+    place();
+  });
+  win.addEventListener('pointerup', function () { startY = null; });
+  win.addEventListener('pointercancel', function () { startY = null; });
+  win.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowUp') { offset = Math.max(0, offset - 0.1); place(); e.preventDefault(); }
+    if (e.key === 'ArrowDown') { offset = Math.min(1, offset + 0.1); place(); e.preventDefault(); }
+  });
+  place();
+})();
+</script>
