@@ -516,7 +516,7 @@ struct CompanionEditorForm: View {
                 .fixedSize()
                 Spacer()
                 if let birth = draft.birthDate {
-                    DatePicker("Birthday", selection: Binding(get: { birth }, set: { draft.birthDate = $0 }), in: ...Date.now, displayedComponents: .date)
+                    DatePicker("Birthday", selection: Binding(get: { draft.birthDate ?? birth }, set: { draft.birthDate = $0 }), in: ...Date.now, displayedComponents: .date)
                         .labelsHidden()
                 }
             }

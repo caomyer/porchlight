@@ -210,6 +210,27 @@ struct PhotoCrop: Codable, Equatable, Hashable, Sendable {
         return PhotoCrop(x: 0, y: (1 - height) * position, width: 1, height: height)
     }
 
+    /// A square zoomed in `zoom` times (1 is the largest square that fits) around
+    /// `center`, given as fractions of the photo's width and height. The square is moved
+    /// back inside the photo when the center is too close to an edge.
+    static func square(in size: CGSize, zoom: Double, center: CGPoint) -> PhotoCrop {
+        guard size.width > 0, size.height > 0 else { return PhotoCrop(x: 0, y: 0, width: 1, height: 1) }
+        let side = min(size.width, size.height) / max(zoom, 1)
+        let width = side / size.width, height = side / size.height
+        let x = min(max(center.x - width / 2, 0), 1 - width)
+        let y = min(max(center.y - height / 2, 0), 1 - height)
+        return PhotoCrop(x: x, y: y, width: width, height: height)
+    }
+
+    /// How far the square is zoomed in on a photo of `size`; 1 is the largest square.
+    func zoom(in size: CGSize) -> Double {
+        guard size.width > 0, width > 0 else { return 1 }
+        return min(size.width, size.height) / (width * size.width)
+    }
+
+    /// The square's center, as fractions of the photo's width and height.
+    var center: CGPoint { CGPoint(x: x + width / 2, y: y + height / 2) }
+
     /// Where the square sits along the photo's long side, from 0 to 1.
     var position: Double {
         if width < 1 { return x / (1 - width) }

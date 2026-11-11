@@ -58,6 +58,22 @@ struct PhotoFramingTests {
         #expect(PhotoCrop.centeredSquare(in: CGSize(width: 50, height: 50)).position == 0.5)
     }
 
+    @Test("Zooming shrinks the square around its center and keeps it inside the photo")
+    func zoomMath() {
+        let wide = CGSize(width: 400, height: 300)
+        let twice = PhotoCrop.square(in: wide, zoom: 2, center: CGPoint(x: 0.5, y: 0.5))
+        #expect(twice.rect(in: wide) == CGRect(x: 125, y: 75, width: 150, height: 150))
+        #expect(abs(twice.zoom(in: wide) - 2) < 0.0001)
+        #expect(twice.center == CGPoint(x: 0.5, y: 0.5))
+        // A center near the corner slides the square back inside.
+        let corner = PhotoCrop.square(in: wide, zoom: 2, center: CGPoint(x: 0, y: 1))
+        #expect(corner.rect(in: wide) == CGRect(x: 0, y: 150, width: 150, height: 150))
+        // Zoom 1 (or less) is the largest square, anywhere along the long side.
+        let whole = PhotoCrop.square(in: wide, zoom: 0.5, center: CGPoint(x: 1, y: 0.5))
+        #expect(whole.rect(in: wide) == CGRect(x: 100, y: 0, width: 300, height: 300))
+        #expect(PhotoCrop.centeredSquare(in: wide).zoom(in: wide) == 1)
+    }
+
     @Test("A thumbnail shows the crop, and the middle when there is none")
     func thumbnailsFollowTheCrop() throws {
         let image = wideImage()

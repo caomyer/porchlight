@@ -151,4 +151,28 @@ final class MealPhotosTests: XCTestCase {
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5), "The reframed photo saves with the meal")
     }
+
+    /// Making another photo the cover moves it to the front, once.
+    func testMakingAnotherPhotoTheCover() {
+        let app = launch(["-startScreen", "food"])
+        let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
+        XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.tap()
+        app.buttons["Edit"].tap()
+        let second = photo(app, 1)
+        XCTAssertTrue(second.waitForExistence(timeout: 5))
+        second.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()
+        let makeCover = app.buttons["Make cover"]
+        XCTAssertTrue(makeCover.waitForExistence(timeout: 5))
+        makeCover.tap()
+        XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5))
+        // Count every tile: a duplicate would share its twin's identifier.
+        let tiles = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'meal-photo-'"))
+        XCTAssertEqual(tiles.count, 2, "Making a photo the cover must not duplicate it")
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == 'COVER'")).count, 1, "Only one photo is the cover")
+        snapshot("51-new-cover")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5))
+        XCTAssertEqual(app.descendants(matching: .any)["meal-pager"].label, "Avocado toast, photo 1 of 2", "The meal still has two photos")
+    }
 }

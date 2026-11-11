@@ -47,7 +47,9 @@ struct MealDetailSheet: View {
                 if let editing {
                     MealEditForm(
                         entry: current,
-                        edit: Binding(get: { editing }, set: { self.editing = $0 }),
+                        // Read the live edit, not this render's copy: a change made of two
+                        // steps (moving a photo to the front) must see the first step.
+                        edit: Binding(get: { self.editing ?? editing }, set: { self.editing = $0 }),
                         error: store.lastError,
                         onCancel: cancelEdit,
                         onSave: save

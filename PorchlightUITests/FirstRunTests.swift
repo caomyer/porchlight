@@ -14,6 +14,22 @@ final class FirstRunTests: XCTestCase {
         add(attachment)
     }
 
+    /// Types into a field and checks it took. Typing straight after a field gains
+    /// focus (or while the app moves focus to a new row) can drop the first keys.
+    private func type(_ text: String, into field: XCUIElement) {
+        for _ in 0..<3 {
+            field.tap()
+            let current = field.value as? String ?? ""
+            let placeholder = field.placeholderValue ?? ""
+            if !current.isEmpty, current != placeholder {
+                field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+            }
+            field.typeText(text)
+            if field.value as? String == text { return }
+        }
+        XCTFail("Could not type \"\(text)\" into the field")
+    }
+
     func testOnboardingWithRealCalendarAccess() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-resetData"]
@@ -21,17 +37,16 @@ final class FirstRunTests: XCTestCase {
 
         let household = app.textFields["e.g. The Lake House"]
         XCTAssertTrue(household.waitForExistence(timeout: 30))
-        household.tap()
-        household.typeText("Test House\n")
+        type("Test House", into: household)
+        household.typeText("\n")
 
         let firstName = app.textFields["Name"].firstMatch
         XCTAssertTrue(firstName.waitForExistence(timeout: 5))
-        firstName.tap()
-        firstName.typeText("James")
+        type("James", into: firstName)
         app.buttons["Add someone"].tap()
         let secondName = app.textFields.matching(identifier: "Name").element(boundBy: 1)
         XCTAssertTrue(secondName.waitForExistence(timeout: 5))
-        secondName.typeText("Mia")
+        type("Mia", into: secondName)
         app.buttons["Continue"].tap()
 
         let allow = app.buttons["Allow calendar access"]

@@ -373,8 +373,9 @@ struct MealPhotoRow<Trailing: View>: View {
 
     private func makeCover(_ index: Int) {
         guard index > 0, items.indices.contains(index) else { return }
-        let item = items.remove(at: index)
-        items.insert(item, at: 0)
+        var reordered = items
+        reordered.insert(reordered.remove(at: index), at: 0)
+        items = reordered
     }
 
     private func remove(_ index: Int) {
@@ -385,31 +386,38 @@ struct MealPhotoRow<Trailing: View>: View {
 
 // MARK: - Reframing
 
-/// Picks which square of a photo the wall shows: drag the photo along its long side in a
-/// square window. Done writes a thumbnail for the new square and hands both back.
+/// Picks which square of a photo the wall shows: drag the photo in a square window, and
+/// pinch (or use the zoom row) to zoom in. Done writes a thumbnail for the new square and
+/// hands both back.
 struct ReframeSheet: View {
     let item: MealPhotoItem
     let onDone: (PhotoCrop, String) -> Void
     let onCancel: () -> Void
 
     @Environment(FoodStore.self) private var store
-    @State private var position = 0.5
-    @State private var dragStart: Double?
+    @State private var zoom = 1.0
+    @State private var center = CGPoint(x: 0.5, y: 0.5)
+    @State private var dragStart: CGPoint?
+    @State private var pinchStart: Double?
     @State private var isSaving = false
     @State private var error: String?
 
     private static let side: CGFloat = 400
+    static let maxZoom = 4.0
 
     var body: some View {
         let image = MealImages.image(at: store.photoURL(item.photoFile))
+        let size = image.map(Self.pixelSize) ?? CGSize(width: 1, height: 1)
         WallSheet(width: Self.side + 52, onClose: onCancel) {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Reframe")
                     .font(.display(28))
-                Text("Drag the photo to choose what the polaroid shows.")
+                Text("Drag the photo, and pinch to zoom, to choose what the polaroid shows.")
                     .font(.body(14, weight: 600))
                     .foregroundStyle(Theme.muted)
-                window(image)
+                    .fixedSize(horizontal: false, vertical: true)
+                window(image, size: size)
+                zoomRow(size: size)
                 if let error {
                     Text(error).font(.body(13, weight: 600)).foregroundStyle(Theme.accent)
                 }
@@ -423,20 +431,27 @@ struct ReframeSheet: View {
                 }
             }
         }
-        .onAppear { position = item.crop?.position ?? 0.5 }
+        .onAppear {
+            let crop = item.crop ?? .centeredSquare(in: size)
+            zoom = min(max(crop.zoom(in: size), 1), Self.maxZoom)
+            center = crop.center
+        }
     }
 
-    private func window(_ image: UIImage?) -> some View {
-        let size = image.map(Self.pixelSize) ?? CGSize(width: 1, height: 1)
-        let landscape = size.width >= size.height
-        let long = Self.side * max(size.width, size.height) / max(min(size.width, size.height), 1)
-        let travel = long - Self.side
+    private func crop(in size: CGSize) -> PhotoCrop {
+        .square(in: size, zoom: zoom, center: center)
+    }
+
+    private func window(_ image: UIImage?, size: CGSize) -> some View {
+        let crop = crop(in: size)
+        // Points per photo pixel, so the crop's square fills the window.
+        let scale = Self.side / max(crop.width * size.width, 1)
         return ZStack(alignment: .topLeading) {
             if let image {
                 Image(uiImage: image)
                     .resizable()
-                    .frame(width: landscape ? long : Self.side, height: landscape ? Self.side : long)
-                    .offset(x: landscape ? -travel * position : 0, y: landscape ? 0 : -travel * position)
+                    .frame(width: size.width * scale, height: size.height * scale)
+                    .offset(x: -crop.x * size.width * scale, y: -crop.y * size.height * scale)
             }
         }
         .frame(width: Self.side, height: Self.side, alignment: .topLeading)
@@ -447,25 +462,74 @@ struct ReframeSheet: View {
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
-                    guard travel > 0 else { return }
-                    let start = dragStart ?? position
+                    let start = dragStart ?? center
                     dragStart = start
-                    let moved = landscape ? value.translation.width : value.translation.height
-                    position = min(max(start - Double(moved / travel), 0), 1)
+                    let moved = CGPoint(
+                        x: start.x - value.translation.width / (size.width * scale),
+                        y: start.y - value.translation.height / (size.height * scale)
+                    )
+                    // Keep the center where the square can actually be, so a drag past an
+                    // edge doesn't have to be undone before the square moves back.
+                    center = PhotoCrop.square(in: size, zoom: zoom, center: moved).center
                 }
                 .onEnded { _ in dragStart = nil }
+                .simultaneously(with:
+                    MagnifyGesture()
+                        .onChanged { value in
+                            let start = pinchStart ?? zoom
+                            pinchStart = start
+                            setZoom(start * value.magnification, size: size)
+                        }
+                        .onEnded { _ in pinchStart = nil }
+                )
         )
         .accessibilityElement()
         .accessibilityLabel("Photo framing")
-        .accessibilityValue("\(Int((position * 100).rounded())) percent")
+        .accessibilityValue("\(Int((crop.center.x * 100).rounded())) percent across, \(Int((crop.center.y * 100).rounded())) percent down, zoom \(String(format: "%.1f", zoom))")
         .accessibilityIdentifier("reframe-window")
         .accessibilityAdjustableAction { change in
-            switch change {
-            case .increment: position = min(position + 0.1, 1)
-            case .decrement: position = max(position - 0.1, 0)
-            @unknown default: break
-            }
+            // Slides along the photo's long side, like the old drag.
+            let step = 0.1
+            let landscape = size.width >= size.height
+            let delta = change == .increment ? step : -step
+            let moved = landscape ? CGPoint(x: center.x + delta, y: center.y) : CGPoint(x: center.x, y: center.y + delta)
+            center = PhotoCrop.square(in: size, zoom: zoom, center: moved).center
         }
+    }
+
+    /// − zoom slider +, for one finger, a mouse or VoiceOver.
+    private func zoomRow(size: CGSize) -> some View {
+        HStack(spacing: 12) {
+            Button { setZoom(zoom / 1.25, size: size) } label: {
+                Image(systemName: "minus.magnifyingglass")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: 40, height: 40)
+                    .background(Theme.surface2, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(zoom <= 1.001)
+            .accessibilityLabel("Zoom out")
+            Slider(value: Binding(get: { zoom }, set: { setZoom($0, size: size) }), in: 1...Self.maxZoom)
+                .tint(Theme.accent)
+                .accessibilityLabel("Zoom")
+                .accessibilityValue(String(format: "%.1f times", zoom))
+                .accessibilityIdentifier("reframe-zoom")
+            Button { setZoom(zoom * 1.25, size: size) } label: {
+                Image(systemName: "plus.magnifyingglass")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: 40, height: 40)
+                    .background(Theme.surface2, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(zoom >= Self.maxZoom - 0.001)
+            .accessibilityLabel("Zoom in")
+        }
+        .foregroundStyle(Theme.ink)
+    }
+
+    private func setZoom(_ value: Double, size: CGSize) {
+        zoom = min(max(value, 1), Self.maxZoom)
+        center = PhotoCrop.square(in: size, zoom: zoom, center: center).center
     }
 
     private static func pixelSize(_ image: UIImage) -> CGSize {
@@ -476,7 +540,7 @@ struct ReframeSheet: View {
         guard let image, !isSaving else { return }
         isSaving = true
         defer { isSaving = false }
-        let crop = PhotoCrop.square(in: Self.pixelSize(image), position: position)
+        let crop = crop(in: Self.pixelSize(image))
         do {
             let thumbnail = try await store.thumbnail(of: item.photoFile, crop: crop)
             onDone(crop, thumbnail)
