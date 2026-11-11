@@ -900,29 +900,11 @@ private struct WindowRow: View {
     @Binding var window: CareWindow
 
     var body: some View {
-        HStack(spacing: 8) {
+        HoursField(start: $window.start, end: $window.end, accessibilityLabel: window.label, identifier: "window") {
             TextField("Label", text: $window.label)
                 .font(.body(14.5, weight: 700))
                 .fieldStyle()
                 .frame(width: 130)
-            DatePicker("From", selection: time(\.start), displayedComponents: .hourAndMinute)
-                .labelsHidden()
-            Text("to").font(.body(14, weight: 600)).foregroundStyle(Theme.muted)
-            DatePicker("To", selection: time(\.end), displayedComponents: .hourAndMinute)
-                .labelsHidden()
         }
-    }
-
-    /// Minutes from midnight as a Date on a fixed reference day.
-    private func time(_ keyPath: WritableKeyPath<CareWindow, Int>) -> Binding<Date> {
-        let calendar = Calendar.current
-        let base = calendar.startOfDay(for: Date(timeIntervalSinceReferenceDate: 0))
-        return Binding(
-            get: { calendar.date(byAdding: .minute, value: min(window[keyPath: keyPath], 1439), to: base) ?? base },
-            set: { date in
-                let parts = calendar.dateComponents([.hour, .minute], from: date)
-                window[keyPath: keyPath] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-            }
-        )
     }
 }

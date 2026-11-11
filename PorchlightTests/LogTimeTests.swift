@@ -13,8 +13,8 @@ struct LogTimeTests {
         #expect(LogTime.minutesAgo(60).start(now: now, lasting: 20) == now.addingTimeInterval(-3600))
         let exact = now.addingTimeInterval(-5000)
         #expect(LogTime.at(exact).start(now: now, lasting: 20) == exact)
-        #expect(WhenPicker.agoText(30) == "30 min ago")
-        #expect(WhenPicker.agoText(120) == "2 hr ago")
+        #expect(LogTime.agoText(30) == "30 min ago")
+        #expect(LogTime.agoText(120) == "2 hr ago")
     }
 
     @Test("A meal edit keeps a picked time, and moves to the new slot's usual time otherwise")

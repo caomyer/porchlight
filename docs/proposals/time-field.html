@@ -1,0 +1,389 @@
+<title>Porchlight Time Field</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+/* Layout: one column. A short thesis, the live field in four scenarios, the rules, then decisions. Single light look, matching the app. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --blue: #4C7BB0;
+  --warn: #B4532A;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+.page { max-width: 880px; margin: 0 auto; display: grid; gap: 48px; }
+.prose { max-width: 66ch; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; font-size: clamp(32px, 5vw, 46px); line-height: 1.08; }
+p { margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+section { display: grid; gap: 16px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lab { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.hint { font-size: 13px; color: var(--muted); font-weight: 600; }
+.pill { border: 0; background: var(--surface2); color: var(--ink); border-radius: 999px; padding: 8px 15px; font: 700 14.5px/1.2 var(--body); white-space: nowrap; }
+.pill.on { background: var(--ink); color: #fff; }
+
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs button { border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 16px; font: 800 14px/1 var(--body); cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.seg { display: inline-flex; background: var(--surface2); border-radius: 999px; padding: 3px; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; font: 800 13px/1 var(--body); color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+.mock { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 22px 24px; display: grid; gap: 14px; box-shadow: 0 16px 40px rgba(60,40,20,.08); min-width: 0; }
+.mock .title { font: 600 24px/1.1 var(--display); }
+
+/* The field. At rest a pill; tapped, the same pill takes typing. */
+.field { display: inline-flex; align-items: center; gap: 6px; }
+.time { border: 0; cursor: pointer; display: inline-flex; align-items: baseline; gap: 6px; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--line); border-radius: 999px; padding: 6px 14px 7px; color: var(--ink); }
+.time b { font: 600 19px/1 var(--display); font-variant-numeric: tabular-nums; }
+.time span { font: 700 12px/1 var(--body); color: var(--muted); }
+.time sup, .plus { font: 800 10px/1 var(--body); color: var(--accent); }
+.typing { display: inline-flex; align-items: center; gap: 4px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); border-radius: 999px; padding: 3px 4px 3px 14px; }
+.typing.bad { box-shadow: inset 0 0 0 2px var(--warn); animation: shake .25s; }
+@keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.typing input { width: 4.6ch; border: 0; background: transparent; font: 600 19px/1.4 var(--display); font-variant-numeric: tabular-nums; color: var(--ink); padding: 0; outline: none; }
+.typing input::placeholder { color: rgba(134,122,110,.6); }
+.ampm { display: inline-flex; background: var(--surface2); border-radius: 999px; padding: 2px; }
+.ampm button { border: 0; background: transparent; padding: 5px 9px; border-radius: 999px; font: 800 12px/1 var(--body); color: var(--muted); cursor: pointer; }
+.ampm button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.to { font-weight: 600; color: var(--muted); }
+.dur { font: 700 13px/1 var(--body); color: var(--muted); }
+.under { display: grid; gap: 6px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 0; background: var(--surface2); border-radius: 999px; padding: 7px 12px; font: 700 13.5px/1.1 var(--body); color: var(--ink); cursor: pointer; white-space: nowrap; }
+.chip small { color: var(--muted); font-weight: 700; margin-left: 4px; }
+.chip.on { background: var(--ink); color: #fff; }
+.chip.on small { color: rgba(255,255,255,.7); }
+.note { font-size: 13px; font-weight: 600; color: var(--warn); }
+.anchor { position: relative; display: inline-flex; }
+.card { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: 264px; display: grid; gap: 10px; padding: 12px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; box-shadow: 0 14px 34px rgba(60,40,20,.16); }
+.card.left { right: auto; left: 0; }
+.card .chips { gap: 5px; }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.key { border: 0; height: 46px; border-radius: 12px; background: var(--surface2); font: 600 20px/1 var(--display); color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums; }
+.key.fn { font: 800 14px/1 var(--body); }
+.key:active { background: var(--line); }
+.cardfoot { display: flex; align-items: center; gap: 8px; }
+.cardfoot .ampm { margin-right: auto; }
+.ampm button { padding: 7px 11px; font-size: 13px; }
+.done { border: 0; cursor: pointer; background: var(--ink); color: #fff; border-radius: 999px; padding: 9px 18px; font: 800 14px/1 var(--body); }
+.key:focus-visible, .done:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.mock { padding-bottom: 300px; }
+.time:focus-visible, .chip:focus-visible, .ampm button:focus-visible, .tabs button:focus-visible, .seg button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.rule { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.rule b { font: 600 17px/1.2 var(--display); }
+.rule p { font-size: 14.5px; color: var(--muted); }
+.ex { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; background: var(--surface2); border-radius: 6px; padding: 1px 6px; color: var(--ink); }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 600px; font-size: 15px; }
+th, td { text-align: left; padding: 12px 14px; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.rec { font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+
+<div class="page">
+  <header style="display:grid;gap:14px">
+    <div class="eyebrow">Porchlight · Time field · Proposal for approval</div>
+    <h1>A time you can just type</h1>
+    <p class="prose" style="font-size:18px">One small field for every time in the app. At rest it's a pill showing the time. Tap it and a small card opens from the pill: a few suggestions for the usual cases, and a number pad to type any other time. The iPad's own keyboard never comes up, so nothing on the screen moves or gets covered. A start and end is simply two of them.</p>
+  </header>
+
+  <section>
+    <div class="row" style="justify-content:space-between">
+      <div class="eyebrow">Try it</div>
+      <div class="row">
+        <span class="hint">Clock</span>
+        <div class="seg" role="group" aria-label="Clock style"><button id="c12" aria-pressed="true">12-hour</button><button id="c24" aria-pressed="false">24-hour</button></div>
+      </div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Scenarios">
+      <button role="tab" aria-selected="true" data-s="meal">🍽️ Meal</button>
+      <button role="tab" aria-selected="false" data-s="walk">🐕 Walk</button>
+      <button role="tab" aria-selected="false" data-s="event">📅 Event</button>
+      <button role="tab" aria-selected="false" data-s="night">🌙 Night hours</button>
+    </div>
+    <div class="mock" id="mock"></div>
+    <p class="hint" id="tryhint"></p>
+    <p class="hint">Tap the keys, or type on a keyboard: a hardware keyboard on the iPad types straight in too. Done or Return keeps the time; tapping elsewhere does too; Escape cancels.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">The rules</div>
+    <div class="rules">
+      <div class="rule"><b>Type it the way you'd say it</b><p><span class="ex">7</span> is 7:00, <span class="ex">715</span> is 7:15, <span class="ex">1930</span> is 19:30. Add <span class="ex">a</span> or <span class="ex">p</span> if you like.</p></div>
+      <div class="rule"><b>The right half of the day</b><p>Without AM or PM, a log takes the half of the day nearest the time it shows (so 8 on a breakfast is 8 AM), never later than now. An event takes the next one, and an end the first time after its start. The AM | PM switch fixes the rare miss.</p></div>
+      <div class="rule"><b>A few suggestions</b><p>Up to four, fitted to the job: "Just got back" and "1 hr ago" for a walk, "Usual dinner" for a meal, lengths for an event's end.</p></div>
+      <div class="rule"><b>Its own number pad</b><p>Twelve big keys in a card by the time. The iPad's keyboard would cover half the wall and hide fields low in a form; the card covers nothing but itself.</p></div>
+      <div class="rule"><b>Ranges behave like a calendar</b><p>Moving an event's start moves its end. An end before its start is the next day, marked <span class="plus">+1</span>. Settings like the night keep their end.</p></div>
+      <div class="rule"><b>Mistakes are explained</b><p>A time a log can't have, like later than now, gets a short reason under the field. Nothing changes silently.</p></div>
+      <div class="rule"><b>The iPad's clock</b><p>12 or 24-hour follows the iPad's setting. On a 24-hour clock there is no AM | PM switch at all.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Decisions to approve</div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Question</th><th>Recommendation</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>What the field is</td><td class="rec">A pill that opens a small card: suggestions and a number pad</td><td>Typing is exact; suggestions cover most real use in one tap.</td></tr>
+          <tr><td>Keyboard</td><td class="rec">The card's own number pad, never the iPad's keyboard</td><td>iPad has no small number keyboard: asking for one still brings up the full keyboard, which covers half the screen and hides fields low in a form. Hardware keyboards still type.</td></tr>
+          <tr><td>The day ruler</td><td class="rec">Removed</td><td>Typing and suggestions cover exact and rough times. The ruler was the biggest and most fiddly part.</td></tr>
+          <tr><td>Where it applies</td><td class="rec">Meals, walks and other care, routine windows, night hours, future event forms</td><td>Every time in the app. Dates (birthdays, repeat start days) are a separate control and stay as they are.</td></tr>
+          <tr><td>The ruler already on main</td><td class="rec">Replaced by this field; the unmerged hours ruler is dropped</td><td>Less code, one behavior to learn.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const NOW = 19 * 60 + 40; // the mock's "now": 7:40 PM
+  const DAY = 1440;
+  let clock24 = false;
+
+  const SCENARIOS = {
+    meal: {
+      title: 'Dinner, probably', label: 'Meal', kind: 'single', limit: 'past', value: 19 * 60 + 12,
+      chips: () => [['Now', NOW], ['30 min ago', NOW - 30], ['1 hr ago', NOW - 60], ['Usual dinner', 18 * 60 + 30]],
+      hint: 'Try 715 on the pad (nearest the 7:12 PM it shows, so 7:15 PM), or 9 then PM (later than now, so it says why).'
+    },
+    walk: {
+      title: 'Who walked Yo-Yo?', label: 'Started', kind: 'single', limit: 'past', value: NOW - 60, lasting: 20,
+      chips: () => [['Just got back', NOW - 20], ['30 min ago', NOW - 30], ['1 hr ago', NOW - 60], ['2 hr ago', NOW - 120]],
+      hint: 'The walk\u2019s quick choices become the field\u2019s suggestions, so the sheet loses a row.'
+    },
+    event: {
+      title: 'Piano lesson', label: 'When', kind: 'range', limit: 'future', value: 20 * 60, end: 21 * 60,
+      chips: (field) => field === 'start'
+        ? [['8:00 PM', 20 * 60, true], ['8:30 PM', 20 * 60 + 30, true], ['9:00 PM', 21 * 60, true]]
+        : [['30 min', 30], ['1 hr', 60], ['1\u00bd hr', 90], ['2 hr', 120]],
+      hint: 'Change the start and the end follows. Type an end like 1a and it becomes 1:00 AM the next day.'
+    },
+    night: {
+      title: 'Dim at night', label: 'From', kind: 'range', limit: 'none', value: 21 * 60 + 30, end: 6 * 60 + 30, keepEnd: true,
+      chips: (field) => field === 'start'
+        ? [['9:00 PM', 21 * 60, true], ['10:00 PM', 22 * 60, true], ['11:00 PM', 23 * 60, true]]
+        : [['6:00 AM', 6 * 60, true], ['7:00 AM', 7 * 60, true], ['8:00 AM', 8 * 60, true]],
+      hint: 'A setting: the end stays put when the start moves.'
+    }
+  };
+
+  function parts(min) {
+    const m = ((min % DAY) + DAY) % DAY, h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0');
+    if (clock24) return { time: String(h).padStart(2, '0') + ':' + mm, period: '' };
+    return { time: ((h + 11) % 12 + 1) + ':' + mm, period: h < 12 ? 'AM' : 'PM' };
+  }
+  function label(min) { const p = parts(min); return p.time + (p.period ? ' ' + p.period : ''); }
+
+  // "7", "715", "7:15", "1930", "7p", "7:15 am" -> {h, m, mer} or null.
+  function parse(text) {
+    const t = text.trim().toLowerCase().replace(/\s+/g, '').replace('.', ':');
+    const match = t.match(/^(\d{1,2})(?::?(\d{2}))?(a|am|p|pm)?$/);
+    if (!match) return null;
+    const digits = match[1] + (match[2] || '');
+    let h, m;
+    if (match[2] !== undefined) { h = +match[1]; m = +match[2]; }
+    else if (digits.length <= 2) { h = +digits; m = 0; }
+    else if (digits.length === 3) { h = +digits[0]; m = +digits.slice(1); }
+    else { h = +digits.slice(0, 2); m = +digits.slice(2); }
+    if (m > 59 || h > 23) return null;
+    const mer = match[3] ? match[3][0] : null;
+    if (mer && (h < 1 || h > 12)) return null;
+    return { h, m, mer };
+  }
+
+  let state;
+  const mock = document.getElementById('mock');
+
+  function load(name) {
+    const s = SCENARIOS[name];
+    state = { name, s, start: s.value, end: s.end, open: null, text: '', note: '' };
+    document.getElementById('tryhint').textContent = s.hint;
+    render();
+  }
+
+  const endAfterStart = () => state.end <= state.start ? state.end + DAY : state.end;
+  function allowed(min) {
+    if (state.s.limit === 'past') return min <= NOW;
+    if (state.s.limit === 'future') return min >= NOW;
+    return true;
+  }
+
+  // Picks the sensible half of the day for a typed time.
+  function infer(p, field) {
+    let options;
+    if (p.mer) options = [((p.mer === 'p' ? 12 : 0) + p.h % 12) * 60 + p.m];
+    else if (clock24 || p.h === 0 || p.h > 12) options = [p.h * 60 + p.m];
+    else options = [(p.h % 12) * 60 + p.m, (p.h % 12 + 12) * 60 + p.m];
+    if (options.length === 1) return options[0];
+    if (field === 'end') return options.map(o => o <= state.start ? o + DAY : o).sort((a, b) => a - b)[0] % DAY;
+    if (state.s.limit === 'past') { const past = options.filter(o => o <= NOW); return past.length ? past.reduce((best, o) => Math.abs(o - state.start) < Math.abs(best - state.start) ? o : best) : options[0]; }
+    if (state.s.limit === 'future') { const next = options.filter(o => o >= NOW); return next.length ? Math.min(...next) : options[0]; }
+    return options.reduce((best, o) => Math.abs(o - state.start) < Math.abs(best - state.start) ? o : best);
+  }
+
+  function set(field, min) {
+    if (field === 'start' && state.s.kind === 'range' && !state.s.keepEnd) {
+      const length = endAfterStart() - state.start;
+      state.end = (min + length) % DAY;
+    }
+    if (field === 'start') state.start = min; else state.end = min;
+  }
+
+  function why(min) {
+    return state.s.limit === 'past' ? label(min) + ' is later than now, so it can\u2019t be logged yet.' : label(min) + ' has already passed.';
+  }
+
+  // Applies what was typed. Returns false (and explains) if it can't.
+  function commit() {
+    const field = state.open;
+    if (!field || state.text.trim() === '') return true;
+    const p = parse(state.text);
+    if (!p) { state.note = 'Type a time like 715, 7:15 or 7:15p.'; return false; }
+    const min = infer(p, field);
+    if (field === 'start' && !allowed(min)) { state.note = why(min); return false; }
+    set(field, min);
+    state.text = ''; state.note = '';
+    return true;
+  }
+
+  function close() { if (commit()) { state.open = null; } render(); }
+
+  function render() {
+    const s = state.s;
+    const fieldHTML = (field) => {
+      const min = field === 'start' ? state.start : state.end;
+      const next = field === 'end' && state.end <= state.start;
+      const p = parts(min);
+      const name = field === 'end' ? 'Ends' : s.label;
+      if (state.open !== field) {
+        return '<button class="time" data-field="' + field + '" aria-label="' + name + ', ' + label(min) + (next ? ', next day' : '') + '"><b>' + p.time + '</b>' + (p.period ? '<span>' + p.period + '</span>' : '') + (next ? '<sup>+1</sup>' : '') + '</button>';
+      }
+      return '<span class="anchor"><span class="typing' + (state.note ? ' bad' : '') + '">' +
+        '<input id="entry" inputmode="none" autocomplete="off" aria-label="' + name + ', type a time" placeholder="' + p.time + '" value="' + state.text + '">' +
+        (p.period ? '<span class="dur" style="margin-right:10px">' + p.period + '</span>' : '') +
+        (next ? '<sup class="plus" style="margin-right:6px">+1</sup>' : '') +
+      '</span>' + card(field, min, p) + '</span>';
+    };
+    let row;
+    if (s.kind === 'single') {
+      row = '<div class="row" style="justify-content:space-between"><span class="lab">' + s.label + '</span>' + fieldHTML('start') + '</div>';
+    } else {
+      const minutes = endAfterStart() - state.start, h = Math.floor(minutes / 60), m = minutes % 60;
+      const dur = (h ? h + ' hr' : '') + (h && m ? ' ' : '') + (m ? m + ' min' : '');
+      row = '<div class="row"><span class="lab" style="margin-right:4px">' + s.label + '</span>' + fieldHTML('start') + '<span class="to">to</span>' + fieldHTML('end') + '<span class="dur">' + dur + '</span></div>';
+    }
+    const under = '';
+    let extras = '';
+    if (state.name === 'meal') extras = '<div class="row"><span class="pill">🌅 Breakfast</span><span class="pill">☀️ Lunch</span><span class="pill on">🌙 Dinner</span></div>';
+    if (state.name === 'walk') extras = '<span class="hint">back by ' + label(state.start + s.lasting) + '</span>';
+    mock.innerHTML = '<div class="title">' + s.title + '</div>' + row + under + extras;
+    wire();
+  }
+
+  function card(field, value, p) {
+    const s = state.s;
+    const chips = s.chips(field).map(c => {
+      const absolute = c[2] || field === 'start';
+      const min = absolute ? c[1] : (state.start + c[1]) % DAY;
+      if (field === 'start' && !allowed(min)) return '';
+      const on = min % DAY === value % DAY && !state.text;
+      const showTime = !absolute || !/\d:\d\d/.test(c[0]);
+      return '<button class="chip' + (on ? ' on' : '') + '" data-min="' + min + '">' + (absolute && /\d:\d\d/.test(c[0]) ? label(min) : c[0]) + (showTime && c[0] !== 'Now' ? '<small>' + label(min) + '</small>' : '') + '</button>';
+    }).join('');
+    const keys = ['1','2','3','4','5','6','7','8','9', ':', '0', '\u232b'];
+    const side = (s.kind === 'range' && field === 'start') || s.kind === 'range' ? ' left' : '';
+    return '<div class="card' + side + '" role="dialog" aria-label="Pick a time">' +
+      (state.note ? '<div class="note" aria-live="polite">' + state.note + '</div>' : '') +
+      (chips ? '<div class="chips">' + chips + '</div>' : '') +
+      '<div class="keypad">' + keys.map(k => '<button class="key' + (k === '\u232b' ? ' fn' : '') + '" data-key="' + k + '" aria-label="' + (k === '\u232b' ? 'Delete' : k) + '">' + k + '</button>').join('') + '</div>' +
+      '<div class="cardfoot">' +
+        (clock24 ? '<span></span>' : '<span class="ampm" role="group" aria-label="AM or PM"><button data-mer="a" aria-pressed="' + (p.period === 'AM') + '">AM</button><button data-mer="p" aria-pressed="' + (p.period === 'PM') + '">PM</button></span>') +
+        '<button class="done" data-done>Done</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function wire() {
+    mock.querySelectorAll('.time').forEach(b => b.onclick = () => {
+      if (!commit()) { render(); return; }
+      state.open = b.dataset.field; state.text = ''; state.note = '';
+      render();
+      document.getElementById('entry').focus();
+    });
+    const entry = document.getElementById('entry');
+    if (!entry) return;
+    entry.oninput = () => { state.text = entry.value; if (state.note) { state.note = ''; entry.parentElement.classList.remove('bad'); const n = mock.querySelector('.note'); if (n) n.remove(); } };
+    entry.onkeydown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); close(); const again = document.getElementById('entry'); if (again) again.focus(); }
+      if (e.key === 'Escape') { state.open = null; state.text = ''; state.note = ''; render(); }
+    };
+    // Buttons beside the field act without closing it first.
+    mock.querySelectorAll('.chip, .ampm button, .key, .done').forEach(b => b.onmousedown = (e) => e.preventDefault());
+    mock.querySelectorAll('.key').forEach(k => k.onclick = () => {
+      const key = k.dataset.key;
+      state.text = key === '\u232b' ? state.text.slice(0, -1) : (state.text + key).slice(0, 5);
+      state.note = '';
+      render();
+      const e = document.getElementById('entry'); if (e) e.focus();
+    });
+    const done = mock.querySelector('[data-done]');
+    if (done) done.onclick = () => close();
+    mock.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+      set(state.open, +c.dataset.min); state.text = ''; state.note = ''; state.open = null; render();
+    });
+    mock.querySelectorAll('.ampm button').forEach(b => b.onclick = () => {
+      const field = state.open;
+      if (state.text && !commit()) { render(); return; }
+      const value = field === 'start' ? state.start : state.end;
+      const isPM = value >= 720;
+      if ((b.dataset.mer === 'p') !== isPM) {
+        const flipped = (value + 720) % DAY;
+        if (field === 'start' && !allowed(flipped)) { state.note = why(flipped); }
+        else set(field, flipped);
+      }
+      render();
+      document.getElementById('entry').focus();
+    });
+    entry.onblur = () => setTimeout(() => { if (state.open && document.activeElement !== document.getElementById('entry')) close(); }, 0);
+  }
+
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    load(b.dataset.s);
+  });
+  function setClock(is24) {
+    clock24 = is24;
+    document.getElementById('c12').setAttribute('aria-pressed', String(!is24));
+    document.getElementById('c24').setAttribute('aria-pressed', String(is24));
+    render();
+  }
+  document.getElementById('c12').onclick = () => setClock(false);
+  document.getElementById('c24').onclick = () => setClock(true);
+
+  load('meal');
+  state.open = 'start';
+  render();
+})();
+</script>

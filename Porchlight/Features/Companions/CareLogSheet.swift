@@ -167,19 +167,24 @@ private struct CareLogForm: View {
                     personButton(person)
                 }
             }
-            label(routine.tracks(.duration) ? "Started" : "When", note: timingNote)
-            WhenPicker(
+            LogTimeField(
                 time: $when,
+                range: dayRange,
                 now: report.now,
                 lasting: routine.tracks(.duration) ? duration : 0,
-                justNowTitle: routine.tracks(.duration) ? "Just got back" : "Just now",
-                showsChoices: isToday,
-                earliest: dayRange.lowerBound,
-                latest: dayRange.upperBound,
-                bands: TimeBand.windows(routine.effectiveWindows),
-                rulerLabel: routine.tracks(.duration) ? "Started" : "When",
+                suggestions: isToday ? LogTime.recentSuggestions(justNow: routine.tracks(.duration) ? "Just got back" : "Just now") : [],
+                accessibilityLabel: routine.tracks(.duration) ? "Started" : "When",
+                identifier: "exact-time",
                 calendar: store.snapshot.calendar
-            )
+            ) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    SectionLabel(routine.tracks(.duration) ? "Started" : "When")
+                    if let timingNote {
+                        Text(timingNote).font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted)
+                    }
+                }
+            }
+            .padding(.top, 16)
             if routine.tracks(.duration) {
                 label("How long")
                 FlowLayout(spacing: 8) {

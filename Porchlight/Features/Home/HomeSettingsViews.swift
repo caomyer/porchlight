@@ -375,31 +375,20 @@ private struct PhotoFrameSettings: View {
             }
             .tint(Theme.good)
             if nightEnabled {
-                HStack(spacing: 10) {
+                HoursField(
+                    start: $nightStart,
+                    end: $nightEnd,
+                    allowsNextDay: true,
+                    startSuggestions: [21 * 60, 22 * 60, 23 * 60],
+                    endSuggestions: [6 * 60, 7 * 60, 8 * 60],
+                    accessibilityLabel: "Night",
+                    identifier: "night"
+                ) {
                     Text("From").font(.body(15, weight: 700))
-                    DatePicker("From", selection: time($nightStart), displayedComponents: .hourAndMinute)
-                        .labelsHidden()
-                    Text("to").font(.body(15, weight: 700))
-                    DatePicker("To", selection: time($nightEnd), displayedComponents: .hourAndMinute)
-                        .labelsHidden()
                 }
-                .tint(Theme.accent)
             }
         }
         .padding(12)
-    }
-
-    /// Bridges minutes-from-midnight storage to a time picker.
-    private func time(_ minutes: Binding<Int>) -> Binding<Date> {
-        let calendar = Calendar.current
-        let midnight = calendar.startOfDay(for: .now)
-        return Binding(
-            get: { calendar.date(byAdding: .minute, value: minutes.wrappedValue, to: midnight) ?? midnight },
-            set: { date in
-                let parts = calendar.dateComponents([.hour, .minute], from: date)
-                minutes.wrappedValue = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-            }
-        )
     }
 
     private func importPicked(_ items: [PhotosPickerItem]) async {

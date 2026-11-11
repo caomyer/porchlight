@@ -45,6 +45,16 @@ struct MealSlot: Equatable, Sendable {
         return calendar.date(byAdding: .minute, value: minute, to: start) ?? start
     }
 
+    /// Suggestions under a meal's time: now and a little earlier (kept only on
+    /// today), and the slot's usual time.
+    static func timeSuggestions(slot: String, day: DayKey, calendar: Calendar) -> [(title: String, time: LogTime)] {
+        var suggestions = Array(LogTime.recentSuggestions(justNow: "Now").prefix(3))
+        if named(slot).window != nil {
+            suggestions.append(("Usual \(slot.lowercased())", .at(usualTime(of: slot, on: day, calendar: calendar))))
+        }
+        return suggestions
+    }
+
     static func guess(at date: Date, calendar: Calendar, enabled: [String]) -> String? {
         guard !enabled.isEmpty else { return nil }
         let parts = calendar.dateComponents([.hour, .minute], from: date)
