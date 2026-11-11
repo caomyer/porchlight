@@ -8,10 +8,12 @@ import SwiftUI
 
 // MARK: - Viewfinder
 
-/// The live camera with a shutter, a Photos button and a camera switch. The shutter only
-/// takes a photo: it goes to `onShot` and the camera stays live for another angle.
-/// Without a camera it shows the dish's emoji on a plate and offers Photos.
-struct MealViewfinder: View {
+/// A square live camera window, exactly the polaroid a shot becomes, with the shutter, a
+/// Photos button and a camera switch below it. The shutter only takes a photo: it goes to
+/// `onShot` and the camera stays live for another angle. Without a camera the window shows
+/// the dish's emoji on a plate and offers Photos. `below` goes under the controls, on the
+/// same dark panel (the capture sheet puts the meal's photos there).
+struct MealViewfinder<Below: View>: View {
     /// Shown on the plate when there is no camera.
     let emoji: String
     /// Photos the meal already has, to say when it's full.
@@ -19,6 +21,7 @@ struct MealViewfinder: View {
     var isBusy = false
     let onShot: (UIImage) -> Void
     let onPick: ([UIImage]) -> Void
+    @ViewBuilder var below: () -> Below
 
     @State private var camera = MealCamera()
     @State private var state: CameraState = .starting
@@ -32,26 +35,18 @@ struct MealViewfinder: View {
 
     private var remaining: Int { max(AppDatabase.photoLimit - photoCount, 0) }
 
+    static var panel: Color { Color(hex: 0x2A201A) }
+
     var body: some View {
-        ZStack {
-            RadialGradient(colors: [Color(hex: 0x6A5341), Color(hex: 0x2A201A)], center: UnitPoint(x: 0.5, y: 0.42), startRadius: 0, endRadius: 330)
-            content
-            if state == .live { brackets }
-            VStack {
-                Text(hint)
-                    .font(.body(13, weight: 600))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 18)
-                    .padding(.horizontal, 24)
-                    .accessibilityIdentifier("viewfinder-hint")
-                Spacer()
-                bottomControls
-                    .padding(.bottom, 24)
-            }
-            Color.white.opacity(flash ? 0.95 : 0).allowsHitTesting(false)
+        VStack(spacing: 0) {
+            window
+            bottomControls
+                .frame(minHeight: 84)
+                .padding(.vertical, 16)
+            below()
+            Spacer(minLength: 0)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Self.panel, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .task { await startCamera() }
         .onDisappear { camera.stop() }
         .onChange(of: pickerItems) { _, items in
@@ -62,6 +57,38 @@ struct MealViewfinder: View {
                 if !images.isEmpty { onPick(images) }
             }
         }
+    }
+
+    /// The square the polaroid shows. The preview fills it, so it shows the middle square
+    /// of the camera frame, the same square a shot keeps for the wall.
+    private var window: some View {
+        ZStack {
+            RadialGradient(colors: [Color(hex: 0x6A5341), Color(hex: 0x2A201A)], center: UnitPoint(x: 0.5, y: 0.42), startRadius: 0, endRadius: 330)
+            content
+            VStack {
+                Text(hint)
+                    .font(.body(13, weight: 700))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 14)
+                    .padding(.horizontal, 20)
+                    .accessibilityIdentifier("viewfinder-hint")
+                Spacer()
+            }
+            Color.white.opacity(flash ? 0.95 : 0).allowsHitTesting(false)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            if state == .live {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.75), lineWidth: 2)
+                    .allowsHitTesting(false)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("viewfinder-window")
     }
 
     @ViewBuilder
@@ -75,33 +102,16 @@ struct MealViewfinder: View {
                 Circle().stroke(Color(hex: 0xE7E1D6), lineWidth: 10).padding(26)
                 Text(emoji).font(.system(size: 112))
             }
-            .frame(width: 250, height: 250)
-            .shadow(color: .black.opacity(0.45), radius: 20, y: 24)
-            .offset(y: -20)
+            .frame(width: 220, height: 220)
+            .shadow(color: .black.opacity(0.45), radius: 20, y: 18)
             .animation(.spring(duration: 0.3), value: emoji)
         }
-    }
-
-    private var brackets: some View {
-        let corner = 34.0
-        return ZStack {
-            ForEach(0..<4, id: \.self) { index in
-                Bracket()
-                    .stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: 3, lineCap: .butt))
-                    .frame(width: corner, height: corner)
-                    .rotationEffect(.degrees(Double(index) * 90))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: [.topLeading, .topTrailing, .bottomTrailing, .bottomLeading][index])
-            }
-        }
-        .frame(width: 258, height: 312)
-        .offset(y: -24)
-        .allowsHitTesting(false)
     }
 
     private var hint: String {
         if remaining == 0 { return "That's \(AppDatabase.photoLimit) photos, the most a meal can have" }
         switch state {
-        case .live: return photoCount > 0 ? "Added to Photos · another angle?" : "Center the plate · tap the shutter"
+        case .live: return photoCount > 0 ? "Added below · another angle?" : "This square is your polaroid"
         case .denied: return "Camera access is off. Turn it on in Settings › Porchlight, or pick photos."
         case .none: return "No camera here. Pick photos, or just write and save."
         case .starting: return ""
@@ -140,7 +150,7 @@ struct MealViewfinder: View {
                     Color.clear.frame(width: 48, height: 48)
                 }
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, 24)
         } else if state != .starting {
             photosButton(compact: false)
         }
@@ -202,16 +212,9 @@ struct MealViewfinder: View {
     }
 }
 
-/// The top-left corner of a viewfinder bracket; rotated for the other corners.
-struct Bracket: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let radius: CGFloat = 10
-        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
-        path.addQuadCurve(to: CGPoint(x: rect.minX + radius, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        return path
+extension MealViewfinder where Below == EmptyView {
+    init(emoji: String, photoCount: Int, isBusy: Bool = false, onShot: @escaping (UIImage) -> Void, onPick: @escaping ([UIImage]) -> Void) {
+        self.init(emoji: emoji, photoCount: photoCount, isBusy: isBusy, onShot: onShot, onPick: onPick) { EmptyView() }
     }
 }
 
@@ -230,17 +233,29 @@ enum PhotoPicking {
 
 // MARK: - Photos row
 
-/// A meal's photos as small squares, cover first. Tap one to make it the cover, × to
-/// remove it. `trailing` goes after the photos, e.g. a tile to add more.
+/// A meal's photos as small squares, cover first. Tap one to make it the cover or to
+/// reframe it, × to remove it. `trailing` goes after the photos, e.g. a tile to add more.
 struct MealPhotoRow<Trailing: View>: View {
     @Binding var items: [MealPhotoItem]
     /// Photos still being saved, shown as placeholders.
     var pending = 0
     var size: CGFloat = 60
     var emptyText: String
+    /// Drawn on the camera's dark panel rather than on paper.
+    var onDark = false
     @ViewBuilder var trailing: () -> Trailing
 
     @Environment(FoodStore.self) private var store
+    @State private var reframing: Reframing?
+
+    private struct Reframing: Identifiable {
+        let index: Int
+        let item: MealPhotoItem
+        var id: String { item.id }
+    }
+
+    private var noteColor: Color { onDark ? Color.white.opacity(0.7) : Theme.muted }
+    private var badgeRing: Color { onDark ? MealViewfinder<EmptyView>.panel : Theme.surface }
 
     /// Whether anything shows as a tile; without, the row is just its hint.
     private var hasTiles: Bool {
@@ -257,16 +272,29 @@ struct MealPhotoRow<Trailing: View>: View {
             if items.isEmpty && pending == 0 {
                 Text(emptyText)
                     .font(.body(13.5, weight: 600))
-                    .foregroundStyle(Theme.muted)
+                    .foregroundStyle(noteColor)
                     .fixedSize(horizontal: false, vertical: true)
-            } else if items.count > 1 {
-                Text("Tap a photo to make it the cover")
+            } else if !items.isEmpty {
+                Text(items.count > 1 ? "Tap a photo to make it the cover or reframe it" : "Tap the photo to reframe it")
                     .font(.body(12.5, weight: 600))
-                    .foregroundStyle(Theme.muted)
+                    .foregroundStyle(noteColor)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: items)
+        .wallCover(item: $reframing) { reframing in
+            ReframeSheet(item: reframing.item) { crop, thumbnail in
+                if items.indices.contains(reframing.index), items[reframing.index].photoFile == reframing.item.photoFile {
+                    items[reframing.index] = items[reframing.index].reframed(crop, thumbnailFile: thumbnail)
+                } else {
+                    store.discard(files: [thumbnail])
+                }
+                CompanionCover.instantly { self.reframing = nil }
+            } onCancel: {
+                CompanionCover.instantly { self.reframing = nil }
+            }
+        }
     }
 
     private var tiles: some View {
@@ -286,8 +314,13 @@ struct MealPhotoRow<Trailing: View>: View {
 
     private func tile(_ item: MealPhotoItem, index: Int) -> some View {
         let isCover = index == 0
-        return Button {
-            makeCover(index)
+        return Menu {
+            if !isCover {
+                Button { makeCover(index) } label: { Label("Make cover", systemImage: "star") }
+            }
+            Button {
+                CompanionCover.instantly { reframing = Reframing(index: index, item: item) }
+            } label: { Label("Reframe", systemImage: "crop") }
         } label: {
             Color.clear
                 .frame(width: size, height: size)
@@ -303,8 +336,9 @@ struct MealPhotoRow<Trailing: View>: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(isCover ? Theme.accent : .clear, lineWidth: 3)
                 }
+                // Color.clear takes no touches on its own; the whole square opens the menu.
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .buttonStyle(.plain)
         .overlay(alignment: .bottom) {
             if isCover {
                 Text("COVER")
@@ -325,7 +359,7 @@ struct MealPhotoRow<Trailing: View>: View {
                     .foregroundStyle(.white)
                     .frame(width: 22, height: 22)
                     .background(Theme.ink, in: Circle())
-                    .overlay(Circle().stroke(Theme.surface, lineWidth: 2))
+                    .overlay(Circle().stroke(badgeRing, lineWidth: 2))
             }
             .buttonStyle(.plain)
             .offset(x: 7, y: -7)
@@ -333,7 +367,7 @@ struct MealPhotoRow<Trailing: View>: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isCover ? "Photo \(index + 1), the cover" : "Photo \(index + 1)")
-        .accessibilityHint(isCover ? "" : "Makes it the cover")
+        .accessibilityHint(isCover ? "Reframe it" : "Make it the cover or reframe it")
         .accessibilityIdentifier("meal-photo-\(index)")
     }
 
@@ -346,6 +380,127 @@ struct MealPhotoRow<Trailing: View>: View {
     private func remove(_ index: Int) {
         guard items.indices.contains(index) else { return }
         items.remove(at: index)
+    }
+}
+
+// MARK: - Reframing
+
+/// Picks which square of a photo the wall shows: drag the photo along its long side in a
+/// square window. Done writes a thumbnail for the new square and hands both back.
+struct ReframeSheet: View {
+    let item: MealPhotoItem
+    let onDone: (PhotoCrop, String) -> Void
+    let onCancel: () -> Void
+
+    @Environment(FoodStore.self) private var store
+    @State private var position = 0.5
+    @State private var dragStart: Double?
+    @State private var isSaving = false
+    @State private var error: String?
+
+    private static let side: CGFloat = 400
+
+    var body: some View {
+        let image = MealImages.image(at: store.photoURL(item.photoFile))
+        WallSheet(width: Self.side + 52, onClose: onCancel) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Reframe")
+                    .font(.display(28))
+                Text("Drag the photo to choose what the polaroid shows.")
+                    .font(.body(14, weight: 600))
+                    .foregroundStyle(Theme.muted)
+                window(image)
+                if let error {
+                    Text(error).font(.body(13, weight: 600)).foregroundStyle(Theme.accent)
+                }
+                HStack(spacing: 10) {
+                    Spacer()
+                    Button("Cancel", action: onCancel)
+                        .buttonStyle(SecondaryButtonStyle())
+                    Button("Done") { Task { await save(image) } }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .disabled(isSaving || image == nil)
+                }
+            }
+        }
+        .onAppear { position = item.crop?.position ?? 0.5 }
+    }
+
+    private func window(_ image: UIImage?) -> some View {
+        let size = image.map(Self.pixelSize) ?? CGSize(width: 1, height: 1)
+        let landscape = size.width >= size.height
+        let long = Self.side * max(size.width, size.height) / max(min(size.width, size.height), 1)
+        let travel = long - Self.side
+        return ZStack(alignment: .topLeading) {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .frame(width: landscape ? long : Self.side, height: landscape ? Self.side : long)
+                    .offset(x: landscape ? -travel * position : 0, y: landscape ? 0 : -travel * position)
+            }
+        }
+        .frame(width: Self.side, height: Self.side, alignment: .topLeading)
+        .clipped()
+        .overlay { ThirdsGrid() }
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    guard travel > 0 else { return }
+                    let start = dragStart ?? position
+                    dragStart = start
+                    let moved = landscape ? value.translation.width : value.translation.height
+                    position = min(max(start - Double(moved / travel), 0), 1)
+                }
+                .onEnded { _ in dragStart = nil }
+        )
+        .accessibilityElement()
+        .accessibilityLabel("Photo framing")
+        .accessibilityValue("\(Int((position * 100).rounded())) percent")
+        .accessibilityIdentifier("reframe-window")
+        .accessibilityAdjustableAction { change in
+            switch change {
+            case .increment: position = min(position + 0.1, 1)
+            case .decrement: position = max(position - 0.1, 0)
+            @unknown default: break
+            }
+        }
+    }
+
+    private static func pixelSize(_ image: UIImage) -> CGSize {
+        image.cgImage.map { CGSize(width: $0.width, height: $0.height) } ?? CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+    }
+
+    private func save(_ image: UIImage?) async {
+        guard let image, !isSaving else { return }
+        isSaving = true
+        defer { isSaving = false }
+        let crop = PhotoCrop.square(in: Self.pixelSize(image), position: position)
+        do {
+            let thumbnail = try await store.thumbnail(of: item.photoFile, crop: crop)
+            onDone(crop, thumbnail)
+        } catch {
+            self.error = error.userMessage
+        }
+    }
+}
+
+/// Rule-of-thirds lines, as on a camera.
+private struct ThirdsGrid: View {
+    var body: some View {
+        GeometryReader { proxy in
+            Path { path in
+                for third in [1.0 / 3, 2.0 / 3] {
+                    path.move(to: CGPoint(x: proxy.size.width * third, y: 0))
+                    path.addLine(to: CGPoint(x: proxy.size.width * third, y: proxy.size.height))
+                    path.move(to: CGPoint(x: 0, y: proxy.size.height * third))
+                    path.addLine(to: CGPoint(x: proxy.size.width, y: proxy.size.height * third))
+                }
+            }
+            .stroke(Color.white.opacity(0.5), lineWidth: 1)
+        }
+        .allowsHitTesting(false)
     }
 }
 
@@ -434,7 +589,6 @@ struct MealCameraSheet: View {
                 Text("Add photos")
                     .font(.display(28))
                 MealViewfinder(emoji: DishIllustration.fallbackEmoji, photoCount: photoCount, onShot: onShot, onPick: { $0.forEach(onShot) })
-                    .frame(height: 520)
                 HStack {
                     Text(photoCount == 0 ? "Each photo is added as you take it." : "\(photoCount) of \(AppDatabase.photoLimit) photos")
                         .font(.body(13.5, weight: 600))

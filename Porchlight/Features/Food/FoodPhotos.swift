@@ -19,19 +19,23 @@ struct FoodPhotoStore: Sendable {
     struct Stored: Equatable, Hashable, Sendable {
         var photoFile: String
         var thumbnailFile: String
+        /// The square the wall shows; nil is the center square.
+        var crop: PhotoCrop?
     }
 
     func url(for file: String) -> URL {
         directory.appendingPathComponent(file)
     }
 
-    /// Writes a downscaled JPEG and its thumbnail. Safe to call off the main actor.
-    func save(_ image: UIImage) throws -> Stored {
+    /// Writes the whole shot as a downscaled JPEG, and the square thumbnail of `crop`
+    /// (the center square when nil). Safe to call off the main actor.
+    func save(_ image: UIImage, crop: PhotoCrop? = nil) throws -> Stored {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let name = Self.filePrefix + UUID().uuidString.lowercased()
-        let stored = Stored(photoFile: name + ".jpg", thumbnailFile: name + "-thumb.jpg")
-        guard let photo = Self.resized(image, maxPixels: Self.maxPixels).jpegData(compressionQuality: 0.85),
-              let thumbnail = Self.squareThumbnail(image, pixels: Self.thumbnailPixels).jpegData(compressionQuality: 0.8)
+        let stored = Stored(photoFile: name + ".jpg", thumbnailFile: name + "-thumb.jpg", crop: crop)
+        let upright = Self.resized(image, maxPixels: Self.maxPixels)
+        guard let photo = upright.jpegData(compressionQuality: 0.85),
+              let thumbnail = Self.thumbnail(of: upright, crop: crop).jpegData(compressionQuality: 0.8)
         else { throw FoodError.photoUnreadable }
         do {
             try photo.write(to: url(for: stored.photoFile), options: .atomic)
@@ -41,6 +45,17 @@ struct FoodPhotoStore: Sendable {
             throw error
         }
         return stored
+    }
+
+    /// Writes a new thumbnail of a saved photo for `crop` and returns its file name. The old
+    /// thumbnail stays until whoever replaced it deletes it. Safe to call off the main actor.
+    func thumbnail(of photoFile: String, crop: PhotoCrop?) throws -> String {
+        guard let image = UIImage(contentsOfFile: url(for: photoFile).path),
+              let data = Self.thumbnail(of: image, crop: crop).jpegData(compressionQuality: 0.8)
+        else { throw FoodError.photoUnreadable }
+        let file = Self.filePrefix + UUID().uuidString.lowercased() + "-thumb.jpg"
+        try data.write(to: url(for: file), options: .atomic)
+        return file
     }
 
     /// Removes files, ignoring ones that are already gone.
@@ -69,6 +84,21 @@ struct FoodPhotoStore: Sendable {
         let factor = min(1, maxPixels / max(pixelSize.width, pixelSize.height, 1))
         let target = CGSize(width: (pixelSize.width * factor).rounded(), height: (pixelSize.height * factor).rounded())
         return render(size: target) { image.draw(in: CGRect(origin: .zero, size: target)) }
+    }
+
+    /// The crop (or the center square) of an upright image, scaled to a thumbnail.
+    static func thumbnail(of image: UIImage, crop: PhotoCrop?) -> UIImage {
+        guard let crop else { return squareThumbnail(image, pixels: thumbnailPixels) }
+        return squareThumbnail(cropped(image, to: crop), pixels: thumbnailPixels)
+    }
+
+    /// The part of an upright image inside `crop`.
+    static func cropped(_ image: UIImage, to crop: PhotoCrop) -> UIImage {
+        let upright = image.imageOrientation == .up ? image : resized(image, maxPixels: max(image.size.width, image.size.height) * image.scale)
+        guard let cg = upright.cgImage else { return upright }
+        let size = CGSize(width: cg.width, height: cg.height)
+        guard let part = cg.cropping(to: crop.rect(in: size)) else { return upright }
+        return UIImage(cgImage: part)
     }
 
     static func squareThumbnail(_ image: UIImage, pixels: CGFloat) -> UIImage {

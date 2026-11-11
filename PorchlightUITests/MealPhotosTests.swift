@@ -102,4 +102,53 @@ final class MealPhotosTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5))
         XCTAssertEqual(app.descendants(matching: .any)["meal-pager"].label, "Avocado toast", "Saving removes the photo")
     }
+
+    /// The camera window is the polaroid's square, and new shots line up right under it.
+    func testTheViewfinderIsThePolaroidSquare() {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "capture", "-debugCaptureShots", "2"])
+        let window = app.descendants(matching: .any)["viewfinder-window"]
+        XCTAssertTrue(window.waitForExistence(timeout: 20))
+        XCTAssertEqual(window.frame.width, window.frame.height, accuracy: 2, "The viewfinder shows exactly the polaroid's square")
+        let shot = photo(app, 1)
+        XCTAssertTrue(shot.waitForExistence(timeout: 10))
+        XCTAssertGreaterThan(shot.frame.minY, window.frame.maxY, "Shots line up under the camera")
+        XCTAssertLessThan(shot.frame.maxX, window.frame.maxX + 1, "Shots sit in the camera's column")
+        snapshot("48-square-viewfinder")
+    }
+
+    /// The polaroid opens the whole shot, and a photo can be reframed in Edit.
+    func testWholePhotoAndReframing() {
+        let app = launch(["-startScreen", "food"])
+        let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
+        XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.tap()
+
+        let pager = app.descendants(matching: .any)["meal-pager"]
+        XCTAssertTrue(pager.waitForExistence(timeout: 5))
+        pager.tap()
+        let whole = app.descendants(matching: .any)["whole-photo"]
+        XCTAssertTrue(whole.waitForExistence(timeout: 5), "Tapping the polaroid shows the whole photo")
+        snapshot("49-whole-photo")
+        app.staticTexts["Tap anywhere to close"].tap()
+        XCTAssertTrue(whole.waitForNonExistence(timeout: 5))
+
+        app.buttons["Edit"].tap()
+        let tile = photo(app, 0)
+        XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        tile.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()
+        let reframe = app.buttons["Reframe"]
+        XCTAssertTrue(reframe.waitForExistence(timeout: 5), "A photo offers to be reframed")
+        reframe.tap()
+        let frameWindow = app.descendants(matching: .any)["reframe-window"]
+        XCTAssertTrue(frameWindow.waitForExistence(timeout: 5))
+        let before = frameWindow.value as? String
+        frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
+        XCTAssertNotEqual(frameWindow.value as? String, before, "Dragging moves the square")
+        snapshot("50-reframe")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(frameWindow.waitForNonExistence(timeout: 5))
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5), "The reframed photo saves with the meal")
+    }
 }

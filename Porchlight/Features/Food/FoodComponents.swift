@@ -29,6 +29,18 @@ enum MealImages {
         cache.setObject(image, forKey: url as NSURL)
         return image
     }
+
+    /// The part of a full photo the wall shows. Without a crop, square views fill with the
+    /// center, which is the same square.
+    static func image(at url: URL?, crop: PhotoCrop?) -> UIImage? {
+        guard let crop, let url else { return image(at: url) }
+        let key = url.appendingPathComponent("crop-\(crop.x)-\(crop.y)-\(crop.width)-\(crop.height)") as NSURL
+        if let hit = cache.object(forKey: key) { return hit }
+        guard let full = image(at: url) else { return nil }
+        let part = FoodPhotoStore.cropped(full, to: crop)
+        cache.setObject(part, forKey: key)
+        return part
+    }
 }
 
 // MARK: - Illustration
@@ -49,8 +61,10 @@ struct MealIllustration: View {
     var body: some View {
         let photos = store.photos(of: entry)
         let photo = photos.isEmpty ? nil : photos[min(max(photoIndex, 0), photos.count - 1)]
-        let file = preferFullPhoto ? photo?.photoFile : photo?.thumbnailFile
-        if let image = MealImages.image(at: store.photoURL(file)) {
+        let image = preferFullPhoto
+            ? MealImages.image(at: store.photoURL(photo?.photoFile), crop: photo?.crop)
+            : MealImages.image(at: store.photoURL(photo?.thumbnailFile))
+        if let image {
             Color.clear
                 .overlay { Image(uiImage: image).resizable().scaledToFill() }
                 .clipped()

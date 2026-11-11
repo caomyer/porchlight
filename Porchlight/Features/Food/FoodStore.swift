@@ -222,7 +222,18 @@ final class FoodStore {
 
     /// Deletes saved photos that were never attached, e.g. when a capture is discarded.
     func discard(_ stored: [FoodPhotoStore.Stored]) {
-        photos.delete(stored.flatMap { [$0.photoFile, $0.thumbnailFile] })
+        discard(files: stored.flatMap { [$0.photoFile, $0.thumbnailFile] })
+    }
+
+    /// Deletes photo files nothing uses.
+    func discard(files: [String]) {
+        photos.delete(files)
+    }
+
+    /// A new thumbnail of a saved photo for `crop`, written off the main actor.
+    func thumbnail(of photoFile: String, crop: PhotoCrop) async throws -> String {
+        let photos = photos
+        return try await Task.detached(priority: .userInitiated) { try photos.thumbnail(of: photoFile, crop: crop) }.value
     }
 
     /// Logs a meal with its saved photos, cover first. If it throws, the caller still owns

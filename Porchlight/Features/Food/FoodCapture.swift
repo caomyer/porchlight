@@ -176,9 +176,27 @@ struct CaptureSheet: View {
                 isBusy: isSaving,
                 onShot: { add([$0], to: form) },
                 onPick: { add($0, to: form) }
-            )
+            ) {
+                // New shots line up right under the camera that took them.
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("PHOTOS · \(form.photos.count) OF \(AppDatabase.photoLimit)")
+                        .font(.body(11.5, weight: 800))
+                        .tracking(1)
+                        .foregroundStyle(Color.white.opacity(0.75))
+                    MealPhotoRow(
+                        items: Binding(get: { form.photos }, set: { form.photos = $0 }),
+                        pending: form.savingPhotos,
+                        size: 52,
+                        emptyText: MealCamera.hasCamera ? "Your shots and picks from Photos line up here." : "Photos you pick line up here.",
+                        onDark: true
+                    ) { EmptyView() }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             .frame(width: 370)
-            .frame(maxHeight: .infinity)
+            .frame(maxHeight: .infinity, alignment: .top)
             CaptureFormView(form: form, isSaving: isSaving, error: error, onWriteNotes: { writingNotes = true }) {
                 Task { await save(form) }
             }
@@ -312,14 +330,6 @@ private struct CaptureFormView: View {
             .fieldStyle()
             .padding(.top, 12)
 
-            label("Photos", note: "up to \(AppDatabase.photoLimit)")
-            MealPhotoRow(
-                items: $form.photos,
-                pending: form.savingPhotos,
-                size: 52,
-                emptyText: MealCamera.hasCamera ? "Shots you take or pick from Photos show up here." : "Photos you pick show up here."
-            ) { EmptyView() }
-
             // The time rides on the label line, so the meals get the row's full width.
             HStack(alignment: .center, spacing: 8) {
                 SheetLabel(title: "Meal", note: nil)
@@ -398,7 +408,7 @@ private struct CaptureFormView: View {
         .frame(minHeight: CaptureForm.minimumFormHeight, alignment: .topLeading)
         .onChange(of: form.photos) { old, new in
             // A photo removed from the row was never saved; its files go now.
-            store.discard(MealPhotoItem.addedFiles(removedFrom: old, leaving: new))
+            store.discard(files: MealPhotoItem.unusedFiles(from: old, to: new))
         }
     }
 

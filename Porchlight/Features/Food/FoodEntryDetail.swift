@@ -17,6 +17,8 @@ struct MealDetailSheet: View {
     /// The photo on the polaroid; 0 is the cover.
     @State private var photoIndex = 0
     @State private var drag: CGFloat = 0
+    /// The photo shown whole, uncropped, over the sheet.
+    @State private var wholePhoto: MealPhoto?
 
     /// The entry as it is now, so saved edits show right away.
     private var current: JournalEntry {
@@ -55,6 +57,9 @@ struct MealDetailSheet: View {
                 }
             }
         }
+        .wallCover(item: $wholePhoto) { photo in
+            WholePhotoView(photo: photo) { CompanionCover.instantly { wholePhoto = nil } }
+        }
     }
 
     private var photos: [MealPhoto] { store.photos(of: current) }
@@ -83,9 +88,24 @@ struct MealDetailSheet: View {
                     .allowsHitTesting(false)
                 }
             }
+            .overlay(alignment: .bottomLeading) {
+                if count > 0 {
+                    Label("Whole photo", systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.body(11, weight: 800))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.55), in: Capsule())
+                        .padding(.leading, 14)
+                        .padding(.bottom, 46)
+                        .rotationEffect(.degrees(-2))
+                        .allowsHitTesting(false)
+                }
+            }
             .offset(x: drag * 0.4)
             .id(current.id)
             .contentShape(Rectangle())
+            .onTapGesture { showWhole(index) }
             .gesture(
                 DragGesture(minimumDistance: 12)
                     .onChanged { if count > 1 { drag = $0.translation.width } }
@@ -103,6 +123,9 @@ struct MealDetailSheet: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(count > 1 ? "\(current.title), photo \(index + 1) of \(count)" : current.title)
             .accessibilityIdentifier("meal-pager")
+            .accessibilityAddTraits(count > 0 ? .isButton : [])
+            .accessibilityHint(count > 0 ? "Shows the whole photo" : "")
+            .accessibilityAction { showWhole(index) }
             .accessibilityAdjustableAction { change in
                 guard count > 1 else { return }
                 switch change {
@@ -111,6 +134,11 @@ struct MealDetailSheet: View {
                 @unknown default: break
                 }
             }
+    }
+
+    private func showWhole(_ index: Int) {
+        guard photos.indices.contains(index) else { return }
+        CompanionCover.instantly { wholePhoto = photos[index] }
     }
 
     /// The meal's photos as thumbnails to jump to, and a tile to add more right away.
@@ -309,9 +337,17 @@ struct MealDetailSheet: View {
         }
     }
 
-    /// Leaves the edit; photos added during it were never attached, so their files go.
+    /// Leaves the edit. Photos added during it were never attached, and thumbnails made
+    /// by reframing a saved photo were never saved, so their files go.
     private func cancelEdit() {
-        if let editing { store.discard(MealPhotoItem.addedFiles(removedFrom: editing.photos, leaving: [])) }
+        if let editing {
+            let saved = Set(store.photos(of: current).map(\.thumbnailFile))
+            let reframed = editing.photos.compactMap { item -> String? in
+                guard case let .kept(photo) = item, !saved.contains(photo.thumbnailFile) else { return nil }
+                return photo.thumbnailFile
+            }
+            store.discard(files: MealPhotoItem.unusedFiles(from: editing.photos, to: []) + reframed)
+        }
         editing = nil
     }
 
@@ -331,6 +367,48 @@ struct MealDetailSheet: View {
             Text(emoji).font(.system(size: 18)).frame(width: 26)
             Text(text).font(.body(16, weight: 600))
         }
+    }
+}
+
+/// A meal photo whole, uncropped, over everything: the full shot the polaroid's square
+/// comes from. Tap anywhere to close.
+struct WholePhotoView: View {
+    let photo: MealPhoto
+    let onClose: () -> Void
+
+    @Environment(FoodStore.self) private var store
+    @State private var isShown = false
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.82).ignoresSafeArea()
+            if let image = MealImages.image(at: store.photoURL(photo.photoFile)) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(48)
+                    .accessibilityLabel("Whole photo")
+                    .accessibilityIdentifier("whole-photo")
+            }
+            VStack {
+                Spacer()
+                Text("Tap anywhere to close")
+                    .font(.body(13, weight: 700))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .padding(.bottom, 16)
+            }
+        }
+        .opacity(isShown ? 1 : 0)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: close)
+        .accessibilityAction(.escape, close)
+        .onAppear { withAnimation(.easeOut(duration: 0.2)) { isShown = true } }
+    }
+
+    private func close() {
+        withAnimation(.easeIn(duration: 0.15)) { isShown = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { onClose() }
     }
 }
 
@@ -420,7 +498,7 @@ private struct MealEditForm: View {
             }
             .onChange(of: edit.photos) { old, new in
                 // A new photo removed again was never attached; its files go now.
-                store.discard(MealPhotoItem.addedFiles(removedFrom: old, leaving: new))
+                store.discard(files: MealPhotoItem.unusedFiles(from: old, to: new))
             }
 
             // The time rides on the label line, so the meals get the row's full width.

@@ -145,7 +145,7 @@ enum SamplePhoto {
             let cg = context.cgContext
             let colors = [UIColor(rgb: top).cgColor, UIColor(rgb: bottom).cgColor]
             let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 1])!
-            cg.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width * 0.8, y: size.height), options: [])
+            cg.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width * 0.8, y: size.height), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
             // Each angle sits the plate a little differently.
             let shift = CGFloat((palette % 3) - 1) * 90
             let plate = CGRect(x: 380 + shift, y: 160, width: 860, height: 860)

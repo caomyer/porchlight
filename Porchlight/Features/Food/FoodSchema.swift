@@ -157,11 +157,71 @@ extension JournalEntry: FetchableRecord, MutablePersistableRecord {
 struct MealPhoto: Codable, Equatable, Hashable, Identifiable, Sendable {
     var id: Int64?
     var entryId: Int64
-    /// File names inside the photo folder (see `FoodPhotoStore`).
+    /// File names inside the photo folder (see `FoodPhotoStore`). The photo is the whole
+    /// shot; the thumbnail is the square the wall shows.
     var photoFile: String
     var thumbnailFile: String
     var sortOrder: Int
     var createdAt: Date
+    /// The square shown on the wall, as fractions of the photo's width and height.
+    /// All nil means the center square.
+    var cropX: Double?
+    var cropY: Double?
+    var cropWidth: Double?
+    var cropHeight: Double?
+
+    var crop: PhotoCrop? {
+        get {
+            guard let cropX, let cropY, let cropWidth, let cropHeight else { return nil }
+            return PhotoCrop(x: cropX, y: cropY, width: cropWidth, height: cropHeight)
+        }
+        set {
+            cropX = newValue?.x
+            cropY = newValue?.y
+            cropWidth = newValue?.width
+            cropHeight = newValue?.height
+        }
+    }
+}
+
+/// Which part of a photo the wall shows, as fractions of the photo's width and height.
+/// Meal photos use squares: the polaroid's shape.
+struct PhotoCrop: Codable, Equatable, Hashable, Sendable {
+    var x: Double
+    var y: Double
+    var width: Double
+    var height: Double
+
+    /// The largest square, centered: what the camera's square viewfinder shows.
+    static func centeredSquare(in size: CGSize) -> PhotoCrop {
+        square(in: size, position: 0.5)
+    }
+
+    /// The largest square, slid along the photo's long side: 0 is the top (or left),
+    /// 1 the bottom (or right).
+    static func square(in size: CGSize, position: Double) -> PhotoCrop {
+        guard size.width > 0, size.height > 0 else { return PhotoCrop(x: 0, y: 0, width: 1, height: 1) }
+        let position = min(max(position, 0), 1)
+        if size.width >= size.height {
+            let width = size.height / size.width
+            return PhotoCrop(x: (1 - width) * position, y: 0, width: width, height: 1)
+        }
+        let height = size.width / size.height
+        return PhotoCrop(x: 0, y: (1 - height) * position, width: 1, height: height)
+    }
+
+    /// Where the square sits along the photo's long side, from 0 to 1.
+    var position: Double {
+        if width < 1 { return x / (1 - width) }
+        if height < 1 { return y / (1 - height) }
+        return 0.5
+    }
+
+    /// The crop in pixels of an image of `size`, kept inside the image.
+    func rect(in size: CGSize) -> CGRect {
+        let rect = CGRect(x: x * size.width, y: y * size.height, width: width * size.width, height: height * size.height).integral
+        return rect.intersection(CGRect(origin: .zero, size: size))
+    }
 }
 
 extension MealPhoto: FetchableRecord, MutablePersistableRecord {
@@ -300,6 +360,15 @@ extension AppDatabase {
             try db.alter(table: "journalEntry") { t in
                 t.drop(column: "photoFile")
                 t.drop(column: "thumbnailFile")
+            }
+        }
+        migrator.registerMigration("food v5: which square of a photo the wall shows") { db in
+            // No crop (all nil) is the center square, which every photo so far shows.
+            try db.alter(table: "journalEntryPhoto") { t in
+                t.add(column: "cropX", .double)
+                t.add(column: "cropY", .double)
+                t.add(column: "cropWidth", .double)
+                t.add(column: "cropHeight", .double)
             }
         }
     }
