@@ -24,20 +24,28 @@ final class TimeFieldTests: XCTestCase {
         XCTAssertEqual(result, .completed, "Expected \(expected), got \(value(element)). \(message)")
     }
 
-    /// Types on the card's number pad, e.g. "715" or "7:15", then Done.
-    private func type(_ app: XCUIApplication, _ text: String, done: Bool = true) {
-        for character in text {
-            let key = character == ":" ? "colon" : String(character)
-            app.buttons["key-\(key)"].tap()
-        }
+    /// Types digits on the card's number pad, then Done.
+    private func type(_ app: XCUIApplication, _ digits: String, done: Bool = true) {
+        for digit in digits { app.buttons["key-\(digit)"].tap() }
         if done { app.buttons["time-done"].tap() }
     }
 
-    private func clear(_ app: XCUIApplication) {
-        for _ in 0..<6 { app.buttons["key-delete"].tap() }
+    /// Sets a pill to a time shown like "9:30 PM" by typing it, then Done.
+    private func set(_ app: XCUIApplication, _ pill: XCUIElement, to shown: String) {
+        pill.tap()
+        XCTAssertTrue(app.buttons["key-1"].waitForExistence(timeout: 5))
+        let time = shown.prefix { $0 != " " && $0 != "," }.split(separator: ":")
+        type(app, String(time[0]), done: false)
+        element(app, "time-minute").tap()
+        type(app, String(time[1]), done: false)
+        if shown.contains("AM") { app.buttons["AM"].tap() }
+        if shown.contains("PM") { app.buttons["PM"].tap() }
+        app.buttons["time-done"].tap()
+        waitFor(pill, shown)
     }
 
-    /// A breakfast's time is typed, flipped with AM | PM, and a mistake is explained.
+    /// The card opens on the meal's time; each digit counts at once, so 2 to 1
+    /// is one tap, and AM | PM flips the half of the day.
     func testTypingAMealTime() {
         let app = XCUIApplication()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "food"]
@@ -50,32 +58,41 @@ final class TimeFieldTests: XCTestCase {
 
         let pill = element(app, "time-eaten")
         XCTAssertTrue(pill.waitForExistence(timeout: 5))
-        XCTAssertTrue(value(pill).hasSuffix("AM"), "A sample breakfast is in the morning")
+        let before = value(pill)
+        XCTAssertTrue(before.hasSuffix("AM"), "A sample breakfast is in the morning")
         pill.tap()
         XCTAssertTrue(app.buttons["key-7"].waitForExistence(timeout: 5), "Tapping the time opens the number pad")
         XCTAssertFalse(app.keyboards.firstMatch.exists, "The iPad's keyboard stays away")
+        XCTAssertFalse(app.buttons["key-colon"].exists, "The boxes split hours from minutes, so there's no colon key")
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Usual breakfast'")).firstMatch.exists, "A meal suggests its usual time")
+        let hour = element(app, "time-hour"), minutes = element(app, "time-minute")
+        XCTAssertEqual(value(hour), String(before.prefix { $0 != ":" }), "The card opens on the meal's time")
+        XCTAssertTrue(hour.isSelected, "with the hour selected")
+
         type(app, "715", done: false)
-        XCTAssertEqual(value(element(app, "time-entry")), "715", "The card shows what's typed")
+        waitFor(pill, "7:15 AM", "Each digit counts at once, and the morning stays the morning")
+        XCTAssertEqual(value(minutes), "15")
         snapshot("70-meal-keypad")
         app.buttons["time-done"].tap()
-        waitFor(pill, "7:15 AM", "Without AM or PM, a breakfast stays in the morning")
         XCTAssertTrue(app.buttons["key-7"].waitForNonExistence(timeout: 5), "Done closes the card")
+
+        pill.tap()
+        XCTAssertTrue(app.buttons["key-1"].waitForExistence(timeout: 5))
+        type(app, "1", done: false)
+        waitFor(pill, "1:15 AM", "Changing the hour from 7 to 1 is one tap")
+        XCTAssertTrue(element(app, "time-hint").label.contains("10, 11 or 12"), "A 1 can still become 10, 11 or 12")
+        app.buttons["time-done"].tap()
+        waitFor(pill, "1:15 AM", "Done keeps the 1")
 
         pill.tap()
         XCTAssertTrue(app.buttons["PM"].waitForExistence(timeout: 5))
         app.buttons["PM"].tap()
-        waitFor(pill, "7:15 PM", "The PM switch flips the half of the day")
+        waitFor(pill, "1:15 PM", "The PM switch flips the half of the day")
+        minutes.tap()
+        type(app, "30", done: false)
+        waitFor(pill, "1:30 PM", "Tapping the minutes changes only them")
+        snapshot("71-meal-keypad-minutes")
         app.buttons["time-done"].tap()
-
-        pill.tap()
-        type(app, "7:")
-        XCTAssertTrue(element(app, "time-note").waitForExistence(timeout: 5), "Something that isn't a time is explained")
-        snapshot("71-meal-keypad-mistake")
-        clear(app)
-        app.buttons["time-done"].tap()
-        XCTAssertTrue(app.buttons["key-7"].waitForNonExistence(timeout: 5))
-        XCTAssertEqual(value(pill), "7:15 PM", "A cleared mistake changes nothing")
 
         app.buttons["Cancel"].tap()
     }
@@ -99,20 +116,14 @@ final class TimeFieldTests: XCTestCase {
 
         start.tap()
         XCTAssertTrue(app.buttons["10:00 PM"].waitForExistence(timeout: 5), "The night suggests evening starts")
-        type(app, "10")
-        waitFor(start, "10:00 PM", "A night start of 10 is in the evening")
+        app.buttons["10:00 PM"].tap()
+        waitFor(start, "10:00 PM", "A suggestion sets the start")
 
-        end.tap()
-        type(app, "1")
-        waitFor(end, "1:00 AM, next day", "An end before the start is the next morning")
+        set(app, end, to: "1:00 AM, next day")
         snapshot("72-night-hours")
 
-        start.tap()
-        type(app, startBefore.filter { $0.isNumber })
-        waitFor(start, startBefore)
-        end.tap()
-        type(app, endBefore.prefix { $0 != " " }.filter { $0.isNumber })
-        waitFor(end, endBefore)
+        set(app, start, to: startBefore)
+        set(app, end, to: endBefore)
     }
 
     /// A routine's window can't end before it starts, and says so.
@@ -126,16 +137,21 @@ final class TimeFieldTests: XCTestCase {
         let (startBefore, endBefore) = (value(start), value(end))
         XCTAssertTrue(startBefore.hasSuffix("AM"), "The sample walk starts in the morning")
         end.tap()
-        // An hour before the start: AM after the digits finishes the time.
+        XCTAssertTrue(app.buttons["key-1"].waitForExistence(timeout: 5))
+        // An hour before the start.
         let hour = Int(startBefore.prefix { $0 != ":" }) ?? 6
         type(app, "\(hour == 1 ? 12 : hour - 1)", done: false)
         app.buttons["AM"].tap()
         XCTAssertTrue(element(app, "time-note").waitForExistence(timeout: 5), "An end before the start is explained")
         XCTAssertEqual(value(end), endBefore, "A refused time changes nothing")
+        XCTAssertFalse(app.buttons["time-done"].isEnabled, "and can't be kept")
         snapshot("73-window-mistake")
-        clear(app)
+        element(app, "time-hour").tap()
+        type(app, String(endBefore.prefix { $0 != ":" }), done: false)
+        XCTAssertTrue(element(app, "time-note").waitForNonExistence(timeout: 5), "Typing a good hour clears it")
         app.buttons["time-done"].tap()
         XCTAssertTrue(app.buttons["key-7"].waitForNonExistence(timeout: 5))
+        XCTAssertEqual(value(end), endBefore)
         XCTAssertEqual(value(start), startBefore)
     }
 }

@@ -1,0 +1,559 @@
+<title>Time Picker Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+/* Layout: thesis, then four live options in a two-up grid (one column on phones), then a comparison table and decisions. Single light look matching the app's Theme. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --accent-soft: #F8DDD0;
+  --blue: #4C7BB0;
+  --good: #4F8A5B;
+  --warn: #B4532A;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 80px;
+}
+.page { max-width: 1000px; margin: 0 auto; display: grid; gap: 36px; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(30px, 5vw, 44px); line-height: 1.1; text-wrap: balance; }
+h2 { font: 600 21px/1.2 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.lede { max-width: 64ch; font-size: 17px; }
+.hint { font-size: 13.5px; color: var(--muted); font-weight: 600; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spread { justify-content: space-between; }
+section { display: grid; gap: 14px; }
+button { font-family: inherit; }
+button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.seg { display: inline-flex; background: var(--surface2); border-radius: 999px; padding: 3px; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; font: 800 13px/1 var(--body); color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.finding { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.finding b { font: 600 16px/1.25 var(--display); }
+.finding p { font-size: 14px; color: var(--muted); }
+
+.options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .options { grid-template-columns: minmax(0, 1fr); } }
+.opt { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 18px 18px 20px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.opt.rec { border: 2px solid var(--accent); }
+.opthead { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; }
+.letter { grid-row: span 2; width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; font: 600 18px/1 var(--display); }
+.opt.rec .letter { background: var(--accent); color: var(--surface); }
+.seen { font-size: 13px; color: var(--muted); font-weight: 600; }
+.recflag { font: 800 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-left: 6px; }
+
+.demo { background: var(--paper); border-radius: 16px; padding: 14px; display: grid; gap: 10px; justify-items: center; }
+.formrow { width: 100%; max-width: 300px; display: flex; align-items: center; justify-content: space-between; }
+.lab { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.timepill { display: inline-flex; align-items: baseline; gap: 5px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); border-radius: 999px; padding: 6px 14px 7px; }
+.timepill b { font: 600 19px/1 var(--display); font-variant-numeric: tabular-nums; }
+.timepill span { font: 700 12px/1 var(--body); color: var(--muted); }
+
+.card { width: 100%; max-width: 300px; display: grid; gap: 12px; padding: 14px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; box-shadow: 0 14px 34px rgba(60,40,20,.14); }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip { border: 0; background: var(--surface2); border-radius: 999px; padding: 6px 10px; font: 700 13px/1.1 var(--body); color: var(--ink); cursor: pointer; white-space: nowrap; }
+.chip small { color: var(--muted); font: inherit; margin-left: 3px; }
+.chip.on { background: var(--ink); color: var(--surface); }
+.chip.on small { color: rgba(255,252,246,.7); }
+.note { font-size: 13px; font-weight: 600; color: var(--warn); }
+.foot { display: flex; align-items: center; gap: 8px; }
+.ampm { display: inline-flex; background: var(--surface2); border-radius: 999px; padding: 2px; }
+.ampm button { border: 0; background: transparent; padding: 7px 11px; border-radius: 999px; font: 800 13px/1 var(--body); color: var(--muted); cursor: pointer; }
+.ampm button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.done { border: 0; cursor: pointer; background: var(--ink); color: var(--surface); border-radius: 999px; padding: 9px 18px; font: 800 14px/1 var(--body); margin-left: auto; }
+.done:disabled { opacity: .35; cursor: default; }
+.kept { font-size: 13px; font-weight: 700; color: var(--good); min-height: 1.3em; }
+
+/* A: segments + pad */
+.segs { display: flex; align-items: center; gap: 4px; }
+.segbtn { border: 0; cursor: pointer; background: transparent; border-radius: 10px; padding: 2px 6px; font: 600 34px/1.15 var(--display); font-variant-numeric: tabular-nums; color: var(--ink); min-width: 1.6em; text-align: center; }
+.segbtn.sel { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.segbtn .pending { color: var(--accent); }
+.colon { font: 600 30px/1 var(--display); color: var(--muted); padding-bottom: 4px; }
+.segs .ampm { margin-left: auto; }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.key { border: 0; height: 44px; border-radius: 12px; background: var(--surface2); font: 600 21px/1 var(--display); color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums; }
+.key.fn { font: 700 17px/1 var(--body); }
+.key.blank { background: transparent; cursor: default; }
+.key:not(.blank):active { background: var(--line); }
+
+/* B: steppers */
+.steppers { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.stepcol { display: grid; justify-items: center; gap: 4px; }
+.arrow { border: 0; cursor: pointer; width: 64px; height: 40px; border-radius: 12px; background: var(--surface2); color: var(--ink); font: 700 16px/1 var(--body); }
+.arrow:active { background: var(--line); }
+.bignum { font: 600 40px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.steppers .colon { margin-bottom: 20px; }
+.steplab { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* C: wheels */
+.wheels { position: relative; display: flex; justify-content: center; gap: 4px; height: 180px; }
+.wheels::before { content: ""; position: absolute; left: 0; right: 0; top: 72px; height: 36px; background: var(--surface2); border-radius: 10px; z-index: 0; }
+.wheel { position: relative; z-index: 1; height: 180px; width: 64px; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; padding-block: 72px; -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent); mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent); touch-action: pan-y; }
+.wheel::-webkit-scrollbar { display: none; }
+.wheel div { height: 36px; display: grid; place-items: center; scroll-snap-align: center; font: 600 21px/1 var(--display); font-variant-numeric: tabular-nums; color: var(--muted); cursor: pointer; user-select: none; }
+.wheel div.on { color: var(--ink); }
+.wheel.period div { font: 800 14px/1 var(--body); }
+
+/* D: dial */
+.dialhead { display: flex; align-items: center; gap: 4px; }
+.dialhead .ampm { margin-left: auto; }
+.dialwrap { width: 232px; height: 232px; margin: 0 auto; touch-action: none; cursor: pointer; user-select: none; }
+.dialwrap svg { display: block; width: 100%; height: 100%; }
+
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14.5px; }
+th, td { text-align: left; padding: 11px 14px; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.rec { font-weight: 700; }
+td.num { font-variant-numeric: tabular-nums; }
+.pc { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; font-size: 14px; }
+.pc li { display: grid; grid-template-columns: 16px 1fr; gap: 6px; }
+.pc li::before { font-weight: 800; }
+.pc .pro::before { content: "+"; color: var(--good); }
+.pc .con::before { content: "\2212"; color: var(--warn); }
+.sources { font-size: 13.5px; color: var(--muted); display: grid; gap: 4px; }
+.sources a { color: var(--blue); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+  <header style="display:grid;gap:12px">
+    <div class="eyebrow">Porchlight · Time field · Options to choose from</div>
+    <h1>Four ways to change a time</h1>
+    <p class="lede">Every option starts with the field's time already filled in, so you only change the part that's wrong. None has a colon key. Each one is live below. The "now" in this mock is 7:40 PM on a dinner log, so the field starts at 7:40 PM, and times later than that can't be saved.</p>
+  </header>
+
+  <section>
+    <div class="eyebrow">What the common patterns do</div>
+    <div class="findings">
+      <div class="finding"><b>Prefilled, edit in place</b><p>Apple's compact picker, Android's input mode and the web's time input all open on the current value and let you replace the hour or the minutes on their own.</p></div>
+      <div class="finding"><b>Typing plus a picker</b><p>Design systems suggest offering typed numbers alongside a visual picker. Typing is fastest for an exact time and works with assistive tools.</p></div>
+      <div class="finding"><b>Wheels are Apple's default</b><p>iOS uses scrolling wheels for times. They are familiar but can overshoot, and they need precise flicks.</p></div>
+      <div class="finding"><b>The dial is Android's</b><p>Material's clock face: tap an hour, then the minutes. SAP's user study rated a dial highly, with a typing popover offered alongside it.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="row spread">
+      <div class="eyebrow">Try each one</div>
+      <div class="row">
+        <span class="hint">iPad clock</span>
+        <div class="seg" role="group" aria-label="Clock style"><button id="c12" aria-pressed="true">12-hour</button><button id="c24" aria-pressed="false">24-hour</button></div>
+      </div>
+    </div>
+    <div class="options">
+      <article class="opt rec" id="optA">
+        <div class="opthead"><div class="letter">A</div><h2>Hour and minute boxes with a number pad<span class="recflag">Recommended</span></h2><p class="seen">Like Android's input mode, iOS's compact time and the web's time input</p></div>
+        <div class="demo"><div class="formrow"><span class="lab">Meal</span><span class="timepill" data-pill></span></div><div class="card" data-card></div><div class="kept" data-kept></div></div>
+        <ul class="pc">
+          <li class="pro">Any exact time in two to four taps. To fix 7:40 to 7:15, tap the minutes, then 1 5.</li>
+          <li class="pro">The hour is selected when it opens, so typing replaces it and then moves on to the minutes. Each digit counts the moment it's typed: 2 to 1 is one tap.</li>
+          <li class="pro">A hardware keyboard works too: type digits, use the arrows to switch boxes or nudge.</li>
+          <li class="con">The tallest card of the four, because of the number pad.</li>
+        </ul>
+      </article>
+
+      <article class="opt" id="optB">
+        <div class="opthead"><div class="letter">B</div><h2>Up and down buttons</h2><p class="seen">Like alarm and oven clocks, and Apple Watch's crown</p></div>
+        <div class="demo"><div class="formrow"><span class="lab">Meal</span><span class="timepill" data-pill></span></div><div class="card" data-card></div><div class="kept" data-kept></div></div>
+        <ul class="pc">
+          <li class="pro">The smallest card. Best for "a little earlier": two taps take 7:40 to 7:30.</li>
+          <li class="pro">Nothing to read or type. Big targets for a wall-mounted iPad.</li>
+          <li class="con">Far times take many taps: 7:40 PM to 12:15 PM is seven hour taps and five minute taps.</li>
+          <li class="con">Minutes move in fives, so 7:43 can't be set.</li>
+        </ul>
+      </article>
+
+      <article class="opt" id="optC">
+        <div class="opthead"><div class="letter">C</div><h2>Scrolling wheels</h2><p class="seen">Apple's wheel picker, on iPhone and iPad</p></div>
+        <div class="demo"><div class="formrow"><span class="lab">Meal</span><span class="timepill" data-pill></span></div><div class="card" data-card></div><div class="kept" data-kept></div></div>
+        <ul class="pc">
+          <li class="pro">The one most iPad owners already know. One flick covers a far change.</li>
+          <li class="pro">Every minute is reachable.</li>
+          <li class="con">Easy to overshoot, and it needs a careful flick at arm's length on a wall.</li>
+          <li class="con">It's what the app moved away from in the last change.</li>
+        </ul>
+      </article>
+
+      <article class="opt" id="optD">
+        <div class="opthead"><div class="letter">D</div><h2>Clock face</h2><p class="seen">Android's Material dial</p></div>
+        <div class="demo"><div class="formrow"><span class="lab">Meal</span><span class="timepill" data-pill></span></div><div class="card" data-card></div><div class="kept" data-kept></div></div>
+        <ul class="pc">
+          <li class="pro">Any time in two touches: tap the hour, and it switches to minutes for the second.</li>
+          <li class="pro">Pleasant to glance at, and it fits the clock on the photo frame.</li>
+          <li class="con">Android in look and feel; unfamiliar on an iPad.</li>
+          <li class="con">Odd minutes need a careful drag. 24-hour needs a second ring of hours.</li>
+        </ul>
+      </article>
+    </div>
+    <p class="hint">Click a card first, then a hardware keyboard works on it: digits, Backspace, arrows, A and P. Done shows what would be kept.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">Side by side</div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th></th><th>A · Boxes + pad</th><th>B · Up / down</th><th>C · Wheels</th><th>D · Clock face</th></tr></thead>
+        <tbody>
+          <tr><td>7:40 to 7:15 PM</td><td class="num">3 taps</td><td class="num">5 taps</td><td>1 drag</td><td class="num">2 taps</td></tr>
+          <tr><td>7:40 PM to 12:15 PM</td><td class="num">4 taps</td><td class="num">12 taps</td><td>2 drags</td><td class="num">2 taps</td></tr>
+          <tr><td>Exact minute (7:43)</td><td>Yes</td><td>No</td><td>Yes</td><td>Careful drag</td></tr>
+          <tr><td>Hardware keyboard</td><td>Types</td><td>Arrows</td><td>Arrows</td><td>No</td></tr>
+          <tr><td>Card height</td><td class="num">about 370 pt</td><td class="num">about 250 pt</td><td class="num">about 300 pt</td><td class="num">about 390 pt</td></tr>
+          <tr><td>Feels at home on iPad</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Less</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">Tap counts leave out opening the card and Done. All four cards fit in a popover on the iPad's 1112 by 834 pt landscape screen.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">Decisions</div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Question</th><th>Recommendation</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Which picker</td><td class="rec">A, with the suggestions kept on top</td><td>Exact times stay fast, the field starts filled in, and it is the pattern on Android, the web and iOS's compact picker.</td></tr>
+          <tr><td>What it opens on</td><td class="rec">The field's time, with the hour selected</td><td>You change only what's wrong. Tapping the minutes selects them instead.</td></tr>
+          <tr><td>The colon key</td><td class="rec">Removed; the bottom row is blank, 0, delete</td><td>The boxes already split hours from minutes, like a phone keypad.</td></tr>
+          <tr><td>When a digit counts</td><td class="rec">At once, every time</td><td>2 then 1 makes the hour 1 right away, and Done or tapping the minutes keeps it. Nothing typed is ever thrown away.</td></tr>
+          <tr><td>Hours that can have two digits</td><td class="rec">"1" stays open for one more digit</td><td>1 then 0, 1 or 2 makes 10, 11 or 12. Any other digit goes on to the minutes, so 1 5 0 is 1:50 and 7 1 5 is 7:15. For 1:15, type 1, tap the minutes, then 1 5 (1 1 5 is 11:05, the same as the web's time input). On a 24-hour clock 0, 1 and 2 stay open the same way.</td></tr>
+          <tr><td>After the hour is typed</td><td class="rec">Move to the minutes on their own</td><td>Once the hour can't take another digit, the minutes are selected. Minutes work the same way: 4 sets :04, then 5 makes it :45.</td></tr>
+          <tr><td>AM or PM when typing an hour</td><td class="rec">Keep what is shown</td><td>The field starts on a sensible time, so the half of the day is usually right already. The AM | PM switch fixes the rest, and a time later than now still gets its reason.</td></tr>
+          <tr><td>Up/down nudges on A's boxes</td><td class="rec">Not now</td><td>Suggestions and typing already cover small changes. Easy to add later if "5 minutes earlier" turns out to be common.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Sources</div>
+    <div class="sources">
+      <a href="https://developer.apple.com/design/human-interface-guidelines/pickers">Apple Human Interface Guidelines: Pickers</a>
+      <a href="https://www.macstories.net/stories/ios-and-ipados-14-the-macstories-review/9">MacStories: the iOS 14 compact date and time picker</a>
+      <a href="https://m2.material.io/components/time-pickers">Material Design: Time pickers (dial and input modes)</a>
+      <a href="https://developer.android.com/reference/kotlin/androidx/compose/material3/TimeInput.composable">Android: Material 3 TimeInput</a>
+      <a href="https://summit.calgary.ca/components/forms-overview/time-input.html">City of Calgary design system: Time input</a>
+      <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/the-fresh-new-design-of-the-ui5-time-picker-for-improved-user-experience/ba-p/13500512">SAP UI5: the time picker redesign and its user study</a>
+      <a href="https://www.eleken.co/blog-posts/time-picker-ux">Eleken: Time picker UX</a>
+      <a href="https://jan.miksovsky.com/posts/2010/10-11-reconsidering-stock-controls-to-create-an-optimized-user-experience">Jan Miksovsky: Reconsidering stock controls</a>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const DAY = 1440, NOW = 19 * 60 + 40, START = NOW;
+  let clock24 = false;
+  let active = null;
+
+  const parts = (min) => {
+    const m = ((min % DAY) + DAY) % DAY, h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0');
+    if (clock24) return { h: String(h).padStart(2, '0'), m: mm, time: String(h).padStart(2, '0') + ':' + mm, period: null };
+    const h12 = (h + 11) % 12 + 1;
+    return { h: String(h12), m: mm, time: h12 + ':' + mm, period: h < 12 ? 'AM' : 'PM' };
+  };
+  const text = (min) => { const p = parts(min); return p.period ? p.time + ' ' + p.period : p.time; };
+  const wrap = (m) => ((m % DAY) + DAY) % DAY;
+  const SUGG = [['Now', NOW, false], ['30 min ago', NOW - 30, true], ['1 hr ago', NOW - 60, true], ['Usual dinner', 19 * 60 + 30, true]];
+  const problem = (min) => min > NOW ? text(min) + ' is later than now, so it can’t be logged yet.' : '';
+
+  function chipsHTML(min) {
+    return '<div class="chips">' + SUGG.map((s, i) => '<button class="chip' + (s[1] === min ? ' on' : '') + '" data-chip="' + i + '">' + s[0] + (s[2] ? '<small>' + text(s[1]) + '</small>' : '') + '</button>').join('') + '</div>';
+  }
+  function ampmHTML(min) {
+    const p = parts(min);
+    if (!p.period) return '';
+    return '<span class="ampm" role="group" aria-label="AM or PM"><button data-pm="0" aria-pressed="' + (p.period === 'AM') + '">AM</button><button data-pm="1" aria-pressed="' + (p.period === 'PM') + '">PM</button></span>';
+  }
+  function footHTML(min, withPeriod) {
+    const bad = problem(min);
+    return (bad ? '<div class="note">' + bad + '</div>' : '') + '<div class="foot">' + (withPeriod ? ampmHTML(min) : '') + '<button class="done" data-done' + (bad ? ' disabled' : '') + '>Done</button></div>';
+  }
+  const setPeriod = (min, pm) => ((min >= 720) === pm ? min : wrap(min + (pm ? 720 : -720)));
+
+  // A small controller shared by all four.
+  function Mock(id, opts) {
+    const root = document.getElementById(id);
+    const self = { root, min: START, card: root.querySelector('[data-card]'), pill: root.querySelector('[data-pill]'), kept: root.querySelector('[data-kept]') };
+    self.set = (m, from) => { self.min = wrap(m); self.kept.textContent = ''; opts.update(self, from); self.paintPill(); };
+    self.paintPill = () => { const p = parts(self.min); self.pill.innerHTML = '<b>' + p.time + '</b>' + (p.period ? '<span>' + p.period + '</span>' : ''); };
+    self.wireCommon = () => {
+      self.card.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => self.set(SUGG[+b.dataset.chip][1], 'chip'));
+      self.card.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => self.set(setPeriod(self.min, b.dataset.pm === '1'), 'pm'));
+      const d = self.card.querySelector('[data-done]');
+      if (d) d.onclick = () => { self.kept.textContent = 'Kept ' + text(self.min); };
+    };
+    root.addEventListener('pointerdown', () => { active = self; });
+    self.key = opts.key || (() => false);
+    self.rebuild = () => { opts.build(self); self.paintPill(); };
+    self.rebuild();
+    return self;
+  }
+
+  // ---- A: boxes + pad ----
+  const A = Mock('optA', {
+    build(s) { s.seg = s.seg || 'h'; s.buf = ''; this.update(s); },
+    update(s, from) {
+      if (from === 'chip' || from === 'pm') s.buf = '';
+      const p = parts(s.min);
+      const box = (which, val) => {
+        const sel = s.seg === which;
+        const shown = sel && s.buf ? '<span class="pending">' + (which === 'm' ? val : (s.buf === '0' && !clock24 ? '0' : val)) + '</span>' : val;
+        return '<button class="segbtn' + (sel ? ' sel' : '') + '" data-seg="' + which + '" aria-label="' + (which === 'h' ? 'Hour' : 'Minutes') + ', ' + val + '">' + shown + '</button>';
+      };
+      const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+      s.card.innerHTML = chipsHTML(s.min) +
+        '<div class="segs">' + box('h', p.h) + '<span class="colon">:</span>' + box('m', p.m) + ampmHTML(s.min) + '</div>' +
+        '<div class="hint">' + hintA(s) + '</div>' +
+        '<div class="keypad">' + keys.map(k => k === '' ? '<span class="key blank" aria-hidden="true"></span>' : '<button class="key' + (k === '⌫' ? ' fn' : '') + '" data-key="' + k + '" aria-label="' + (k === '⌫' ? 'Delete' : k) + '">' + k + '</button>').join('') + '</div>' +
+        footHTML(s.min, false);
+      s.card.querySelectorAll('[data-seg]').forEach(b => b.onclick = () => { s.seg = b.dataset.seg; s.buf = ''; this.update(s); });
+      s.card.querySelectorAll('[data-key]').forEach(b => b.onclick = () => typeA(s, b.dataset.key));
+      s.wireCommon();
+    },
+    key(s, e) {
+      const k = e.key;
+      if (/^[0-9]$/.test(k)) typeA(s, k);
+      else if (k === 'Backspace') typeA(s, '⌫');
+      else if (k === 'ArrowLeft') { s.seg = 'h'; s.buf = ''; s.set(s.min); }
+      else if (k === 'ArrowRight' || k === 'Tab') { s.seg = 'm'; s.buf = ''; s.set(s.min); }
+      else if (k === 'ArrowUp' || k === 'ArrowDown') { const d = k === 'ArrowUp' ? 1 : -1; s.buf = ''; s.set(s.seg === 'h' ? s.min + 60 * d : nudgeMin(s.min, d)); }
+      else if (!clock24 && (k === 'a' || k === 'p')) s.set(setPeriod(s.min, k === 'p'), 'pm');
+      else if (k === 'Enter') s.card.querySelector('[data-done]')?.click();
+      else return false;
+      return true;
+    },
+  });
+  function hintA(s) {
+    if (!s.buf) return s.seg === 'h' ? 'Type to replace the hour' : 'Type to replace the minutes';
+    if (s.seg === 'm') return 'Another digit makes it ' + s.buf + '0 to ' + s.buf + '9';
+    if (clock24) return s.buf === '2' ? 'Another digit makes it 20 to 23' : 'Another digit makes it ' + s.buf + '0 to ' + s.buf + '9';
+    return s.buf === '1' ? 'Another 0, 1 or 2 makes it 10, 11 or 12' : 'Type the hour';
+  }
+  function nudgeMin(min, d) { const h = Math.floor(min / 60), m = (min % 60 + d + 60) % 60; return h * 60 + m; }
+  function setHour(s, h) {
+    const m = s.min % 60;
+    if (clock24) return h * 60 + m;
+    const pm = s.min >= 720;
+    return ((h % 12) + (pm ? 12 : 0)) * 60 + m;
+  }
+  function typeA(s, k) {
+    const h = Math.floor(s.min / 60);
+    if (k === '⌫') {
+      if (s.buf) s.buf = ''; else if (s.seg === 'm') s.seg = 'h';
+      return s.set(s.min);
+    }
+    // Every digit lands at once. A digit that could start a two-digit value
+    // ("1" for 10-12) stays open for one more; a second digit that can't
+    // follow it goes on to the minutes, so 1 1 5 is 1:15.
+    const d = +k;
+    if (s.seg === 'h') {
+      if (s.buf) {
+        const v = +(s.buf + k);
+        s.buf = '';
+        s.seg = 'm';
+        if (clock24 ? v <= 23 : v >= 1 && v <= 12) return s.set(setHour(s, v));
+        s.set(s.min);
+        return typeA(s, k);
+      }
+      const opens = clock24 ? d <= 2 : d <= 1;
+      if (opens) {
+        s.buf = k;
+        return s.set(d === 0 && !clock24 ? s.min : setHour(s, d));
+      }
+      s.seg = 'm';
+      return s.set(setHour(s, d));
+    }
+    if (s.buf) {
+      const v = +(s.buf + k);
+      s.buf = '';
+      return s.set(h * 60 + v);
+    }
+    if (d <= 5) s.buf = k;
+    return s.set(h * 60 + d);
+  }
+
+  // ---- B: up / down ----
+  const B = Mock('optB', {
+    build(s) { this.update(s); },
+    update(s) {
+      const p = parts(s.min);
+      const col = (which, val, label) => '<div class="stepcol"><button class="arrow" data-step="' + which + '+1" aria-label="' + label + ' later">▲</button><div class="bignum">' + val + '</div><button class="arrow" data-step="' + which + '-1" aria-label="' + label + ' earlier">▼</button><div class="steplab">' + label + '</div></div>';
+      s.card.innerHTML = chipsHTML(s.min) +
+        '<div class="steppers">' + col('h', p.h, 'Hour') + '<span class="colon">:</span>' + col('m', p.m, 'Min') + '</div>' +
+        footHTML(s.min, true);
+      s.card.querySelectorAll('[data-step]').forEach(b => b.onclick = () => stepB(s, b.dataset.step));
+      s.wireCommon();
+    },
+    key(s, e) {
+      if (e.key === 'ArrowUp') stepB(s, 'm+1');
+      else if (e.key === 'ArrowDown') stepB(s, 'm-1');
+      else if (e.key === 'Enter') s.card.querySelector('[data-done]')?.click();
+      else return false;
+      return true;
+    },
+  });
+  function stepB(s, code) {
+    const up = code.endsWith('+1');
+    if (code[0] === 'h') return s.set(s.min + (up ? 60 : -60));
+    const h = Math.floor(s.min / 60), m = s.min % 60;
+    const next = up ? (Math.floor(m / 5) + 1) * 5 : (Math.ceil(m / 5) - 1) * 5;
+    s.set(h * 60 + ((next % 60) + 60) % 60);
+  }
+
+  // ---- C: wheels ----
+  const ITEM = 36;
+  const C = Mock('optC', {
+    build(s) {
+      const hours = clock24 ? [...Array(24).keys()].map(h => String(h).padStart(2, '0')) : ['12', ...[...Array(11).keys()].map(i => String(i + 1))];
+      const mins = [...Array(60).keys()].map(m => String(m).padStart(2, '0'));
+      const wheel = (name, items, extra) => '<div class="wheel' + (extra || '') + '" data-wheel="' + name + '" tabindex="0" aria-label="' + name + '">' + items.map((t, i) => '<div data-i="' + i + '">' + t + '</div>').join('') + '</div>';
+      s.card.innerHTML = '<div data-chips>' + chipsHTML(s.min) + '</div>' +
+        '<div class="wheels">' + wheel('hour', hours) + wheel('minute', mins) + (clock24 ? '' : wheel('period', ['AM', 'PM'], ' period')) + '</div>' +
+        '<div data-foot>' + footHTML(s.min, false) + '</div>';
+      s.wheels = {};
+      s.card.querySelectorAll('[data-wheel]').forEach(w => {
+        s.wheels[w.dataset.wheel] = w;
+        let t;
+        w.addEventListener('scroll', () => {
+          if (s.programmatic) return;
+          clearTimeout(t);
+          t = setTimeout(() => readWheels(s), 110);
+        });
+        w.querySelectorAll('[data-i]').forEach(d => d.onclick = () => { w.scrollTo({ top: +d.dataset.i * ITEM, behavior: 'smooth' }); });
+      });
+      this.update(s, 'build');
+    },
+    update(s, from) {
+      const idx = wheelIndex(s.min);
+      if (from !== 'wheel') {
+        s.programmatic = true;
+        Object.entries(idx).forEach(([k, i]) => { const w = s.wheels[k]; if (w) w.scrollTo({ top: i * ITEM, behavior: from === 'build' ? 'auto' : 'smooth' }); });
+        clearTimeout(s.progT);
+        s.progT = setTimeout(() => { s.programmatic = false; }, from === 'build' ? 30 : 450);
+      }
+      Object.entries(idx).forEach(([k, i]) => { const w = s.wheels[k]; if (w) w.querySelectorAll('[data-i]').forEach(d => d.classList.toggle('on', +d.dataset.i === i)); });
+      s.card.querySelector('[data-chips]').innerHTML = chipsHTML(s.min);
+      s.card.querySelector('[data-foot]').innerHTML = footHTML(s.min, false);
+      s.wireCommon();
+    },
+    key(s, e) {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { s.set(nudgeMin(s.min, e.key === 'ArrowUp' ? -1 : 1)); return true; }
+      return false;
+    },
+  });
+  function wheelIndex(min) {
+    const h = Math.floor(min / 60), m = min % 60;
+    return clock24 ? { hour: h, minute: m } : { hour: h % 12, minute: m, period: h >= 12 ? 1 : 0 };
+  }
+  function readWheels(s) {
+    const i = (k) => s.wheels[k] ? Math.round(s.wheels[k].scrollTop / ITEM) : 0;
+    let h = i('hour');
+    if (!clock24) h = h % 12 + (i('period') ? 12 : 0);
+    const m = Math.min(59, i('minute'));
+    if (h * 60 + m !== s.min) s.set(h * 60 + m, 'wheel');
+  }
+
+  // ---- D: clock face ----
+  const D = Mock('optD', {
+    build(s) {
+      s.mode = 'h';
+      s.card.innerHTML = '<div data-chips></div><div class="dialhead" data-head></div><div class="dialwrap" data-dial></div><div data-foot></div>';
+      const dial = s.card.querySelector('[data-dial]');
+      let dragging = false;
+      const pick = (e) => {
+        const r = dial.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width * 232 - 116, y = (e.clientY - r.top) / r.height * 232 - 116;
+        let ang = Math.atan2(x, -y) * 180 / Math.PI; if (ang < 0) ang += 360;
+        const dist = Math.hypot(x, y);
+        const h = Math.floor(s.min / 60), m = s.min % 60;
+        if (s.mode === 'h') {
+          const i = Math.round(ang / 30) % 12;
+          let hour;
+          if (clock24) hour = dist < 76 ? (i === 0 ? 0 : i + 12) : (i === 0 ? 12 : i);
+          else hour = (i % 12) + (h >= 12 ? 12 : 0);
+          s.set(hour * 60 + m, 'dial');
+        } else {
+          s.set(h * 60 + Math.round(ang / 6) % 60, 'dial');
+        }
+      };
+      dial.addEventListener('pointerdown', (e) => { dragging = true; dial.setPointerCapture(e.pointerId); pick(e); });
+      dial.addEventListener('pointermove', (e) => { if (dragging) pick(e); });
+      const end = () => { if (!dragging) return; dragging = false; if (s.mode === 'h') { s.mode = 'm'; this.update(s); } };
+      dial.addEventListener('pointerup', end);
+      dial.addEventListener('pointercancel', end);
+      this.update(s);
+    },
+    update(s) {
+      const p = parts(s.min);
+      const box = (which, val) => '<button class="segbtn' + (s.mode === which ? ' sel' : '') + '" data-mode="' + which + '">' + val + '</button>';
+      s.card.querySelector('[data-head]').innerHTML = box('h', p.h) + '<span class="colon">:</span>' + box('m', p.m) + ampmHTML(s.min);
+      s.card.querySelector('[data-chips]').innerHTML = chipsHTML(s.min);
+      s.card.querySelector('[data-foot]').innerHTML = footHTML(s.min, false);
+      s.card.querySelector('[data-dial]').innerHTML = dialSVG(s);
+      s.card.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { s.mode = b.dataset.mode; this.update(s); });
+      s.wireCommon();
+    },
+  });
+  function dialSVG(s) {
+    const c = 116, outer = 92, inner = 60;
+    const pos = (i, r) => { const a = i * 30 * Math.PI / 180; return [c + r * Math.sin(a), c - r * Math.cos(a)]; };
+    const h = Math.floor(s.min / 60), m = s.min % 60;
+    let labels = [], sel;
+    if (s.mode === 'h') {
+      for (let i = 0; i < 12; i++) labels.push({ i, r: outer, t: String(i === 0 ? 12 : i), v: clock24 ? (i === 0 ? 12 : i) : null });
+      if (clock24) for (let i = 0; i < 12; i++) labels.push({ i, r: inner, t: i === 0 ? '00' : String(i + 12), v: i === 0 ? 0 : i + 12, small: true });
+      if (clock24) { const onInner = h === 0 || h > 12; sel = { ang: (h % 12) * 30, r: onInner ? inner : outer }; }
+      else sel = { ang: (h % 12) * 30, r: outer };
+    } else {
+      for (let i = 0; i < 12; i++) labels.push({ i, r: outer, t: String(i * 5).padStart(2, '0') });
+      sel = { ang: m * 6, r: outer };
+    }
+    const a = sel.ang * Math.PI / 180, sx = c + sel.r * Math.sin(a), sy = c - sel.r * Math.cos(a);
+    const onMark = s.mode === 'h' || m % 5 === 0;
+    let svg = '<svg viewBox="0 0 232 232" aria-label="Clock face"><circle cx="116" cy="116" r="114" fill="var(--surface2)"/>' +
+      '<line x1="116" y1="116" x2="' + sx + '" y2="' + sy + '" stroke="var(--accent)" stroke-width="2"/><circle cx="116" cy="116" r="4" fill="var(--accent)"/>' +
+      '<circle cx="' + sx + '" cy="' + sy + '" r="18" fill="var(--accent)"/>' + (onMark ? '' : '<circle cx="' + sx + '" cy="' + sy + '" r="3" fill="var(--surface)"/>');
+    labels.forEach(l => {
+      const [x, y] = pos(l.i, l.r);
+      const hit = Math.abs(x - sx) < 1 && Math.abs(y - sy) < 1;
+      svg += '<text x="' + x + '" y="' + (y + 6) + '" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-weight="600" font-size="' + (l.small ? 14 : 17) + '" fill="' + (hit ? 'var(--surface)' : (l.small ? 'var(--muted)' : 'var(--ink)')) + '">' + l.t + '</text>';
+    });
+    return svg + '</svg>';
+  }
+
+  const all = [A, B, C, D];
+  document.addEventListener('keydown', (e) => {
+    if (!active || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (active.key(active, e)) e.preventDefault();
+  });
+  function setClock(is24) {
+    clock24 = is24;
+    document.getElementById('c12').setAttribute('aria-pressed', String(!is24));
+    document.getElementById('c24').setAttribute('aria-pressed', String(is24));
+    all.forEach(s => s.rebuild());
+  }
+  document.getElementById('c12').onclick = () => setClock(false);
+  document.getElementById('c24').onclick = () => setClock(true);
+})();
+</script>

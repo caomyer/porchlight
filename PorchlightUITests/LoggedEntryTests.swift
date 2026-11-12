@@ -69,15 +69,17 @@ final class LoggedEntryTests: XCTestCase {
         time.tap()
         XCTAssertTrue(app.buttons["Just got back"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Just got back"].isSelected, "A new walk ends now by default")
-        // "1 hr ago" is only offered when it's still today (not just after midnight).
+        // "1 hr ago" is only offered when an hour ago is still today. Near the
+        // one-hour mark the answer can change mid-test, so that minute is skipped.
         let hourAgo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1 hr ago'")).firstMatch
-        if Calendar.current.component(.hour, from: Date()) >= 2 {
+        let minutesToday = Date().timeIntervalSince(Calendar.current.startOfDay(for: Date())) / 60
+        if minutesToday >= 62 {
             hourAgo.tap()
             XCTAssertTrue(hourAgo.waitForNonExistence(timeout: 5), "A suggestion sets the time and closes")
             time.tap()
             XCTAssertTrue(hourAgo.waitForExistence(timeout: 5))
             XCTAssertTrue(hourAgo.isSelected)
-        } else {
+        } else if minutesToday < 59 {
             XCTAssertFalse(hourAgo.exists, "Yesterday's times aren't offered for today")
         }
         snapshot("52-new-walk-earlier")

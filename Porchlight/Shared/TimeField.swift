@@ -1,13 +1,14 @@
 import SwiftUI
 
 // The one time control in the app. At rest a time is a pill in Today's serif
-// numerals. Tapping it opens a small card from the pill: a few suggestions for
-// the usual cases and a number pad for any other time. The iPad's keyboard
-// never comes up (iPad has no small number keyboard, and the full one covers
-// half the wall), though a hardware keyboard types straight in. A start and
-// end is two pills.
+// numerals. Tapping it opens a small card from the pill, already showing that
+// time: a few suggestions for the usual cases, the hour and the minutes in
+// their own boxes, and a number pad that types into the selected box. The
+// iPad's keyboard never comes up (iPad has no small number keyboard, and the
+// full one covers half the wall), though a hardware keyboard types straight
+// in. A start and end is two pills.
 
-/// Which end of a stretch of hours is being typed.
+/// Which end of a stretch of hours is being set.
 enum HoursEnd: Hashable, Sendable {
     case start, end
 }
@@ -26,7 +27,7 @@ struct TimeSuggestion: Identifiable {
 
 // MARK: - The control
 
-/// A time pill and the card it opens. The owner says what a typed time means.
+/// A time pill and the card it opens. The owner says which times it can take.
 struct TimeFieldControl: View {
     let minute: Int
     var nextDay = false
@@ -34,72 +35,63 @@ struct TimeFieldControl: View {
     var suggestions: [TimeSuggestion] = []
     let accessibilityLabel: String
     let identifier: String
-    /// Applies what was typed; returns why it can't be used, if it can't.
-    let apply: (String) -> String?
-    /// Switches to AM (false) or PM (true); returns why it can't, if it can't.
-    let setPeriod: (Bool) -> String?
+    /// Sets the time (minutes from midnight); returns why it can't, if it can't.
+    let apply: (Int) -> String?
 
     @State private var isOpen = false
-    @State private var text = ""
+    @State private var typing = TimeTyping()
+    /// A time typed that can't be used, shown with the reason until it's fixed.
+    @State private var refused: Int?
     @State private var note: String?
 
     var body: some View {
         TimeFieldPill(
-            minute: minute, nextDay: nextDay, isOpen: isOpen, typed: isOpen ? text : "", clock: clock,
+            minute: minute, nextDay: nextDay, isOpen: isOpen, clock: clock,
             accessibilityLabel: accessibilityLabel, identifier: identifier
         ) {
-            text = ""
+            typing = TimeTyping()
+            refused = nil
             note = nil
             isOpen = true
         }
         .popover(isPresented: $isOpen, arrowEdge: .bottom) {
             TimeKeypadCard(
-                text: $text, note: $note, minute: minute, nextDay: nextDay, clock: clock,
-                suggestions: suggestions, accessibilityLabel: accessibilityLabel,
+                minute: refused ?? minute, nextDay: nextDay && refused == nil, clock: clock,
+                suggestions: suggestions, note: note, typing: $typing,
+                onChange: change,
                 onSuggestion: { suggestion in
-                    if let problem = suggestion.apply() { note = problem } else { close() }
+                    if let problem = suggestion.apply() { note = problem } else { isOpen = false }
                 },
-                onPeriod: { pm in
-                    // With something typed, AM or PM finishes it: "5" then AM is 5 AM.
-                    if !text.isEmpty {
-                        if let problem = apply(text + (pm ? "p" : "a")) { note = problem } else { close() }
-                    } else {
-                        note = setPeriod(pm)
-                    }
-                },
-                onDone: done,
-                onCancel: close
+                onClose: { isOpen = false }
             )
             .presentationCompactAdaptation(.popover)
             .presentationBackground(Theme.surface)
         }
         .onChange(of: isOpen) { _, open in
-            // Tapping elsewhere keeps a good typed time; a bad one is dropped.
-            if !open, !text.isEmpty {
-                _ = apply(text)
-                text = ""
+            // Closing drops a time that couldn't be used; good ones are already set.
+            if !open {
+                refused = nil
+                note = nil
             }
         }
     }
 
-    private func done() {
-        guard !text.isEmpty else { return close() }
-        if let problem = apply(text) { note = problem } else { close() }
-    }
-
-    private func close() {
-        text = ""
-        note = nil
-        isOpen = false
+    private func change(_ new: Int) {
+        if let problem = apply(new) {
+            refused = new
+            note = problem
+        } else {
+            refused = nil
+            note = nil
+        }
     }
 }
 
-/// A time at rest, or while its card is open with what's been typed so far.
+/// A time at rest, or while its card is open.
 struct TimeFieldPill: View {
     let minute: Int
     var nextDay = false
     var isOpen = false
-    var typed = ""
     var clock: ClockStyle = .current
     let accessibilityLabel: String
     let identifier: String
@@ -109,11 +101,11 @@ struct TimeFieldPill: View {
         let parts = clock.parts(minute)
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(typed.isEmpty ? parts.time : typed)
+                Text(parts.time)
                     .font(.display(19))
                     .monospacedDigit()
-                    .foregroundStyle(isOpen && typed.isEmpty ? Theme.muted : Theme.ink)
-                if let period = parts.period, typed.isEmpty {
+                    .foregroundStyle(Theme.ink)
+                if let period = parts.period {
                     Text(period)
                         .font(.body(12, weight: 700))
                         .foregroundStyle(Theme.muted)
@@ -140,37 +132,27 @@ struct TimeFieldPill: View {
     }
 }
 
-/// The card: what's typed, why it can't be used (if it can't), suggestions,
-/// the number pad, AM | PM on a 12-hour clock, and Done.
+/// The card: suggestions, the hour and minutes in their own boxes (with AM | PM
+/// on a 12-hour clock), what typing does next or why a time can't be used, the
+/// number pad, and Done.
 struct TimeKeypadCard: View {
-    @Binding var text: String
-    @Binding var note: String?
     let minute: Int
     var nextDay = false
     var clock: ClockStyle = .current
     var suggestions: [TimeSuggestion] = []
-    let accessibilityLabel: String
+    let note: String?
+    @Binding var typing: TimeTyping
+    let onChange: (Int) -> Void
     let onSuggestion: (TimeSuggestion) -> Void
-    let onPeriod: (Bool) -> Void
-    let onDone: () -> Void
-    let onCancel: () -> Void
+    let onClose: () -> Void
 
     @FocusState private var hasKeys: Bool
 
-    private static let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ":", "0", "⌫"]
+    private static let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"]
     private static let warn = Color(hex: 0xB4532A)
 
     var body: some View {
-        let parts = clock.parts(minute)
         VStack(alignment: .leading, spacing: 12) {
-            readout(parts)
-            if let note {
-                Text(note)
-                    .font(.body(13, weight: 600))
-                    .foregroundStyle(Self.warn)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("time-note")
-            }
             if !suggestions.isEmpty {
                 FlowLayout(spacing: 6) {
                     ForEach(suggestions) { suggestion in
@@ -178,32 +160,43 @@ struct TimeKeypadCard: View {
                     }
                 }
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
-                ForEach(Self.keys, id: \.self) { key in
-                    Button { press(key) } label: {
-                        Text(key)
-                            .font(key == "⌫" ? .body(17, weight: 700) : .display(21))
-                            .foregroundStyle(Theme.ink)
-                            .frame(maxWidth: .infinity, minHeight: 46)
-                            .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(key == "⌫" ? "Delete" : key)
-                    .accessibilityIdentifier("key-\(key == "⌫" ? "delete" : key == ":" ? "colon" : key)")
+            VStack(alignment: .leading, spacing: 6) {
+                readout
+                if let note {
+                    Text(note)
+                        .font(.body(13, weight: 600))
+                        .foregroundStyle(Self.warn)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("time-note")
+                } else {
+                    Text(typing.hint(clock))
+                        .font(.body(13, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                        .accessibilityIdentifier("time-hint")
                 }
             }
-            HStack(spacing: 8) {
-                if let period = parts.period {
-                    HStack(spacing: 0) {
-                        periodButton("AM", isOn: period == "AM") { onPeriod(false) }
-                        periodButton("PM", isOn: period == "PM") { onPeriod(true) }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
+                ForEach(Array(Self.keys.enumerated()), id: \.offset) { _, key in
+                    if key.isEmpty {
+                        Color.clear.frame(minHeight: 46).accessibilityHidden(true)
+                    } else {
+                        Button { press(key) } label: {
+                            Text(key)
+                                .font(key == "⌫" ? .body(17, weight: 700) : .display(21))
+                                .foregroundStyle(Theme.ink)
+                                .frame(maxWidth: .infinity, minHeight: 46)
+                                .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(key == "⌫" ? "Delete" : key)
+                        .accessibilityIdentifier("key-\(key == "⌫" ? "delete" : key)")
                     }
-                    .padding(2)
-                    .background(Theme.surface2, in: Capsule())
                 }
-                Spacer(minLength: 8)
-                Button(action: onDone) {
+            }
+            HStack {
+                Spacer(minLength: 0)
+                Button(action: onClose) {
                     Text("Done")
                         .font(.body(14, weight: 800))
                         .foregroundStyle(Theme.surface)
@@ -213,6 +206,8 @@ struct TimeKeypadCard: View {
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
+                .disabled(note != nil)
+                .opacity(note == nil ? 1 : 0.35)
                 .accessibilityIdentifier("time-done")
             }
         }
@@ -224,53 +219,87 @@ struct TimeKeypadCard: View {
         .focused($hasKeys)
         .onKeyPress(phases: .down) { press in
             switch press.key {
-            case .return: onDone(); return .handled
-            case .escape: onCancel(); return .handled
-            case .delete, .deleteForward: self.press("⌫"); return .handled
+            case .return:
+                if note == nil { onClose() }
+                return .handled
+            case .escape: onClose(); return .handled
+            case .delete, .deleteForward: typing.delete(); return .handled
+            case .leftArrow: typing.select(.hour); return .handled
+            case .rightArrow, .tab: typing.select(.minute); return .handled
+            case .upArrow: onChange(typing.nudging(minute, by: 1)); return .handled
+            case .downArrow: onChange(typing.nudging(minute, by: -1)); return .handled
             default:
                 let typed = press.characters.lowercased()
-                guard typed.count == 1, "0123456789:.apm".contains(typed) else { return .ignored }
-                if typed == "a" || typed == "p" {
-                    if text.isEmpty { onPeriod(typed == "p") } else { self.press(typed) }
-                } else if typed != "m" {
-                    self.press(typed == "." ? ":" : typed)
+                if typed.count == 1, Int(typed) != nil {
+                    self.press(typed)
+                    return .handled
                 }
-                return .handled
+                if !clock.uses24Hours, typed == "a" || typed == "p" {
+                    onChange(TimeTyping.flipping(minute, toPM: typed == "p"))
+                    return .handled
+                }
+                return .ignored
             }
         }
         .onAppear { hasKeys = true }
     }
 
-    private func readout(_ parts: (time: String, period: String?)) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(text.isEmpty ? parts.time : text)
-                .font(.display(30))
+    private var readout: some View {
+        let fields = clock.fields(minute)
+        let period = clock.parts(minute).period
+        return HStack(alignment: .center, spacing: 2) {
+            box(.hour, typing.part == .hour && typing.open == 0 && !clock.uses24Hours ? "0" : fields.hour)
+            Text(":")
+                .font(.display(28))
+                .foregroundStyle(Theme.muted)
+                .padding(.bottom, 4)
+                .accessibilityHidden(true)
+            box(.minute, fields.minute)
+            if nextDay {
+                Text("+1 day")
+                    .font(.body(12, weight: 800))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.leading, 4)
+            }
+            Spacer(minLength: 8)
+            if let period {
+                HStack(spacing: 0) {
+                    periodButton("AM", isOn: period == "AM") { onChange(TimeTyping.flipping(minute, toPM: false)) }
+                    periodButton("PM", isOn: period == "PM") { onChange(TimeTyping.flipping(minute, toPM: true)) }
+                }
+                .padding(2)
+                .background(Theme.surface2, in: Capsule())
+            }
+        }
+    }
+
+    private func box(_ part: TimeTyping.Part, _ value: String) -> some View {
+        let isSelected = typing.part == part
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        return Button { typing.select(part) } label: {
+            Text(value)
+                .font(.display(32))
                 .monospacedDigit()
-                .foregroundStyle(text.isEmpty ? Theme.muted : Theme.ink)
-            if text.isEmpty, let period = parts.period {
-                Text(period).font(.body(13, weight: 700)).foregroundStyle(Theme.muted)
-            }
-            if nextDay, text.isEmpty {
-                Text("+1 day").font(.body(12, weight: 800)).foregroundStyle(Theme.accent)
-            }
-            Spacer(minLength: 0)
+                .foregroundStyle(isSelected && typing.open != nil ? Theme.accent : Theme.ink)
+                .frame(minWidth: 52)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(isSelected ? Theme.accent.opacity(0.14) : .clear, in: shape)
+                .overlay(shape.strokeBorder(isSelected ? Theme.accent : .clear, lineWidth: 2))
+                .contentShape(shape)
         }
-        .padding(.bottom, 2)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(note == nil ? Theme.accent : Self.warn).frame(height: 2)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(accessibilityLabel), typed")
-        .accessibilityValue(text.isEmpty ? clock.text(minute) : text)
-        .accessibilityIdentifier("time-entry")
+        .buttonStyle(.plain)
+        .accessibilityLabel(part == .hour ? "Hour" : "Minutes")
+        .accessibilityValue(value)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier(part == .hour ? "time-hour" : "time-minute")
     }
 
     private func press(_ key: String) {
-        note = nil
         if key == "⌫" {
-            if !text.isEmpty { text.removeLast() }
-        } else if text.count < 6 {
-            text.append(key)
+            typing.delete()
+        } else if let digit = Int(key) {
+            onChange(typing.type(digit, into: minute, clock: clock))
         }
     }
 
@@ -312,8 +341,7 @@ struct TimeKeypadCard: View {
 // MARK: - A time something happened
 
 /// When something happened on a day: the label, then the time on the right.
-/// Typed times without AM or PM take the half of the day nearest the time shown,
-/// among times that have happened.
+/// Only times that have happened that day can be set.
 struct LogTimeField<Leading: View>: View {
     @Binding var time: LogTime
     /// Within one day, e.g. the meal's day up to now.
@@ -335,7 +363,7 @@ struct LogTimeField<Leading: View>: View {
             TimeFieldControl(
                 minute: minute(resolved), clock: clock, suggestions: shownSuggestions,
                 accessibilityLabel: accessibilityLabel, identifier: identifier,
-                apply: apply, setPeriod: setPeriod
+                apply: apply
             )
         }
     }
@@ -385,25 +413,11 @@ struct LogTimeField<Leading: View>: View {
             : "\(clock.text(minute)) is too early for this day."
     }
 
-    // MARK: Typing
+    // MARK: Setting
 
-    private func apply(_ text: String) -> String? {
-        guard let typed = TypedTime.parse(text) else { return "Type a time like 715 or 7:15." }
-        switch TimeEntry.pickLogged(typed.candidates(clock), allowed: allowed, near: minute(resolved)) {
-        case let .success(minute):
-            time = .at(date(minute))
-            return nil
-        case let .failure(out):
-            return outside(out.minute)
-        }
-    }
-
-    private func setPeriod(_ pm: Bool) -> String? {
-        let current = minute(resolved)
-        guard (current >= 12 * 60) != pm else { return nil }
-        let flipped = pm ? current + 12 * 60 : current - 12 * 60
-        guard allowed.contains(flipped) else { return outside(flipped) }
-        time = .at(date(flipped))
+    private func apply(_ minute: Int) -> String? {
+        guard allowed.contains(minute) else { return outside(minute) }
+        time = .at(date(minute))
         return nil
     }
 }
@@ -439,7 +453,7 @@ struct HoursField<Leading: View>: View {
 
     private func field(_ which: HoursEnd) -> some View {
         TimeFieldControl(
-            minute: value(which),
+            minute: value(which) % TimeEntry.day,
             nextDay: which == .end && nextDay,
             clock: clock,
             suggestions: (which == .start ? startSuggestions : endSuggestions).map { minute in
@@ -451,8 +465,7 @@ struct HoursField<Leading: View>: View {
             },
             accessibilityLabel: "\(accessibilityLabel) \(which == .start ? "from" : "to")",
             identifier: "\(identifier)-\(which == .start ? "start" : "end")",
-            apply: { text in apply(text, to: which) },
-            setPeriod: { pm in setPeriod(which, pm) }
+            apply: { minute in apply(minute, to: which) }
         )
     }
 
@@ -471,30 +484,11 @@ struct HoursField<Leading: View>: View {
         }
     }
 
-    private func apply(_ text: String, to which: HoursEnd) -> String? {
-        guard let typed = TypedTime.parse(text) else { return "Type a time like 715 or 7:15." }
-        let candidates = typed.candidates(clock)
-        let minute: Int
-        switch which {
-        case .start:
-            minute = TimeEntry.pickNear(candidates, to: start)
-        case .end where allowsNextDay:
-            minute = TimeEntry.pickEnd(candidates, after: start)
-        case .end:
-            // Midnight ends the day.
-            minute = candidates.map { $0 == 0 ? TimeEntry.day : $0 }.filter { $0 > start }.min() ?? candidates[0]
-        }
+    private func apply(_ minute: Int, to which: HoursEnd) -> String? {
+        // Midnight ends the day for a window that can't run into the next one.
+        let minute = which == .end && !allowsNextDay && minute == 0 ? TimeEntry.day : minute
         if let problem = problem(which, minute) { return problem }
         set(which, minute)
-        return nil
-    }
-
-    private func setPeriod(_ which: HoursEnd, _ pm: Bool) -> String? {
-        let current = value(which) % TimeEntry.day
-        guard (current >= 12 * 60) != pm else { return nil }
-        let flipped = pm ? current + 12 * 60 : current - 12 * 60
-        if let problem = problem(which, flipped) { return problem }
-        set(which, flipped)
         return nil
     }
 }

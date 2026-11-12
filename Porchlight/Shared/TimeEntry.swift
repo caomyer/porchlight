@@ -1,8 +1,7 @@
 import Foundation
 
-// What a time field understands: a typed time ("7", "715", "7:15p", "1930"),
-// the iPad's 12 or 24-hour clock, and which half of the day a typed time
-// without AM or PM most likely means. Pure and covered by TimeEntryTests.
+// What a time field knows: the iPad's 12 or 24-hour clock, and typing into a
+// time's hour or minutes one digit at a time. Pure and covered by TimeEntryTests.
 
 /// The iPad's clock style, and times written in it.
 struct ClockStyle: Equatable, Sendable {
@@ -33,96 +32,102 @@ struct ClockStyle: Equatable, Sendable {
         let parts = parts(minute)
         return parts.period.map { "\(parts.time) \($0)" } ?? parts.time
     }
+
+    /// The hour and minutes as shown in their own boxes: "7" and "05", or "07" and "05".
+    func fields(_ minute: Int) -> (hour: String, minute: String) {
+        let minute = ((minute % TimeEntry.day) + TimeEntry.day) % TimeEntry.day
+        let hour = minute / 60
+        return (uses24Hours ? String(format: "%02d", hour) : "\((hour + 11) % 12 + 1)", String(format: "%02d", minute % 60))
+    }
 }
 
-/// A time as someone typed it.
-struct TypedTime: Equatable, Sendable {
-    enum Meridiem: Sendable { case am, pm }
+/// Typing into a time's hour or minutes. Every digit counts the moment it is
+/// typed, so changing the hour from 2 to 1 is one tap. A digit that could start
+/// a two-digit value ("1" for 10, 11 or 12) stays open for one more; a digit
+/// that can't follow it goes on to the minutes, so 7 1 5 is 7:15. Once the hour
+/// can't take another digit, the minutes are next. Typing an hour keeps the
+/// half of the day shown.
+struct TimeTyping: Equatable, Sendable {
+    enum Part: Sendable { case hour, minute }
 
-    var hour: Int
-    var minute: Int
-    var meridiem: Meridiem?
+    private(set) var part: Part = .hour
+    /// The digit still open for a second one, if any.
+    private(set) var open: Int?
 
-    /// Reads "7", "715", "7:15", "7.15", "1930", "7p", "7:15 am". Nil if it isn't a time.
-    static func parse(_ text: String) -> TypedTime? {
-        var rest = text.lowercased().filter { !$0.isWhitespace }.replacingOccurrences(of: ".", with: ":")
-        var meridiem: Meridiem?
-        for (suffix, value) in [("am", Meridiem.am), ("pm", .pm), ("a", .am), ("p", .pm)] where rest.hasSuffix(suffix) {
-            meridiem = value
-            rest.removeLast(suffix.count)
-            break
-        }
-        let pieces = rest.split(separator: ":", omittingEmptySubsequences: false)
-        guard (1...2).contains(pieces.count), pieces.allSatisfy({ $0.allSatisfy(\.isASCII) && $0.allSatisfy(\.isNumber) }) else { return nil }
-        let hour: Int, minute: Int
-        if pieces.count == 2 {
-            guard (1...2).contains(pieces[0].count), pieces[1].count == 2 else { return nil }
-            hour = Int(pieces[0]) ?? -1
-            minute = Int(pieces[1]) ?? -1
-        } else {
-            let digits = Array(pieces[0])
-            switch digits.count {
-            case 1, 2: hour = Int(String(digits)) ?? -1; minute = 0
-            case 3: hour = Int(String(digits[0])) ?? -1; minute = Int(String(digits[1...])) ?? -1
-            case 4: hour = Int(String(digits[0...1])) ?? -1; minute = Int(String(digits[2...])) ?? -1
-            default: return nil
+    mutating func select(_ part: Part) {
+        self.part = part
+        open = nil
+    }
+
+    /// Ends an open digit; with none, steps back from the minutes to the hour.
+    mutating func delete() {
+        if open != nil { open = nil } else { part = .hour }
+    }
+
+    /// `minute` (from midnight) with `digit` typed into the selected part.
+    mutating func type(_ digit: Int, into minute: Int, clock: ClockStyle) -> Int {
+        let minute = ((minute % TimeEntry.day) + TimeEntry.day) % TimeEntry.day
+        switch part {
+        case .hour:
+            if let first = open {
+                open = nil
+                part = .minute
+                let hour = first * 10 + digit
+                if clock.uses24Hours ? hour <= 23 : (1...12).contains(hour) {
+                    return Self.setting(hour: hour, of: minute, clock: clock)
+                }
+                return type(digit, into: minute, clock: clock)
             }
+            if digit <= (clock.uses24Hours ? 2 : 1) {
+                open = digit
+                // A lone 0 isn't an hour on a 12-hour clock; it waits for the next digit.
+                return digit == 0 && !clock.uses24Hours ? minute : Self.setting(hour: digit, of: minute, clock: clock)
+            }
+            part = .minute
+            return Self.setting(hour: digit, of: minute, clock: clock)
+        case .minute:
+            let hourStart = minute - minute % 60
+            if let first = open {
+                open = nil
+                return hourStart + first * 10 + digit
+            }
+            if digit <= 5 { open = digit }
+            return hourStart + digit
         }
-        guard (0...23).contains(hour), (0...59).contains(minute) else { return nil }
-        if meridiem != nil, !(1...12).contains(hour) { return nil }
-        return TypedTime(hour: hour, minute: minute, meridiem: meridiem)
     }
 
-    /// Minutes from midnight this could mean: one when the half of the day is
-    /// known, both when it isn't ("7" on a 12-hour clock).
-    func candidates(_ clock: ClockStyle) -> [Int] {
-        switch meridiem {
-        case .am: return [(hour % 12) * 60 + minute]
-        case .pm: return [(hour % 12 + 12) * 60 + minute]
-        case nil:
-            if clock.uses24Hours || hour == 0 || hour > 12 { return [hour * 60 + minute] }
-            return [(hour % 12) * 60 + minute, (hour % 12 + 12) * 60 + minute]
+    /// `minute` with its hour set as shown on `clock`, keeping AM or PM on a 12-hour clock.
+    static func setting(hour: Int, of minute: Int, clock: ClockStyle) -> Int {
+        let rest = minute % 60
+        if clock.uses24Hours { return hour * 60 + rest }
+        return (hour % 12 + (minute >= 12 * 60 ? 12 : 0)) * 60 + rest
+    }
+
+    /// The other half of the day.
+    static func flipping(_ minute: Int, toPM pm: Bool) -> Int {
+        let minute = ((minute % TimeEntry.day) + TimeEntry.day) % TimeEntry.day
+        guard (minute >= 12 * 60) != pm else { return minute }
+        return pm ? minute + 12 * 60 : minute - 12 * 60
+    }
+
+    /// One step up or down: an hour, or a minute within the hour.
+    func nudging(_ minute: Int, by step: Int) -> Int {
+        let minute = ((minute % TimeEntry.day) + TimeEntry.day) % TimeEntry.day
+        switch part {
+        case .hour: return ((minute + step * 60) % TimeEntry.day + TimeEntry.day) % TimeEntry.day
+        case .minute: return minute - minute % 60 + ((minute % 60 + step) % 60 + 60) % 60
         }
+    }
+
+    /// What typing does next, shown under the time.
+    func hint(_ clock: ClockStyle) -> String {
+        guard let open else { return part == .hour ? "Type to replace the hour" : "Type to replace the minutes" }
+        if part == .minute { return "Another digit makes it \(open)0 to \(open)9" }
+        if clock.uses24Hours { return open == 2 ? "Another digit makes it 20 to 23" : "Another digit makes it \(open)0 to \(open)9" }
+        return open == 1 ? "Another 0, 1 or 2 makes it 10, 11 or 12" : "Type the hour"
     }
 }
 
-/// Choosing among a typed time's candidates.
 enum TimeEntry {
     static let day = 24 * 60
-
-    /// For something that happened on a day: the candidate within `allowed`
-    /// (minutes from that day's midnight) closest to the time already shown, so
-    /// "8" on a breakfast is 8 AM and on a dinner 8 PM. If none fits, the result
-    /// says which one was meant so the field can explain why it can't be used.
-    static func pickLogged(_ candidates: [Int], allowed: ClosedRange<Int>, near current: Int) -> Result<Int, OutOfRange> {
-        let fitting = candidates.filter(allowed.contains)
-        if let closest = fitting.min(by: { abs($0 - current) < abs($1 - current) }) { return .success(closest) }
-        let meant = candidates.min { distance($0, to: allowed) < distance($1, to: allowed) } ?? 0
-        return .failure(OutOfRange(minute: meant, isLater: meant > allowed.upperBound))
-    }
-
-    /// The end of a stretch of hours: the first candidate after `start`, wrapping
-    /// into the next day. Returns minutes from midnight (0..<1440).
-    static func pickEnd(_ candidates: [Int], after start: Int) -> Int {
-        candidates.map { $0 <= start ? $0 + day : $0 }.min().map { $0 % day } ?? start
-    }
-
-    /// The start of a stretch of hours: the candidate closest to where it was.
-    static func pickNear(_ candidates: [Int], to current: Int) -> Int {
-        candidates.min { circular($0, current) < circular($1, current) } ?? current
-    }
-
-    struct OutOfRange: Error, Equatable {
-        var minute: Int
-        var isLater: Bool
-    }
-
-    private static func distance(_ minute: Int, to range: ClosedRange<Int>) -> Int {
-        minute < range.lowerBound ? range.lowerBound - minute : max(0, minute - range.upperBound)
-    }
-
-    private static func circular(_ a: Int, _ b: Int) -> Int {
-        let delta = abs(a - b) % day
-        return min(delta, day - delta)
-    }
 }
