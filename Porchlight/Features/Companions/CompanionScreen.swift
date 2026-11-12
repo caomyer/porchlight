@@ -249,6 +249,7 @@ private struct StatTiles: View {
 private struct PawTrailCard: View {
     let report: CompanionReport
     @Environment(CompanionStore.self) private var store
+    @Environment(\.openCareLog) private var openCareLog
 
     var body: some View {
         let calendar = store.snapshot.calendar
@@ -256,7 +257,7 @@ private struct PawTrailCard: View {
         let labels = CareText.shortLabels(windows)
         VStack(alignment: .leading, spacing: 12) {
             CardHeader(title: "Paw trail", meta: "who \(report.primaryRoutine?.kind == .walk ? "walked" : "did it"), each slot")
-            Grid(horizontalSpacing: 0, verticalSpacing: 10) {
+            Grid(horizontalSpacing: 0, verticalSpacing: 4) {
                 GridRow {
                     Color.clear.frame(width: 44, height: 1)
                     ForEach(report.weekDays, id: \.self) { day in
@@ -278,7 +279,7 @@ private struct PawTrailCard: View {
                             .lineLimit(1)
                             .frame(width: 44, alignment: .leading)
                         ForEach(report.weekDays.indices, id: \.self) { dayIndex in
-                            cell(report.trail[dayIndex].first { $0.index == index })
+                            cell(report.trail[dayIndex].first { $0.index == index }, on: report.weekDays[dayIndex])
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -288,16 +289,44 @@ private struct PawTrailCard: View {
         .card(padding: 20)
     }
 
+    /// A filled dot opens its walk to fix; an empty one logs it, for its own day when missed.
     @ViewBuilder
-    private func cell(_ slot: CareSlot?) -> some View {
+    private func cell(_ slot: CareSlot?, on day: DayKey) -> some View {
         if let slot, let entry = slot.entry {
-            PawDot(carers: Carers(entry.people, snapshot: store.snapshot), size: 36, content: .initial)
-        } else if let slot, slot.isPendingToday || slot.state == .missed {
-            PawDot(carers: nil, size: 36)
-                .opacity(slot.state == .missed ? 0.45 : 1)
+            dotButton(slot, on: day, status: CaptionEngine.whoText(entry.people, names: store.snapshot.names)) {
+                .edit(entry, companionId: report.id)
+            } label: {
+                PawDot(carers: Carers(entry.people, snapshot: store.snapshot), size: 36, content: .initial)
+            }
+        } else if let slot, slot.isPendingToday || slot.state == .missed, let routineId = report.primaryRoutine?.id {
+            dotButton(slot, on: day, status: slot.state == .missed ? "missed" : "to do") {
+                slot.state == .missed
+                    ? .catchUp(companionId: report.id, routineId: routineId, day: day, slot: slot.index)
+                    : CareLogRequest(companionId: report.id, routineId: routineId)
+            } label: {
+                PawDot(carers: nil, size: 36)
+                    .opacity(slot.state == .missed ? 0.45 : 1)
+            }
         } else {
             Circle().fill(Theme.surface2.opacity(0.6)).frame(width: 12, height: 12).frame(width: 36, height: 36)
         }
+    }
+
+    private func dotButton<Dot: View>(
+        _ slot: CareSlot, on day: DayKey, status: String,
+        request: () -> CareLogRequest, @ViewBuilder label: () -> Dot
+    ) -> some View {
+        let request = request()
+        let name = report.primaryRoutine.map { CareCatchUp.slotName(slot.window, of: $0) } ?? slot.window.label
+        let weekday = day.formatted(.dateTime.weekday(.wide), calendar: store.snapshot.calendar)
+        return Button { openCareLog?(request) } label: {
+            label()
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(openCareLog == nil)
+        .accessibilityLabel("\(name.prefix(1).uppercased() + name.dropFirst()), \(weekday), \(status)")
     }
 
     private func weekdayLetter(_ day: DayKey, calendar: Calendar) -> String {
@@ -323,7 +352,7 @@ private struct DiaryCard: View {
                 title: "\(report.noun.prefix(1).uppercased() + report.noun.dropFirst()) diary",
                 meta: report.companion.captionTone == .off ? nil : "captions: \(report.companion.captionTone.label)"
             )
-            if report.diary.isEmpty {
+            if report.diary.isEmpty && report.missed.isEmpty {
                 Text("Nothing logged this week yet. The first \(report.noun) starts the story.")
                     .font(.body(13.5, weight: 600))
                     .foregroundStyle(Theme.muted)
@@ -331,8 +360,11 @@ private struct DiaryCard: View {
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 10) {
-                        ForEach(report.diary) { item in
-                            row(item)
+                        ForEach(rows) { row in
+                            switch row {
+                            case let .logged(item): self.row(item)
+                            case let .missed(missed): missedRow(missed)
+                            }
                         }
                     }
                 }
@@ -340,6 +372,65 @@ private struct DiaryCard: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .card(padding: 20)
+    }
+
+    /// What was logged, with what wasn't in its place, newest first.
+    private enum Row: Identifiable {
+        case logged(DiaryItem)
+        case missed(MissedCare)
+
+        var id: String {
+            switch self {
+            case let .logged(item): "log-\(item.id)"
+            case let .missed(missed): "missed-\(missed.id)"
+            }
+        }
+
+        var time: Date {
+            switch self {
+            case let .logged(item): item.entry.time
+            case let .missed(missed): missed.usual
+            }
+        }
+    }
+
+    private var rows: [Row] {
+        (report.diary.map(Row.logged) + report.missed.map(Row.missed)).sorted { $0.time > $1.time }
+    }
+
+    /// "Feed Yo-Yo · Dinner wasn't logged · Log it": tapping logs it for that day.
+    private func missedRow(_ missed: MissedCare) -> some View {
+        let calendar = store.snapshot.calendar
+        let title = CompanionTimeline.expectedTitle(missed.slot, routine: missed.routine, companion: report.companion)
+        let dayName = missed.day == report.today.adding(days: -1, calendar: calendar)
+            ? "yesterday"
+            : missed.day.formatted(.dateTime.weekday(.wide), calendar: calendar)
+        return Button {
+            if let routineId = missed.routine.id {
+                openCareLog?(.catchUp(companionId: report.id, routineId: routineId, day: missed.day, slot: missed.slot.index))
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Text(missed.routine.emoji)
+                    .font(.system(size: 13))
+                    .frame(width: 28, height: 28)
+                    .overlay(Circle().strokeBorder(Theme.muted.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5])))
+                VStack(alignment: .leading, spacing: 2) {
+                    (Text("\(title) wasn't logged").foregroundStyle(Theme.muted)
+                        + Text("  Log it").foregroundStyle(Theme.accent).font(.body(13.5, weight: 800)))
+                        .font(.body(13.5, weight: 600))
+                    Text(([missed.day.formatted(.dateTime.weekday(.abbreviated), calendar: calendar)]
+                        + (missed.slot.window.isAllDay ? [] : ["usually \(missed.slot.window.rangeText)"])).joined(separator: " · "))
+                        .font(.body(12, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(openCareLog == nil)
+        .accessibilityLabel("\(title) wasn't logged, \(dayName)")
     }
 
     private func row(_ item: DiaryItem) -> some View {

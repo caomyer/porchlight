@@ -90,7 +90,8 @@ struct TimelineItem: Identifiable {
         case event
         /// Something that happened (a walk, a meal), drawn quieter and solid-outlined.
         case log
-        /// Something expected but not done yet (the evening walk), drawn dashed.
+        /// Something expected but not done yet (the evening walk), or care missed earlier
+        /// this week (yesterday's dinner, to catch up on), drawn dashed.
         case expected
     }
 
@@ -112,10 +113,12 @@ struct TimelineItem: Identifiable {
 }
 
 /// What a Today row (or a calendar mark) opens: a logged walk or meal to fix, a due walk
-/// to log, an event's details, or a chore on a day.
+/// to log, a missed one to catch up on, an event's details, or a chore on a day.
 enum TimelineTarget: Hashable, Sendable {
     case careLog(companionId: Int64, routineId: Int64, logId: Int64)
     case careDue(companionId: Int64, routineId: Int64)
+    /// A slot on an earlier day that was never logged: logs it for that day.
+    case careMissed(companionId: Int64, routineId: Int64, day: DayKey, slot: Int)
     case meal(Int64)
     case event(String)
     case chore(choreId: Int64, day: DayKey)

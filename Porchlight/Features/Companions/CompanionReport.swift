@@ -47,6 +47,8 @@ struct CompanionReport {
     var weekStats: CareLogic.WeekStats
     var leaderboard: [CareLogic.Standing]
     var diary: [DiaryItem]
+    /// Every routine's slots this week that were never logged, newest first.
+    var missed: [MissedCare]
     var milestones: [Milestone]
 
     var id: Int64 { companion.id ?? 0 }
@@ -76,7 +78,7 @@ struct CompanionReport {
         guard let primary = todays.first else {
             return CompanionReport(
                 companion: companion, routines: [], primary: nil, others: [], mood: nil, streak: 0, today: today, now: now,
-                weekDays: weekDays, trail: weekDays.map { _ in [] }, weekStats: .init(), leaderboard: [], diary: [], milestones: []
+                weekDays: weekDays, trail: weekDays.map { _ in [] }, weekStats: .init(), leaderboard: [], diary: [], missed: [], milestones: []
             )
         }
         let routine = primary.routine
@@ -101,6 +103,7 @@ struct CompanionReport {
             weekStats: CareLogic.weekStats(for: routine, entries: entries, days: weekDays, now: now, calendar: calendar),
             leaderboard: CareLogic.leaderboard(weekEntries, people: peopleOrder),
             diary: weekEntries.reversed().map { DiaryItem(entry: $0, caption: captions[$0.id]) },
+            missed: CareCatchUp.missed(routines, entries: { snapshot.entries(of: $0.id) }, now: now, calendar: calendar),
             milestones: milestones(routine: routine, entries: entries, snapshot: snapshot, now: now, calendar: calendar)
         )
     }

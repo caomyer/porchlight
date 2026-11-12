@@ -23,6 +23,10 @@ enum CompanionTimeline {
                 for entry in dayEntries {
                     items.append(logItem(entry, routine: routine, companion: companion, caption: captions[entry.id], face: face, snapshot: snapshot))
                 }
+                // Earlier this week, every routine's missed slots show where they'd be, to catch up on.
+                for missed in CareCatchUp.missed(routine, entries: entries, on: day, now: now, calendar: calendar) {
+                    items.append(missedItem(missed, companion: companion, face: face))
+                }
                 // Only the main routine (the walk) is expected on the agenda; the rest show once logged.
                 guard day == today, index == 0 else { continue }
                 let state = CompanionReport.routineToday(routine, entries: entries, today: today, now: now, calendar: calendar)
@@ -106,6 +110,25 @@ enum CompanionTimeline {
             leading: face,
             trailing: AnyView(PawDot(carers: nil, size: 24)),
             target: companion.id.flatMap { companionId in routine.id.map { .careDue(companionId: companionId, routineId: $0) } }
+        )
+    }
+
+    private static func missedItem(_ missed: MissedCare, companion: Companion, face: AnyView) -> TimelineItem {
+        let window = missed.slot.window
+        let target = companion.id.flatMap { companionId in
+            missed.routine.id.map { TimelineTarget.careMissed(companionId: companionId, routineId: $0, day: missed.day, slot: missed.slot.index) }
+        }
+        return TimelineItem(
+            id: "care-missed-\(missed.id)",
+            kind: .expected,
+            time: missed.usual,
+            timeLabel: "Not logged",
+            title: expectedTitle(missed.slot, routine: missed.routine, companion: companion),
+            subtitle: window.isAllDay ? nil : "Usually \(window.rangeText)",
+            owner: .everyone,
+            leading: face,
+            trailing: AnyView(PawDot(carers: nil, size: 24)),
+            target: target
         )
     }
 

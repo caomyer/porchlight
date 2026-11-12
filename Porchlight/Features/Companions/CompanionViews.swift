@@ -286,12 +286,6 @@ struct OtherRoutines: View {
     }
 }
 
-extension Array {
-    fileprivate subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
-}
-
 /// Companions section inside Settings.
 struct CompanionSettingsSection: View {
     var body: some View {

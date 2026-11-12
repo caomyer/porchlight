@@ -6,16 +6,29 @@ struct CareLogRequest: Identifiable, Equatable {
     var routineId: Int64
     /// Set to edit an existing log instead of adding one.
     var logId: Int64?
+    /// Set to catch up on an earlier day's missed slot: the log is for that day, at the
+    /// slot's usual time.
+    var catchUp: CatchUp?
     /// The celebration's button, e.g. "Back to today".
     var returnTitle = "Back to today"
     /// Skip the form and show the celebration (DEBUG screenshots only).
     var celebrateOnly = false
 
-    var id: String { "\(companionId)-\(routineId)-\(logId ?? 0)" }
+    struct CatchUp: Equatable {
+        var day: DayKey
+        var slot: Int
+    }
+
+    var id: String { "\(companionId)-\(routineId)-\(logId ?? 0)-\(catchUp.map { "\($0.day)-\($0.slot)" } ?? "")" }
 
     /// Opens a logged entry for editing.
     static func edit(_ entry: CareEntry, companionId: Int64) -> CareLogRequest {
         CareLogRequest(companionId: companionId, routineId: entry.log.careRoutineId, logId: entry.id)
+    }
+
+    /// Logs a missed slot for its own day.
+    static func catchUp(companionId: Int64, routineId: Int64, day: DayKey, slot: Int) -> CareLogRequest {
+        CareLogRequest(companionId: companionId, routineId: routineId, catchUp: CatchUp(day: day, slot: slot))
     }
 }
 
@@ -74,8 +87,9 @@ private struct CareLogFlow: View {
                                 CareLogForm(report: report, routine: routine, editing: entry, onSaved: { _ in }, onClose: close)
                             }
                         } else {
-                            CareLogForm(report: report, routine: routine, onSaved: { result in
-                                withAnimation(.easeOut(duration: 0.3)) { celebration = result }
+                            CareLogForm(report: report, routine: routine, catchUp: request.catchUp, onSaved: { result in
+                                // Catching up fills in the missed mark; the cheer is for today's care.
+                                if request.catchUp != nil { close() } else { withAnimation(.easeOut(duration: 0.3)) { celebration = result } }
                             }, onClose: close)
                         }
                     }
@@ -106,6 +120,8 @@ private struct CareLogForm: View {
     let routine: CareRoutine
     /// The log being fixed; nil when logging a new one.
     var editing: CareEntry?
+    /// The earlier day's slot being caught up on.
+    var catchUp: CareLogRequest.CatchUp?
     let onSaved: (Celebration) -> Void
     let onClose: () -> Void
 
@@ -134,7 +150,7 @@ private struct CareLogForm: View {
                         .font(.display(30))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Text(editing == nil ? "Tap everyone who came along" : "Fix who, when or how it went")
+                    Text(subtitle)
                         .font(.body(14, weight: 600))
                         .foregroundStyle(Theme.muted)
                 }
@@ -172,7 +188,7 @@ private struct CareLogForm: View {
                 range: dayRange,
                 now: report.now,
                 lasting: routine.tracks(.duration) ? duration : 0,
-                suggestions: isToday ? LogTime.recentSuggestions(justNow: routine.tracks(.duration) ? "Just got back" : "Just now") : [],
+                suggestions: isToday ? LogTime.recentSuggestions(justNow: routine.tracks(.duration) ? "Just got back" : "Just now") : slotSuggestions,
                 accessibilityLabel: routine.tracks(.duration) ? "Started" : "When",
                 identifier: "exact-time",
                 calendar: store.snapshot.calendar
@@ -258,6 +274,27 @@ private struct CareLogForm: View {
 
     private var noun: String { routine.kind.noun(title: routine.title) }
 
+    private var subtitle: String {
+        if editing != nil { return "Fix who, when or how it went" }
+        if let catchUp, let window = routine.effectiveWindows[safe: catchUp.slot] {
+            return CareCatchUp.subtitle(window, of: routine, on: catchUp.day, today: report.today, calendar: store.snapshot.calendar)
+        }
+        return "Tap everyone who came along"
+    }
+
+    /// On an earlier day, the time card offers that day's slots at their usual times.
+    private var slotSuggestions: [(title: String, time: LogTime)] {
+        routine.effectiveWindows.indices.compactMap { index in
+            let window = routine.effectiveWindows[index]
+            guard !window.isAllDay else { return nil }
+            return (window.label, .at(usualTime(index)))
+        }
+    }
+
+    private func usualTime(_ slot: Int) -> Date {
+        CareCatchUp.usualTime(slot, of: routine, on: day, entries: store.snapshot.entries(of: routine.id), now: report.now, calendar: store.snapshot.calendar)
+    }
+
     private var title: String {
         guard editing != nil else { return routine.kind.question(name: report.name, title: routine.title) }
         return "Edit " + noun
@@ -315,9 +352,10 @@ private struct CareLogForm: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    /// The log's day: today for a new one, or the day of the one being fixed.
+    /// The log's day: the day of the one being fixed, the missed slot's day, or today.
     private var day: DayKey {
-        DayKey(editing?.time ?? report.now, calendar: store.snapshot.calendar)
+        if let editing { return DayKey(editing.time, calendar: store.snapshot.calendar) }
+        return catchUp?.day ?? report.today
     }
 
     private var isToday: Bool { day == report.today }
@@ -359,6 +397,9 @@ private struct CareLogForm: View {
         }
         if let first = model.people.first?.id {
             people = [first]
+        }
+        if let catchUp {
+            when = .at(usualTime(catchUp.slot))
         }
         // Start from the usual length of recent logs.
         let recent = store.snapshot.entries(of: routine.id).suffix(10).compactMap(\.log.durationMinutes)

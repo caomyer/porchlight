@@ -1,0 +1,413 @@
+<title>Catching Up on Care</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+/* Layout: the feedback, the one rule, a live wall mock with the two places it shows (Calendar, Yo-Yo's week), then decisions. Single light look matching the app's Theme. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --accent-soft: #F8DDD0;
+  --blue: #4C7BB0;
+  --blue-soft: #DCE6F1;
+  --coral: #D96A5B;
+  --green-soft: #E3EFE2;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 80px;
+}
+.page { max-width: 1040px; margin: 0 auto; display: grid; gap: 40px; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(30px, 5vw, 44px); line-height: 1.1; text-wrap: balance; }
+h2 { font: 600 22px/1.2 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.note { font-size: 14.5px; color: var(--muted); max-width: 70ch; }
+section { display: grid; gap: 14px; }
+button { font-family: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.quote { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 20px; display: grid; gap: 6px; max-width: 680px; }
+.quote b { font: 600 19px/1.35 var(--display); }
+.thesis { background: var(--ink); color: var(--surface); border-radius: 20px; padding: 18px 22px; display: grid; gap: 6px; max-width: 760px; }
+.thesis b { font: 600 22px/1.3 var(--display); }
+.thesis span { color: #D8CDBF; font-size: 14.5px; }
+
+/* Wall */
+.wall { background: var(--paper); border: 10px solid #2b2724; border-radius: 34px; padding: 18px; display: grid; gap: 14px; position: relative; overflow: hidden; min-height: 600px; align-content: start; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.tab { border: 0; background: var(--surface2); color: var(--muted); border-radius: 999px; padding: 8px 14px; font: 800 13.5px/1 var(--body); }
+.tab[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.ghost-btn { border: 0; background: transparent; color: var(--muted); font: 700 13.5px/1 var(--body); padding: 8px 6px; }
+.cardx { background: var(--surface); border-radius: 22px; padding: 16px 18px; display: grid; gap: 12px; box-shadow: 0 1px 2px rgba(60,40,20,.06); min-width: 0; }
+.cardhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cardhead b { font: 600 19px/1.2 var(--display); }
+.cardhead span { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+/* Calendar week */
+.scrollx { overflow-x: auto; }
+.cal { min-width: 640px; display: grid; grid-template-columns: 44px repeat(7, 1fr); }
+.calh { text-align: center; padding-bottom: 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--muted); }
+.calh b { display: block; font: 600 18px/1.2 var(--display); color: var(--ink); letter-spacing: 0; }
+.calh.today, .calh.today b { color: var(--accent); }
+.hours { position: relative; }
+.hours div { position: absolute; right: 6px; font-size: 10.5px; font-weight: 700; color: var(--muted); transform: translateY(-50%); }
+.col { position: relative; border-left: 1px solid var(--line); }
+.col.today { background: rgba(217,101,59,.04); }
+.hline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); opacity: .6; }
+.event { position: absolute; left: 4px; right: 38px; border-radius: 8px; padding: 4px 6px; font: 700 11.5px/1.2 var(--body); overflow: hidden; }
+.mark { position: absolute; right: 4px; width: 28px; height: 28px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; font-size: 14px; background: var(--surface); transform: translateY(-50%); }
+.mark.J { box-shadow: inset 0 0 0 2.5px var(--blue); }
+.mark.M { box-shadow: inset 0 0 0 2.5px var(--coral); }
+.mark.missed { background: transparent; box-shadow: none; border: 2px dashed #BBA98F; opacity: .8; }
+.mark.missed span { opacity: .45; }
+.mark.missed:hover { border-color: var(--accent); opacity: 1; }
+.mark.due { background: transparent; box-shadow: none; border: 2px dashed var(--accent); }
+.mark.flash, .dot.flash, .drow.flash { animation: pop .6s ease-out; }
+@keyframes pop { 0% { transform: translateY(-50%) scale(.6); } 60% { transform: translateY(-50%) scale(1.15); } 100% { transform: translateY(-50%) scale(1); } }
+.dot.flash, .drow.flash { animation-name: pop2; }
+@keyframes pop2 { 0% { transform: scale(.85); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .mark.flash, .dot.flash, .drow.flash { animation: none; } }
+.nowline { position: absolute; left: 0; right: 0; border-top: 2px solid var(--accent); }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; color: var(--muted); align-items: center; }
+.legend i { display: inline-block; width: 16px; height: 16px; border-radius: 50%; vertical-align: -3px; margin-right: 6px; }
+
+/* Companion page */
+.weekhead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.weekhead b { font: 600 32px/1.1 var(--display); }
+.two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 760px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.trail { display: grid; grid-template-columns: 70px repeat(7, minmax(36px, 1fr)); row-gap: 10px; align-items: center; min-width: 360px; }
+.dayh { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.15; }
+.dayh b { display: block; font: 600 15px/1.2 var(--display); color: var(--ink); }
+.dayh.today, .dayh.today b { color: var(--accent); }
+.slotlab { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.cell { display: grid; place-items: center; }
+.dot { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; font: 800 13px/1 var(--body); color: #fff; padding: 0; }
+.dot.J { background: var(--blue); }
+.dot.M { background: var(--coral); }
+.dot.missed { background: transparent; border: 2px dashed #BBA98F; }
+.dot.missed:hover { border-color: var(--accent); }
+.dot.due { background: transparent; border: 2px dashed var(--accent); }
+.dot.future { width: 10px; height: 10px; background: var(--surface2); }
+.diary { display: grid; gap: 6px; max-height: 330px; overflow: auto; }
+.drow { border: 0; background: transparent; text-align: left; display: flex; gap: 10px; align-items: flex-start; padding: 6px 4px; border-radius: 12px; color: var(--ink); font: 600 13.5px/1.35 var(--body); width: 100%; }
+.drow:hover { background: var(--paper); }
+.av { width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff; font: 800 12px/1 var(--body); }
+.av.J { background: var(--blue); } .av.M { background: var(--coral); }
+.av.missed { background: transparent; border: 2px dashed #BBA98F; color: var(--muted); }
+.drow small { display: block; color: var(--muted); font-size: 12px; font-weight: 600; }
+.drow.missedrow { color: var(--muted); }
+.drow.missedrow em { font-style: normal; color: var(--accent); font-weight: 800; margin-left: 6px; }
+
+/* Sheet */
+.scrim { position: absolute; inset: 0; background: rgba(42,36,32,.32); display: grid; place-items: center; padding: 16px; z-index: 5; }
+.sheet { width: min(520px, 100%); background: var(--surface); border-radius: 26px; padding: 22px 22px 18px; display: grid; gap: 16px; box-shadow: 0 24px 60px rgba(40,25,10,.25); max-height: 100%; overflow: auto; }
+.sheet h3 { font: 600 27px/1.15 var(--display); margin: 0; }
+.lab { font-size: 11.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.people { display: flex; gap: 10px; }
+.person { border: 0; width: 92px; height: 96px; border-radius: 16px; display: grid; place-items: center; align-content: center; gap: 6px; font: 700 14px/1 var(--body); color: var(--ink); background: var(--surface2); }
+.person i { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 800 18px/1 var(--body); font-style: normal; }
+.person[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--ink); }
+.whenrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.timepill { display: inline-flex; align-items: baseline; gap: 5px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); border-radius: 999px; padding: 7px 15px 8px; }
+.timepill b { font: 600 19px/1 var(--display); font-variant-numeric: tabular-nums; }
+.timepill span { font: 700 12px/1 var(--body); color: var(--muted); }
+.btns { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.save { border: 0; background: var(--accent); color: var(--surface); border-radius: 999px; padding: 11px 26px; font: 800 15px/1 var(--body); }
+.save:disabled { opacity: .4; cursor: default; }
+.toast { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--surface); border-radius: 999px; padding: 11px 18px; font: 700 14px/1.3 var(--body); z-index: 6; max-width: calc(100% - 32px); text-align: center; }
+
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14.5px; }
+th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+.rec { color: var(--accent); font-weight: 800; }
+ul.build { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 76ch; }
+</style>
+
+<div class="page">
+  <header style="display:grid;gap:12px">
+    <div class="eyebrow">Porchlight proposal · Nov 12, 2026 · version 2</div>
+    <h1>Catching up on care</h1>
+    <div class="quote">
+      <b>"Forgot to log feeding her last night, and now I can't find anywhere to add it."</b>
+      <span class="muted" style="font-size:14px">The app has nowhere to add a care log for a day that has passed. Every new walk or feeding goes on today.</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>One rule, no new controls</h2>
+    <div class="thesis">
+      <b>A missed walk or feeding shows as a faint mark where its record would be. Tap it to log it for that day.</b>
+      <span>This uses the places that already show care records, and the log sheet you already know.</span>
+    </div>
+    <p class="note">This already happens for today: a walk that's still due shows as a dashed mark. The change just keeps that mark on earlier days instead of hiding it. Try both views below. It's 8:10 AM on Thursday, and Wednesday's dinner was never logged.</p>
+  </section>
+
+  <section>
+    <div class="wall" id="wall">
+      <div class="tabs" role="group" aria-label="Screen">
+        <button class="tab" aria-pressed="true" data-screen="cal" id="tab-cal">Calendar · week</button>
+        <button class="tab" aria-pressed="false" data-screen="pet" id="tab-pet">Yo-Yo's week</button>
+        <button class="ghost-btn" id="reset" style="margin-left:auto">Reset</button>
+      </div>
+
+      <div id="screen-cal" class="cardx">
+        <div class="cardhead"><b>November 6 - 12</b><span>walks and feeds sit beside the events, at their times</span></div>
+        <div class="scrollx"><div class="cal" id="cal"></div></div>
+        <div class="legend">
+          <span><i style="box-shadow: inset 0 0 0 2.5px var(--blue)"></i>Logged (ring is who did it)</span>
+          <span><i style="border:2px dashed #BBA98F"></i>Missed, tap to log</span>
+          <span><i style="border:2px dashed var(--accent)"></i>Due today</span>
+        </div>
+      </div>
+
+      <div id="screen-pet" hidden style="display:grid;gap:14px">
+        <div class="weekhead"><b>Yo-Yo's week</b><span class="muted">13 walks · 5h 50m outside</span></div>
+        <div class="two">
+          <div class="cardx">
+            <div class="cardhead"><b>Paw trail</b><span>who walked, each slot</span></div>
+            <div class="scrollx"><div class="trail" id="trail"></div></div>
+            <div class="muted" style="font-size:12.5px;font-weight:600">The empty dots are already here today. They just start opening the log sheet.</div>
+          </div>
+          <div class="cardx">
+            <div class="cardhead"><b>Walk diary</b><span>this week, newest first</span></div>
+            <div class="diary" id="diary"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scrim" id="scrim" hidden>
+        <div class="sheet" role="dialog" aria-labelledby="sheet-title">
+          <div>
+            <h3 id="sheet-title"></h3>
+            <div class="muted" id="sheet-sub" style="font-size:14px;font-weight:600"></div>
+          </div>
+          <div class="people" id="people"></div>
+          <div class="whenrow">
+            <span class="lab" id="whenlab">When</span>
+            <span class="timepill"><b id="pill-time"></b><span id="pill-period"></span></span>
+          </div>
+          <div class="btns">
+            <button class="ghost-btn" id="cancel">Cancel</button>
+            <button class="save" id="save" disabled>Save</button>
+          </div>
+        </div>
+      </div>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What changes</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Place</th><th>Today</th><th>With this change</th></tr></thead>
+        <tbody>
+          <tr><td><b>Calendar, week and day</b></td><td>Shows logged walks and feeds. Missed ones are just absent.</td><td>A missed slot shows as a faint mark at its usual time. In the day view it's a row: "Dinner feed · not logged".</td></tr>
+          <tr><td><b>Paw trail</b></td><td>Shows missed walks as empty dots, but tapping them does nothing.</td><td>Tapping an empty dot opens the log sheet for that day.</td></tr>
+          <tr><td><b>Diary</b></td><td>Lists what was logged.</td><td>A missed slot gets a quiet row in its place: "🥣 Dinner wasn't logged · Log it".</td></tr>
+          <tr><td><b>Log sheet</b></td><td>Always for today.</td><td>Opened from a missed mark, it's for that day. The subtitle says which: "For yesterday's dinner". The time starts at that meal's usual time, and the time card's chips are that day's times.</td></tr>
+          <tr><td><b>Today, Pitch in, the log buttons</b></td><td colspan="2">No change.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Decisions</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Question</th><th>Recommendation</th></tr></thead>
+        <tbody>
+          <tr><td>Calendar, companion page, or both?</td><td><span class="rec">Both.</span> They come from the same list of care records, so both get the marks from one change. The calendar covers every pet and every routine. The companion page is where people go to look at one pet.</td></tr>
+          <tr><td>How far back are missed slots shown?</td><td><span class="rec">This week only</span>, the same range as Paw trail and the diary. Older weeks just show what was logged.</td></tr>
+          <tr><td>What if a whole day was skipped, like a trip?</td><td><span class="rec">Show the marks anyway.</span> They're faint and they don't nag. If this turns out to be noisy, we can hide the marks for a day where nothing was logged at all.</td></tr>
+          <tr><td>Stars and streaks</td><td><span class="rec">Same as on time</span>, the same as chore catch-ups. The streak fills back in.</td></tr>
+          <tr><td>Celebration</td><td><span class="rec">A short confirmation</span> instead of the full-screen celebration: "Dinner logged for Wednesday · +1 star".</td></tr>
+          <tr><td>Not covered</td><td>Adding an extra walk on a day where every slot was already logged, or moving a log saved on the wrong day. Both are rare. Fixing a log keeps working as it does now.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Build notes</h2>
+    <ul class="build">
+      <li>Saving already works for any date. Only the sheet limits it, because it works out the day from today or from the log being fixed. The care log request gets an optional day and slot, and the sheet uses them instead.</li>
+      <li><code>CompanionTimeline.items</code> already adds expected slots for today. It also adds missed slots this week, as items that open the sheet for that day. The calendar and the diary read from it. Today's agenda shows only today, so it doesn't change.</li>
+      <li>Paw trail's missed dots become buttons.</li>
+      <li>Tests: unit tests for which missed slots show. UI tests for logging yesterday's dinner from the calendar and from the diary, and a walk from Paw trail. Plus screenshots of the week and day views.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(() => {
+  const DAYS = [
+    { short: "FRI", num: 6, name: "Friday" }, { short: "SAT", num: 7, name: "Saturday" }, { short: "SUN", num: 8, name: "Sunday" },
+    { short: "MON", num: 9, name: "Monday" }, { short: "TUE", num: 10, name: "Tuesday" }, { short: "WED", num: 11, name: "Wednesday" },
+    { short: "THU", num: 12, name: "Thursday" }
+  ];
+  const TODAY = 6, NOW = 8 * 60 + 10, START = 6 * 60, END = 21 * 60, PX = 26; // px per hour
+  const R = {
+    walk: { emoji: "🐾", title: "Walk", ask: "Who walked Yo-Yo?", slots: [{ name: "Morning", from: 360, to: 600, usual: 450 }, { name: "Evening", from: 1020, to: 1200, usual: 1100 }] },
+    feed: { emoji: "🥣", title: "Feed", ask: "Who fed Yo-Yo?", slots: [{ name: "Breakfast", from: 360, to: 540, usual: 430 }, { name: "Dinner", from: 1020, to: 1140, usual: 1090 }] }
+  };
+  const PEOPLE = { J: { name: "James", color: "var(--blue)" }, M: { name: "Mia", color: "var(--coral)" } };
+  const EVENTS = [{ d: 1, from: 600, to: 690, title: "Climbing gym", bg: "var(--blue-soft)" }, { d: 4, from: 900, to: 960, title: "Dentist", bg: "var(--accent-soft)" }, { d: 2, from: 720, to: 810, title: "Lunch at Nonna's", bg: "var(--green-soft)" }];
+
+  let logs, state = null, screen = "cal";
+  const $ = id => document.getElementById(id);
+  function seed() {
+    logs = {};
+    for (let d = 0; d < 6; d++) for (const r of ["walk", "feed"]) R[r].slots.forEach((s, i) => {
+      if (r === "feed" && d === 5 && i === 1) return;
+      if (r === "walk" && d === 3 && i === 0) return;
+      logs[`${r}-${d}-${i}`] = { who: (d + i + (r === "feed")) % 2 ? "M" : "J", minute: s.usual + ((d * 7 + i * 5) % 24) - 12 };
+    });
+    logs["walk-6-0"] = { who: "J", minute: 425 };
+  }
+  const fmt = m => { const h = Math.floor(m / 60); return { time: `${(h + 11) % 12 + 1}:${String(m % 60).padStart(2, "0")}`, period: h < 12 ? "AM" : "PM" }; };
+  const fmtText = m => { const f = fmt(m); return `${f.time} ${f.period}`; };
+  const dayWord = d => d === TODAY ? "today's" : d === TODAY - 1 ? "yesterday's" : `${DAYS[d].name}'s`;
+  const status = (r, d, i) => {
+    const log = logs[`${r}-${d}-${i}`];
+    if (log) return { kind: "done", log };
+    if (d < TODAY) return { kind: "missed" };
+    const s = R[r].slots[i];
+    return NOW >= s.from ? { kind: "due" } : { kind: "future" };
+  };
+  const label = (r, d, i) => `${R[r].slots[i].name} ${r === "walk" ? "walk" : "feed"}, ${DAYS[d].name}`;
+  let flashKey = null;
+
+  function renderCal() {
+    const h = (END - START) / 60 * PX;
+    let html = `<div></div>` + DAYS.map((d, i) => `<div class="calh ${i === TODAY ? "today" : ""}">${d.short}<b>${d.num}</b></div>`).join("");
+    let hours = `<div class="hours" style="height:${h}px">`;
+    for (let m = START; m <= END; m += 180) hours += `<div style="top:${(m - START) / 60 * PX}px">${fmt(m).time.replace(":00", "")}${fmt(m).period[0].toLowerCase()}</div>`;
+    html += hours + `</div>`;
+    for (let d = 0; d < 7; d++) {
+      let col = `<div class="col ${d === TODAY ? "today" : ""}" style="height:${h}px">`;
+      for (let m = START; m <= END; m += 60) col += `<div class="hline" style="top:${(m - START) / 60 * PX}px"></div>`;
+      EVENTS.filter(e => e.d === d).forEach(e => col += `<div class="event" style="top:${(e.from - START) / 60 * PX}px;height:${(e.to - e.from) / 60 * PX}px;background:${e.bg}">${e.title}</div>`);
+      // Marks, nudged so they don't overlap.
+      const marks = [];
+      for (const r of ["walk", "feed"]) R[r].slots.forEach((s, i) => {
+        const st = status(r, d, i);
+        if (st.kind === "future") return;
+        marks.push({ r, i, st, minute: st.log ? st.log.minute : s.usual });
+      });
+      marks.sort((a, b) => a.minute - b.minute);
+      let lastY = -99;
+      marks.forEach(mk => {
+        let y = (mk.minute - START) / 60 * PX; if (y < lastY + 30) y = lastY + 30; lastY = y;
+        const key = `${mk.r}-${d}-${mk.i}`;
+        const cls = mk.st.kind === "done" ? mk.st.log.who : mk.st.kind;
+        const what = mk.st.kind === "done" ? `${PEOPLE[mk.st.log.who].name}, ${fmtText(mk.st.log.minute)}` : mk.st.kind === "missed" ? "not logged, tap to log" : "due";
+        col += `<button class="mark ${cls} ${flashKey === key ? "flash" : ""}" style="top:${y}px" data-key="${key}" aria-label="${label(mk.r, d, mk.i)}: ${what}"><span>${R[mk.r].emoji}</span></button>`;
+      });
+      if (d === TODAY) col += `<div class="nowline" style="top:${(NOW - START) / 60 * PX}px"></div>`;
+      html += col + `</div>`;
+    }
+    $("cal").innerHTML = html;
+  }
+
+  function renderPet() {
+    let html = `<div></div>` + DAYS.map((d, i) => `<div class="dayh ${i === TODAY ? "today" : ""}">${d.short[0]}<b>${d.num}</b></div>`).join("");
+    R.walk.slots.forEach((s, i) => {
+      html += `<div class="slotlab">${s.name}</div>`;
+      for (let d = 0; d < 7; d++) {
+        const st = status("walk", d, i), key = `walk-${d}-${i}`, fl = flashKey === key ? "flash" : "";
+        let dot;
+        if (st.kind === "done") dot = `<button class="dot ${st.log.who} ${fl}" data-key="${key}" aria-label="${label("walk", d, i)}: ${PEOPLE[st.log.who].name}">${st.log.who}</button>`;
+        else if (st.kind === "missed") dot = `<button class="dot missed" data-key="${key}" aria-label="${label("walk", d, i)}: missed, tap to log"></button>`;
+        else if (st.kind === "due") dot = `<button class="dot due" data-key="${key}" aria-label="${label("walk", d, i)}: due"></button>`;
+        else dot = `<span class="dot future"></span>`;
+        html += `<div class="cell">${dot}</div>`;
+      }
+    });
+    $("trail").innerHTML = html;
+
+    const rows = [];
+    for (let d = TODAY; d >= 0; d--) {
+      const items = [];
+      for (const r of ["walk", "feed"]) R[r].slots.forEach((s, i) => {
+        const st = status(r, d, i);
+        if (st.kind === "done") items.push({ r, d, i, minute: st.log.minute, log: st.log });
+        else if (st.kind === "missed") items.push({ r, d, i, minute: s.usual, missed: true });
+      });
+      items.sort((a, b) => b.minute - a.minute).forEach(it => rows.push(it));
+    }
+    $("diary").innerHTML = rows.map(it => {
+      const key = `${it.r}-${it.d}-${it.i}`, s = R[it.r].slots[it.i];
+      const when = `${it.d === TODAY ? "Today" : DAYS[it.d].short[0] + DAYS[it.d].short.slice(1).toLowerCase()} ${fmtText(it.minute).toLowerCase().replace(" ", "")}`;
+      if (it.missed) return `<button class="drow missedrow" data-key="${key}"><span class="av missed"></span><span>${R[it.r].emoji} ${s.name}${it.r === "walk" ? " walk" : ""} wasn't logged<em>Log it</em><small>${DAYS[it.d].short[0] + DAYS[it.d].short.slice(1).toLowerCase()} ${s.name.toLowerCase()}</small></span></button>`;
+      return `<button class="drow ${flashKey === key ? "flash" : ""}" data-key="${key}"><span class="av ${it.log.who}">${it.log.who}</span><span>${R[it.r].emoji} ${PEOPLE[it.log.who].name} · ${it.r === "walk" ? (s.name === "Morning" ? "25 min" : "40 min") : s.name.toLowerCase()}<small>${when}</small></span></button>`;
+    }).join("");
+  }
+
+  function render() {
+    renderCal(); renderPet(); flashKey = null;
+    $("screen-cal").hidden = screen !== "cal";
+    $("screen-pet").hidden = screen !== "pet";
+    document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-pressed", t.dataset.screen === screen));
+  }
+
+  function open(key) {
+    const [r, d, i] = key.split("-"); const day = +d, idx = +i;
+    const log = logs[key];
+    const s = R[r].slots[idx];
+    state = { key, r, day, idx, who: log ? log.who : null, editing: !!log, minute: log ? log.minute : day === TODAY ? NOW : s.usual };
+    $("sheet-title").textContent = R[r].ask;
+    $("sheet-sub").textContent = log ? "Fix who, when or how it went" : day === TODAY ? (r === "walk" ? "Tap everyone who came along" : "Tap who did it") : `For ${dayWord(day)} ${s.name.toLowerCase()}`;
+    $("whenlab").textContent = day === TODAY ? "When" : `When · ${DAYS[day].name}`;
+    const f = fmt(state.minute); $("pill-time").textContent = f.time; $("pill-period").textContent = f.period;
+    renderPeople();
+    $("scrim").hidden = false;
+  }
+  function renderPeople() {
+    $("people").innerHTML = Object.entries(PEOPLE).map(([k, p]) => `<button class="person" data-p="${k}" aria-pressed="${state.who === k}"><i style="background:${p.color}">${k}</i>${p.name}</button>`).join("");
+    $("save").disabled = !state.who;
+  }
+  function save() {
+    const s = R[state.r].slots[state.idx];
+    logs[state.key] = { who: state.who, minute: state.minute };
+    flashKey = state.key;
+    const msg = state.editing ? "Saved" : state.day === TODAY ? `${R[state.r].title} logged · +1 star for ${PEOPLE[state.who].name}`
+      : `${s.name} logged for ${state.day === TODAY - 1 ? "yesterday" : DAYS[state.day].name} · +1 star for ${PEOPLE[state.who].name}`;
+    close(); render(); toast(msg);
+  }
+  function close() { $("scrim").hidden = true; state = null; }
+  let timer;
+  function toast(text) { const t = $("toast"); t.textContent = text; t.hidden = false; clearTimeout(timer); timer = setTimeout(() => t.hidden = true, 3600); }
+
+  document.addEventListener("click", e => {
+    if (e.target.id === "scrim") { close(); return; }
+    const t = e.target.closest("button"); if (!t) return;
+    if (t.classList.contains("tab")) { screen = t.dataset.screen; render(); return; }
+    if (t.id === "reset") { seed(); close(); render(); return; }
+    if (t.dataset.key) { open(t.dataset.key); return; }
+    if (!state) return;
+    if (t.classList.contains("person")) { state.who = t.dataset.p; renderPeople(); }
+    else if (t.id === "save") save();
+    else if (t.id === "cancel") close();
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && state) close(); });
+  seed(); render();
+})();
+</script>

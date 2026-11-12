@@ -157,10 +157,6 @@ enum OpenMeteo {
     }
 }
 
-private extension Array {
-    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
-}
-
 /// WMO weather codes to a symbol, an emoji and a short label.
 enum WeatherCondition {
     static func symbol(_ code: Int, isDay: Bool = true) -> String {

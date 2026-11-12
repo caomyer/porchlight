@@ -36,11 +36,12 @@ enum CompanionSamples {
         var random = SampleRandom(seed: 7)
         let today = DayKey(now, calendar: calendar)
         let notes = ["Squirrel situation handled", "Met the neighbor's golden again", "Refused to walk past the mailbox", nil, nil, nil, nil]
-        // 34 days of history: 2 walks a day, a missed evening 25 days ago ends the older streak.
+        // 34 days of history: 2 walks a day, a missed evening 25 days ago ends the older streak,
+        // and this week a missed morning walk (4 days ago) and yesterday's dinner, to catch up on.
         for back in stride(from: 34, through: 0, by: -1) {
             let day = today.adding(days: -back, calendar: calendar)
             for (slot, window) in walk.windows.enumerated() {
-                if back == 25 && slot == 1 { continue }
+                if back == 25 && slot == 1 || back == 4 && slot == 0 { continue }
                 let minute = window.start + 25 + random.next(in: 0...(window.end - window.start - 40))
                 let start = CareLogic.date(day, minute: minute, calendar: calendar)
                 let duration = [12, 18, 22, 25, 27, 31, 35, 40, 52][random.next(in: 0...8)]
@@ -59,7 +60,8 @@ enum CompanionSamples {
                 ), now: now)
             }
             if let feed, let feedId = feed.id {
-                for window in feed.windows where back > 0 || CareLogic.minuteOfDay(now, calendar: calendar) > window.start + 60 {
+                for (slot, window) in feed.windows.enumerated() where back > 0 || CareLogic.minuteOfDay(now, calendar: calendar) > window.start + 60 {
+                    if back == 1 && slot == 1 { continue }
                     let start = CareLogic.date(day, minute: window.start + 15, calendar: calendar)
                     try database.logCare(routineId: feedId, CareLogDraft(people: [ids[random.next(in: 0...ids.count - 1)]], occurredAt: start), now: now)
                 }

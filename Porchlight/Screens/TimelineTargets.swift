@@ -48,6 +48,8 @@ private struct TimelineTargetHost: ViewModifier {
                 careRequest = CareLogRequest(companionId: companionId, routineId: routineId, logId: logId)
             case let .careDue(companionId, routineId):
                 careRequest = CareLogRequest(companionId: companionId, routineId: routineId)
+            case let .careMissed(companionId, routineId, day, slot):
+                careRequest = .catchUp(companionId: companionId, routineId: routineId, day: day, slot: slot)
             case let .meal(id):
                 openMeal = OpenMeal(id: id)
             case let .event(id):
