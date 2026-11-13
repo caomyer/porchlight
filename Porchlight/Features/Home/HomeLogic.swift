@@ -377,8 +377,67 @@ enum AmbientSettings {
     static let nightEnabledKey = "ambient.nightEnabled"
     static let nightStartKey = "ambient.nightStart"
     static let nightEndKey = "ambient.nightEnd"
+    static let showKey = "ambient.show"
     /// Seconds each photo stays up.
     static let slideSeconds: Double = 20
+}
+
+/// What the photo frame shows (Settings > Photo frame > Show).
+enum FrameShow: String, CaseIterable {
+    /// The household's photos (plus meal photos), shuffled, each with a slow drift.
+    case photos
+    /// A still painted sky that follows the time of day. The low-power choice.
+    case porchView
+}
+
+/// The porch view's sky for each part of the day. Night is the dim clock, set separately.
+enum PorchSky: CaseIterable, Equatable {
+    case morning, day, dusk, evening
+
+    /// Morning 5-11, Day 11-4, Dusk 4-7, Evening from 7 until morning.
+    static func at(minuteOfDay minute: Int) -> PorchSky {
+        switch minute {
+        case 5 * 60 ..< 11 * 60: .morning
+        case 11 * 60 ..< 16 * 60: .day
+        case 16 * 60 ..< 19 * 60: .dusk
+        default: .evening
+        }
+    }
+
+    static func at(_ date: Date, calendar: Calendar) -> PorchSky {
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+        return at(minuteOfDay: (parts.hour ?? 0) * 60 + (parts.minute ?? 0))
+    }
+}
+
+/// Deals items in a random order, each once before any repeats, like a shuffled deck.
+///
+/// Items added mid-round join the next round; removed ones are skipped. A new round
+/// never opens with the item the last one ended on, so nothing shows twice in a row.
+struct ShuffleDeck<Item: Hashable> {
+    private var remaining: [Item] = []
+    private(set) var last: Item?
+
+    mutating func next(from items: [Item]) -> Item? {
+        var generator = SystemRandomNumberGenerator()
+        return next(from: items, using: &generator)
+    }
+
+    mutating func next(from items: [Item], using generator: inout some RandomNumberGenerator) -> Item? {
+        guard !items.isEmpty else { return nil }
+        let present = Set(items)
+        remaining.removeAll { !present.contains($0) }
+        if remaining.isEmpty {
+            remaining = items.shuffled(using: &generator)
+            // Deals from the end, so the end must not repeat the last item shown.
+            if remaining.count > 1, remaining.last == last {
+                remaining.swapAt(0, remaining.count - 1)
+            }
+        }
+        let item = remaining.removeLast()
+        last = item
+        return item
+    }
 }
 
 // MARK: - Text

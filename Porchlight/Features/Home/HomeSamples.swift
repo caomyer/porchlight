@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import UIKit
 
 /// Sample chores, rewards, lists and dinners for `-sampleHousehold`. Dates are relative to today.
 enum HomeSamples {
@@ -108,6 +109,40 @@ enum HomeSamples {
         ]
         for (day, dinner) in zip(week.days, dinners) {
             try database.setMeal(day: day, title: dinner.0, emoji: dinner.1, householdId: householdId)
+        }
+    }
+
+    /// `-samplePhotos N` adds N painted photos to the frame, for the photo manager and the slideshow.
+    /// Sample launches use their own storage sandbox, so these never reach the household's photos.
+    @MainActor
+    static func seedPhotos(_ count: Int, database: AppDatabase, householdId: Int64) throws {
+        let library = AmbientPhotoLibrary.shared
+        try FileManager.default.createDirectory(at: library.folder, withIntermediateDirectories: true)
+        let months = ["Nov 2026", "Oct 2026", "Sep 2026", "Aug 2026", "Jul 2026", "Jun 2026"]
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1200, height: 900), format: {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            return format
+        }())
+        for index in 0..<count {
+            let hue = CGFloat(index * 37 % 360) / 360
+            let image = renderer.image { context in
+                let colors = [
+                    UIColor(hue: hue, saturation: 0.45, brightness: 0.95, alpha: 1).cgColor,
+                    UIColor(hue: (hue + 0.12).truncatingRemainder(dividingBy: 1), saturation: 0.6, brightness: 0.55, alpha: 1).cgColor,
+                ] as CFArray
+                let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1])!
+                context.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 0, y: 900), options: [])
+                UIColor.white.withAlphaComponent(0.85).setFill()
+                UIBezierPath(ovalIn: CGRect(x: 760, y: 160, width: 180, height: 180)).fill()
+            }
+            guard let jpeg = image.jpegData(compressionQuality: 0.8) else { continue }
+            let fileName = "sample-\(index)-\(UUID().uuidString).jpg"
+            try jpeg.write(to: library.url(for: fileName), options: .atomic)
+            _ = try database.addAmbientPhoto(
+                fileName: fileName, caption: months[(count - 1 - index) / 4 % months.count], householdId: householdId,
+                now: .now.addingTimeInterval(Double(index - count) * 3600)
+            )
         }
     }
 }

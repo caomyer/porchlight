@@ -99,7 +99,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Photo frame when idle")
                                 .font(.body(17, weight: 600))
-                            Text("After this long without a touch, the wall shows photos with the clock.")
+                            Text("After this long without a touch, the wall shows the photo frame with the clock.")
                                 .font(.body(14))
                                 .foregroundStyle(Theme.muted)
                         }

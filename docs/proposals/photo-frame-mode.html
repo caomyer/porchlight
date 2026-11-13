@@ -1,0 +1,396 @@
+<title>Photo Frame Choice</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+/* Layout: the ask, the one rule, a live mock (Settings beside what the wall shows), the power numbers, then decisions and build notes. Single light look matching the app's Theme. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --good: #4F9A6A;
+  --blue: #4C7BB0;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 80px;
+}
+.page { max-width: 1080px; margin: 0 auto; display: grid; gap: 40px; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(30px, 5vw, 44px); line-height: 1.1; text-wrap: balance; }
+h2 { font: 600 22px/1.2 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.note { font-size: 14.5px; color: var(--muted); max-width: 70ch; }
+section { display: grid; gap: 14px; }
+button { font-family: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.quote { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 20px; display: grid; gap: 6px; max-width: 680px; }
+.quote b { font: 600 19px/1.35 var(--display); }
+.thesis { background: var(--ink); color: var(--surface); border-radius: 20px; padding: 18px 22px; display: grid; gap: 6px; max-width: 780px; }
+.thesis b { font: 600 22px/1.3 var(--display); }
+.thesis span { color: #D8CDBF; font-size: 14.5px; }
+
+/* Mock: settings card beside the wall */
+.mock { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 22px; align-items: start; }
+@media (max-width: 860px) { .mock { grid-template-columns: minmax(0, 1fr); } }
+.panehead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.panehead b { font: 600 17px/1.2 var(--display); }
+.panehead span { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+.settings { background: var(--paper); border: 10px solid #2b2724; border-radius: 30px; padding: 18px; display: grid; gap: 10px; }
+.grouphead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.label { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.addbtn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font: 700 13.5px/1 var(--body); }
+.addbtn[disabled] { opacity: .4; cursor: default; }
+.group { background: var(--surface); border-radius: 18px; display: grid; }
+.row { padding: 14px 14px; display: grid; gap: 12px; }
+.row + .row { border-top: 1px solid var(--line); }
+.rowtitle { font: 600 16px/1.25 var(--body); }
+.rowsub { font-size: 13.5px; color: var(--muted); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface2); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: transparent; border-radius: 9px; padding: 9px 8px; font: 700 14.5px/1.1 var(--body); color: var(--muted); display: grid; gap: 2px; }
+.seg button small { font: 600 11.5px/1.2 var(--body); color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(60,40,20,.12); }
+.settings { position: relative; overflow: hidden; }
+.sheet { position: absolute; inset: 0; background: var(--surface); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; z-index: 2; }
+.sheethead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 14px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.sheethead b { font: 600 18px/1.2 var(--display); }
+.sheethead .sub { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.sheetbtns { display: flex; gap: 6px; }
+.donebtn { border: 0; background: var(--ink); color: var(--surface); border-radius: 999px; padding: 7px 14px; font: 700 13.5px/1 var(--body); }
+.thumbs { overflow-y: auto; padding: 12px 14px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-content: start; }
+.thumb { aspect-ratio: 1; border-radius: 8px; position: relative; overflow: hidden; border: 0; padding: 0; cursor: default; }
+.selecting .thumb { cursor: pointer; }
+.thumb .check { position: absolute; right: 4px; bottom: 4px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,.25); display: none; color: #fff; font: 800 11px/16px var(--body); text-align: center; }
+.selecting .thumb .check { display: block; }
+.thumb[aria-pressed="true"] .check { background: var(--accent); }
+.thumb[aria-pressed="true"]::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--accent); border-radius: 8px; }
+.thumb .tag { position: absolute; left: 4px; top: 4px; font: 700 9.5px/1 var(--body); color: #fff; background: rgba(0,0,0,.4); border-radius: 999px; padding: 3px 5px; }
+.sheetfoot { padding: 10px 14px 14px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.removebtn { border: 0; background: var(--accent); color: #fff; border-radius: 999px; padding: 9px 16px; font: 700 14px/1 var(--body); }
+.removebtn[disabled] { opacity: .35; cursor: default; }
+.tiny { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.toggle { width: 46px; height: 28px; border-radius: 999px; background: var(--good); position: relative; flex: none; }
+.toggle::after { content: ""; position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; }
+.nightrow { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+
+/* The wall */
+.wall { border: 12px solid #2b2724; border-radius: 30px; aspect-ratio: 1112 / 834; max-width: 100%; position: relative; overflow: hidden; background: #000; }
+.layer { position: absolute; inset: 0; transition: opacity 1.4s ease-in-out; }
+.scene { position: absolute; inset: -8%; }
+.drifting .scene { animation: drift 26s linear infinite alternate; }
+@keyframes drift { from { transform: scale(1.06) translate(-2%, -1%); } to { transform: scale(1) translate(2%, 1%); } }
+@media (prefers-reduced-motion: reduce) { .drifting .scene { animation: none; } .layer { transition: none; } }
+.shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0) 55%); pointer-events: none; }
+.clock { position: absolute; left: 5%; bottom: 6%; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.18); }
+.clock b { font: 500 clamp(40px, 8vw, 84px)/0.9 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.clock b small { font: 600 .3em var(--body); opacity: .8; letter-spacing: 0; margin-left: 4px; }
+.clock div { font: 600 clamp(12px, 1.6vw, 16px)/1.3 var(--body); opacity: .9; margin-top: 4px; }
+.glance { position: absolute; right: 4%; bottom: 6%; background: rgba(40,36,34,.55); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.18); border-radius: 14px; padding: 8px 12px; color: #fff; display: grid; gap: 1px; }
+.glance .k { font: 800 9.5px/1.2 var(--body); letter-spacing: .09em; opacity: .7; }
+.glance .v { font: 700 13.5px/1.25 var(--body); }
+.glance .t { font: 500 11.5px/1.2 var(--body); opacity: .8; }
+.caption { position: absolute; top: 4%; right: 3%; color: #fff; font: 600 11.5px/1 var(--body); background: rgba(0,0,0,.28); border-radius: 999px; padding: 6px 10px; }
+.status { position: absolute; top: 4%; left: 3%; color: #fff; font: 700 11.5px/1 var(--body); background: rgba(0,0,0,.28); border-radius: 999px; padding: 6px 10px; }
+.timebar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin-top: 12px; }
+.timebar label { font-size: 13.5px; font-weight: 700; }
+.timebar output { font: 700 14px/1 var(--body); font-variant-numeric: tabular-nums; min-width: 72px; text-align: right; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+/* Tables */
+.tablewrap { overflow-x: auto; background: var(--surface); border-radius: 18px; border: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14.5px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.num { font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+.pill { display: inline-block; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; border-radius: 999px; padding: 3px 8px; white-space: nowrap; }
+.pill.m { background: #E3EFE2; color: #2F6B45; }
+.pill.e { background: #F8E9C8; color: #7A5A12; }
+.rec { font-weight: 700; }
+ul.build { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 78ch; }
+</style>
+
+<div class="page">
+  <header style="display:grid; gap:10px;">
+    <span class="eyebrow">Proposal · Photo frame</span>
+    <h1>Choose what the idle wall shows</h1>
+    <p class="note">The photo frame is where the wall spends most of the day. Today it shows your photos if you've added any, otherwise a painted sky, and you can't pick. This adds one choice, and makes the sky the restful option.</p>
+  </header>
+
+  <section>
+    <div class="quote">
+      <span class="eyebrow">The ask</span>
+      <b>"Can we further optimize the photo frame? Have a setting to control whether to use the default wallpaper or randomly show the photos."</b>
+    </div>
+    <div class="thesis">
+      <b>One choice: our photos, shuffled, or the porch view.</b>
+      <span>The sky holds still and changes only with the time of day, so the wall barely works at all. Photos keep their slow drift, in a shuffled order.</span>
+    </div>
+  </section>
+
+  <section aria-labelledby="mock-h">
+    <h2 id="mock-h">Try it</h2>
+    <p class="note">Switch the setting on the left. The wall on the right shows what you'd see when nobody has touched it for 10 minutes. In Porch view, drag the time to watch the sky follow the day.</p>
+    <div class="mock">
+      <div>
+        <div class="panehead"><b>Settings</b><span>Photo frame section</span></div>
+        <div class="settings">
+          <div class="sheet" id="sheet" role="dialog" aria-label="Our photos" hidden>
+            <div class="sheethead">
+              <div><b>Our photos</b><div class="sub" id="sheetSub">48 photos · newest first</div></div>
+              <div class="sheetbtns">
+                <button class="addbtn" type="button">+ Add</button>
+                <button class="addbtn" type="button" id="selectBtn">Select</button>
+                <button class="donebtn" type="button" id="doneBtn">Done</button>
+              </div>
+            </div>
+            <div class="thumbs" id="thumbs"></div>
+            <div class="sheetfoot" id="sheetFoot" hidden>
+              <span class="tiny" id="selCount">Tap photos to select them.</span>
+              <button class="removebtn" type="button" id="removeBtn" disabled>Remove</button>
+            </div>
+          </div>
+          <div class="grouphead">
+            <span class="label">Photo frame</span>
+            <button class="addbtn" id="add" type="button">+ Add photos</button>
+          </div>
+          <div class="group">
+            <div class="row">
+              <div>
+                <div class="rowtitle">Show</div>
+                <div class="rowsub">What the wall shows when nobody's using it.</div>
+              </div>
+              <div class="seg" role="group" aria-label="Show">
+                <button type="button" id="optPhotos" aria-pressed="true">Our photos<small>Shuffled, slow drift</small></button>
+                <button type="button" id="optSky" aria-pressed="false">Porch view<small>A quiet sky, follows the day</small></button>
+              </div>
+            </div>
+            <div class="row" id="photosRow">
+              <div class="nightrow">
+                <div>
+                  <div class="rowtitle" id="countLine">48 photos</div>
+                  <div class="rowsub">Plus meal photos from the food diary.</div>
+                </div>
+                <button class="addbtn" id="manage" type="button" aria-haspopup="dialog">Manage</button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="nightrow">
+                <div>
+                  <div class="rowtitle">Dim at night</div>
+                  <div class="rowsub">10:00 PM to 7:00 AM, a dim clock either way.</div>
+                </div>
+                <span class="toggle" aria-hidden="true"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panehead"><b>The wall, idle</b><span id="wallSub">Our photos · shuffled, a new one every 20 s</span></div>
+        <div class="wall" id="wall" aria-label="Photo frame preview">
+          <div class="layer drifting" id="photoLayer"><div class="scene" id="photoScene"></div></div>
+          <div class="layer" id="skyLayer" style="opacity:0"><div class="scene" id="skyScene"></div></div>
+          <div class="shade"></div>
+          <span class="caption" id="caption">📷 Aug 2026</span>
+          <div class="clock"><b id="clockTime">8:09<small id="clockAmPm">PM</small></b><div>Thursday, November 12</div></div>
+          <div class="glance"><span class="k">NEXT UP</span><span class="v">Walk Yo-Yo</span><span class="t">6:00 - 6:30</span></div>
+        </div>
+        <div class="timebar" id="timebar" hidden>
+          <label for="hour">Time of day</label>
+          <input type="range" id="hour" min="300" max="1320" step="15" value="1209">
+          <output id="hourOut" for="hour">8:09 PM</output>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="power-h">
+    <h2 id="power-h">What each costs on the wall iPad</h2>
+    <p class="note">Idle CPU for the app plus the system's drawing process, as a share of one core, on the iPad Pro 10.5". Measured numbers come from scripts/idle-cpu.sh. The porch view's number is an estimate until it's built; it does the same work as Today, which is also a still screen.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>What the wall shows</th><th>What moves</th><th>Idle CPU</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Photos, before yesterday's fix</td><td>Drift redrawn 120 times a second</td><td class="num">69%</td><td><span class="pill m">Measured</span></td></tr>
+          <tr><td>Our photos (today)</td><td>Drift at 8 frames a second, a fade every 20 s</td><td class="num">12%</td><td><span class="pill m">Measured</span></td></tr>
+          <tr><td>Porch view (proposed)</td><td>Nothing; a fade four times a day, the clock once a minute</td><td class="num">about 1-2%</td><td><span class="pill e">Estimate</span></td></tr>
+          <tr><td>Today screen, for comparison</td><td>The clock once a minute</td><td class="num">1.3%</td><td><span class="pill m">Measured</span></td></tr>
+          <tr><td>Night (either choice)</td><td>A dim clock</td><td class="num">1.3%</td><td><span class="pill m">Measured</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Most of the photos' remaining 12% is redrawing the frosted "Next up" card and the clock's shadow over a moving picture. A still sky has nothing moving under them.</p>
+  </section>
+
+  <section aria-labelledby="dec-h">
+    <h2 id="dec-h">Decisions</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Question</th><th>Options</th><th>Recommendation</th></tr></thead>
+        <tbody>
+          <tr><td>The control</td><td>A two-way switch "Our photos / Porch view" · separate toggles for photos, motion, sky</td><td class="rec">The two-way switch, with nothing else to set. One question, two answers.</td></tr>
+          <tr><td>Names</td><td>Porch view · Porch sky · Sky from the porch · Painted sky<br>Our photos · Family photos · Your photos</td><td class="rec">"Porch view" and "Our photos". The view from the porch is a sky that follows the day, and a family wall says "our".</td></tr>
+          <tr><td>Default</td><td>Our photos · Porch view</td><td class="rec">Our photos, so nothing changes for the family until someone picks the porch view. With no photos yet, the wall shows the porch view.</td></tr>
+          <tr><td>Photo order</td><td>Shuffled, each photo once before any repeats · in order from a random start (today)</td><td class="rec">Shuffled. "Random" without seeing the same photo twice in a row.</td></tr>
+          <tr><td>The sky</td><td>Still, follows the time of day · keep drifting and cycling every 40 s (today)</td><td class="rec">Still, following the day: Morning, Day, Dusk, Evening. That's what makes it the low-power choice. Adds one new painted sky (Day).</td></tr>
+          <tr><td>A "motion" switch for photos</td><td>Add one · leave it out</td><td class="rec">Leave it out. The sky is the restful choice; a third control adds a question nobody asked.</td></tr>
+          <tr><td>Meal photos</td><td>Keep joining in · add a switch</td><td class="rec">Keep as today. Unchanged by this.</td></tr>
+          <tr><td>Photos when Porch view is picked</td><td>Kept · deleted</td><td class="rec">Kept, so switching back is instant. The photo list and "Add photos" show only with Our photos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="build-h">
+    <h2 id="build-h">Build notes</h2>
+    <ul class="build">
+      <li>New setting <code>ambient.show</code> (photos | sky) in AmbientSettings, read by the Settings row and AmbientView.</li>
+      <li>Photos: a shuffled play order rebuilt each time it runs out, so no repeats until every photo has shown. The drift and fades stay in Core Animation as now.</li>
+      <li>Sky: picks the sky from the hour (Morning 5-11, Day 11-4, Dusk 4-7, Evening 7 until night), painted once into an image and shown still. The existing once-a-minute clock tick decides when to fade to the next one.</li>
+      <li>Settings: the "Show" switch sits at the top of the Photo frame group, with no previews. Under Our photos, one line counts your photos and "Manage" opens a sheet: every photo in a scrolling grid, newest first, with Add, and Select to tap several and remove them in one go. The picker already takes up to 30 photos at a time. The count line, Manage and "Add photos" appear only with Our photos.</li>
+      <li>Tests: a unit test for the shuffle and the hour-to-sky rule; a UI test that switches to Porch view and sees the photo frame follow. Then re-measure on the iPad with scripts/idle-cpu.sh to replace the estimate.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(() => {
+  const photos = [
+    { css: "radial-gradient(60% 40% at 70% 30%, #FFE6B0 0%, rgba(255,230,176,0) 60%), linear-gradient(#F2B482 0%, #E58B67 38%, #3E6E8C 40%, #2E5670 62%, #E8D2A6 64%, #D9BC8A 100%)", label: "📷 Aug 2026", thumbNote: "Beach" },
+    { css: "radial-gradient(22% 30% at 50% 52%, #F5E9C8 0 58%, #FFFFFF 59% 74%, rgba(0,0,0,0) 75%), radial-gradient(70% 70% at 30% 20%, #7A5236, #3B2618)", label: "📷 Oct 2026", thumbNote: "Dinner" },
+    { css: "radial-gradient(30% 22% at 30% 70%, #6FA463 0%, rgba(111,164,99,0) 70%), linear-gradient(#BFD9EE 0%, #A3C7E2 45%, #7FB06C 46%, #4E8A4A 100%)", label: "📷 May 2026", thumbNote: "Park" },
+    { css: "radial-gradient(40% 30% at 60% 40%, #FFD9A0 0%, rgba(255,217,160,0) 65%), linear-gradient(135deg, #4B3A5C, #A46A6A 55%, #E7B07A)", label: "📷 Dec 2025", thumbNote: "Candles" },
+  ];
+  const skies = [
+    { name: "Morning", from: 300, to: 660, hours: "5-11",
+      sky: "linear-gradient(#F2CDA4 0%, #9FB3C8 55%, #4D6A86 100%)", sun: "rgba(255,238,196,.9)", far: "rgba(93,118,138,.85)", near: "#3B5163" },
+    { name: "Day", from: 660, to: 960, hours: "11-4",
+      sky: "linear-gradient(#8DB8DE 0%, #B9D3E8 55%, #DCE7EC 100%)", sun: "rgba(255,250,228,.95)", far: "rgba(110,146,124,.85)", near: "#4B7258" },
+    { name: "Dusk", from: 960, to: 1140, hours: "4-7",
+      sky: "linear-gradient(#E9A46B 0%, #7A5A7D 55%, #24304A 100%)", sun: "rgba(255,206,140,.85)", far: "rgba(59,75,94,.85)", near: "#2A3442" },
+    { name: "Evening", from: 1140, to: 1440, hours: "7-night",
+      sky: "linear-gradient(#D18E98 0%, #5C4D7C 55%, #1C2240 100%)", sun: "rgba(255,192,168,.7)", far: "rgba(53,63,92,.85)", near: "#222A3E" },
+  ];
+  const hillsSVG = (far, near) =>
+    `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1112 380' preserveAspectRatio='none'><path fill='${far}' d='M0 150 C 180 90 360 120 520 80 C 700 36 880 70 1112 110 L1112 380 L0 380 Z'/><path fill='${near}' d='M0 250 C 220 200 420 230 640 190 C 820 160 980 190 1112 220 L1112 380 L0 380 Z'/></svg>`)}")`;
+  const skyCSS = s => `${hillsSVG(s.far, s.near)} bottom / 100% 46% no-repeat, radial-gradient(45% 40% at 70% 30%, ${s.sun}, rgba(0,0,0,0) 70%), ${s.sky}`;
+
+  const $ = id => document.getElementById(id);
+  const optPhotos = $("optPhotos"), optSky = $("optSky");
+  const photoLayer = $("photoLayer"), skyLayer = $("skyLayer");
+  const photoScene = $("photoScene"), skyScene = $("skyScene");
+  const caption = $("caption"), wallSub = $("wallSub"), timebar = $("timebar");
+  const hour = $("hour"), hourOut = $("hourOut");
+
+  // The sheet: a scrolling grid of every photo, newest first, with Select to remove several at once.
+  const months = ["Nov", "Oct", "Sep", "Aug", "Jul", "Jun", "May", "Apr", "Mar", "Feb", "Jan", "Dec"];
+  let library = Array.from({ length: 48 }, (_, i) => ({ id: i, css: photos[i % photos.length].css, hue: (i * 37) % 360, month: months[Math.floor(i / 5) % 12] }));
+  const sheet = $("sheet"), grid = $("thumbs"), selectBtn = $("selectBtn"), foot = $("sheetFoot"), removeBtn = $("removeBtn");
+  let selecting = false, chosen = new Set();
+  const renderSheet = () => {
+    grid.innerHTML = library.map(p => `<button type="button" class="thumb" data-id="${p.id}" aria-pressed="${chosen.has(p.id)}" aria-label="Photo from ${p.month}" style="background:${p.css}; filter:hue-rotate(${p.hue}deg)"><span class="tag">${p.month}</span><span class="check">${chosen.has(p.id) ? "✓" : ""}</span></button>`).join("");
+    const n = library.length;
+    $("countLine").textContent = `${n} photo${n === 1 ? "" : "s"}`;
+    $("sheetSub").textContent = `${n} photo${n === 1 ? "" : "s"} · newest first`;
+    $("selCount").textContent = chosen.size ? `${chosen.size} selected` : "Tap photos to select them.";
+    removeBtn.disabled = chosen.size === 0;
+    removeBtn.textContent = chosen.size ? `Remove ${chosen.size}` : "Remove";
+  };
+  const setSelecting = on => {
+    selecting = on;
+    chosen.clear();
+    sheet.classList.toggle("selecting", on);
+    foot.hidden = !on;
+    selectBtn.textContent = on ? "Cancel" : "Select";
+    renderSheet();
+  };
+  $("manage").addEventListener("click", () => { sheet.hidden = false; setSelecting(false); $("doneBtn").focus(); });
+  $("doneBtn").addEventListener("click", () => { sheet.hidden = true; setSelecting(false); $("manage").focus(); });
+  selectBtn.addEventListener("click", () => setSelecting(!selecting));
+  grid.addEventListener("click", e => {
+    const t = e.target.closest(".thumb");
+    if (!t || !selecting) return;
+    const id = Number(t.dataset.id);
+    chosen.has(id) ? chosen.delete(id) : chosen.add(id);
+    renderSheet();
+  });
+  removeBtn.addEventListener("click", () => {
+    library = library.filter(p => !chosen.has(p.id));
+    setSelecting(false);
+  });
+  renderSheet();
+
+  // Shuffled order, each photo once before any repeats.
+  let order = [], at = 0, timer = null;
+  const reshuffle = () => {
+    order = photos.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    at = 0;
+  };
+  const nextPhoto = () => {
+    if (at >= order.length) reshuffle();
+    const p = photos[order[at++]];
+    photoScene.style.background = p.css;
+    caption.textContent = p.label;
+  };
+
+  const fmt = m => { const h = Math.floor(m / 60) % 24, mm = String(m % 60).padStart(2, "0"); return { t: `${(h % 12) || 12}:${mm}`, ap: h < 12 ? "AM" : "PM" }; };
+  const skyFor = m => skies.find(s => m >= s.from && m < s.to) || skies[skies.length - 1];
+
+  const setTime = m => {
+    const f = fmt(m);
+    hourOut.textContent = `${f.t} ${f.ap}`;
+    const s = skyFor(m);
+    skyScene.style.background = skyCSS(s);
+    if (optSky.getAttribute("aria-pressed") === "true") {
+      $("clockTime").firstChild.nodeValue = f.t;
+      $("clockAmPm").textContent = f.ap;
+      wallSub.textContent = `Porch view · ${s.name} sky, still until ${fmt(s.to % 1440).t} ${fmt(s.to % 1440).ap}`;
+    }
+  };
+
+  const show = mode => {
+    const sky = mode === "sky";
+    optPhotos.setAttribute("aria-pressed", String(!sky));
+    optSky.setAttribute("aria-pressed", String(sky));
+    $("photosRow").hidden = sky;
+    $("add").hidden = sky;
+    timebar.hidden = !sky;
+    photoLayer.style.opacity = sky ? 0 : 1;
+    skyLayer.style.opacity = sky ? 1 : 0;
+    caption.hidden = sky;
+    clearInterval(timer);
+    if (sky) {
+      setTime(Number(hour.value));
+    } else {
+      $("clockTime").firstChild.nodeValue = "8:09";
+      $("clockAmPm").textContent = "PM";
+      wallSub.textContent = "Our photos · shuffled, a new one every 20 s";
+      timer = setInterval(nextPhoto, 6000);
+    }
+  };
+
+  optPhotos.addEventListener("click", () => show("photos"));
+  optSky.addEventListener("click", () => show("sky"));
+  hour.addEventListener("input", () => setTime(Number(hour.value)));
+
+  reshuffle();
+  nextPhoto();
+  setTime(Number(hour.value));
+  show("photos");
+})();
+</script>

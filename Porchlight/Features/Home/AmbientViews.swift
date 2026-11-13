@@ -3,8 +3,9 @@ import UIKit
 
 /// Full-screen photo frame shown when the wall is idle, or from the rail.
 ///
-/// Photos come from Settings imports plus `extraPhotoURLs` (meal photos from other features).
-/// Without photos it paints a generated landscape. At night it dims to a minimal clock.
+/// Settings > Photo frame > Show picks photos (Settings imports plus `extraPhotoURLs`, meal photos
+/// from other features), shuffled, or the porch view: a still painted sky that follows the time of
+/// day. Without any photos it shows the porch view. At night it dims to a minimal clock.
 /// `glance` is an optional row of glass cards (next event, companion status) shown bottom-right.
 struct AmbientView: View {
     var extraPhotoURLs: [URL]
@@ -16,6 +17,7 @@ struct AmbientView: View {
     @AppStorage(AmbientSettings.nightEnabledKey) private var nightEnabled = true
     @AppStorage(AmbientSettings.nightStartKey) private var nightStart = NightWindow.default.start
     @AppStorage(AmbientSettings.nightEndKey) private var nightEnd = NightWindow.default.end
+    @AppStorage(AmbientSettings.showKey) private var show = FrameShow.photos
     @State private var caption: String?
 
     var body: some View {
@@ -50,6 +52,8 @@ struct AmbientView: View {
 
     private var photos: [URL] { store.photoURLs + extraPhotoURLs }
 
+    private var showsPhotos: Bool { show == .photos && !photos.isEmpty }
+
     private var captions: [URL: String] {
         Dictionary(
             store.snapshot.photos.compactMap { photo in photo.caption.map { (store.photoLibrary.url(for: photo.fileName), "📷 " + $0) } },
@@ -70,10 +74,10 @@ struct AmbientView: View {
 
     private func day(date: Date) -> some View {
         ZStack(alignment: .bottomLeading) {
-            if photos.isEmpty {
-                GeneratedLandscapes()
-            } else {
+            if showsPhotos {
                 PhotoSlideshow(urls: photos, captions: captions, caption: $caption)
+            } else {
+                PorchView(sky: PorchSky.at(date, calendar: store.calendar))
             }
             LinearGradient(
                 stops: [.init(color: .black.opacity(0.6), location: 0), .init(color: .black.opacity(0), location: 0.55)],
@@ -99,7 +103,7 @@ struct AmbientView: View {
             .foregroundStyle(.white)
         }
         .overlay(alignment: .topTrailing) {
-            if let caption, !photos.isEmpty {
+            if let caption, showsPhotos {
                 Text(caption)
                     .font(.body(13, weight: 600))
                     .foregroundStyle(.white)
@@ -180,7 +184,7 @@ enum NightBrightness {
 
 // MARK: - Photos
 
-/// Crossfades through photos every ~20 seconds, each with a slow Ken Burns pan.
+/// Crossfades through photos every ~20 seconds in a shuffled order, each with a slow Ken Burns pan.
 private struct PhotoSlideshow: View {
     let urls: [URL]
     let captions: [URL: String]
@@ -192,32 +196,34 @@ private struct PhotoSlideshow: View {
     }
 
     @State private var slide: Slide?
+    @State private var deck = ShuffleDeck<URL>()
 
     var body: some View {
         KenBurns(image: slide?.image, seed: slide?.number ?? 0, fade: 2.5)
             .ignoresSafeArea()
+            .accessibilityElement()
+            .accessibilityLabel("Photos")
+            .accessibilityIdentifier("photoSlideshow")
             .task(id: urls) { await run() }
     }
 
     private func run() async {
-        guard !urls.isEmpty else { return }
         // A bit over the iPad Pro 10.5" panel (2224 px) leaves room for the Ken Burns zoom.
         let maxPixels = 2560
-        var number = (slide?.number ?? Int.random(in: 0..<urls.count)) + (slide == nil ? 0 : 1)
+        var number = slide.map { $0.number + 1 } ?? 0
         var failures = 0
-        while !Task.isCancelled {
-            let url = urls[number % urls.count]
+        while !Task.isCancelled, let url = deck.next(from: urls) {
             if let image = await AmbientPhotoLibrary.loadForDisplay(url, maxPixelSize: maxPixels) {
                 failures = 0
                 slide = Slide(number: number, image: image)
                 caption = captions[url]
+                number += 1
                 try? await Task.sleep(for: .seconds(AmbientSettings.slideSeconds))
             } else {
                 // Skip unreadable files; stop spinning if none can be read.
                 failures += 1
                 if failures >= urls.count { return }
             }
-            number += 1
         }
     }
 }
@@ -233,11 +239,13 @@ private struct KenBurns: UIViewRepresentable {
     let image: UIImage?
     let seed: Int
     var fade: Double
+    /// Off for the porch view, which holds still.
+    var drifts = true
 
     func makeUIView(context: Context) -> KenBurnsView { KenBurnsView() }
 
     func updateUIView(_ view: KenBurnsView, context: Context) {
-        if let image { view.show(image, seed: seed, fade: fade) }
+        if let image { view.show(image, seed: seed, fade: fade, drifts: drifts) }
     }
 }
 
@@ -249,6 +257,7 @@ final class KenBurnsView: UIView {
         var layer: CALayer
         var image: UIImage
         var seed: Int
+        var drifts: Bool
     }
 
     private var current: Slide?
@@ -266,19 +275,19 @@ final class KenBurnsView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    func show(_ image: UIImage, seed: Int, fade: Double) {
-        if let current, current.image === image, current.seed == seed { return }
+    func show(_ image: UIImage, seed: Int, fade: Double, drifts: Bool) {
+        if let current, current.image === image, current.seed == seed, current.drifts == drifts { return }
         let old = current?.layer
         let slide = CALayer()
         slide.contentsGravity = .resizeAspectFill
         slide.contents = image.cgImage
         slide.contentsScale = image.scale
-        current = Slide(layer: slide, image: image, seed: seed)
+        current = Slide(layer: slide, image: image, seed: seed, drifts: drifts)
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         layer.addSublayer(slide)
-        if bounds.width > 0 { place(slide, seed: seed) }
+        if bounds.width > 0 { place(slide, seed: seed, drifts: drifts) }
         CATransaction.commit()
 
         // The first slide fades in from black too, as the photo frame opens.
@@ -303,20 +312,25 @@ final class KenBurnsView: UIView {
         guard bounds.size != placedSize, bounds.width > 0, let current else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        place(current.layer, seed: current.seed)
+        place(current.layer, seed: current.seed, drifts: current.drifts)
         CATransaction.commit()
     }
 
-    /// Sizes the slide to the view and starts its drift.
-    private func place(_ slide: CALayer, seed: Int) {
+    /// Sizes the slide to the view and starts its drift, if it drifts.
+    private func place(_ slide: CALayer, seed: Int, drifts: Bool) {
         placedSize = bounds.size
+        slide.bounds = CGRect(origin: .zero, size: bounds.size)
+        slide.position = CGPoint(x: bounds.midX, y: bounds.midY)
+        guard drifts else {
+            slide.removeAnimation(forKey: "kenBurns")
+            slide.transform = CATransform3DIdentity
+            return
+        }
         let drift = Self.drifts[abs(seed) % Self.drifts.count]
         // Never zoom out so far that the drift uncovers an edge: (scale - 1) / 2 of each side
         // must stay larger than the drift (24 pt on a 1112 pt wide, 834 pt tall screen).
         let start = Self.transform(scale: 1.12, offset: CGSize(width: -drift.width, height: -drift.height))
         let end = Self.transform(scale: 1.06, offset: drift)
-        slide.bounds = CGRect(origin: .zero, size: bounds.size)
-        slide.position = CGPoint(x: bounds.midX, y: bounds.midY)
         slide.transform = end
 
         let move = CABasicAnimation(keyPath: "transform")
@@ -334,37 +348,34 @@ final class KenBurnsView: UIView {
     }
 }
 
-// MARK: - Generated landscape
+// MARK: - Porch view
 
-/// Painted hills under a soft sky, used when there are no photos. Cycles through a few skies.
-/// Each sky is painted once into an image so it can drift like a photo.
-private struct GeneratedLandscapes: View {
-    @State private var index = 0
-    @State private var painted: (index: Int, image: UIImage, fade: Double)?
+/// A still painted sky for the part of the day, fading to the next one when `sky` changes.
+/// Nothing moves in between, so the wall barely works (Settings > Photo frame > Porch view).
+private struct PorchView: View {
+    let sky: PorchSky
+    @State private var painted: (image: UIImage, fade: Double)?
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         GeometryReader { proxy in
-            KenBurns(image: painted?.image, seed: painted?.index ?? 0, fade: painted?.fade ?? 0)
+            KenBurns(image: painted?.image, seed: 0, fade: painted?.fade ?? 0, drifts: false)
                 .onChange(of: proxy.size, initial: true) { paint(size: proxy.size, fade: 0) }
-                .onChange(of: index) { paint(size: proxy.size, fade: 4) }
+                .onChange(of: sky) { paint(size: proxy.size, fade: 4) }
         }
         .ignoresSafeArea()
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(AmbientSettings.slideSeconds * 2))
-                index += 1
-            }
-        }
+        .accessibilityElement()
+        .accessibilityLabel("Porch view")
+        .accessibilityIdentifier("porchView")
     }
 
+    /// Paints the sky once into an image at the screen's size.
     private func paint(size: CGSize, fade: Double) {
         guard size.width > 0, size.height > 0 else { return }
-        let palette = LandscapePalette.all[index % LandscapePalette.all.count]
-        let renderer = ImageRenderer(content: LandscapePainting(palette: palette).frame(width: size.width, height: size.height))
+        let renderer = ImageRenderer(content: LandscapePainting(palette: LandscapePalette(sky)).frame(width: size.width, height: size.height))
         renderer.scale = displayScale
         guard let image = renderer.uiImage else { return }
-        painted = (index, image, fade)
+        painted = (image, fade)
     }
 }
 
@@ -403,7 +414,27 @@ struct LandscapePalette {
         nearHills: Color(hex: 0x222A3E)
     )
 
-    static let all = [dusk, morning, twilight]
+    static let day = LandscapePalette(
+        sky: [.init(color: Color(hex: 0x8DB8DE), location: 0), .init(color: Color(hex: 0xB9D3E8), location: 0.55), .init(color: Color(hex: 0xDCE7EC), location: 1)],
+        sun: Color(red: 1, green: 250 / 255, blue: 228 / 255).opacity(0.95),
+        haze: Color(red: 150 / 255, green: 190 / 255, blue: 220 / 255).opacity(0.6),
+        ground: Color(red: 70 / 255, green: 110 / 255, blue: 80 / 255).opacity(0.85),
+        farHills: Color(hex: 0x6E927C).opacity(0.8),
+        nearHills: Color(hex: 0x4B7258)
+    )
+
+}
+
+extension LandscapePalette {
+    /// The porch view's painting for a part of the day. (An extension keeps the memberwise init.)
+    init(_ sky: PorchSky) {
+        self = switch sky {
+        case .morning: .morning
+        case .day: .day
+        case .dusk: .dusk
+        case .evening: .twilight
+        }
+    }
 }
 
 /// The mock's sky: a vertical gradient with three soft elliptical glows, and two hill silhouettes.

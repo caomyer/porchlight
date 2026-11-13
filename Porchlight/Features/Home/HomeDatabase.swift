@@ -400,6 +400,15 @@ extension AppDatabase {
         }
     }
 
+    /// Removes several photos in one transaction. Returns the file names of those that existed.
+    func removeAmbientPhotos(ids: [Int64]) throws -> [String] {
+        try writer.write { db in
+            let photos = try AmbientPhoto.fetchAll(db, keys: ids)
+            for photo in photos { _ = try photo.delete(db) }
+            return photos.map(\.fileName)
+        }
+    }
+
     /// Every photo file name still referenced, for cleaning up orphaned images.
     func ambientPhotoFileNames() throws -> Set<String> {
         try writer.read { db in Set(try String.fetchAll(db, sql: "SELECT fileName FROM ambientPhoto")) }

@@ -4,12 +4,18 @@ import SwiftUI
 private enum HomeSettingsSheet: Identifiable {
     case chore(Chore?)
     case reward(Reward?)
+    case photos
 
     var id: String {
         switch self {
         case let .chore(chore): "chore-\(chore?.id ?? -1)"
         case let .reward(reward): "reward-\(reward?.id ?? -1)"
+        case .photos: "photos"
         }
+    }
+
+    var width: CGFloat {
+        if case .photos = self { 780 } else { 640 }
     }
 }
 
@@ -22,13 +28,14 @@ struct HomeSettingsSection: View {
             ChoresSettings(present: present)
             RewardsSettings(present: present)
             ListsSettings()
-            PhotoFrameSettings()
+            PhotoFrameSettings(managePhotos: { present(.photos) })
         }
         .frame(maxWidth: 720, alignment: .leading)
-        .wallSheet(item: $sheet) { sheet in
+        .wallSheet(item: $sheet, width: sheet?.width ?? 640) { sheet in
             switch sheet {
             case let .chore(chore): ChoreEditor(chore: chore)
             case let .reward(reward): RewardEditor(reward: reward)
+            case .photos: PhotoManager()
             }
         }
     }
@@ -299,67 +306,67 @@ private struct ListsSettings: View {
 
 // MARK: - Photo frame
 
+/// Settings > Photo frame: what the idle wall shows, the photos, and night hours.
 private struct PhotoFrameSettings: View {
+    var managePhotos: () -> Void
+
     @Environment(HomeStore.self) private var store
+    @AppStorage(AmbientSettings.showKey) private var show = FrameShow.photos
     @AppStorage(AmbientSettings.nightEnabledKey) private var nightEnabled = true
     @AppStorage(AmbientSettings.nightStartKey) private var nightStart = NightWindow.default.start
     @AppStorage(AmbientSettings.nightEndKey) private var nightEnd = NightWindow.default.end
-    @State private var picked: [PhotosPickerItem] = []
-    @State private var importing = false
 
     var body: some View {
-        let photos = store.snapshot.photos
         SettingsGroup(title: "Photo frame") {
-            PhotosPicker(selection: $picked, maxSelectionCount: 30, matching: .images) {
-                HStack(spacing: 5) {
-                    Image(systemName: "plus").font(.system(size: 12, weight: .bold))
-                    Text("Add photos")
-                }
-            }
-            .buttonStyle(SecondaryButtonStyle())
-            .disabled(importing)
+            if show == .photos { AddPhotosButton() }
         } content: {
-            VStack(alignment: .leading, spacing: 12) {
-                if photos.isEmpty && !importing {
-                    Text("Pick a few favorite photos for when the wall is idle. Until then it paints a gentle landscape.")
-                        .font(.body(15))
-                        .foregroundStyle(Theme.muted)
-                } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 120, maximum: 160), spacing: 10)], spacing: 10) {
-                        ForEach(photos) { photo in
-                            PhotoThumbnail(url: store.photoLibrary.url(for: photo.fileName))
-                                .overlay(alignment: .topTrailing) {
-                                    Button { store.remove(photo) } label: {
-                                        Image(systemName: "xmark")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundStyle(.white)
-                                            .frame(width: 26, height: 26)
-                                            .background(Color.black.opacity(0.55), in: Circle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .padding(6)
-                                    .accessibilityLabel("Remove photo")
-                                }
-                        }
-                        if importing {
-                            ProgressView()
-                                .frame(maxWidth: .infinity, minHeight: 90)
-                                .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
-                    }
-                }
-                Text("Meal photos from the food diary join in too.")
-                    .font(.body(13, weight: 600))
-                    .foregroundStyle(Theme.muted)
+            showRow
+            if show == .photos {
+                divider
+                photosRow
             }
-            .padding(10)
-            Rectangle().fill(Theme.line).frame(height: 1).padding(.horizontal, 12)
+            divider
             nightRow
         }
-        .onChange(of: picked) { _, items in
-            guard !items.isEmpty else { return }
-            Task { await importPicked(items) }
+    }
+
+    private var divider: some View {
+        Rectangle().fill(Theme.line).frame(height: 1).padding(.horizontal, 12)
+    }
+
+    private var showRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Show")
+                    .font(.body(17, weight: 600))
+                Text("What the wall shows when nobody's using it.")
+                    .font(.body(14))
+                    .foregroundStyle(Theme.muted)
+            }
+            FrameShowPicker(selection: $show)
         }
+        .padding(12)
+    }
+
+    private var photosRow: some View {
+        let count = store.snapshot.photos.count
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(count == 0 ? "No photos yet" : "\(count) photo\(count == 1 ? "" : "s")")
+                    .font(.body(17, weight: 600))
+                    .accessibilityIdentifier("photoCount")
+                Text(count == 0 ? "Add a few favorites. Meal photos from the food diary join in too." : "Plus meal photos from the food diary.")
+                    .font(.body(14))
+                    .foregroundStyle(Theme.muted)
+            }
+            Spacer(minLength: 0)
+            if count > 0 {
+                Button("Manage", action: managePhotos)
+                    .buttonStyle(SecondaryButtonStyle())
+                    .accessibilityIdentifier("managePhotos")
+            }
+        }
+        .padding(12)
     }
 
     private var nightRow: some View {
@@ -390,6 +397,79 @@ private struct PhotoFrameSettings: View {
         }
         .padding(12)
     }
+}
+
+/// Our photos or the porch view, as two big halves with a line on what each does.
+private struct FrameShowPicker: View {
+    @Binding var selection: FrameShow
+
+    var body: some View {
+        HStack(spacing: 3) {
+            option(.photos, title: "Our photos", detail: "Shuffled, slow drift")
+            option(.porchView, title: "Porch view", detail: "A quiet sky, follows the day")
+        }
+        .padding(3)
+        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func option(_ value: FrameShow, title: String, detail: String) -> some View {
+        let isOn = selection == value
+        return Button {
+            withAnimation(.easeOut(duration: 0.15)) { selection = value }
+        } label: {
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.body(15, weight: 700))
+                    .foregroundStyle(isOn ? Theme.ink : Theme.muted)
+                Text(detail)
+                    .font(.body(12, weight: 600))
+                    .foregroundStyle(Theme.muted)
+            }
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .background {
+                if isOn {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Theme.surface)
+                        .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityHint(detail)
+        .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier("show-\(value.rawValue)")
+    }
+}
+
+/// Picks photos from the iPad's library (up to 30 at a time) and adds them to the frame.
+private struct AddPhotosButton: View {
+    var title = "Add photos"
+
+    @Environment(HomeStore.self) private var store
+    @State private var picked: [PhotosPickerItem] = []
+    @State private var importing = false
+
+    var body: some View {
+        PhotosPicker(selection: $picked, maxSelectionCount: 30, matching: .images) {
+            HStack(spacing: 6) {
+                if importing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "plus").font(.system(size: 12, weight: .bold))
+                }
+                Text(importing ? "Adding" : title)
+            }
+        }
+        .buttonStyle(SecondaryButtonStyle())
+        .disabled(importing)
+        .onChange(of: picked) { _, items in
+            guard !items.isEmpty else { return }
+            Task { await importPicked(items) }
+        }
+    }
 
     private func importPicked(_ items: [PhotosPickerItem]) async {
         importing = true
@@ -405,13 +485,117 @@ private struct PhotoFrameSettings: View {
     }
 }
 
+/// Every photo in the frame, newest first: add more, or select several and remove them.
+private struct PhotoManager: View {
+    @Environment(HomeStore.self) private var store
+    @State private var selecting = false
+    @State private var selected: Set<Int64> = []
+
+    private static let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
+
+    var body: some View {
+        let photos = Array(store.snapshot.photos.reversed())
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Our photos")
+                        .font(.display(28))
+                    Text(photos.isEmpty ? "No photos yet" : "\(photos.count) photo\(photos.count == 1 ? "" : "s") · newest first")
+                        .font(.body(14))
+                        .foregroundStyle(Theme.muted)
+                }
+                Spacer(minLength: 0)
+                AddPhotosButton(title: "Add")
+                Button(selecting ? "Cancel" : "Select") {
+                    selecting.toggle()
+                    selected = []
+                }
+                .buttonStyle(SecondaryButtonStyle())
+                .disabled(photos.isEmpty)
+                .accessibilityIdentifier("selectPhotos")
+            }
+            // Room for the sheet's close button.
+            .padding(.trailing, 44)
+
+            ScrollView {
+                LazyVGrid(columns: Self.columns, spacing: 8) {
+                    ForEach(photos) { photo in
+                        tile(photo)
+                    }
+                }
+            }
+            .frame(height: 440)
+            .scrollIndicators(.automatic)
+
+            if selecting {
+                HStack(spacing: 12) {
+                    Text(selected.isEmpty ? "Tap photos to select them." : "\(selected.count) selected")
+                        .font(.body(15, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                    Spacer(minLength: 0)
+                    Button(selected.isEmpty ? "Remove" : "Remove \(selected.count)") {
+                        store.remove(photos.filter { $0.id.map(selected.contains) ?? false })
+                        selected = []
+                        selecting = false
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(selected.isEmpty)
+                    .accessibilityIdentifier("removePhotos")
+                }
+            }
+        }
+    }
+
+    private func tile(_ photo: AmbientPhoto) -> some View {
+        let isSelected = photo.id.map(selected.contains) ?? false
+        return Button {
+            guard selecting, let id = photo.id else { return }
+            if isSelected { selected.remove(id) } else { selected.insert(id) }
+        } label: {
+            PhotoThumbnail(url: store.photoLibrary.url(for: photo.fileName), aspectRatio: 1)
+                .overlay(alignment: .topLeading) {
+                    if let caption = photo.caption {
+                        Text(caption)
+                            .font(.body(10.5, weight: 700))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.black.opacity(0.4), in: Capsule())
+                            .padding(5)
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if selecting {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22, weight: .semibold))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, isSelected ? Theme.accent : Color.black.opacity(0.25))
+                            .padding(6)
+                    }
+                }
+                .overlay {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Theme.accent, lineWidth: 3)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(selecting)
+        .accessibilityLabel(photo.caption.map { "Photo, \($0)" } ?? "Photo")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("framePhoto")
+    }
+}
+
 private struct PhotoThumbnail: View {
     let url: URL
+    var aspectRatio: CGFloat = 4 / 3
     @State private var image: UIImage?
 
     var body: some View {
         Color(Theme.surface2)
-            .aspectRatio(4 / 3, contentMode: .fit)
+            .aspectRatio(aspectRatio, contentMode: .fit)
             .overlay {
                 if let image {
                     Image(uiImage: image).resizable().scaledToFill()

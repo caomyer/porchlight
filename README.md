@@ -14,7 +14,7 @@ The product plan and UX mocks live in [.lavish/porchlight.html](.lavish/porchlig
 - **Food diary**: snap a meal with the camera or pick from Photos (up to 6 photos per dish, the first as its cover; the shutter only takes a photo, and the meal saves on Save), with a square viewfinder that is exactly the polaroid; the whole shot is kept, any photo can be reframed by dragging and zooming, and tapping a meal's polaroid shows the whole photo; add photos to a saved meal any time, home-cooked, delivery, dining out (with the restaurant picked from live Apple Maps search) or company food, several dishes per meal, a polaroid week where any meal can be fixed or removed, and a handwritten paper month written with Apple Pencil (one fixed-ratio page per day, zoomed for writing). Every time in the app (meals, walks and other care, routine windows, night hours) is a pill; tapping it opens a small card already showing that time, with a few suggestions, the hour and minutes in their own boxes, and its own number pad, so the iPad's keyboard never covers the form. Each digit counts the moment it's typed (7 1 5 is 7:15), typing an hour keeps AM or PM, and 12 or 24-hour follows the iPad.
 - **Pitch in**: what everyone does for the household on one board, a column per person plus "Anyone" for shared chores and companion care. Tap a box to check it off, a row to fix who did it, undo, edit or archive it. Chores and routines share one repeat rule (every day, some weekdays, every few days, monthly, just once) with a start day.
 - **Glow**: everyone's stars in one place. Every chore and every walk or feed earns stars, the week shows as sparks around the porch light, and rewards are saved up for and cashed in.
-- **Lists and meal plan**, and an **Ambient** photo frame with a night clock.
+- **Lists and meal plan**, and an **Ambient** photo frame with a night clock: your photos shuffled, or the porch view, a still sky that follows the day and uses the least power.
 
 ## Develop
 
@@ -42,7 +42,7 @@ scripts/sim-shot.sh <simulator-udid> /tmp/today.png -sampleHousehold -startScree
 ```
 
 Debug-only launch arguments:
-- `-resetData` (start at onboarding), `-sampleHousehold` (seed a sample household with a week of everything)
+- `-resetData` (start at onboarding), `-sampleHousehold` (seed a sample household with a week of everything; add `-samplePhotos N` for N photos in the photo frame)
 - `-startScreen today|calendar|companion-1|food|chores|glow|lists|photos|settings`
 - Feature previews: `-calendarMode month|day`, `-debugCompanionSheet log|celebrate|onboarding|editor|routine`, `-debugFoodView month|write|capture|saved|detail` (with `-debugCaptureShots N` to start the capture with N generated photos), `-homeSheet newChore|whoDidIt|week|ambient|...`
 
@@ -64,7 +64,7 @@ Decorative motion should play briefly and rest, never loop: on the 120 Hz screen
 scripts/idle-cpu.sh
 ```
 
-UI tests (screen tour, handwriting round trip, meal editing, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, several photos per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, typing times on the number pad (meals, night hours across midnight, routine windows), chores on Today and in the calendar, walks and meals in the week grid, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
+UI tests (screen tour, handwriting round trip, meal editing, choosing the photo frame and removing several photos, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, several photos per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, typing times on the number pad (meals, night hours across midnight, routine windows), chores on Today and in the calendar, walks and meals in the week grid, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
 The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
 `scripts/test.sh` runs the unit tests and then the UI tests on an iOS 17.5 iPad simulator, resetting the calendar permission so the first-run test sees the prompt.
 It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.

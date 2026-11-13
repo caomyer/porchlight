@@ -288,10 +288,11 @@ final class HomeStore {
         return added
     }
 
-    func remove(_ photo: AmbientPhoto) {
-        guard let id = photo.id else { return }
+    func remove(_ photos: [AmbientPhoto]) {
+        let ids = photos.compactMap(\.id)
+        guard !ids.isEmpty else { return }
         perform {
-            if let fileName = try database.removeAmbientPhoto(id: id) {
+            for fileName in try database.removeAmbientPhotos(ids: ids) {
                 photoLibrary.removeFile(named: fileName)
             }
         }
