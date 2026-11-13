@@ -44,7 +44,7 @@ scripts/sim-shot.sh <simulator-udid> /tmp/today.png -sampleHousehold -startScree
 Debug-only launch arguments:
 - `-resetData` (start at onboarding), `-sampleHousehold` (seed a sample household with a week of everything; add `-samplePhotos N` for N photos in the photo frame)
 - `-startScreen today|calendar|companion-1|food|chores|glow|lists|photos|settings`
-- Feature previews: `-calendarMode month|day`, `-debugCompanionSheet log|celebrate|onboarding|editor|routine`, `-debugFoodView month|write|capture|saved|detail` (with `-debugCaptureShots N` to start the capture with N generated photos), `-homeSheet newChore|whoDidIt|week|ambient|...`
+- Feature previews: `-calendarMode month|day` (with `-calendarDate yyyy-MM-dd` to open on a day), `-debugCompanionSheet log|celebrate|onboarding|editor|routine`, `-debugFoodView month|write|capture|saved|detail` (with `-debugCaptureShots N` to start the capture with N generated photos), `-homeSheet newChore|whoDidIt|week|ambient|...`
 
 Review the real iPad's rendering (sample data lives in a separate storage sandbox, so the household's data is never touched).
 The tour needs a Debug build, so install one first and put the Release build back afterwards:

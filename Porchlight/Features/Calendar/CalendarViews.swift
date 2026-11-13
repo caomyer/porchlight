@@ -46,6 +46,10 @@ struct CalendarScreen: View {
         }
         #if DEBUG
         .onAppear {
+            // `-calendarDate 2026-09-30` opens on that day, for screenshots.
+            if let day = UserDefaults.standard.string(forKey: "calendarDate") {
+                anchor = DayKey(rawValue: day).startDate(in: calendar)
+            }
             // `-calendarShowEvent <title>` opens that event's sheet, for screenshots.
             if let title = UserDefaults.standard.string(forKey: "calendarShowEvent") {
                 selected = store.events.first { $0.title == title }
@@ -58,9 +62,13 @@ struct CalendarScreen: View {
 
     private func header(now: Date) -> some View {
         HStack(alignment: .center, spacing: 14) {
-            title
-                .lineLimit(1)
-                .fixedSize()
+            // Long dates ("Wednesday, November 18") switch to a short form before anything
+            // in the header wraps; the legend is the first thing to go.
+            ViewThatFits(in: .horizontal) {
+                title(compact: false)
+                title(compact: true)
+            }
+            .layoutPriority(1)
             HStack(spacing: 6) {
                 ForEach(CalendarMode.allCases, id: \.self) { option in
                     Button {
@@ -98,24 +106,29 @@ struct CalendarScreen: View {
         .foregroundStyle(Theme.ink)
     }
 
-    @ViewBuilder
-    private var title: some View {
-        switch mode {
-        case .week:
-            Text(weekTitle).font(.display(40))
-        case .month:
-            (Text(EventText.format(anchor, calendar, "MMMM")) + Text(" \(EventText.format(anchor, calendar, "y"))").foregroundColor(Theme.muted))
-                .font(.display(40))
-        case .day:
-            Text(EventText.format(anchor, calendar, "EEEE MMMM d")).font(.display(40))
+    /// The header title; `compact` abbreviates month and weekday names.
+    private func title(compact: Bool) -> some View {
+        Group {
+            switch mode {
+            case .week:
+                Text(weekTitle(compact: compact))
+            case .month:
+                Text(EventText.format(anchor, calendar, compact ? "MMM" : "MMMM"))
+                    + Text(" \(EventText.format(anchor, calendar, "y"))").foregroundColor(Theme.muted)
+            case .day:
+                Text(EventText.format(anchor, calendar, compact ? "EEE MMM d" : "EEEE MMMM d"))
+            }
         }
+        .font(.display(40))
+        .lineLimit(1)
+        .fixedSize()
     }
 
-    private var weekTitle: String {
+    private func weekTitle(compact: Bool) -> String {
         let days = calendar.weekDays(containing: anchor)
         guard let first = days.first, let last = days.last else { return "" }
         if calendar.isDate(first, equalTo: last, toGranularity: .month) {
-            return "\(EventText.format(first, calendar, "MMMM d")) - \(calendar.component(.day, from: last))"
+            return "\(EventText.format(first, calendar, compact ? "MMM d" : "MMMM d")) - \(calendar.component(.day, from: last))"
         }
         return "\(EventText.monthDay(first, calendar)) - \(EventText.monthDay(last, calendar))"
     }
@@ -278,6 +291,8 @@ private struct ModeChip: View {
             } else if let title {
                 Text(title)
                     .font(.body(13, weight: 700))
+                    .lineLimit(1)
+                    .fixedSize()
                     .padding(.horizontal, 13)
             }
         }
