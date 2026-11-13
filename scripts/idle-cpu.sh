@@ -9,10 +9,11 @@
 # run scripts/deploy-ipad.sh --debug first, and deploy-ipad.sh again afterwards.
 # Uses your real data; it never loads samples.
 #
-# Usage: scripts/idle-cpu.sh [seconds] [screen...]   (default: 60 s; today calendar glow photos companion-1)
+# Usage: scripts/idle-cpu.sh [seconds] [screen...]   (default: 60 s; today calendar glow photos porch companion-1)
+# "photos" is the photo frame showing your photos, "porch" the photo frame showing the porch view.
 #
 # Reference, iPad Pro 10.5" (120 Hz), Nov 2026, after moving idle motion off SwiftUI loops:
-#   today 2.2%, calendar 1.5%, glow 2.3%, companion-1 4.8%, photos 11.9% (app + render server,
+#   today 2.2%, calendar 1.5%, glow 2.3%, companion-1 4.8%, photos 11.9%, porch 1.5% (app + render server,
 #   one core = 100%). Before: glow 58%, companion-1 58%, photos 69%.
 set -euo pipefail
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
@@ -20,7 +21,7 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 secs=${1:-60}
 (( $# )) && shift
 screens=("$@")
-(( ${#screens} )) || screens=(today calendar glow photos companion-1)
+(( ${#screens} )) || screens=(today calendar glow photos porch companion-1)
 
 json="$(mktemp)"
 xcrun devicectl list devices --json-output "$json" >/dev/null
@@ -39,7 +40,12 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 for screen in $screens; do
-  xcrun devicectl device process launch --terminate-existing --device "$device" com.mingyucao.porchlight -- -startScreen "$screen" >/dev/null
+  case $screen in
+    photos) args=(-startScreen photos -ambient.show photos) ;;
+    porch) args=(-startScreen photos -ambient.show porchView) ;;
+    *) args=(-startScreen "$screen") ;;
+  esac
+  xcrun devicectl device process launch --terminate-existing --device "$device" com.mingyucao.porchlight -- $args >/dev/null
   sleep 3
   xcrun xctrace record --template "Activity Monitor" --device "$udid" --all-processes \
     --time-limit "${secs}s" --output "$work/$screen.trace" >/dev/null 2>&1
