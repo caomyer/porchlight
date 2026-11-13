@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Captures every wall screen on the real iPad with sample data, then copies the
 # PNGs to an output folder. Sample launches use a separate storage sandbox, so the
-# household's real data and photos are never touched. Run scripts/deploy-ipad.sh first.
+# household's real data and photos are never touched. Run scripts/deploy-ipad.sh --debug
+# first (the sample launch arguments are Debug-only), and deploy-ipad.sh again afterwards.
 #
 #   scripts/device-tour.sh [out-dir]
 set -euo pipefail

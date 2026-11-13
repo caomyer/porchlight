@@ -46,10 +46,22 @@ Debug-only launch arguments:
 - `-startScreen today|calendar|companion-1|food|chores|glow|lists|photos|settings`
 - Feature previews: `-calendarMode month|day`, `-debugCompanionSheet log|celebrate|onboarding|editor|routine`, `-debugFoodView month|write|capture|saved|detail` (with `-debugCaptureShots N` to start the capture with N generated photos), `-homeSheet newChore|whoDidIt|week|ambient|...`
 
-Review the real iPad's rendering (sample data lives in a separate storage sandbox, so the household's data is never touched):
+Review the real iPad's rendering (sample data lives in a separate storage sandbox, so the household's data is never touched).
+The tour needs a Debug build, so install one first and put the Release build back afterwards:
+
+```bash
+scripts/deploy-ipad.sh --debug
+```
 
 ```bash
 scripts/device-tour.sh /tmp/porchlight-device-tour
+```
+
+Measure idle CPU on the iPad, screen by screen, also on a Debug build.
+Decorative motion should play briefly and rest, never loop: on the 120 Hz screen a forever animation keeps the app and the render server busy all day.
+
+```bash
+scripts/idle-cpu.sh
 ```
 
 UI tests (screen tour, handwriting round trip, meal editing, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, several photos per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, typing times on the number pad (meals, night hours across midnight, routine windows), chores on Today and in the calendar, walks and meals in the week grid, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
@@ -68,6 +80,7 @@ scripts/test.sh
 scripts/deploy-ipad.sh
 ```
 
+This installs a Release build, which costs less CPU and power on a screen that is always on.
 With a free Apple ID the install expires after 7 days. `scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror (macOS does not let background jobs read ~/Documents).
 
 ## Layout

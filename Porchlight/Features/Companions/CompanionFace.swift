@@ -67,20 +67,26 @@ struct CompanionFace: View {
     }
 }
 
-/// The mock's gentle bob: up a few points and a small tilt, every 3.2 s.
+/// The mock's gentle bob: up a few points and a small tilt, 1.6 s each way.
+///
+/// It bobs twice when the face appears or is tapped, then once a minute. Bobbing forever
+/// would redraw the page 120 times a second on the wall's ProMotion screen, all day long.
 private struct Bob: ViewModifier {
     var isOn: Bool
     var size: CGFloat
-    @State private var up = false
+    @State private var bobs = 0
 
     func body(content: Content) -> some View {
         if isOn {
             content
-                .rotationEffect(.degrees(up ? 2 : -2))
-                .offset(y: up ? -size * 0.033 : 0)
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { up = true }
-                }
+                .phaseAnimator(Restful.twice, trigger: bobs) { face, up in
+                    face
+                        .rotationEffect(.degrees(up ? 2 : -2))
+                        .offset(y: up ? -size * 0.033 : 0)
+                } animation: { _ in .easeInOut(duration: 1.6) }
+                .contentShape(Circle())
+                .onTapGesture { bobs += 1 }
+                .task { await Restful.everyMinute { bobs += 1 } }
         } else {
             content
         }

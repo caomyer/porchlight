@@ -176,24 +176,24 @@ private struct Sparks: View {
     let maxRadius: CGFloat
     let color: (Int64?) -> Color
 
-    @State private var twinkle = false
+    @State private var twinkles = 0
 
+    /// Twinkles twice on appear, then once a minute, so the screen can rest in between.
     var body: some View {
         let shown = Array(sparks.suffix(90))
         ZStack {
             ForEach(Array(shown.enumerated()), id: \.element.id) { index, spark in
-                let point = position(index, of: shown.count)
                 SparkShape()
                     .fill(color(spark.personId))
                     .frame(width: size(spark), height: size(spark))
                     .shadow(color: color(spark.personId).opacity(0.8), radius: 4)
-                    .opacity(twinkle && index % 3 == 0 ? 0.55 : 1)
-                    .position(point)
+                    .position(position(index, of: shown.count))
+                    .phaseAnimator(index % 3 == 0 ? Restful.twice : [false], trigger: twinkles) { spark, dim in
+                        spark.opacity(dim ? 0.55 : 1)
+                    } animation: { _ in .easeInOut(duration: 1.6) }
             }
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { twinkle = true }
-        }
+        .task { await Restful.everyMinute { twinkles += 1 } }
     }
 
     private func size(_ spark: StarEarning) -> CGFloat {

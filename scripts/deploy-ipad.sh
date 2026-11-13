@@ -7,8 +7,18 @@
 # Needs: Xcode, `brew install xcodegen`, Config/Local.xcconfig with your
 # DEVELOPMENT_TEAM, and the iPad paired with this Mac (USB once, then Wi-Fi).
 #
+# The wall gets a Release build: it runs all day, and optimised code costs less CPU and
+# power per frame. --debug installs a Debug build instead, for the tools that need the
+# Debug-only launch arguments (device-tour.sh, idle-cpu.sh); run it again without
+# --debug afterwards.
+#
+#   scripts/deploy-ipad.sh [--debug]
+#
 # Optional: PORCHLIGHT_DEVICE=<device identifier from `xcrun devicectl list devices`>
 set -euo pipefail
+
+configuration=Release
+[[ "${1:-}" == "--debug" ]] && configuration=Debug
 
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 root="${0:A:h:h}"
@@ -43,13 +53,13 @@ xcodegen generate --quiet
 xcodebuild build \
   -project Porchlight.xcodeproj \
   -scheme Porchlight \
-  -configuration Debug \
+  -configuration "$configuration" \
   -destination "generic/platform=iOS" \
   -derivedDataPath "$derived" \
   -allowProvisioningUpdates \
   | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
 
-app="$derived/Build/Products/Debug-iphoneos/Porchlight.app"
+app="$derived/Build/Products/$configuration-iphoneos/Porchlight.app"
 xcrun devicectl device install app --device "$device" "$app"
 xcrun devicectl device process launch --device "$device" com.mingyucao.porchlight || true
-echo "Installed Porchlight on $device"
+echo "Installed a $configuration build of Porchlight on $device"

@@ -38,6 +38,7 @@ struct AmbientView: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onWake)
         .statusBarHidden(true)
+        .persistentSystemOverlays(.hidden)
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { NightBrightness.restore() }
         }
@@ -193,20 +194,9 @@ private struct PhotoSlideshow: View {
     @State private var slide: Slide?
 
     var body: some View {
-        ZStack {
-            Color.black
-            if let slide {
-                KenBurns(seed: slide.number) {
-                    Image(uiImage: slide.image)
-                        .resizable()
-                        .scaledToFill()
-                }
-                .id(slide.number)
-                .transition(.opacity)
-            }
-        }
-        .clipped()
-        .task(id: urls) { await run() }
+        KenBurns(image: slide?.image, seed: slide?.number ?? 0, fade: 2.5)
+            .ignoresSafeArea()
+            .task(id: urls) { await run() }
     }
 
     private func run() async {
@@ -219,10 +209,8 @@ private struct PhotoSlideshow: View {
             let url = urls[number % urls.count]
             if let image = await AmbientPhotoLibrary.loadForDisplay(url, maxPixelSize: maxPixels) {
                 failures = 0
-                withAnimation(.easeInOut(duration: 2.5)) {
-                    slide = Slide(number: number, image: image)
-                    caption = captions[url]
-                }
+                slide = Slide(number: number, image: image)
+                caption = captions[url]
                 try? await Task.sleep(for: .seconds(AmbientSettings.slideSeconds))
             } else {
                 // Skip unreadable files; stop spinning if none can be read.
@@ -234,54 +222,149 @@ private struct PhotoSlideshow: View {
     }
 }
 
-/// Slowly zooms out and drifts its content, a different way for each seed.
-private struct KenBurns<Content: View>: View {
+/// Shows one image at a time with a slow Ken Burns zoom and drift, a different way for each
+/// seed, crossfading over `fade` seconds whenever the image changes.
+///
+/// Core Animation runs the drift and the fade in the render server, at capped frame rates,
+/// so the app sleeps between slides. As a SwiftUI animation the wall redrew the photo
+/// 120 times a second all day. The drift moves under a pixel per frame at 8 frames a second,
+/// which looks the same as 120; the fade gets 30 so it doesn't step.
+private struct KenBurns: UIViewRepresentable {
+    let image: UIImage?
     let seed: Int
-    @ViewBuilder var content: () -> Content
-    @State private var settled = false
+    var fade: Double
 
-    private static var drifts: [CGSize] {
-        [CGSize(width: -24, height: -12), CGSize(width: 22, height: -14), CGSize(width: -18, height: 14), CGSize(width: 20, height: 10)]
+    func makeUIView(context: Context) -> KenBurnsView { KenBurnsView() }
+
+    func updateUIView(_ view: KenBurnsView, context: Context) {
+        if let image { view.show(image, seed: seed, fade: fade) }
+    }
+}
+
+final class KenBurnsView: UIView {
+    static let driftRate = CAFrameRateRange(minimum: 6, maximum: 10, preferred: 8)
+    static let fadeRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
+
+    private struct Slide {
+        var layer: CALayer
+        var image: UIImage
+        var seed: Int
     }
 
-    var body: some View {
+    private var current: Slide?
+    private var placedSize: CGSize?
+
+    private static let drifts = [CGSize(width: -24, height: -12), CGSize(width: 22, height: -14), CGSize(width: -18, height: 14), CGSize(width: 20, height: 10)]
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        clipsToBounds = true
+        isUserInteractionEnabled = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    func show(_ image: UIImage, seed: Int, fade: Double) {
+        if let current, current.image === image, current.seed == seed { return }
+        let old = current?.layer
+        let slide = CALayer()
+        slide.contentsGravity = .resizeAspectFill
+        slide.contents = image.cgImage
+        slide.contentsScale = image.scale
+        current = Slide(layer: slide, image: image, seed: seed)
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.addSublayer(slide)
+        if bounds.width > 0 { place(slide, seed: seed) }
+        CATransaction.commit()
+
+        // The first slide fades in from black too, as the photo frame opens.
+        guard fade > 0 else {
+            old?.removeFromSuperlayer()
+            return
+        }
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { old?.removeFromSuperlayer() }
+        let fadeIn = CABasicAnimation(keyPath: "opacity")
+        fadeIn.fromValue = 0
+        fadeIn.toValue = 1
+        fadeIn.duration = fade
+        fadeIn.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        fadeIn.preferredFrameRateRange = Self.fadeRate
+        slide.add(fadeIn, forKey: "fade")
+        CATransaction.commit()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard bounds.size != placedSize, bounds.width > 0, let current else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        place(current.layer, seed: current.seed)
+        CATransaction.commit()
+    }
+
+    /// Sizes the slide to the view and starts its drift.
+    private func place(_ slide: CALayer, seed: Int) {
+        placedSize = bounds.size
         let drift = Self.drifts[abs(seed) % Self.drifts.count]
-        GeometryReader { proxy in
-            content()
-                .frame(width: proxy.size.width, height: proxy.size.height)
-                // Never zoom out so far that the drift uncovers an edge: (scale - 1) / 2 of each side
-                // must stay larger than the drift (24 pt on a 1112 pt wide, 834 pt tall screen).
-                .scaleEffect(settled ? 1.06 : 1.12)
-                .offset(settled ? drift : CGSize(width: -drift.width, height: -drift.height))
-        }
-        .ignoresSafeArea()
-        .onAppear {
-            withAnimation(.linear(duration: AmbientSettings.slideSeconds + 6)) { settled = true }
-        }
+        // Never zoom out so far that the drift uncovers an edge: (scale - 1) / 2 of each side
+        // must stay larger than the drift (24 pt on a 1112 pt wide, 834 pt tall screen).
+        let start = Self.transform(scale: 1.12, offset: CGSize(width: -drift.width, height: -drift.height))
+        let end = Self.transform(scale: 1.06, offset: drift)
+        slide.bounds = CGRect(origin: .zero, size: bounds.size)
+        slide.position = CGPoint(x: bounds.midX, y: bounds.midY)
+        slide.transform = end
+
+        let move = CABasicAnimation(keyPath: "transform")
+        move.fromValue = start
+        move.toValue = end
+        move.duration = AmbientSettings.slideSeconds + 6
+        move.timingFunction = CAMediaTimingFunction(name: .linear)
+        move.preferredFrameRateRange = Self.driftRate
+        slide.add(move, forKey: "kenBurns")
+    }
+
+    /// Scales about the centre, then shifts by `offset` screen points.
+    static func transform(scale: CGFloat, offset: CGSize) -> CATransform3D {
+        CATransform3DConcat(CATransform3DMakeScale(scale, scale, 1), CATransform3DMakeTranslation(offset.width, offset.height, 0))
     }
 }
 
 // MARK: - Generated landscape
 
 /// Painted hills under a soft sky, used when there are no photos. Cycles through a few skies.
+/// Each sky is painted once into an image so it can drift like a photo.
 private struct GeneratedLandscapes: View {
     @State private var index = 0
+    @State private var painted: (index: Int, image: UIImage, fade: Double)?
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        ZStack {
-            KenBurns(seed: index) {
-                LandscapePainting(palette: LandscapePalette.all[index % LandscapePalette.all.count])
-            }
-            .id(index)
-            .transition(.opacity)
+        GeometryReader { proxy in
+            KenBurns(image: painted?.image, seed: painted?.index ?? 0, fade: painted?.fade ?? 0)
+                .onChange(of: proxy.size, initial: true) { paint(size: proxy.size, fade: 0) }
+                .onChange(of: index) { paint(size: proxy.size, fade: 4) }
         }
-        .clipped()
+        .ignoresSafeArea()
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(AmbientSettings.slideSeconds * 2))
-                withAnimation(.easeInOut(duration: 4)) { index += 1 }
+                index += 1
             }
         }
+    }
+
+    private func paint(size: CGSize, fade: Double) {
+        guard size.width > 0, size.height > 0 else { return }
+        let palette = LandscapePalette.all[index % LandscapePalette.all.count]
+        let renderer = ImageRenderer(content: LandscapePainting(palette: palette).frame(width: size.width, height: size.height))
+        renderer.scale = displayScale
+        guard let image = renderer.uiImage else { return }
+        painted = (index, image, fade)
     }
 }
 
