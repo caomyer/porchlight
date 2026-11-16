@@ -67,6 +67,8 @@ struct SettingsView: View {
                 FoodSettingsSection()
                 HomeSettingsSection()
 
+                SyncSettingsSection()
+
                 section("This display") {
                     Toggle(isOn: $keepAwake) {
                         VStack(alignment: .leading, spacing: 2) {

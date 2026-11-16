@@ -27,7 +27,7 @@ App code ── GRDB records ──▶ SQLite ◀── triggers ── SyncEngi
 
 - The app keeps reading and writing through its GRDB records and stores.
   Nothing in the features knows about sync.
-- `Porchlight/Sync/SyncSchema.swift` holds one `@Table` mirror type per synced table.
+- `Porchlight/Sync/SyncMirrors.swift` holds one `@Table` mirror type per synced table (`SyncSchema` is the M0 table definitions).
   Mirrors use only plain column types: `UUID`, `String`, `Int`, `Double`, `Bool`, `Date`, `Data`, and their optionals.
   Enums and JSON columns are `String` in the mirror, so a value written by a newer app version never fails to decode on an older one.
 - A test compares every mirror with `PRAGMA table_info` of its table, both ways, so a column added to one and not the other fails the build.
@@ -121,3 +121,51 @@ This is also what makes the M1 gate, "a wiped device gets the whole household ba
 - Inviting and joining (M2).
 - Choosing between several households (M2 for the model, M5 for the switcher).
 - Any phone UI.
+
+## Implementation notes
+
+Choices made while building M1, where the design above left room or did not fit the library.
+Photos and "a fresh install looks for a household first" come in a later step.
+
+### The engine
+
+- The mirrors are `SyncMirror.Household`, `SyncMirror.Person` and so on, and `SyncMirror.engine(for:delegate:)` hands all nineteen to `SyncEngine`.
+- The engine is created on every launch that can sync, even with the switch off, and is only started when the switch is on.
+  Its triggers are temporary: they record writes only while an engine exists, so a write made while no engine existed would never be uploaded once the tables are known to it.
+  It is created right after migrations and the DEBUG launch arguments, before any store, so no write slips past it.
+- No engine is created for sample data (`AppFiles.isSandboxed`) or in a build without the iCloud entitlement.
+  The entitlement is read through SwiftData's `ModelConfiguration`, the same way SQLiteData reads it, because `CKContainer` traps without one.
+  Status is then "off" with the reason, which Settings shows in Debug builds.
+- Every connection to the database on disk attaches the engine's metadatabase in `prepareDatabase`, naming the container rather than reading it from entitlements, so unsigned builds open the database as before.
+  In-memory databases do not attach it: SQLiteData's in-memory metadatabase is shared by every connection in the process, which would couple tests running in parallel.
+
+### Accounts
+
+- Before starting, `SyncController` reads the iCloud account's user record name and keeps it on the device.
+  If a different name turns up, sync stays off and status becomes "needs a decision", before anything is sent.
+  The engine's own `switchAccounts` event leads to the same state, for a switch while the app runs or while the name can't be read offline.
+- The decision survives relaunches.
+- "Keep it here without sync" turns the switch off and keeps the earlier account's name, so turning sync on again while the other account is signed in asks again.
+  Moving the household into the new account is not offered; signing back in to the earlier account resumes as before.
+- "Remove it from this iPad" calls the engine's `deleteLocalData()`, which clears every synced table (the household cascades to the device-only tables) and resets the engine's metadata, then removes the photo folders and syncs with the account signed in now.
+- Signing out stops the engine and keeps everything.
+  The controller listens for `CKAccountChanged` itself, since a stopped engine sends no events, and resumes when the same account is back.
+- A full iCloud only counts for the household's own (private) database; shared databases arrive with M2.
+
+### Status
+
+- "Syncing" follows the engine's `isSynchronizing`.
+  The end of a round of syncing while online is the last-synced time, kept in UserDefaults.
+- "Waiting" covers both being offline (from `NWPathMonitor`) and the moment at launch before the account has been checked.
+- The dot on the gear for sync stuck an hour (journey D3) is not built yet; nothing about sync appears anywhere on the wall but Settings.
+
+### Project
+
+- The Release configuration sets the container environment to Production and Debug to Development through a build setting in the entitlements.
+- `aps-environment` is `development` in both: cable installs are development-signed, and an App Store or TestFlight export rewrites it to production.
+- Command-line builds need `-skipMacroValidation` for SQLiteData's macros; the scripts pass it.
+
+### Tests
+
+- SQLiteData's stand-in for iCloud refuses more than 200 records in one request, where the real `CKSyncEngine` splits them into batches itself, so the sync tests fill each table with a few rows rather than the sample household.
+- Account events are given to `SyncController` directly, as the engine's delegate would, since the stand-in's controls are internal to its package.
