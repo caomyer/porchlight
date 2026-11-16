@@ -108,8 +108,12 @@ struct AppDatabase: Sendable {
         registerHomeMigrations(&migrator)
         // Always last among the schemas above: it rebuilds every one of their tables.
         registerSyncMigrations(&migrator)
+        // Changes made since, on the rebuilt tables. Each stands on its own, so a database
+        // that already ran a later one (a simulator shared with another branch) still runs
+        // the earlier ones it missed, in this order.
         registerPhotoMigrations(&migrator, files: files)
         registerHouseholdMigrations(&migrator)
+        registerCalendarMigrationsAfterSync(&migrator)
         return migrator
     }
 }

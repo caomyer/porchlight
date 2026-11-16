@@ -216,3 +216,10 @@ The live sharing code cannot run in tests or unsigned simulator builds; these li
 - `remove(_:from:)`: removing a participant and that ending their access (experiment S2).
 - A deleted shared zone removing the household on the participant's device, so the removed screen shows.
 - The quota event arriving from the shared database on a member's device.
+
+### Merging the phone's everyday tabs
+
+- "calendar v2: just me" (the phone's device-local `calendarSource.isPersonal`) is registered after "sync v2" and "households v1".
+  Each of the three changes different tables, and GRDB runs every unapplied migration in registered order, so a simulator that already ran the phone's migration still gets the other two, and one that ran ours gets the calendar's; the wall has run none of them.
+- The phone's cached sample photos now cache the bytes `MealPhotoImaging.prepare` makes, and sample meals store them as photo rows, as camera shots are; the cache key moved to `v2` because the files differ from the phone branch's.
+- The phone's new screens (Pitch in, Lists, Glow, the care sheet) write through the same store and database functions, so their rows are stamped too; `PhoneStampTests` checks every stamped table through those paths.

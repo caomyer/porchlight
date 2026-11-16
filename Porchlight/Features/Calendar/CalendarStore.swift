@@ -242,6 +242,11 @@ final class CalendarStore {
         perform { try database.setCalendarSourceVisibility(id: id, visibility: visibility) }
     }
 
+    func setSharing(_ sharing: CalendarSharing, for source: CalendarSource) {
+        let id = source.id
+        perform { try database.setCalendarSourceSharing(id: id, sharing: sharing) }
+    }
+
     func setShown(_ isShown: Bool, for source: CalendarSource) {
         let id = source.id
         perform { try database.setCalendarSourceShown(id: id, isShown: isShown) }

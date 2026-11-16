@@ -5,7 +5,7 @@ import XCTest
 /// Sharing is the fake (`-debugJoin`, `-debugSharing`). Runs only on an iPhone simulator
 /// (`scripts/test.sh --phone`); the iPad run skips it.
 @MainActor
-final class PhoneHouseholdTests: XCTestCase {
+final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
     override func setUpWithError() throws {
         continueAfterFailure = false
         let isPad = MainActor.assumeIsolated { UIDevice.current.userInterfaceIdiom == .pad }
@@ -24,38 +24,6 @@ final class PhoneHouseholdTests: XCTestCase {
         app.launchArguments = arguments
         app.launch()
         return app
-    }
-
-    private func snapshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
-
-    /// Types into a field and checks it took: typing while the field is still taking focus
-    /// (it takes it by itself as it appears) can drop keys, as in FirstRunTests.
-    private func type(_ text: String, into field: XCUIElement) {
-        for _ in 0..<3 {
-            field.tap()
-            let current = field.value as? String ?? ""
-            if !current.isEmpty, current != field.placeholderValue {
-                field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
-            }
-            field.typeText(text)
-            if field.value as? String == text { return }
-        }
-        XCTFail("Could not type \"\(text)\" into the field")
-    }
-
-    /// Scrolls until `element` is wholly on screen.
-    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        let window = app.windows.firstMatch.frame
-        for _ in 0..<12 where !(element.isHittable && window.contains(element.frame)) {
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)))
-        }
-        XCTAssertTrue(element.isHittable && window.contains(element.frame), "\(element) should be wholly on screen")
     }
 
     // MARK: Welcome and joining
@@ -101,7 +69,7 @@ final class PhoneHouseholdTests: XCTestCase {
         new.tap()
         let name = app.textFields["new-name"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
-        type("Ava", into: name)
+        type("Ava", into: name, in: app)
         let proceed = app.buttons["continue-as"]
         let named = expectation(for: NSPredicate(format: "label == %@", "Continue as Ava"), evaluatedWith: proceed)
         wait(for: [named], timeout: 5)

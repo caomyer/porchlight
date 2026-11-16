@@ -69,6 +69,49 @@ enum CompanionSamples {
                 }
             }
         }
+        let extra = UserDefaults.standard.integer(forKey: "sampleCompanions")
+        if extra >= 2 { try seedCat(database, householdId: householdId, people: ids, calendar: calendar, now: now) }
+        if extra >= 3 { try seedPlant(database, householdId: householdId, people: ids, calendar: calendar, now: now) }
+    }
+
+    /// `-sampleCompanions 2`: Miso the cat, fed twice a day, with a week of meals and litter.
+    private static func seedCat(_ database: AppDatabase, householdId: Household.ID, people: [Person.ID], calendar: Calendar, now: Date) throws {
+        var draft = CompanionDraft.new(species: .cat)
+        draft.name = "Miso"
+        draft.coat = .silver
+        draft.about = "Tabby"
+        let today = DayKey(now, calendar: calendar)
+        for index in draft.routines.indices { draft.routines[index].startDay = today.adding(days: -7, calendar: calendar) }
+        let id = try database.saveCompanion(draft, householdId: householdId, now: now)
+        let routines = try database.writer.read { db in
+            try CareRoutine.filter(Column("companionId") == id).order(Column("sortOrder")).fetchAll(db)
+        }
+        for back in stride(from: 7, through: 0, by: -1) {
+            let day = today.adding(days: -back, calendar: calendar)
+            for (index, routine) in routines.enumerated() {
+                for window in routine.windows {
+                    let start = CareLogic.date(day, minute: window.start + 20, calendar: calendar)
+                    guard start <= now else { continue }
+                    let who = people[(back + index) % people.count]
+                    try database.logCare(routineId: routine.id, CareLogDraft(people: [who], occurredAt: start), now: now)
+                }
+            }
+        }
+    }
+
+    /// `-sampleCompanions 3`: a fiddle fig watered every three days, due today.
+    private static func seedPlant(_ database: AppDatabase, householdId: Household.ID, people: [Person.ID], calendar: Calendar, now: Date) throws {
+        var draft = CompanionDraft.new(species: .plant)
+        draft.name = "Fiddle fig"
+        draft.about = "By the window"
+        let today = DayKey(now, calendar: calendar)
+        for index in draft.routines.indices { draft.routines[index].startDay = today.adding(days: -9, calendar: calendar) }
+        let id = try database.saveCompanion(draft, householdId: householdId, now: now)
+        guard let water = try database.writer.read({ db in try CareRoutine.filter(Column("companionId") == id).fetchOne(db) }) else { return }
+        for back in [9, 6, 3] {
+            let day = today.adding(days: -back, calendar: calendar)
+            try database.logCare(routineId: water.id, CareLogDraft(people: [people[back % people.count]], occurredAt: CareLogic.date(day, minute: 10 * 60, calendar: calendar)), now: now)
+        }
     }
 }
 

@@ -47,7 +47,9 @@ scripts/sim-shot.sh <simulator-udid> /tmp/today.png -sampleHousehold -startScree
 
 Debug-only launch arguments:
 - `-resetData` (start at onboarding), `-sampleHousehold` (seed a sample household with a week of everything; add `-samplePhotos N` for N photos in the photo frame)
-- `-startScreen today|calendar|companion-1|food|chores|glow|lists|photos|settings` on the wall, `-startScreen today|food|lists|glow|you` on a phone (`you` opens the You sheet)
+- `-startScreen today|calendar|companion-1|food|chores|glow|lists|photos|settings` on the wall, `-startScreen today|food|lists|glow|you|week|pitchIn|nextWeek|calendars` on a phone (`you` opens the You sheet; `week` is the first companion's week)
+- `-sampleCompanions 2|3` with `-sampleHousehold`: also Miso the cat, then a fiddle fig watered every three days (due today), for the phone's grid of companions
+- `-calendarAccess notDetermined|denied` with `-sampleHousehold`: start the sample calendars without access, to see how the phone asks for it
 - `-me NAME` on a phone: this phone belongs to the person called NAME, so it skips "Which one is you?" (for example `-sampleHousehold -me James`)
 - `-debugCompanionNow yyyy-MM-ddTHH:mm` pins "now" for care, for example `2026-11-16T17:20` so Yo-Yo's evening walk and dinner are open; the phone's writes use it too
 - `-debugSyncStatus off|upToDate|syncing|waiting|noAccount|iCloudFull|needsDecision|restoredCopy` (with `-sampleHousehold` or `-resetData`) puts sync in that state, without iCloud, for screenshots of Settings, the phone's banners and the gear's dot (`needsDecision` is a different iCloud account, `restoredCopy` a database put back from a backup); `lookingForHousehold` with `-resetData` holds the first-launch "Looking for your household in iCloud" screen
@@ -101,7 +103,7 @@ An install signed with a paid Apple Developer team lasts a year; with a free App
 ## On iPhone
 
 The app is universal.
-The iPad keeps the wall, landscape only; an iPhone gets the pocket shell, portrait only: Today, Food, Lists and Glow tabs and the You sheet (only Today is built so far).
+The iPad keeps the wall, landscape only; an iPhone gets the pocket shell, portrait only: Today (with a companion's week, Pitch in and the next 7 days), Lists, Glow, a Food tab still to come, and the You sheet with this phone's calendars.
 It joins a household from an invite link or the code on the shared screen, and You lists the household's people and their devices and invites more (see [docs/design/households.md](docs/design/households.md)).
 The layout follows the available width, and whether logging asks "who did it?" follows the device's role (shared screen or personal), kept on the device.
 See [docs/design/phone-shell.md](docs/design/phone-shell.md).

@@ -215,8 +215,7 @@ private struct GroceryColumns: View {
     let present: (ListsSheet) -> Void
 
     private var sections: [(name: String, items: [ListItem])] {
-        let grouped = Dictionary(grouping: items) { $0.section ?? GrocerySections.other }
-        return GrocerySections.ordered(grouped.keys).map { ($0, grouped[$0] ?? []) }
+        GrocerySections.group(items)
     }
 
     var body: some View {

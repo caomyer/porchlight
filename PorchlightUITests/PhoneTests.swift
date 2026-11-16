@@ -8,7 +8,7 @@ import XCTest
 /// and dinner are open whenever the suite runs. The sample household also missed
 /// yesterday's dinner, gives James the leaky faucet, and leaves the vacuuming to anyone.
 @MainActor
-final class PhoneTests: XCTestCase {
+final class PhoneTests: XCTestCase, PhoneTestHelpers {
     override func setUpWithError() throws {
         continueAfterFailure = false
         let isPad = MainActor.assumeIsolated { UIDevice.current.userInterfaceIdiom == .pad }
@@ -32,30 +32,8 @@ final class PhoneTests: XCTestCase {
         return app
     }
 
-    private func snapshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
-
-    private func element(_ app: XCUIApplication, beginningWith part: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch
-    }
-
     private func logButton(_ app: XCUIApplication) -> XCUIElement {
         app.buttons["Log Yo-Yo's evening walk"]
-    }
-
-    /// Scrolls Today a little at a time until `element` is wholly in view above the tab bar.
-    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        let window = app.windows.firstMatch.frame
-        let tabBar = app.tabBars.firstMatch.frame
-        let visible = CGRect(x: window.minX, y: window.minY, width: window.width, height: tabBar.minY - window.minY)
-        for _ in 0..<12 where !(element.isHittable && visible.contains(element.frame)) {
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)))
-        }
     }
 
     // MARK: Who you are
@@ -117,6 +95,7 @@ final class PhoneTests: XCTestCase {
         XCTAssertTrue(app.buttons["exact-time"].exists, "The wall's time pill")
         snapshot("phone-30-care-sheet")
         app.buttons["20 min"].tap()
+        app.buttons["save-care"].waitToSettle()
         app.buttons["save-care"].tap()
         XCTAssertTrue(app.staticTexts["Walk logged"].waitForExistence(timeout: 5))
         XCTAssertFalse(logButton(app).exists, "The evening walk is filled in")
@@ -131,6 +110,7 @@ final class PhoneTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["When did Yo-Yo eat?"].waitForExistence(timeout: 5), "Catching up asks only when")
         XCTAssertTrue(app.buttons["key-7"].exists, "with the wall's number pad")
         snapshot("phone-40-catch-up")
+        app.buttons["save-catch-up"].waitToSettle()
         app.buttons["save-catch-up"].tap()
         XCTAssertTrue(app.staticTexts["Dinner logged"].waitForExistence(timeout: 5))
         XCTAssertFalse(element(app, beginningWith: "Yo-Yo's dinner wasn't logged yesterday").exists, "It doesn't come back")
@@ -180,6 +160,7 @@ final class PhoneTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["The Lake House"].waitForExistence(timeout: 5), "The household's name")
         XCTAssertTrue(element(app, beginningWith: "James's iPhone, Personal").exists, "This phone's role")
         snapshot("phone-60-you")
+        app.buttons["change-me"].waitToSettle()
         app.buttons["change-me"].tap()
         XCTAssertTrue(app.staticTexts["Which one is you?"].waitForExistence(timeout: 5))
         app.buttons["who-Mia"].tap()
@@ -189,15 +170,16 @@ final class PhoneTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Hi, Mia"].waitForExistence(timeout: 5))
     }
 
-    func testOtherTabsAreCalm() {
+    func testFoodIsCalm() {
         let app = launch()
         XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
+        app.tabBars.buttons["Food"].tap()
+        XCTAssertTrue(app.staticTexts["Coming to the phone soon"].waitForExistence(timeout: 5), "Food comes next")
+        snapshot("phone-70-coming-soon")
         for tab in ["Food", "Lists", "Glow"] {
             app.tabBars.buttons[tab].tap()
-            XCTAssertTrue(app.staticTexts["Coming to the phone soon"].waitForExistence(timeout: 5), tab)
-            XCTAssertTrue(app.buttons["you"].exists, "You is on every tab")
+            XCTAssertTrue(app.buttons["you"].waitForExistence(timeout: 5), "You is on every tab: \(tab)")
         }
-        snapshot("phone-70-coming-soon")
     }
 
     // MARK: Looks

@@ -12,6 +12,7 @@ struct PocketTodayScreen: View {
     @Environment(ToastCenter.self) private var toasts
     @Environment(\.me) private var me
 
+    @State private var path: [PocketRoute] = []
     @State private var careSheet: PocketCareSheet.Request?
     @State private var catchUp: PocketCatchUpSheet.Request?
     /// On a shared screen, what is waiting for someone to say who did it.
@@ -19,6 +20,30 @@ struct PocketTodayScreen: View {
     @AppStorage("pocket.dismissedCatchUps") private var dismissedCatchUps = ""
 
     var body: some View {
+        NavigationStack(path: $path) {
+            today
+                .navigationTitle("Today")
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: PocketRoute.self) { route in
+                    Group {
+                        switch route {
+                        case let .companion(id): PocketCompanionWeek(companionId: id, logging: logging)
+                        case .pitchIn: PocketPitchIn(logging: logging)
+                        case .nextWeek: PocketNextWeek()
+                        case .calendars: PocketCalendars()
+                        }
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) { PocketYouButton() }
+                    }
+                    .toolbarBackground(Theme.background, for: .navigationBar)
+                    .navigationBarTitleDisplayMode(.inline)
+                }
+        }
+        .tint(Theme.accent)
+    }
+
+    private var today: some View {
         TimelineView(.everyMinute) { _ in
             let now = CompanionClock.now()
             let reports = companions.companions.compactMap { companions.report(for: $0.id, now: now) }
@@ -32,7 +57,7 @@ struct PocketTodayScreen: View {
                         PocketCareSection(cards: cards, handlers: careHandlers)
                     }
                     chores
-                    PocketAgendaCard()
+                    PocketAgendaCard { path.append($0) }
                     if cards.isEmpty && home.activeChores.isEmpty {
                         Text("Chores and companions show up here once they're set up on your household's shared screen.")
                             .phoneFont(.body, 13.5, weight: 600)
@@ -48,11 +73,11 @@ struct PocketTodayScreen: View {
         }
         .background(Theme.background)
         .paperUnderStatusBar()
-        .sheet(item: $careSheet) { request in
-            PocketCareSheet(request: request, logging: logging)
+        .sheet(item: $careSheet, onDismiss: toasts.showPending) { request in
+            PocketCareSheet(request: request, logging: logging.inSheet)
         }
-        .sheet(item: $catchUp) { request in
-            PocketCatchUpSheet(request: request, logging: logging)
+        .sheet(item: $catchUp, onDismiss: toasts.showPending) { request in
+            PocketCatchUpSheet(request: request, logging: logging.inSheet)
         }
         .confirmationDialog(asking?.question ?? "", isPresented: isAsking, titleVisibility: .visible, presenting: asking) { pending in
             ForEach(model.people) { person in
@@ -83,7 +108,8 @@ struct PocketTodayScreen: View {
             },
             more: { card, routine, alsoWent in
                 careSheet = PocketCareSheet.Request(companionId: card.id, routineId: routine.id, people: (me.map { [$0.id] } ?? []) + alsoWent)
-            }
+            },
+            open: { card in path.append(.companion(card.id)) }
         )
     }
 
@@ -119,7 +145,7 @@ struct PocketTodayScreen: View {
     private var chores: some View {
         if let me {
             let chores = PocketToday.chores(home.board(people: model.people), me: me.id)
-            YoursTodayCard(tasks: chores.mine, starsToday: PocketToday.stars(home.snapshot.earnings, me: me.id, on: home.today)) { chore in
+            YoursTodayCard(tasks: chores.mine, starsToday: PocketToday.stars(home.snapshot.earnings, me: me.id, on: home.today), onSeeAll: { path.append(.pitchIn) }) { chore in
                 logging.complete(chore, by: me.id)
             }
             if !chores.anyone.isEmpty {
@@ -166,6 +192,13 @@ struct PocketTodayScreen: View {
     /// for screenshots.
     private func openDebugSheet() {
         #if DEBUG
+        switch UserDefaults.standard.string(forKey: "startScreen") {
+        case "week": if let first = companions.companions.first { path = [.companion(first.id)] }
+        case "pitchIn": path = [.pitchIn]
+        case "nextWeek": path = [.nextWeek]
+        case "calendars": path = [.calendars]
+        default: break
+        }
         let mode = UserDefaults.standard.string(forKey: "debugCompanionSheet")
         guard let first = companions.companions.first, let report = companions.report(for: first.id) else { return }
         switch mode {
@@ -184,6 +217,14 @@ struct PocketTodayScreen: View {
     }
 }
 
+/// Where Today can go.
+enum PocketRoute: Hashable {
+    case companion(Companion.ID)
+    case pitchIn
+    case nextWeek
+    case calendars
+}
+
 extension PocketCareWords {
     /// "yesterday", "on Saturday": when something missed was due.
     static func dayWord(_ day: DayKey, today: DayKey, calendar: Calendar) -> String {
@@ -192,19 +233,55 @@ extension PocketCareWords {
     }
 }
 
-/// Today's calendar, when this phone can already read its calendars. It never asks for
-/// access itself; with no access the card isn't there.
+/// Today's calendar, with the next 7 days a tap away. With no calendars to show yet it
+/// is a single row to the Calendars page, which explains before asking for access.
 private struct PocketAgendaCard: View {
+    let open: (PocketRoute) -> Void
+
     @Environment(AppModel.self) private var model
     @Environment(CalendarStore.self) private var calendarStore
 
     var body: some View {
-        if calendarStore.access == .granted {
+        if calendarStore.access != .granted || !calendarStore.mappings.contains(where: \.source.isShown) {
+            Button { open(.calendars) } label: {
+                HStack(spacing: 10) {
+                    Text("📅").phoneFont(.body, 20).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("No calendars chosen").phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                        Text("Choose which of this \(DeviceWords.this)'s calendars show on Today")
+                            .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                            .foregroundStyle(Theme.muted)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Theme.muted)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("choose-calendars")
+            .phoneCard()
+        } else {
             let today = calendarStore.today
             let allDay = calendarStore.allDayItems(for: today)
             let timed = calendarStore.timelineItems(for: today)
             VStack(alignment: .leading, spacing: 4) {
-                PhoneCardHeader(title: "At home today", meta: timed.count + allDay.count == 1 ? "1 event" : "\(timed.count + allDay.count) events")
+                HStack(alignment: .firstTextBaseline) {
+                    PhoneCardHeader(title: "At home today")
+                    Spacer(minLength: 8)
+                    Button { open(.nextWeek) } label: {
+                        Text("Next 7 days ›")
+                            .phoneFont(.body, 12, weight: 800, relativeTo: .caption)
+                            .foregroundStyle(Theme.accent)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("next-7-days")
+                }
                 if allDay.isEmpty && timed.isEmpty {
                     Text("Nothing on the calendars today.")
                         .phoneFont(.body, 13.5, weight: 600)
@@ -227,24 +304,26 @@ private struct PocketAgendaCard: View {
     }
 
     private func row(time: String, title: String, subtitle: String?, owner: Owner) -> some View {
-        HStack(alignment: .center, spacing: 10) {
+        AdaptiveRow {
             Text(time)
                 .phoneFont(.body, 12, weight: 700, relativeTo: .caption)
                 .monospacedDigit()
                 .foregroundStyle(Theme.muted)
                 .frame(minWidth: 46, alignment: .leading)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                if let subtitle {
-                    Text(subtitle)
-                        .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                        .foregroundStyle(Theme.muted)
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                    if let subtitle {
+                        Text(subtitle)
+                            .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                            .foregroundStyle(Theme.muted)
+                    }
                 }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if case let .person(id) = owner {
-                PersonAvatar(model.person(id), size: .small)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if case let .person(id) = owner {
+                    PersonAvatar(model.person(id), size: .small)
+                }
             }
         }
         .padding(.vertical, 7)

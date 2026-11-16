@@ -374,7 +374,7 @@ struct RewardCard: View {
             .overlay(alignment: .bottomTrailing) {
                 if status.isReached {
                     Button {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { store.cashIn(status.reward) }
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { _ = store.cashIn(status.reward) }
                     } label: {
                         Text("Cash in 🎉")
                             .font(.body(12.5, weight: 800))

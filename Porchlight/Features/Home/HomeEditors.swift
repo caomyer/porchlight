@@ -8,7 +8,10 @@ struct ChoreEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var store
     @Environment(\.closeWallSheet) private var close
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let chore: Chore?
+    /// Whose a new chore starts as; the first person when nil (the phone passes "me").
+    var newOwner: Person.ID?
 
     @State private var title = ""
     @State private var emoji = ""
@@ -54,31 +57,38 @@ struct ChoreEditor: View {
                 }
             }
             EditorRow(label: "When, roughly") {
-                HStack(spacing: 8) {
-                    TextField("e.g. 7-9am", text: $timeHint)
-                        .font(.body(16, weight: 600))
-                        .fieldStyle()
-                        .frame(width: 180)
-                    ForEach(Self.hintSuggestions, id: \.self) { hint in
-                        ChoiceChip(title: hint, isSelected: timeHint == hint) { timeHint = timeHint == hint ? "" : hint }
+                // A phone stacks the field over its suggestions; the wall keeps them in a row.
+                if isCompact {
+                    VStack(alignment: .leading, spacing: 8) {
+                        hintField
+                        FlowLayout(spacing: 8) { hintChips }
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        hintField.frame(width: 180)
+                        hintChips
                     }
                 }
             }
-            HStack(alignment: .bottom) {
+            if isCompact {
                 EditorRow(label: "Stars") {
                     CountStepper(value: $stars, range: HomeLimits.stars)
                 }
-                Spacer()
-                if let chore {
-                    Button(chore.archived ? "Restore" : "Archive") {
-                        store.setArchived(chore, !chore.archived)
-                        close()
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
+                VStack(spacing: 10) {
+                    saveButton.buttonStyle(PhoneButtonStyle())
+                    if chore != nil { archiveButton.buttonStyle(PhoneButtonStyle(kind: .ghost)) }
                 }
-                Button(chore == nil ? "Add chore" : "Save", action: save)
-                    .buttonStyle(PrimaryButtonStyle())
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+            } else {
+                HStack(alignment: .bottom) {
+                    EditorRow(label: "Stars") {
+                        CountStepper(value: $stars, range: HomeLimits.stars)
+                    }
+                    Spacer()
+                    if chore != nil {
+                        archiveButton.buttonStyle(SecondaryButtonStyle())
+                    }
+                    saveButton.buttonStyle(PrimaryButtonStyle())
+                }
             }
             ErrorLine(message: error)
         }
@@ -86,12 +96,41 @@ struct ChoreEditor: View {
         .onAppear(perform: load)
     }
 
+    private var isCompact: Bool { sizeClass == .compact }
+
+    private var hintField: some View {
+        TextField("e.g. 7-9am", text: $timeHint)
+            .font(.body(16, weight: 600))
+            .fieldStyle()
+    }
+
+    private var hintChips: some View {
+        ForEach(Self.hintSuggestions, id: \.self) { hint in
+            ChoiceChip(title: hint, isSelected: timeHint == hint) { timeHint = timeHint == hint ? "" : hint }
+        }
+    }
+
+    private var saveButton: some View {
+        Button(chore == nil ? "Add chore" : "Save", action: save)
+            .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+    }
+
+    @ViewBuilder
+    private var archiveButton: some View {
+        if let chore {
+            Button(chore.archived ? "Restore" : "Archive") {
+                store.setArchived(chore, !chore.archived)
+                close()
+            }
+        }
+    }
+
     private func load() {
         guard !loaded else { return }
         loaded = true
         let calendar = store.calendar
         guard let chore else {
-            ownerId = model.people.first?.id
+            ownerId = newOwner ?? model.people.first?.id
             repeatChoice = RepeatChoice(recurrence: .daily, start: store.today, calendar: calendar)
             return
         }

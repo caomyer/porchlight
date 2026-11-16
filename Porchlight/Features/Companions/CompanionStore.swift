@@ -98,8 +98,9 @@ struct CompanionSnapshot: Equatable, Sendable {
     }
 }
 
-/// "Now" for companion screens. DEBUG builds can pin it with the
-/// `-debugCompanionNow 2026-11-07T18:05` launch argument for screenshots.
+/// "Now" for companion screens, the sample household and the phone's writes. DEBUG
+/// builds can pin it with the `-debugCompanionNow 2026-11-07T18:05` launch argument for
+/// screenshots and UI tests.
 enum CompanionClock {
     static func now() -> Date {
         #if DEBUG

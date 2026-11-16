@@ -50,7 +50,13 @@ final class SampleCalendarProvider: CalendarProvider {
     private static let holidays = CalendarSamples.holidays
 
     var onChange: (@MainActor () -> Void)?
-    let access = CalendarAccess.granted
+    /// Granted, unless `-calendarAccess notDetermined|denied` asks to start without it
+    /// (asking then grants it, like tapping Allow on the system prompt).
+    private(set) var access: CalendarAccess = switch UserDefaults.standard.string(forKey: "calendarAccess") {
+    case "notDetermined": .notDetermined
+    case "denied": .denied
+    default: .granted
+    }
     private let calendar: Calendar
     private lazy var allEvents: [ExternalEvent] = makeEvents()
 
@@ -61,9 +67,12 @@ final class SampleCalendarProvider: CalendarProvider {
 
     private let today: Date
 
-    func requestAccess() async -> CalendarAccess { access }
+    func requestAccess() async -> CalendarAccess {
+        if access == .notDetermined { access = .granted }
+        return access
+    }
 
-    func calendars() -> [ExternalCalendar] { CalendarSamples.calendars }
+    func calendars() -> [ExternalCalendar] { access == .granted ? CalendarSamples.calendars : [] }
 
     func events(in interval: DateInterval, calendarIds: Set<String>) -> [ExternalEvent] {
         allEvents.filter { calendarIds.contains($0.calendarId) && $0.end > interval.start && $0.start < interval.end }

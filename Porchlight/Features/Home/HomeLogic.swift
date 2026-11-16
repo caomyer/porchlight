@@ -308,6 +308,12 @@ enum GrocerySections {
         return best
     }
 
+    /// Grocery items under their sections, in display order; items keep their list order.
+    static func group(_ items: [ListItem]) -> [(name: String, items: [ListItem])] {
+        let grouped = Dictionary(grouping: items) { $0.section ?? other }
+        return ordered(grouped.keys).map { ($0, grouped[$0] ?? []) }
+    }
+
     /// Sections in display order: standard aisles, then custom ones alphabetically, then "Other".
     static func ordered(_ sections: some Sequence<String>) -> [String] {
         let unique = Set(sections)

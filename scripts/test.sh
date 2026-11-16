@@ -10,7 +10,7 @@
 # so it is off by default; try it on an idle, bigger machine.
 #
 # --phone runs on the iOS 17.5 iPhone 15 simulator instead, and its UI run is the
-# phone's own tests (PhoneTests, PhoneHouseholdTests). The iPad run skips them.
+# phone's own tests (PhoneTests, PhoneTabsTests, PhoneHouseholdTests). The iPad run skips them.
 #
 # Usage: scripts/test.sh [--tour] [--phone] [--unit-only | --ui-only] [--workers N] [simulator-udid]
 set -euo pipefail
@@ -87,9 +87,9 @@ if (( ui )); then
   xcrun simctl bootstatus "$udid" -b >/dev/null
   xcrun simctl privacy "$udid" reset calendar com.porchlight.porchlight
   if (( phone )); then
-    skip=(-only-testing:PorchlightUITests/PhoneTests -only-testing:PorchlightUITests/PhoneHouseholdTests)
+    skip=(-only-testing:PorchlightUITests/PhoneTests -only-testing:PorchlightUITests/PhoneTabsTests -only-testing:PorchlightUITests/PhoneHouseholdTests)
   else
-    skip=(-skip-testing:PorchlightUITests/PhoneTests -skip-testing:PorchlightUITests/PhoneHouseholdTests)
+    skip=(-skip-testing:PorchlightUITests/PhoneTests -skip-testing:PorchlightUITests/PhoneTabsTests -skip-testing:PorchlightUITests/PhoneHouseholdTests)
     (( tour )) || skip+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
   fi
   parallel=()

@@ -87,7 +87,7 @@ struct PocketCareSheet: View {
                             .phoneFont(.body, 13, weight: 600, relativeTo: .footnote)
                             .foregroundStyle(Theme.accent)
                     }
-                    Button("Log \(noun) · +\(routine.stars) \(routine.stars == 1 ? "star" : "stars")") { save(routine, day: day) }
+                    Button("Log \(noun) · \(StarWords.earned(routine.stars))") { save(routine, day: day) }
                         .buttonStyle(PhoneButtonStyle())
                         .disabled(fields.people.isEmpty)
                         .accessibilityIdentifier("save-care")

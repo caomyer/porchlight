@@ -37,6 +37,9 @@ private enum Launch {
     @MainActor
     static func start() -> Launch {
         do {
+            #if DEBUG
+            DebugLaunch.clearSandbox(ProcessInfo.processInfo.arguments)
+            #endif
             // Before opening: opening the database creates the engine's metadata database.
             let metadataExisted = FileManager.default.fileExists(atPath: DatabaseIdentity.metadataURL(in: AppFiles.root).path)
             let database = try AppDatabase.openOnDisk()

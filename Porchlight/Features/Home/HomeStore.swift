@@ -196,18 +196,22 @@ final class HomeStore {
         return perform { try database.saveReward(draft, id: id, householdId: householdId, today: today) }
     }
 
-    /// Spends a reached reward's stars ("cash in") and starts it over.
-    func cashIn(_ reward: Reward) {
+    /// Spends a reached reward's stars ("cash in") and starts it over. Returns the cash-in,
+    /// or nil when it didn't happen (another tap or device already cashed this round in).
+    @discardableResult
+    func cashIn(_ reward: Reward, now: Date = .now) -> RewardRedemption? {
         let id = reward.id
         let stars = earned(toward: reward)
         let known = snapshot.redemptions.first { $0.rewardId == id }?.id
+        var cashedIn: RewardRedemption?
         perform {
             do {
-                try database.cashInReward(id: id, stars: stars, day: today, after: known)
+                cashedIn = try database.cashInReward(id: id, stars: stars, day: today, after: known, now: now)
             } catch HomeValidationError.alreadyCashedIn {
                 // A second tap before the board refreshed: the first one already did it.
             }
         }
+        return cashedIn
     }
 
     /// Starts a reward over without cashing it in.

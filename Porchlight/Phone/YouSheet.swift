@@ -1,14 +1,15 @@
 import SwiftUI
 
 /// "You", from the avatar on every tab: who you are (and a way to change it), the
-/// household's people and their devices, inviting someone, and this device's name and
-/// role. Only what works today is here; notifications, calendars, storage and leaving
-/// arrive with their own milestones.
+/// household's people and their devices, inviting someone, this device's name and role,
+/// and which of its calendars show. Only what works today is here; notifications, storage
+/// and leaving arrive with their own milestones.
 struct YouSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(DeviceSettings.self) private var device
     @Environment(HouseholdSharingModel.self) private var sharing
     @Environment(SyncController.self) private var sync
+    @Environment(CalendarStore.self) private var calendars
     @Environment(\.me) private var me
     @Environment(\.dismiss) private var dismiss
 
@@ -51,6 +52,12 @@ struct YouSheet: View {
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("change-me")
                         }
+                        RowDivider()
+                        Button { path.append(.calendars) } label: {
+                            InfoRow(emoji: "📅", title: "Calendars", detail: calendarsLine, chevron: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("calendars")
                     }
                 }
                 .padding(.horizontal, 16)
@@ -84,6 +91,8 @@ struct YouSheet: View {
                         JoinCodePage()
                     case .deviceName:
                         DeviceNamePage(onDone: { path.removeAll() })
+                    case .calendars:
+                        PocketCalendars()
                     }
                 }
                 .background(Theme.background)
@@ -133,6 +142,17 @@ struct YouSheet: View {
         return "Send a link, or show a code"
     }
 
+    /// "2 shown on Today", or why there are none.
+    private var calendarsLine: String {
+        switch calendars.access {
+        case .notDetermined: return "Choose which show on Today"
+        case .denied: return "Access is off"
+        case .granted:
+            let shown = calendars.mappings.filter(\.source.isShown).count
+            return shown == 0 ? "None shown on Today" : "\(shown) shown on Today"
+        }
+    }
+
     private var roleLine: String {
         switch device.role {
         case .personal: "Personal: what you log is credited to you"
@@ -142,7 +162,7 @@ struct YouSheet: View {
 }
 
 private enum YouPage: Hashable {
-    case whoAreYou, invite, joinCode, deviceName
+    case whoAreYou, invite, joinCode, deviceName, calendars
 }
 
 /// A list card in the You sheet.
