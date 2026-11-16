@@ -19,6 +19,9 @@ packages:
   GRDB:
     url: https://github.com/groue/GRDB.swift
     exactVersion: 7.11.1
+  SQLiteData:
+    url: https://github.com/pointfreeco/sqlite-data
+    exactVersion: 1.13.0
 targets:
   Porchlight:
     type: application
@@ -27,6 +30,7 @@ targets:
       - path: Porchlight
     dependencies:
       - package: GRDB
+      - package: SQLiteData
     info:
       path: Porchlight/Info.plist
       properties:
@@ -49,10 +53,31 @@ targets:
         NSCameraUsageDescription: Porchlight uses the camera to snap photos of your meals for the food diary.
         NSPhotoLibraryUsageDescription: Porchlight can show photos you pick on the wall in Ambient mode.
         NSLocationWhenInUseUsageDescription: Porchlight uses your approximate location once to show local weather.
+        # iCloud sync: the engine is woken by pushes, and the household is shared in M2.
+        UIBackgroundModes:
+          - remote-notification
+        CKSharingSupported: true
+    entitlements:
+      path: Porchlight/Porchlight.entitlements
+      properties:
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.porchlight.porchlight
+        com.apple.developer.icloud-container-environment: $(PORCHLIGHT_CLOUDKIT_ENVIRONMENT)
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.porchlight.porchlight
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+      configs:
+        # The wall (Release, by cable) and family phones (TestFlight) must meet in the same
+        # CloudKit environment, so Release uses Production; Debug, simulators and tests stay
+        # on Development (docs/design/sync-icloud.md, "One iCloud for cable installs and TestFlight").
+        Debug:
+          PORCHLIGHT_CLOUDKIT_ENVIRONMENT: Development
+        Release:
+          PORCHLIGHT_CLOUDKIT_ENVIRONMENT: Production
   PorchlightTests:
     type: bundle.unit-test
     platform: iOS

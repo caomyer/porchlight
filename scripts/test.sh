@@ -50,7 +50,7 @@ checkout=$(basename "$PWD")
 derived="$HOME/Library/Developer/Xcode/DerivedData/Porchlight-${checkout}"
 results="${TMPDIR:-/tmp}/porchlight-tests-${checkout}"
 mkdir -p "$results"
-common=(-project Porchlight.xcodeproj -destination "id=$udid" -derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO)
+common=(-project Porchlight.xcodeproj -destination "id=$udid" -derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO -skipMacroValidation)
 
 # Keep only results, failures and the summary from xcodebuild's output.
 summarize() {

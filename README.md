@@ -32,8 +32,12 @@ Run the tests on an iPad simulator (build output must stay outside iCloud-synced
 ```bash
 xcodebuild test -project Porchlight.xcodeproj -scheme Porchlight \
   -destination 'platform=iOS Simulator,name=iPad (10th generation)' \
-  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Porchlight-main CODE_SIGNING_ALLOWED=NO
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Porchlight-main CODE_SIGNING_ALLOWED=NO -skipMacroValidation
 ```
+
+iCloud sync uses Point-Free's SQLiteData, whose Swift macros Xcode asks to trust once when the project is opened.
+Command-line builds pass `-skipMacroValidation` instead; every script here does.
+Builds with `CODE_SIGNING_ALLOWED=NO` (simulators, tests) have no iCloud entitlement, so sync stays off in them and Settings says why.
 
 Screenshot a screen with sample data:
 
