@@ -3,9 +3,9 @@ import Foundation
 /// A care log with the people who did it.
 struct CareEntry: Equatable, Identifiable, Sendable {
     var log: CareLog
-    var people: [Int64]
+    var people: [Person.ID]
 
-    var id: Int64 { log.id ?? 0 }
+    var id: CareLog.ID { log.id }
     var time: Date { log.occurredAt }
     var isTogether: Bool { people.count > 1 }
 }
@@ -196,7 +196,7 @@ enum CareLogic {
     // MARK: Leaderboard
 
     enum Carer: Hashable, Sendable {
-        case person(Int64)
+        case person(Person.ID)
         case together
     }
 
@@ -207,7 +207,7 @@ enum CareLogic {
 
     /// Solo logs per person, plus logs done together as their own entry.
     /// Sorted by count, then by household order (`people`), with Together last on ties.
-    static func leaderboard(_ entries: [CareEntry], people: [Int64]) -> [Standing] {
+    static func leaderboard(_ entries: [CareEntry], people: [Person.ID]) -> [Standing] {
         var counts: [Carer: Int] = [:]
         for entry in entries where !entry.people.isEmpty {
             let carer: Carer = entry.isTogether ? .together : .person(entry.people[0])

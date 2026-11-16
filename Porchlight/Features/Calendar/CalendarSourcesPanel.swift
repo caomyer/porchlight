@@ -308,9 +308,7 @@ private struct MappingRow: View {
     private var ownerMenu: some View {
         Menu {
             ForEach(store.people) { person in
-                if let id = person.id {
-                    Button(person.name) { store.setOwner(.person(id), for: source) }
-                }
+                Button(person.name) { store.setOwner(.person(person.id), for: source) }
             }
             Button("Both") { store.setOwner(.everyone, for: source) }
         } label: {

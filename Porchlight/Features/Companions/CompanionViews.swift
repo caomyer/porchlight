@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The small face used as the rail icon.
 struct CompanionRailIcon: View {
-    var companionId: Int64
+    var companionId: Companion.ID
     @Environment(CompanionStore.self) private var store
 
     var body: some View {
@@ -69,7 +69,7 @@ struct CompanionTodayCards: View {
 /// The pet card: face, mood, streak, today's slots and the big log button.
 struct CompanionTodayCard: View {
     let report: CompanionReport
-    let onLog: (Int64) -> Void
+    let onLog: (CareRoutine.ID) -> Void
 
     @Environment(CompanionStore.self) private var store
     @Environment(\.openCompanion) private var openCompanion
@@ -211,7 +211,8 @@ struct SlotGrid: View {
 
     /// A done slot opens its log to fix; an open one starts a new log.
     private func open(_ slot: CareSlot) {
-        guard let openCareLog, let routineId = today.routine.id else { return }
+        guard let openCareLog else { return }
+        let routineId = today.routine.id
         if let entry = slot.entry {
             openCareLog(.edit(entry, companionId: report.id))
         } else {
@@ -254,7 +255,7 @@ struct SlotGrid: View {
 /// Compact chips for a companion's other routines ("🥣 Feed 1/2"); tap to log one.
 struct OtherRoutines: View {
     let report: CompanionReport
-    let onLog: (Int64) -> Void
+    let onLog: (CareRoutine.ID) -> Void
 
     var body: some View {
         FlowLayout(spacing: 8) {

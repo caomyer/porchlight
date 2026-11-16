@@ -5,7 +5,8 @@ import UIKit
 /// Sample chores, rewards, lists and dinners for `-sampleHousehold`. Dates are relative to today.
 enum HomeSamples {
     static func seed(_ database: AppDatabase, household: Household, people: [Person]) throws {
-        guard let householdId = household.id, let first = people.first?.id else { return }
+        guard let first = people.first?.id else { return }
+        let householdId = household.id
         let second = people.dropFirst().first?.id ?? first
         let calendar = household.calendar
         let today = DayKey(.now, calendar: calendar)
@@ -13,7 +14,7 @@ enum HomeSamples {
         let weekday = calendar.component(.weekday, from: today.startDate(in: calendar))
         let start = today.adding(days: -27, calendar: calendar)
 
-        func chore(_ emoji: String, _ title: String, _ owner: Int64?, _ recurrence: Recurrence, anchor: DayKey? = nil, hint: String?, stars: Int) throws -> Chore {
+        func chore(_ emoji: String, _ title: String, _ owner: Person.ID?, _ recurrence: Recurrence, anchor: DayKey? = nil, hint: String?, stars: Int) throws -> Chore {
             try database.saveChore(
                 ChoreDraft(title: title, emoji: emoji, ownerId: owner, recurrence: recurrence, anchorDay: anchor ?? start, timeHint: hint, stars: stars),
                 householdId: householdId
@@ -39,13 +40,13 @@ enum HomeSamples {
             let day = today.adding(days: -offset, calendar: calendar)
             for (index, chore) in repeating.enumerated() where ChoreSchedule.occurs(chore, on: day, calendar: calendar) {
                 guard (offset * 7 + index * 3) % 5 != 0 else { continue }
-                try database.toggleChore(id: chore.id!, day: day, personId: offset % 2 == 0 ? first : second)
+                try database.toggleChore(id: chore.id, day: day, personId: offset % 2 == 0 ? first : second)
             }
         }
-        try database.toggleChore(id: breakfast.id!, day: today, personId: nil)
-        try database.toggleChore(id: recycling.id!, day: today, personId: nil)
-        try database.toggleChore(id: plants.id!, day: today, personId: nil)
-        try database.toggleChore(id: fridge.id!, day: today, personId: second)
+        try database.toggleChore(id: breakfast.id, day: today, personId: nil)
+        try database.toggleChore(id: recycling.id, day: today, personId: nil)
+        try database.toggleChore(id: plants.id, day: today, personId: nil)
+        try database.toggleChore(id: fridge.id, day: today, personId: second)
 
         // Rewards: personal treats started about a week ago; the shared fund has been going a while.
         let rewards = [
@@ -56,13 +57,13 @@ enum HomeSamples {
         var coffeeRun: Reward?
         for (draft, startDay) in rewards {
             let reward = try database.saveReward(draft, householdId: householdId, today: today)
-            try database.restartReward(id: reward.id!, from: startDay)
+            try database.restartReward(id: reward.id, from: startDay)
             if draft.targetStars == 20 { coffeeRun = reward }
         }
         // The coffee run should be reached, ready to cash in. How many stars the last few
         // days hold depends on the hour (today's walks are only seeded once they are past),
         // so start it on the latest day that still gets there.
-        if let coffeeRun, let id = coffeeRun.id {
+        if let id = coffeeRun?.id {
             for daysAgo in 4...20 {
                 let startDay = today.adding(days: -daysAgo, calendar: calendar)
                 try database.restartReward(id: id, from: startDay)
@@ -76,30 +77,30 @@ enum HomeSamples {
             RewardDraft(title: "Ice cream trip", emoji: "🍦", targetStars: 20, ownerId: first), householdId: householdId, today: today
         )
         let cashedIn = today.adding(days: -5, calendar: calendar)
-        try database.cashInReward(id: treat.id!, stars: 20, day: cashedIn, after: nil, now: cashedIn.startDate(in: calendar).addingTimeInterval(17 * 3600))
-        try database.setRewardArchived(id: treat.id!, archived: true)
+        try database.cashInReward(id: treat.id, stars: 20, day: cashedIn, after: nil, now: cashedIn.startDate(in: calendar).addingTimeInterval(17 * 3600))
+        try database.setRewardArchived(id: treat.id, archived: true)
 
         // Lists
         let groceries = try database.createList(title: "Groceries", kind: .grocery, householdId: householdId)
-        let groceryItems: [(String, Int64?, Bool, String?)] = [
+        let groceryItems: [(String, Person.ID?, Bool, String?)] = [
             ("Avocados ×3", second, false, nil), ("Basil", nil, true, nil), ("Scallions", first, false, nil),
             ("Limes", nil, false, nil), ("Oat milk", first, false, nil), ("Parmesan", nil, true, nil),
             ("Greek yogurt", second, false, nil), ("White miso", second, false, nil), ("Rice", nil, true, nil),
             ("Candles: 8 and 0", second, false, "For the party"), ("Balloons", first, false, "For the party"),
         ]
         for (title, by, checked, section) in groceryItems {
-            let item = try database.addListItem(title: title, to: groceries.id!, section: section, addedBy: by)
-            if checked { try database.setListItemChecked(id: item.id!, checked: true) }
+            let item = try database.addListItem(title: title, to: groceries.id, section: section, addedBy: by)
+            if checked { try database.setListItemChecked(id: item.id, checked: true) }
         }
         let todo = try database.createList(title: "House", kind: .todo, householdId: householdId)
-        let todos: [(String, Int64, Bool)] = [
+        let todos: [(String, Person.ID, Bool)] = [
             ("Order the birthday cake", first, false), ("Book anniversary dinner", first, true),
             ("Renew car registration", second, false), ("Call plumber if faucet still drips", first, false),
             ("Return library books", second, true), ("Pick holiday card photo", second, false),
         ]
         for (title, by, checked) in todos {
-            let item = try database.addListItem(title: title, to: todo.id!, addedBy: by)
-            if checked { try database.setListItemChecked(id: item.id!, checked: true) }
+            let item = try database.addListItem(title: title, to: todo.id, addedBy: by)
+            if checked { try database.setListItemChecked(id: item.id, checked: true) }
         }
 
         // This week's dinners
@@ -115,7 +116,7 @@ enum HomeSamples {
     /// `-samplePhotos N` adds N painted photos to the frame, for the photo manager and the slideshow.
     /// Sample launches use their own storage sandbox, so these never reach the household's photos.
     @MainActor
-    static func seedPhotos(_ count: Int, database: AppDatabase, householdId: Int64) throws {
+    static func seedPhotos(_ count: Int, database: AppDatabase, householdId: Household.ID) throws {
         let library = AmbientPhotoLibrary.shared
         try FileManager.default.createDirectory(at: library.folder, withIntermediateDirectories: true)
         let months = ["Nov 2026", "Oct 2026", "Sep 2026", "Aug 2026", "Jul 2026", "Jun 2026"]

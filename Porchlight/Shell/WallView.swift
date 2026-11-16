@@ -4,7 +4,7 @@ import SwiftUI
 enum Destination: Hashable, Identifiable {
     case today
     case calendar
-    case companion(Int64)
+    case companion(Companion.ID)
     case food
     case chores
     case glow
@@ -19,8 +19,8 @@ enum Destination: Hashable, Identifiable {
         }
     }
 
-    /// Debug `-startScreen` names.
-    init?(debugName: String) {
+    /// Debug `-startScreen` names. `companion-N` is the N-th companion on the rail.
+    init?(debugName: String, companions: [Companion.ID]) {
         switch debugName {
         case "today": self = .today
         case "calendar": self = .calendar
@@ -31,8 +31,9 @@ enum Destination: Hashable, Identifiable {
         case "photos": self = .photos
         case "settings": self = .settings
         default:
-            guard debugName.hasPrefix("companion-"), let id = Int64(debugName.dropFirst("companion-".count)) else { return nil }
-            self = .companion(id)
+            guard debugName.hasPrefix("companion-"), let index = Int(debugName.dropFirst("companion-".count)),
+                  companions.indices.contains(index - 1) else { return nil }
+            self = .companion(companions[index - 1])
         }
     }
 }
@@ -44,19 +45,19 @@ struct WallView: View {
     @Environment(HomeStore.self) private var home
     @AppStorage(DisplaySettings.ambientMinutesKey) private var ambientMinutes = DisplaySettings.defaultAmbientMinutes
 
-    @State private var selection: Destination = WallView.initialDestination
+    @State private var selection: Destination = .today
     @State private var lastInteraction = Date.now
     @State private var showAmbient = false
 
-    private static var initialDestination: Destination {
-        #if DEBUG
-        // e.g. launch with `-startScreen settings` for screenshots
-        if let name = UserDefaults.standard.string(forKey: "startScreen"), let destination = Destination(debugName: name) {
-            return destination
+    #if DEBUG
+    /// The `-startScreen` destination, e.g. `-startScreen settings` for screenshots.
+    /// Companions are only known once their store has loaded, so it is read on appear.
+    private var debugStartScreen: Destination? {
+        UserDefaults.standard.string(forKey: "startScreen").flatMap {
+            Destination(debugName: $0, companions: companions.companions.map(\.id))
         }
-        #endif
-        return .today
     }
+    #endif
 
     private var destinations: [RailItem] {
         var items: [RailItem] = [
@@ -107,6 +108,9 @@ struct WallView: View {
         .environment(\.openCompanion, OpenCompanionAction { selection = .companion($0) })
         .task(id: ambientMinutes) { await watchForIdle() }
         .onAppear {
+            #if DEBUG
+            if let start = debugStartScreen { selection = start }
+            #endif
             // Starting on Photos (debug start screen) opens Ambient directly.
             if selection == .photos {
                 showAmbient = true
@@ -165,7 +169,7 @@ struct WallView: View {
 struct RailItem: Identifiable {
     enum Icon {
         case symbol(String)
-        case companion(Int64)
+        case companion(Companion.ID)
     }
 
     var destination: Destination

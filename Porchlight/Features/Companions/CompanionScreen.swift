@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A companion's page: the week at a glance, with the hero face, paw trail, diary and podium.
 struct CompanionScreen: View {
-    var companionId: Int64
+    var companionId: Companion.ID
 
     @Environment(CompanionStore.self) private var store
     @State private var request: CareLogRequest?
@@ -55,10 +55,10 @@ struct CompanionScreen: View {
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
             Spacer(minLength: 12)
-            if let routine = report.primaryRoutine, let routineId = routine.id {
+            if let routine = report.primaryRoutine {
                 Button {
                     CompanionCover.instantly {
-                        request = CareLogRequest(companionId: companionId, routineId: routineId, returnTitle: "Back to \(report.name)")
+                        request = CareLogRequest(companionId: companionId, routineId: routine.id, returnTitle: "Back to \(report.name)")
                     }
                 } label: {
                     Label("Log a \(report.noun)", systemImage: "pawprint.fill")
@@ -406,9 +406,7 @@ private struct DiaryCard: View {
             ? "yesterday"
             : missed.day.formatted(.dateTime.weekday(.wide), calendar: calendar)
         return Button {
-            if let routineId = missed.routine.id {
-                openCareLog?(.catchUp(companionId: report.id, routineId: routineId, day: missed.day, slot: missed.slot.index))
-            }
+            openCareLog?(.catchUp(companionId: report.id, routineId: missed.routine.id, day: missed.day, slot: missed.slot.index))
         } label: {
             HStack(alignment: .top, spacing: 10) {
                 Text(missed.routine.emoji)

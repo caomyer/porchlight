@@ -69,8 +69,8 @@ struct CompanionOnboardingEditor: View {
         guard !didStart else { return }
         didStart = true
         // Resume the first companion if setup was interrupted, else start a fresh dog.
-        if let first = store.snapshot.companions.first, let id = first.id {
-            draft = CompanionDraft(first, routines: store.snapshot.routines(of: id))
+        if let first = store.snapshot.companions.first {
+            draft = CompanionDraft(first, routines: store.snapshot.routines(of: first.id))
             routinesEdited = true
             savedPhoto = first.photoFile
         } else {
@@ -109,7 +109,7 @@ struct CompanionOnboardingEditor: View {
 
     private func edit(_ companion: Companion) {
         saveNow()
-        guard let id = companion.id else { return }
+        let id = companion.id
         draft = CompanionDraft(companion, routines: store.snapshot.routines(of: id))
         routinesEdited = true
         savedPhoto = companion.photoFile
@@ -174,15 +174,15 @@ struct CompanionSettingsList: View {
         }
         #if DEBUG
         .onAppear {
-            if ["editor", "routine"].contains(UserDefaults.standard.string(forKey: "debugCompanionSheet")), let first = store.snapshot.companions.first, let id = first.id {
-                CompanionCover.instantly { editing = EditingCompanion(draft: CompanionDraft(first, routines: store.snapshot.routines(of: id))) }
+            if ["editor", "routine"].contains(UserDefaults.standard.string(forKey: "debugCompanionSheet")), let first = store.snapshot.companions.first {
+                CompanionCover.instantly { editing = EditingCompanion(draft: CompanionDraft(first, routines: store.snapshot.routines(of: first.id))) }
             }
         }
         #endif
     }
 
     private func row(_ companion: Companion) -> some View {
-        let routines = store.snapshot.routines(of: companion.id ?? -1)
+        let routines = store.snapshot.routines(of: companion.id)
         return HStack(spacing: 14) {
             CompanionFace(look: CompanionLook(companion), size: 48)
             VStack(alignment: .leading, spacing: 2) {
@@ -877,7 +877,7 @@ private struct RoutineEditorSheet: View {
             draft.startDay = repeatChoice.startDay(calendar: model.calendar)
         }
         do {
-            let checked = try CareRules.validated(draft, companionId: 0, sortOrder: 0)
+            let checked = try CareRules.validated(draft, companionId: .new(), sortOrder: 0)
             var result = draft
             result.title = checked.title
             result.emoji = checked.emoji

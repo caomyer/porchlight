@@ -48,7 +48,7 @@ struct ChoreDayMark: Identifiable, Equatable {
     var day: DayKey
     var completion: ChoreCompletion?
 
-    var id: String { "\(chore.id ?? -1)-\(day)" }
+    var id: String { "\(chore.id)-\(day)" }
     var isDone: Bool { completion != nil }
 }
 
@@ -58,7 +58,7 @@ enum ChoreDay {
     static func marks(on day: DayKey, chores: [Chore], completions: [ChoreCompletion], calendar: Calendar) -> [ChoreDayMark] {
         let done = completions
             .filter { $0.dayKey == day }
-            .sorted { ($0.completedAt, $0.id ?? 0) < ($1.completedAt, $1.id ?? 0) }
+            .sorted { ($0.completedAt, $0.id) < ($1.completedAt, $1.id) }
             .compactMap { completion in
                 chores.first { $0.id == completion.choreId }.map { ChoreDayMark(chore: $0, day: day, completion: completion) }
             }
@@ -86,12 +86,12 @@ extension HomeStore {
     /// Chores done that day, as Today agenda rows: who did it, when, and the stars it earned.
     func timelineItems(for day: DayKey, people: [Person]) -> [TimelineItem] {
         dayMarks(on: day).compactMap { mark -> TimelineItem? in
-            guard let completion = mark.completion, let choreId = mark.chore.id else { return nil }
-            let who = completion.personId.flatMap { id in people.first { $0.id == id } }
+            guard let completion = mark.completion else { return nil }
+            let who = people.person(completion.personId)
             var subtitle = who.map { "\($0.name) pitched in" } ?? "Done"
             if completion.stars > 0 { subtitle += " · +\(completion.stars) " + (completion.stars == 1 ? "star" : "stars") }
             return TimelineItem(
-                id: "chore-\(completion.id ?? choreId)",
+                id: "chore-\(completion.id)",
                 kind: .log,
                 time: ChoreDay.time(of: completion, calendar: calendar),
                 title: mark.chore.title,
@@ -99,7 +99,7 @@ extension HomeStore {
                 owner: completion.personId.map(Owner.person) ?? .everyone,
                 leading: AnyView(ChoreEmojiTile(emoji: mark.chore.emoji, size: 32)),
                 trailing: AnyView(OwnerAvatar(owner: completion.personId.map(Owner.person) ?? .everyone, people: people)),
-                target: .chore(choreId: choreId, day: day)
+                target: .chore(choreId: mark.chore.id, day: day)
             )
         }
     }
@@ -262,7 +262,7 @@ private struct ChoreLaneCell: View {
     private func isPast(_ mark: ChoreDayMark) -> Bool { !mark.isDone && mark.day < today }
 
     private func open(_ mark: ChoreDayMark) {
-        guard let id = mark.chore.id else { return }
+        let id = mark.chore.id
         openTarget?(.chore(choreId: id, day: mark.day))
     }
 
@@ -421,10 +421,10 @@ private struct DoneChip: View {
 /// "This week: J ★ 9 · M ★ 5", tying the card to Glow.
 private struct WeekStarsLine: View {
     @Environment(AppModel.self) private var model
-    let totals: [Int64: Int]
+    let totals: [Person.ID: Int]
 
     var body: some View {
-        if model.people.contains(where: { ($0.id.flatMap { totals[$0] } ?? 0) > 0 }) {
+        if model.people.contains(where: { (totals[$0.id] ?? 0) > 0 }) {
             HStack(spacing: 12) {
                 Text("THIS WEEK")
                     .font(.body(11, weight: 800))
@@ -436,12 +436,12 @@ private struct WeekStarsLine: View {
                         Image(systemName: "star.fill")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(Theme.everyone)
-                        Text("\(person.id.flatMap { totals[$0] } ?? 0)")
+                        Text("\(totals[person.id] ?? 0)")
                             .font(.body(13.5, weight: 700))
                             .monospacedDigit()
                     }
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(person.name), \(person.id.flatMap { totals[$0] } ?? 0) stars this week")
+                    .accessibilityLabel("\(person.name), \(totals[person.id] ?? 0) stars this week")
                 }
                 Spacer(minLength: 0)
             }

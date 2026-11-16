@@ -14,20 +14,48 @@ struct AppDatabase: Sendable {
     }
 
     /// The on-device database in Application Support.
-    static func openOnDisk(fileManager: FileManager = .default) throws -> AppDatabase {
-        let folder = AppFiles.root
+    static func openOnDisk(folder: URL = AppFiles.root, fileManager: FileManager = .default) throws -> AppDatabase {
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent("porchlight.sqlite")
-        var config = Configuration()
-        config.foreignKeysEnabled = true
-        return try AppDatabase(DatabasePool(path: url.path, configuration: config))
+        let exists = fileManager.fileExists(atPath: url.path)
+        let pool = try DatabasePool(path: url.path, configuration: configuration)
+        if exists {
+            try keepCopyBeforeSync(pool, at: url, fileManager: fileManager)
+        }
+        return try AppDatabase(pool)
     }
 
     /// An empty in-memory database, for tests and previews.
     static func inMemory() throws -> AppDatabase {
+        try AppDatabase(DatabaseQueue(configuration: configuration))
+    }
+
+    /// The settings every connection opens with, on disk or in memory.
+    static var configuration: Configuration {
         var config = Configuration()
         config.foreignKeysEnabled = true
-        return try AppDatabase(DatabaseQueue(configuration: config))
+        config.prepareDatabase { db in db.addUUIDFunction() }
+        return config
+    }
+
+    /// The copy of the database kept from before "sync v1" rebuilt every table, in case
+    /// it ever needs to be recovered. Removed once sync has proven itself (M1's gate).
+    static func copyBeforeSyncURL(next database: URL) -> URL {
+        database.deletingLastPathComponent().appendingPathComponent("porchlight-before-sync-v1.sqlite")
+    }
+
+    /// Copies an existing database that hasn't run "sync v1" yet, before it does.
+    /// The WAL is checkpointed into the main file first, so the one file is complete.
+    private static func keepCopyBeforeSync(_ pool: DatabasePool, at url: URL, fileManager: FileManager) throws {
+        let applied = try pool.read { try migrator.appliedIdentifiers($0) }
+        guard !applied.isEmpty, !applied.contains(syncMigration) else { return }
+        try pool.writeWithoutTransaction { _ = try $0.checkpoint(.truncate) }
+        let copy = copyBeforeSyncURL(next: url)
+        // A copy left by a launch whose migration failed holds the same, unmigrated data.
+        if fileManager.fileExists(atPath: copy.path) {
+            try fileManager.removeItem(at: copy)
+        }
+        try fileManager.copyItem(at: url, to: copy)
     }
 
     static var migrator: DatabaseMigrator {
@@ -61,6 +89,8 @@ struct AppDatabase: Sendable {
         registerCompanionMigrations(&migrator)
         registerFoodMigrations(&migrator)
         registerHomeMigrations(&migrator)
+        // Always last among the schemas above: it rebuilds every one of their tables.
+        registerSyncMigrations(&migrator)
         return migrator
     }
 }
@@ -115,7 +145,7 @@ extension AppDatabase {
         guard !drafts.isEmpty else { throw ValidationError.noPeople }
 
         return try writer.write { db in
-            var household = Household(
+            let household = Household(
                 name: householdName,
                 timeZoneIdentifier: timeZone.identifier,
                 firstWeekday: calendar.firstWeekday,
@@ -124,8 +154,8 @@ extension AppDatabase {
             )
             try household.insert(db)
             for (index, draft) in drafts.enumerated() {
-                var person = Person(
-                    householdId: household.id!,
+                let person = Person(
+                    householdId: household.id,
                     name: peopleNames[index],
                     color: draft.color,
                     sortOrder: index,
@@ -137,13 +167,13 @@ extension AppDatabase {
         }
     }
 
-    func markSetupCompleted(householdId: Int64) throws {
+    func markSetupCompleted(householdId: Household.ID) throws {
         try writer.write { db in
             try db.execute(sql: "UPDATE household SET setupCompleted = 1 WHERE id = ?", arguments: [householdId])
         }
     }
 
-    func renameHousehold(id: Int64, to newName: String) throws {
+    func renameHousehold(id: Household.ID, to newName: String) throws {
         let name = try Names.validated(newName)
         try writer.write { db in
             guard var household = try Household.fetchOne(db, id: id) else { return }
@@ -153,21 +183,21 @@ extension AppDatabase {
     }
 
     @discardableResult
-    func addPerson(_ draft: PersonDraft, to householdId: Int64, now: Date = .now) throws -> Person {
+    func addPerson(_ draft: PersonDraft, to householdId: Household.ID, now: Date = .now) throws -> Person {
         let name = try Names.validated(draft.name)
         return try writer.write { db in
             let nextOrder = try Int.fetchOne(
                 db,
-                sql: "SELECT COALESCE(MAX(sortOrder) + 1, 0) FROM person WHERE householdId = ?",
+                sql: "SELECT COALESCE(MAX(sortOrder) + 1, 0) FROM person WHERE householdId = ? AND archivedAt IS NULL",
                 arguments: [householdId]
             ) ?? 0
-            var person = Person(householdId: householdId, name: name, color: draft.color, sortOrder: nextOrder, createdAt: now)
+            let person = Person(householdId: householdId, name: name, color: draft.color, sortOrder: nextOrder, createdAt: now)
             try person.insert(db)
             return person
         }
     }
 
-    func updatePerson(id: Int64, name newName: String, color: PersonColor) throws {
+    func updatePerson(id: Person.ID, name newName: String, color: PersonColor) throws {
         let name = try Names.validated(newName)
         try writer.write { db in
             guard var person = try Person.fetchOne(db, id: id) else { return }
@@ -177,20 +207,29 @@ extension AppDatabase {
         }
     }
 
-    /// Removes a person. The last remaining person cannot be removed, so the
+    /// Removes a person from the household by archiving them: people are never deleted,
+    /// so past logs, meals, completions and cash-ins keep their name.
+    ///
+    /// Their chores become "Anyone", the rewards they owned are archived, and their
+    /// calendars belong to everyone. The last active person cannot be removed, so the
     /// household always has someone to credit.
-    func deletePerson(id: Int64) throws {
+    func archivePerson(id: Person.ID, now: Date = .now) throws {
         try writer.write { db in
-            guard let person = try Person.fetchOne(db, id: id) else { return }
-            let count = try Person.filter(Column("householdId") == person.householdId).fetchCount(db)
-            guard count > 1 else { throw ValidationError.noPeople }
-            _ = try Person.deleteOne(db, id: id)
+            guard var person = try Person.fetchOne(db, id: id), !person.isArchived else { return }
+            let active = try Person.active(in: person.householdId).fetchCount(db)
+            guard active > 1 else { throw ValidationError.noPeople }
+            person.archivedAt = now
+            try person.update(db)
+            let arguments: StatementArguments = [id, person.householdId]
+            try db.execute(sql: "UPDATE chore SET ownerId = NULL WHERE ownerId = ? AND householdId = ?", arguments: arguments)
+            try db.execute(sql: "UPDATE reward SET archived = 1 WHERE ownerId = ? AND householdId = ?", arguments: arguments)
+            try db.execute(sql: "UPDATE calendarSource SET ownerId = NULL WHERE ownerId = ? AND householdId = ?", arguments: arguments)
             try Self.renumber(db, householdId: person.householdId)
         }
     }
 
     /// Persists a new order, given the person ids in display order.
-    func reorderPeople(householdId: Int64, ids: [Int64]) throws {
+    func reorderPeople(householdId: Household.ID, ids: [Person.ID]) throws {
         try writer.write { db in
             for (index, id) in ids.enumerated() {
                 try db.execute(
@@ -201,11 +240,8 @@ extension AppDatabase {
         }
     }
 
-    private static func renumber(_ db: Database, householdId: Int64) throws {
-        let people = try Person
-            .filter(Column("householdId") == householdId)
-            .order(Column("sortOrder"), Column("id"))
-            .fetchAll(db)
+    private static func renumber(_ db: Database, householdId: Household.ID) throws {
+        let people = try Person.active(in: householdId).fetchAll(db)
         for (index, var person) in people.enumerated() where person.sortOrder != index {
             person.sortOrder = index
             try person.update(db)
@@ -215,20 +251,53 @@ extension AppDatabase {
 
 // MARK: - Reads
 
+extension Household {
+    /// The household this display belongs to: the only one, for now.
+    static func current(_ db: Database) throws -> Household? {
+        try Household.order(Column("createdAt"), Column("id")).fetchOne(db)
+    }
+}
+
+extension Person {
+    /// The household's people who haven't been removed, in display order.
+    static func active(in householdId: Household.ID) -> QueryInterfaceRequest<Person> {
+        everyone(in: householdId).filter(Column("archivedAt") == nil)
+    }
+
+    /// Everyone who ever lived here, removed people included, in display order.
+    static func everyone(in householdId: Household.ID) -> QueryInterfaceRequest<Person> {
+        Person
+            .filter(Column("householdId") == householdId)
+            .order(Column("sortOrder"), Column("createdAt"), Column("id"))
+    }
+}
+
+extension Array where Element == Person {
+    /// The person with this id, or nil when it points at nobody (yet): a sync can deliver
+    /// a row before the person it names.
+    func person(_ id: Person.ID?) -> Person? {
+        guard let id else { return nil }
+        return first { $0.id == id }
+    }
+
+    /// The people who haven't been removed.
+    var active: [Person] { filter { !$0.isArchived } }
+}
+
 /// Everything the wall needs about who lives here, read in one consistent snapshot.
 struct HouseholdSnapshot: Equatable, Sendable {
     var household: Household?
+    /// The people who live here now, for pickers and lists.
     var people: [Person]
+    /// Everyone, removed people included, for showing who did something in the past.
+    var everyone: [Person]
 
-    static let empty = HouseholdSnapshot(household: nil, people: [])
+    static let empty = HouseholdSnapshot(household: nil, people: [], everyone: [])
 
     static func fetch(_ db: Database) throws -> HouseholdSnapshot {
-        guard let household = try Household.order(Column("id")).fetchOne(db) else { return .empty }
-        let people = try Person
-            .filter(Column("householdId") == household.id)
-            .order(Column("sortOrder"), Column("id"))
-            .fetchAll(db)
-        return HouseholdSnapshot(household: household, people: people)
+        guard let household = try Household.current(db) else { return .empty }
+        let everyone = try Person.everyone(in: household.id).fetchAll(db)
+        return HouseholdSnapshot(household: household, people: everyone.active, everyone: everyone)
     }
 }
 

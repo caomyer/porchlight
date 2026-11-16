@@ -3,7 +3,7 @@
 #
 #   scripts/sim-shot.sh <simulator-udid> <out.png> [launch arguments...]
 #
-# Debug launch arguments: -sampleHousehold, -resetData, -startScreen <today|calendar|food|chores|lists|settings|companion-<id>>
+# Debug launch arguments: -sampleHousehold, -resetData, -startScreen <today|calendar|food|chores|lists|settings|companion-<n>> (n-th companion on the rail)
 # Env: DERIVED (DerivedData folder name, default Porchlight-main). Builds always go to
 # ~/Library/Developer/Xcode/DerivedData because this repo may live in iCloud Documents.
 set -euo pipefail

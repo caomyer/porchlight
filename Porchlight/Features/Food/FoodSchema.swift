@@ -7,8 +7,10 @@ import GRDB
 /// journal of kind "food" with meal slots). Each day has entries and one
 /// handwritten page.
 struct Journal: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var householdId: Int64
+    typealias ID = Porchlight.ID<Journal>
+
+    var id: ID = .new()
+    var householdId: Household.ID
     /// What the journal is about, e.g. "food". Screens pick their wording from it.
     var kind: String
     var title: String
@@ -20,16 +22,12 @@ struct Journal: Codable, Equatable, Identifiable, Sendable {
     static let foodKind = "food"
 }
 
-extension Journal: FetchableRecord, MutablePersistableRecord {
+extension Journal: FetchableRecord, PersistableRecord {
     static let entries = hasMany(JournalEntry.self)
 
     enum Columns {
         static let householdId = Column(CodingKeys.householdId)
         static let kind = Column(CodingKeys.kind)
-    }
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
     }
 }
 
@@ -67,8 +65,10 @@ enum MealSource: String, Codable, CaseIterable, Sendable, DatabaseValueConvertib
 /// (with address and location) or just typed in (name only). Shared by every entry
 /// that names it, so a favorite spot is one row.
 struct FoodPlace: Codable, Equatable, Hashable, Identifiable, Sendable {
-    var id: Int64?
-    var householdId: Int64
+    typealias ID = Porchlight.ID<FoodPlace>
+
+    var id: ID = .new()
+    var householdId: Household.ID
     var name: String
     /// One-line street address, when known.
     var address: String?
@@ -83,13 +83,9 @@ struct FoodPlace: Codable, Equatable, Hashable, Identifiable, Sendable {
     var createdAt: Date
 }
 
-extension FoodPlace: FetchableRecord, MutablePersistableRecord {
+extension FoodPlace: FetchableRecord, PersistableRecord {
     enum Columns {
         static let householdId = Column(CodingKeys.householdId)
-    }
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
     }
 }
 
@@ -119,8 +115,10 @@ enum MealRating: Int, Codable, CaseIterable, Sendable, DatabaseValueConvertible 
 
 /// One logged meal (or, generically, one journal entry in a slot of a day).
 struct JournalEntry: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var journalId: Int64
+    typealias ID = Porchlight.ID<JournalEntry>
+
+    var id: ID = .new()
+    var journalId: Journal.ID
     /// `DayKey.rawValue` ("yyyy-MM-dd"); see `dayKey`.
     var day: String
     var slot: String
@@ -134,11 +132,12 @@ struct JournalEntry: Codable, Equatable, Identifiable, Sendable {
     /// When the meal was eaten; places it in the Today timeline.
     var eatenAt: Date
     var createdAt: Date
-    /// The restaurant, for delivery or dining out.
-    var placeId: Int64?
+    /// The restaurant, for delivery or dining out. A plain id, not a foreign key:
+    /// after a sync it may point at a place that has not arrived yet.
+    var placeId: FoodPlace.ID?
 }
 
-extension JournalEntry: FetchableRecord, MutablePersistableRecord {
+extension JournalEntry: FetchableRecord, PersistableRecord {
     static let eaters = hasMany(JournalEntryEater.self)
 
     enum Columns {
@@ -146,17 +145,15 @@ extension JournalEntry: FetchableRecord, MutablePersistableRecord {
         static let day = Column(CodingKeys.day)
         static let eatenAt = Column(CodingKeys.eatenAt)
     }
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
 }
 
 /// One photo of a meal. A meal has up to `AppDatabase.photoLimit`; the first in
 /// `sortOrder` is its cover, the picture shown wherever many meals appear at once.
 struct MealPhoto: Codable, Equatable, Hashable, Identifiable, Sendable {
-    var id: Int64?
-    var entryId: Int64
+    typealias ID = Porchlight.ID<MealPhoto>
+
+    var id: ID = .new()
+    var entryId: JournalEntry.ID
     /// File names inside the photo folder (see `FoodPhotoStore`). The photo is the whole
     /// shot; the thumbnail is the square the wall shows.
     var photoFile: String
@@ -245,42 +242,64 @@ struct PhotoCrop: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-extension MealPhoto: FetchableRecord, MutablePersistableRecord {
+extension MealPhoto: FetchableRecord, PersistableRecord {
     static let databaseTableName = "journalEntryPhoto"
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
 }
 
 /// "Who ate": a person credited with an entry.
-struct JournalEntryEater: Codable, Equatable, Hashable, Sendable, FetchableRecord, PersistableRecord {
-    var entryId: Int64
-    var personId: Int64
+struct JournalEntryEater: Codable, Equatable, Hashable, Identifiable, Sendable, FetchableRecord, PersistableRecord {
+    typealias ID = Porchlight.ID<JournalEntryEater>
+
+    /// Derived from the entry and the person, so crediting someone twice is one row.
+    var id: ID
+    var entryId: JournalEntry.ID
+    /// A plain id, not a foreign key: it may point at nobody yet after a sync.
+    var personId: Person.ID
+
+    init(entryId: JournalEntry.ID, personId: Person.ID) {
+        id = Self.id(entryId: entryId, personId: personId)
+        self.entryId = entryId
+        self.personId = personId
+    }
+
+    static func id(entryId: JournalEntry.ID, personId: Person.ID) -> ID {
+        .derived(entryId.description, personId.description)
+    }
 }
 
 /// The handwritten page of one day: a PencilKit drawing in canonical page coordinates
 /// (see `PageGeometry`).
 struct JournalPage: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var journalId: Int64
+    typealias ID = Porchlight.ID<JournalPage>
+
+    /// Derived from the journal and the day: a day has one page, on every device.
+    var id: ID
+    var journalId: Journal.ID
     /// `DayKey.rawValue`.
     var day: String
     /// `PKDrawing.dataRepresentation()`.
     var drawing: Data
     var updatedAt: Date
+
+    init(journalId: Journal.ID, day: DayKey, drawing: Data, updatedAt: Date) {
+        id = Self.id(journalId: journalId, day: day)
+        self.journalId = journalId
+        self.day = day.rawValue
+        self.drawing = drawing
+        self.updatedAt = updatedAt
+    }
+
+    static func id(journalId: Journal.ID, day: DayKey) -> ID {
+        .derived(journalId.description, day.rawValue)
+    }
 }
 
-extension JournalPage: FetchableRecord, MutablePersistableRecord {
+extension JournalPage: FetchableRecord, PersistableRecord {
     enum Columns {
         static let journalId = Column(CodingKeys.journalId)
         static let day = Column(CodingKeys.day)
         static let drawing = Column(CodingKeys.drawing)
         static let updatedAt = Column(CodingKeys.updatedAt)
-    }
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
     }
 }
 

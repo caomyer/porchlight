@@ -81,7 +81,7 @@ struct FoodLogicTests {
 
     private func entry(_ title: String, day: String, source: MealSource = .home, rating: MealRating? = .again, slot: String = "Dinner") -> JournalEntry {
         JournalEntry(
-            id: nil, journalId: 1, day: day, slot: slot, source: source, title: title,
+            journalId: 1, day: day, slot: slot, source: source, title: title,
             emoji: nil, tint: nil, rating: rating,
             eatenAt: Date(timeIntervalSince1970: 0), createdAt: Date(timeIntervalSince1970: 0)
         )

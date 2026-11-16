@@ -5,11 +5,11 @@ import Testing
 @Suite("Caption engine")
 struct CaptionEngineTests {
     typealias F = CareFixture
-    let names: [Int64: String] = [CareFixture.james: "James", CareFixture.mia: "Mia", CareFixture.ava: "Ava"]
+    let names: [Person.ID: String] = [CareFixture.james: "James", CareFixture.mia: "Mia", CareFixture.ava: "Ava"]
 
     private func week(_ count: Int = 14) -> [CareEntry] {
         (0..<count).map { index in
-            F.entry(Int64(index + 1), day: 1 + index / 2, index % 2 == 0 ? 7 : 18, by: [index % 3 == 0 ? F.mia : F.james], minutes: 15 + index * 3)
+            F.entry(.number(index + 1), day: 1 + index / 2, index % 2 == 0 ? 7 : 18, by: [index % 3 == 0 ? F.mia : F.james], minutes: 15 + index * 3)
         }
     }
 
@@ -29,7 +29,7 @@ struct CaptionEngineTests {
 
     @Test("Same-vibe logs in a row still get different captions")
     func vibeStreak() {
-        let entries = (0..<6).map { F.entry(Int64($0 + 1), day: 1 + $0, 7, vibe: .squirrel) }
+        let entries = (0..<6).map { F.entry(.number($0 + 1), day: 1 + $0, 7, vibe: .squirrel) }
         let captions = CaptionEngine.captions(for: entries, tone: .cheeky, name: "Yo-Yo", routine: F.walk, names: names, calendar: F.calendar)
         let texts = entries.map { captions[$0.id]! }
         for (a, b) in zip(texts, texts.dropFirst()) {
@@ -54,7 +54,7 @@ struct CaptionEngineTests {
             id: 1, companionId: 1, kind: .water, title: "Water", emoji: "💧", everyDays: 3, windows: [.anyTime],
             trackedFields: [], stars: 1, nudgeAfterMinutes: nil, sortOrder: 0
         )
-        let entries = (0..<20).map { F.entry(Int64($0 + 1), day: 1 + $0 % 7, 9 + $0 / 7, routine: 1) }
+        let entries = (0..<20).map { F.entry(.number($0 + 1), day: 1 + $0 % 7, 9 + $0 / 7, routine: 1) }
         for tone in [CompanionTone.wholesome, .cheeky, .dramatic] {
             let captions = CaptionEngine.captions(for: entries, tone: tone, name: "Fern", routine: plant, names: names, calendar: F.calendar)
             for text in captions.values {

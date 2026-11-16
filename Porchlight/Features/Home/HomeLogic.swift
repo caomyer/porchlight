@@ -43,12 +43,12 @@ enum ChoreSchedule {
 
 /// A companion routine's slot today, on the board next to the chores: "Walk Yo-Yo, morning".
 struct CareTask: Equatable, Identifiable {
-    var companionId: Int64
+    var companionId: Companion.ID
     var companionName: String
     var routine: CareRoutine
     var slot: CareSlot
 
-    var id: String { "care-\(routine.id ?? 0)-\(slot.index)" }
+    var id: String { "care-\(routine.id)-\(slot.index)" }
     var isDone: Bool { slot.isDone }
     /// "Walk Yo-Yo", or "Walk Yo-Yo · morning" when the routine comes around more than once a day.
     var title: String {
@@ -64,14 +64,14 @@ struct ChoreBoard: Equatable {
     struct Task: Equatable, Identifiable {
         var chore: Chore
         var completion: ChoreCompletion?
-        var id: Int64 { chore.id ?? -1 }
+        var id: Chore.ID { chore.id }
         var isDone: Bool { completion != nil }
     }
 
     struct RewardStatus: Equatable, Identifiable {
         var reward: Reward
         var earned: Int
-        var id: Int64 { reward.id ?? -1 }
+        var id: Reward.ID { reward.id }
         var fraction: Double { reward.targetStars > 0 ? min(Double(earned) / Double(reward.targetStars), 1) : 0 }
         var isReached: Bool { earned >= reward.targetStars }
     }
@@ -113,22 +113,22 @@ struct ChoreBoard: Equatable {
             completions.filter { $0.dayKey == today }.map { ($0.choreId, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        let sharedChoreIds = Set(chores.filter { $0.ownerId == nil }.compactMap(\.id))
+        let sharedChoreIds = Set(chores.filter { $0.ownerId == nil }.map(\.id))
         let weekEarnings = earnings.filter { week.contains($0.day) }
         let active = chores.filter { ChoreSchedule.isOnBoard($0, on: today, completions: completions, calendar: calendar) }
         let activeRewards = rewards.filter { !$0.archived }
 
-        func tasks(for ownerId: Int64?) -> [Task] {
-            active.filter { $0.ownerId == ownerId }.map { Task(chore: $0, completion: byChoreToday[$0.id ?? -1]) }
+        func tasks(for ownerId: Person.ID?) -> [Task] {
+            active.filter { $0.ownerId == ownerId }.map { Task(chore: $0, completion: byChoreToday[$0.id]) }
         }
-        func statuses(for ownerId: Int64?) -> [RewardStatus] {
+        func statuses(for ownerId: Person.ID?) -> [RewardStatus] {
             activeRewards.filter { $0.ownerId == ownerId }.map {
                 RewardStatus(reward: $0, earned: RewardProgress.earned(for: $0, earnings: earnings, redemptions: redemptions))
             }
         }
 
-        var columns = people.compactMap { person -> Column? in
-            guard let id = person.id else { return nil }
+        var columns = people.map { person -> Column in
+            let id = person.id
             return Column(
                 owner: .person(id),
                 tasks: tasks(for: id),
@@ -171,7 +171,7 @@ struct HomeWeek: Equatable {
 
 /// Stars per person, from the ledger.
 enum StarTotals {
-    static func byPerson(_ earnings: [StarEarning], in week: HomeWeek) -> [Int64: Int] {
+    static func byPerson(_ earnings: [StarEarning], in week: HomeWeek) -> [Person.ID: Int] {
         earnings
             .filter { week.contains($0.day) }
             .reduce(into: [:]) { totals, earning in
@@ -205,8 +205,8 @@ enum WeekMark: Equatable {
     case none
     /// Scheduled and not done (yet, or missed when in the past).
     case open
-    /// Done, by this person (nil if they were removed).
-    case done(personId: Int64?)
+    /// Done, by this person (nil only in rows from before people were archived).
+    case done(personId: Person.ID?)
 
     static func mark(for chore: Chore, on day: DayKey, completions: [ChoreCompletion], calendar: Calendar) -> WeekMark {
         let mine = completions.filter { $0.choreId == chore.id }
@@ -478,7 +478,7 @@ struct GlowSummary: Equatable {
         var lifetimeStars: Int
         /// What they did most this week, e.g. ("🦮", "Walk · Yo-Yo", 5).
         var favorite: Favorite?
-        var id: Int64 { person.id ?? -1 }
+        var id: Person.ID { person.id }
     }
 
     struct Favorite: Equatable {
@@ -494,7 +494,7 @@ struct GlowSummary: Equatable {
         var day: DayKey
         var at: Date
         var emoji: String
-        var personId: Int64?
+        var personId: Person.ID?
         var text: String
         var stars: Int?
         var isCashIn: Bool
@@ -514,7 +514,7 @@ struct GlowSummary: Equatable {
         earnings: [StarEarning],
         redemptions: [RewardRedemption],
         rewards: [Reward],
-        lifetime: [Int64: Int],
+        lifetime: [Person.ID: Int],
         week: HomeWeek,
         today: DayKey,
         calendar: Calendar,
@@ -523,8 +523,8 @@ struct GlowSummary: Equatable {
         let lastWeek = HomeWeek(containing: week.first.adding(days: -1, calendar: calendar), calendar: calendar)
         let thisWeek = earnings.filter { week.contains($0.day) }
         let previous = earnings.filter { lastWeek.contains($0.day) }
-        self.people = people.compactMap { person in
-            guard let id = person.id else { return nil }
+        self.people = people.map { person in
+            let id = person.id
             let mine = thisWeek.filter { $0.personId == id }
             let counts = Dictionary(grouping: mine, by: \.title).mapValues(\.count)
             let favorite = counts.max { ($0.value, $1.key) < ($1.value, $0.key) }.flatMap { title, count -> Favorite? in
@@ -549,7 +549,7 @@ struct GlowSummary: Equatable {
         lastWeekSoFar = previous.counted.filter { $0.day <= sameDayLastWeek }.map(\.stars).reduce(0, +)
         sparks = thisWeek.counted
 
-        let titles = Dictionary(rewards.compactMap { reward in reward.id.map { ($0, reward) } }, uniquingKeysWith: { first, _ in first })
+        let titles = Dictionary(rewards.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let earned = earnings.map { earning in
             FeedItem(
                 id: earning.id, day: earning.day, at: earning.at, emoji: earning.emoji, personId: earning.personId,
@@ -559,7 +559,7 @@ struct GlowSummary: Equatable {
         let cashIns = redemptions.map { redemption in
             let reward = titles[redemption.rewardId]
             return FeedItem(
-                id: "cash-\(redemption.id ?? 0)", day: redemption.dayKey, at: redemption.redeemedAt, emoji: reward?.emoji ?? "🎉",
+                id: "cash-\(redemption.id)", day: redemption.dayKey, at: redemption.redeemedAt, emoji: reward?.emoji ?? "🎉",
                 personId: redemption.personId,
                 text: "Cashed in " + (reward?.title ?? "a reward") + (redemption.personId == nil ? " together" : ""),
                 stars: nil, isCashIn: true

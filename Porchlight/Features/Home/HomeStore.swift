@@ -38,7 +38,7 @@ final class HomeStore {
     // MARK: Derived
 
     var calendar: Calendar { snapshot.household?.calendar ?? .current }
-    var householdId: Int64? { snapshot.household?.id }
+    var householdId: Household.ID? { snapshot.household?.id }
     var week: HomeWeek { HomeWeek(containing: today, calendar: calendar) }
 
     var activeChores: [Chore] { snapshot.chores.filter { !$0.archived } }
@@ -145,46 +145,46 @@ final class HomeStore {
     // MARK: Chores
 
     @discardableResult
-    func saveChore(_ draft: ChoreDraft, id: Int64? = nil) -> Bool {
+    func saveChore(_ draft: ChoreDraft, id: Chore.ID? = nil) -> Bool {
         guard let householdId else { return false }
         return perform { try database.saveChore(draft, id: id, householdId: householdId) }
     }
 
     func setArchived(_ chore: Chore, _ archived: Bool) {
-        guard let id = chore.id else { return }
+        let id = chore.id
         perform { try database.setChoreArchived(id: id, archived: archived) }
     }
 
     func delete(_ chore: Chore) {
-        guard let id = chore.id else { return }
+        let id = chore.id
         perform { try database.deleteChore(id: id) }
     }
 
     /// Marks who did a chore on a day (checking it off if it wasn't).
-    func credit(_ chore: Chore, on day: DayKey, to personId: Int64) {
-        guard let id = chore.id else { return }
+    func credit(_ chore: Chore, on day: DayKey, to personId: Person.ID) {
+        let id = chore.id
         perform { try database.creditChore(id: id, day: day, personId: personId) }
     }
 
     /// Checks a chore off for today (or another day), crediting `personId` for "Anyone" chores.
-    func toggle(_ chore: Chore, on day: DayKey? = nil, by personId: Int64? = nil) {
-        guard let id = chore.id else { return }
+    func toggle(_ chore: Chore, on day: DayKey? = nil, by personId: Person.ID? = nil) {
+        let id = chore.id
         perform { try database.toggleChore(id: id, day: day ?? today, personId: personId) }
     }
 
     // MARK: Rewards
 
     @discardableResult
-    func saveReward(_ draft: RewardDraft, id: Int64? = nil) -> Bool {
+    func saveReward(_ draft: RewardDraft, id: Reward.ID? = nil) -> Bool {
         guard let householdId else { return false }
         return perform { try database.saveReward(draft, id: id, householdId: householdId, today: today) }
     }
 
     /// Spends a reached reward's stars ("cash in") and starts it over.
     func cashIn(_ reward: Reward) {
-        guard let id = reward.id else { return }
+        let id = reward.id
         let stars = earned(toward: reward)
-        let known = snapshot.redemptions.filter { $0.rewardId == id }.compactMap(\.id).max()
+        let known = snapshot.redemptions.first { $0.rewardId == id }?.id
         perform {
             do {
                 try database.cashInReward(id: id, stars: stars, day: today, after: known)
@@ -196,17 +196,17 @@ final class HomeStore {
 
     /// Starts a reward over without cashing it in.
     func restart(_ reward: Reward) {
-        guard let id = reward.id else { return }
+        let id = reward.id
         perform { try database.restartReward(id: id, from: today) }
     }
 
     func setArchived(_ reward: Reward, _ archived: Bool) {
-        guard let id = reward.id else { return }
+        let id = reward.id
         perform { try database.setRewardArchived(id: id, archived: archived) }
     }
 
     func delete(_ reward: Reward) {
-        guard let id = reward.id else { return }
+        let id = reward.id
         perform { try database.deleteReward(id: id) }
     }
 
@@ -225,39 +225,39 @@ final class HomeStore {
 
     @discardableResult
     func rename(_ list: HomeList, to title: String) -> Bool {
-        guard let id = list.id else { return false }
+        let id = list.id
         return perform { try database.renameList(id: id, to: title) }
     }
 
     func delete(_ list: HomeList) {
-        guard let id = list.id else { return }
+        let id = list.id
         perform { try database.deleteList(id: id) }
     }
 
     @discardableResult
-    func addItem(_ title: String, to list: HomeList, section: String? = nil, addedBy: Int64?) -> Bool {
-        guard let id = list.id else { return false }
+    func addItem(_ title: String, to list: HomeList, section: String? = nil, addedBy: Person.ID?) -> Bool {
+        let id = list.id
         return perform { try database.addListItem(title: title, to: id, section: section, addedBy: addedBy) }
     }
 
     @discardableResult
     func update(_ item: ListItem, title: String, section: String?) -> Bool {
-        guard let id = item.id else { return false }
+        let id = item.id
         return perform { try database.updateListItem(id: id, title: title, section: section) }
     }
 
     func toggle(_ item: ListItem) {
-        guard let id = item.id else { return }
+        let id = item.id
         perform { try database.setListItemChecked(id: id, checked: !item.checked) }
     }
 
     func delete(_ item: ListItem) {
-        guard let id = item.id else { return }
+        let id = item.id
         perform { try database.deleteListItem(id: id) }
     }
 
     func clearChecked(in list: HomeList) {
-        guard let id = list.id else { return }
+        let id = list.id
         perform { try database.clearCheckedItems(listId: id) }
     }
 
@@ -289,7 +289,7 @@ final class HomeStore {
     }
 
     func remove(_ photos: [AmbientPhoto]) {
-        let ids = photos.compactMap(\.id)
+        let ids = photos.map(\.id)
         guard !ids.isEmpty else { return }
         perform {
             for fileName in try database.removeAmbientPhotos(ids: ids) {

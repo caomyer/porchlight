@@ -22,7 +22,7 @@ struct TodayView: View {
                         items: (calendarStore.timelineItems(for: day)
                             + companions.timelineItems(for: day)
                             + food.timelineItems(for: day)
-                            + home.timelineItems(for: day, people: model.people)).sorted { $0.time < $1.time },
+                            + home.timelineItems(for: day, people: model.everyone)).sorted { $0.time < $1.time },
                         tomorrow: calendarStore.timelineItems(for: day.adding(days: 1, calendar: calendar))
                             .filter { $0.kind == .event },
                         onOpen: { openTarget?($0) }
@@ -324,12 +324,14 @@ extension AppModel {
     func color(for owner: Owner) -> Color {
         switch owner {
         case .everyone: Theme.everyone
-        case let .person(id): people.first { $0.id == id }?.color.color ?? Theme.everyone
+        case let .person(id): person(id)?.color.color ?? Theme.everyone
         }
     }
 
-    func person(_ id: Int64) -> Person? {
-        people.first { $0.id == id }
+    /// Anyone who ever lived here, so past things keep their name and color; nil for
+    /// an id that points at nobody.
+    func person(_ id: Person.ID) -> Person? {
+        everyone.person(id)
     }
 }
 

@@ -44,7 +44,7 @@ struct SharedTests {
         let db = try AppDatabase.inMemory()
         let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "J", color: .blue)])
         #expect(try db.snapshot().household?.setupCompleted == false)
-        try db.markSetupCompleted(householdId: try #require(household.id))
+        try db.markSetupCompleted(householdId: household.id)
         #expect(try db.snapshot().household?.setupCompleted == true)
     }
 

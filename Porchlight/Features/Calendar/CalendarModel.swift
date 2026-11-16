@@ -99,7 +99,7 @@ enum CalendarOwnerGuess {
         "us", "our", "ours", "family", "home", "household", "shared", "both", "everyone", "kids", "house",
     ]
 
-    static func owner(for calendar: ExternalCalendar, people: [Person]) -> Int64? {
+    static func owner(for calendar: ExternalCalendar, people: [Person]) -> Person.ID? {
         let titleWords = Set(EventDecoration.tokens(calendar.title))
         let inTitle = people.filter { titleWords.contains(firstName($0)) }
         if inTitle.count == 1 { return inTitle[0].id }

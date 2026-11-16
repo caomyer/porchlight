@@ -107,7 +107,7 @@ struct RestaurantField: View {
 
         var id: String {
             switch self {
-            case let .recent(place): "recent-\(place.id ?? 0)"
+            case let .recent(place): "recent-\(place.id)"
             case let .map(suggestion): "map-\(suggestion.id)-\(suggestion.title)"
             }
         }

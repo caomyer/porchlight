@@ -66,44 +66,61 @@ struct AppDatabaseTests {
     @Test("Adding, editing and reordering people")
     func editPeople() throws {
         let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "James", color: .blue)])
-        let householdId = try #require(household.id)
+        let householdId = household.id
 
         let mia = try db.addPerson(PersonDraft(name: "Mia", color: .coral), to: householdId)
         #expect(mia.sortOrder == 1)
 
-        try db.updatePerson(id: try #require(mia.id), name: "Mia C", color: .plum)
+        try db.updatePerson(id: mia.id, name: "Mia C", color: .plum)
         var people = try db.snapshot().people
         #expect(people[1].name == "Mia C")
         #expect(people[1].color == .plum)
 
-        try db.reorderPeople(householdId: householdId, ids: people.reversed().compactMap(\.id))
+        try db.reorderPeople(householdId: householdId, ids: people.reversed().map(\.id))
         people = try db.snapshot().people
         #expect(people.map(\.name) == ["Mia C", "James"])
     }
 
-    @Test("Deleting renumbers the rest, and the last person cannot be removed")
-    func deletePeople() throws {
+    @Test("Removing archives the person and renumbers the rest, and the last person cannot be removed")
+    func removePeople() throws {
         try db.createHousehold(
             name: "Home",
             people: [PersonDraft(name: "A", color: .blue), PersonDraft(name: "B", color: .coral), PersonDraft(name: "C", color: .sage)]
         )
         var people = try db.snapshot().people
-        try db.deletePerson(id: try #require(people[1].id))
+        let removed = people[1]
+        try db.archivePerson(id: removed.id, now: Date(timeIntervalSince1970: 1_000))
         people = try db.snapshot().people
         #expect(people.map(\.name) == ["A", "C"])
         #expect(people.map(\.sortOrder) == [0, 1])
+        let kept = try #require(try db.snapshot().everyone.first { $0.id == removed.id })
+        #expect(kept.name == "B")
+        #expect(kept.archivedAt == Date(timeIntervalSince1970: 1_000))
 
-        try db.deletePerson(id: try #require(people[0].id))
+        try db.archivePerson(id: people[0].id)
         let last = try #require(try db.snapshot().people.first)
         #expect(throws: ValidationError.noPeople) {
-            try db.deletePerson(id: try #require(last.id))
+            try db.archivePerson(id: last.id)
         }
+        #expect(try db.snapshot().people.map(\.name) == ["C"])
+        #expect(try db.snapshot().everyone.count == 3)
+    }
+
+    @Test("A new person goes after the people who live here now")
+    func addAfterRemoving() throws {
+        let household = try db.createHousehold(
+            name: "Home", people: [PersonDraft(name: "A", color: .blue), PersonDraft(name: "B", color: .coral)]
+        )
+        try db.archivePerson(id: try db.snapshot().people[1].id)
+        let added = try db.addPerson(PersonDraft(name: "C", color: .sage), to: household.id)
+        #expect(added.sortOrder == 1)
+        #expect(try db.snapshot().people.map(\.name) == ["A", "C"])
     }
 
     @Test("Renaming the household validates the name")
     func renameHousehold() throws {
         let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "J", color: .blue)])
-        let id = try #require(household.id)
+        let id = household.id
         try db.renameHousehold(id: id, to: " Cao Home ")
         #expect(try db.snapshot().household?.name == "Cao Home")
         #expect(throws: ValidationError.emptyName) { try db.renameHousehold(id: id, to: "") }

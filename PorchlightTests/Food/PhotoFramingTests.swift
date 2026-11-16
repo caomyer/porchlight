@@ -17,11 +17,11 @@ struct PhotoFramingTests {
         photos = FoodPhotoStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("framing-tests-\(UUID().uuidString)", isDirectory: true))
         let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "James", color: .blue)])
         people = try db.snapshot().people
-        journal = try db.ensureFoodJournal(householdId: household.id!)
+        journal = try db.ensureFoodJournal(householdId: household.id)
     }
 
     private func draft() -> MealDraft {
-        MealDraft(day: DayKey(rawValue: "2026-11-07"), slot: "Lunch", title: "Pho", eaterIds: people.compactMap(\.id), eatenAt: Date(timeIntervalSince1970: 1_000))
+        MealDraft(day: DayKey(rawValue: "2026-11-07"), slot: "Lunch", title: "Pho", eaterIds: people.map(\.id), eatenAt: Date(timeIntervalSince1970: 1_000))
     }
 
     /// A wide photo: red on the left third, green in the middle, blue on the right third.
@@ -92,15 +92,15 @@ struct PhotoFramingTests {
     func cropsPersist() throws {
         let image = wideImage()
         let stored = try photos.save(image, crop: .square(in: image.size, position: 0))
-        let entry = try db.addMeal(draft(), journalId: journal.id!, photos: [stored])
-        let saved = try #require(try db.foodSnapshot().photos[entry.id!]?.first)
+        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [stored])
+        let saved = try #require(try db.foodSnapshot().photos[entry.id]?.first)
         #expect(saved.crop == stored.crop)
 
         let crop = PhotoCrop.square(in: image.size, position: 1)
         let thumbnail = try photos.thumbnail(of: saved.photoFile, crop: crop)
-        try db.updateMeal(id: entry.id!, draft(), photos: [MealPhotoItem.kept(saved).reframed(crop, thumbnailFile: thumbnail)], files: photos)
+        try db.updateMeal(id: entry.id, draft(), photos: [MealPhotoItem.kept(saved).reframed(crop, thumbnailFile: thumbnail)], files: photos)
 
-        let after = try #require(try db.foodSnapshot().photos[entry.id!]?.first)
+        let after = try #require(try db.foodSnapshot().photos[entry.id]?.first)
         #expect(after.crop == crop)
         #expect(after.thumbnailFile == thumbnail)
         #expect(after.photoFile == saved.photoFile, "reframing keeps the whole shot")
@@ -112,8 +112,8 @@ struct PhotoFramingTests {
     @Test("Photos saved before framing show the middle square")
     func existingPhotosKeepTheirLook() throws {
         let stored = try photos.save(wideImage())
-        let entry = try db.addMeal(draft(), journalId: journal.id!, photos: [stored])
-        #expect(try db.foodSnapshot().photos[entry.id!]?.first?.crop == nil)
+        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [stored])
+        #expect(try db.foodSnapshot().photos[entry.id]?.first?.crop == nil)
     }
 
     @Test("Only files nobody uses are cleaned up while photos are edited")

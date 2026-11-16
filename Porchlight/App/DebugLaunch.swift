@@ -26,7 +26,7 @@ enum DebugLaunch {
                 name: "The Lake House",
                 people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)]
             )
-            try database.markSetupCompleted(householdId: household.id!)
+            try database.markSetupCompleted(householdId: household.id)
             let snapshot = try database.snapshot()
             guard let seeded = snapshot.household else { return }
             try CalendarSamples.seed(database, household: seeded, people: snapshot.people)
@@ -34,8 +34,8 @@ enum DebugLaunch {
             try FoodSamples.seed(database, household: seeded, people: snapshot.people)
             try HomeSamples.seed(database, household: seeded, people: snapshot.people)
             let photoCount = UserDefaults.standard.integer(forKey: "samplePhotos")
-            if photoCount > 0, let householdId = seeded.id {
-                try HomeSamples.seedPhotos(photoCount, database: database, householdId: householdId)
+            if photoCount > 0 {
+                try HomeSamples.seedPhotos(photoCount, database: database, householdId: seeded.id)
             }
         }
     }

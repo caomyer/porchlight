@@ -37,7 +37,7 @@ private func event(
     )
 }
 
-private func source(visibility: CalendarVisibility = .full, shown: Bool = true, ownerId: Int64? = nil) -> CalendarSource {
+private func source(visibility: CalendarVisibility = .full, shown: Bool = true, ownerId: Person.ID? = nil) -> CalendarSource {
     CalendarSource(
         id: 1, householdId: 1, externalId: "c", title: "Cal", account: "iCloud", colorHex: 0,
         ownerId: ownerId, visibility: visibility, isShown: shown, createdAt: .now
@@ -48,9 +48,9 @@ private func source(visibility: CalendarVisibility = .full, shown: Bool = true, 
 
 @Suite("Calendar mapping")
 struct CalendarMappingTests {
-    private func household(_ db: AppDatabase, people: [String] = ["James", "Mia"]) throws -> (Int64, [Person]) {
+    private func household(_ db: AppDatabase, people: [String] = ["James", "Mia"]) throws -> (Household.ID, [Person]) {
         let household = try db.createHousehold(name: "Home", people: people.map { PersonDraft(name: $0, color: .blue) })
-        return (try #require(household.id), try db.snapshot().people)
+        return (household.id, try db.snapshot().people)
     }
 
     @Test("New calendars default to shown, full details and a guessed owner")
@@ -100,9 +100,9 @@ struct CalendarMappingTests {
         try db.syncCalendarSources(householdId: id, calendars: [ExternalCalendar(id: "a", title: "James", account: "x", colorHex: 1)])
         let source = try #require(try db.calendarSnapshot().sources.first)
         let mia = try #require(people.first { $0.name == "Mia" }?.id)
-        try db.setCalendarSourceOwner(id: source.id!, owner: .person(mia))
-        try db.setCalendarSourceVisibility(id: source.id!, visibility: .busy)
-        try db.setCalendarSourceShown(id: source.id!, isShown: false)
+        try db.setCalendarSourceOwner(id: source.id, owner: .person(mia))
+        try db.setCalendarSourceVisibility(id: source.id, visibility: .busy)
+        try db.setCalendarSourceShown(id: source.id, isShown: false)
 
         try db.syncCalendarSources(householdId: id, calendars: [ExternalCalendar(id: "a", title: "Renamed", account: "y", colorHex: 2)])
         let updated = try #require(try db.calendarSnapshot().sources.first)
@@ -118,14 +118,14 @@ struct CalendarMappingTests {
         try db.syncCalendarSources(householdId: id, calendars: [ExternalCalendar(id: "a", title: "Mia", account: "", colorHex: 0)])
         let source = try #require(try db.calendarSnapshot().sources.first)
         #expect(throws: CalendarSourceError.ownerNotInHousehold) {
-            try db.setCalendarSourceOwner(id: source.id!, owner: .person(9999))
+            try db.setCalendarSourceOwner(id: source.id, owner: .person(9999))
         }
         #expect(throws: CalendarSourceError.unknownCalendar) {
             try db.setCalendarSourceShown(id: 9999, isShown: false)
         }
         let mia = try #require(people.first { $0.name == "Mia" })
         #expect(source.ownerId == mia.id)
-        try db.deletePerson(id: mia.id!)
+        try db.archivePerson(id: mia.id)
         #expect(try db.calendarSnapshot().sources.first?.owner == .everyone)
     }
 }

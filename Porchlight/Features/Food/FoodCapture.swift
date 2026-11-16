@@ -26,7 +26,7 @@ final class CaptureForm {
     @ObservationIgnored private let calendar: Calendar
     @ObservationIgnored private let enabledSlots: [String]
     var source: MealSource = .home
-    var eaterIds: Set<Int64>
+    var eaterIds: Set<Person.ID>
     var rating: MealRating = .again
     /// The restaurant, for delivery or eating out.
     var place: PlaceDraft?
@@ -54,7 +54,7 @@ final class CaptureForm {
         enabledSlots = store.slots
         time = request.day == store.today(now) ? .justNow : .at(MealSlot.usualTime(of: slot, on: request.day, calendar: store.calendar))
         slotWasPicked = request.slot != nil
-        eaterIds = Set(store.people.compactMap(\.id))
+        eaterIds = Set(store.people.map(\.id))
     }
 
     var emoji: String {
@@ -364,8 +364,8 @@ private struct CaptureFormView: View {
             label("Who ate")
             HStack(spacing: 10) {
                 ForEach(store.people) { person in
-                    WhoButton(person: person, isSelected: form.eaterIds.contains(person.id ?? -1)) {
-                        guard let id = person.id else { return }
+                    WhoButton(person: person, isSelected: form.eaterIds.contains(person.id)) {
+                        let id = person.id
                         if form.eaterIds.contains(id) {
                             if form.eaterIds.count > 1 { form.eaterIds.remove(id) }
                         } else {

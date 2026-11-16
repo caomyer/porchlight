@@ -2,10 +2,10 @@ import SwiftUI
 
 /// Which routine to log for which companion, or which log to fix.
 struct CareLogRequest: Identifiable, Equatable {
-    var companionId: Int64
-    var routineId: Int64
+    var companionId: Companion.ID
+    var routineId: CareRoutine.ID
     /// Set to edit an existing log instead of adding one.
-    var logId: Int64?
+    var logId: CareLog.ID?
     /// Set to catch up on an earlier day's missed slot: the log is for that day, at the
     /// slot's usual time.
     var catchUp: CatchUp?
@@ -19,15 +19,15 @@ struct CareLogRequest: Identifiable, Equatable {
         var slot: Int
     }
 
-    var id: String { "\(companionId)-\(routineId)-\(logId ?? 0)-\(catchUp.map { "\($0.day)-\($0.slot)" } ?? "")" }
+    var id: String { "\(companionId)-\(routineId)-\(logId?.description ?? "new")-\(catchUp.map { "\($0.day)-\($0.slot)" } ?? "")" }
 
     /// Opens a logged entry for editing.
-    static func edit(_ entry: CareEntry, companionId: Int64) -> CareLogRequest {
+    static func edit(_ entry: CareEntry, companionId: Companion.ID) -> CareLogRequest {
         CareLogRequest(companionId: companionId, routineId: entry.log.careRoutineId, logId: entry.id)
     }
 
     /// Logs a missed slot for its own day.
-    static func catchUp(companionId: Int64, routineId: Int64, day: DayKey, slot: Int) -> CareLogRequest {
+    static func catchUp(companionId: Companion.ID, routineId: CareRoutine.ID, day: DayKey, slot: Int) -> CareLogRequest {
         CareLogRequest(companionId: companionId, routineId: routineId, catchUp: CatchUp(day: day, slot: slot))
     }
 }
@@ -128,7 +128,7 @@ private struct CareLogForm: View {
     @Environment(CompanionStore.self) private var store
     @Environment(AppModel.self) private var model
 
-    @State private var people: [Int64] = []
+    @State private var people: [Person.ID] = []
     @State private var duration = 20
     @State private var pee = true
     @State private var poo = true
@@ -312,7 +312,7 @@ private struct CareLogForm: View {
     }
 
     private func personButton(_ person: Person) -> some View {
-        let id = person.id ?? -1
+        let id = person.id
         let isSelected = people.contains(id)
         let color = person.color.color
         return Button {
@@ -423,7 +423,7 @@ private struct CareLogForm: View {
             if store.updateLog(id: editing.id, draft) { onClose() }
             return
         }
-        guard store.log(routineId: routine.id ?? -1, draft) != nil else { return }
+        guard store.log(routineId: routine.id, draft) != nil else { return }
         onSaved(Celebration.after(report: report, routine: routine, people: people, names: store.snapshot.names, calendar: store.snapshot.calendar))
     }
 
@@ -443,7 +443,7 @@ struct Celebration: Equatable {
     var confetti: [String]
 
     /// The celebration for a log just saved on top of `report` (taken before the save).
-    static func after(report: CompanionReport, routine: CareRoutine, people: [Int64], names: [Int64: String], calendar: Calendar) -> Celebration {
+    static func after(report: CompanionReport, routine: CareRoutine, people: [Person.ID], names: [Person.ID: String], calendar: Calendar) -> Celebration {
         let firstNames = people.compactMap { names[$0] }
         let who = firstNames.isEmpty ? "" : ", " + CaptionEngine.whoText(people, names: names)
         let today = report.primary?.routine.id == routine.id ? report.primary : report.others.first { $0.routine.id == routine.id }

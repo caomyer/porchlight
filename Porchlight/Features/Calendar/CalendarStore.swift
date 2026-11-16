@@ -233,17 +233,17 @@ final class CalendarStore {
     // MARK: Mapping edits
 
     func setOwner(_ owner: Owner, for source: CalendarSource) {
-        guard let id = source.id else { return }
+        let id = source.id
         perform { try database.setCalendarSourceOwner(id: id, owner: owner) }
     }
 
     func setVisibility(_ visibility: CalendarVisibility, for source: CalendarSource) {
-        guard let id = source.id else { return }
+        let id = source.id
         perform { try database.setCalendarSourceVisibility(id: id, visibility: visibility) }
     }
 
     func setShown(_ isShown: Bool, for source: CalendarSource) {
-        guard let id = source.id else { return }
+        let id = source.id
         perform { try database.setCalendarSourceShown(id: id, isShown: isShown) }
     }
 

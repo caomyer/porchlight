@@ -8,9 +8,9 @@ import SwiftUI
 ///
 ///     .environment(\.openCompanion, OpenCompanionAction { selection = .companion($0) })
 struct OpenCompanionAction {
-    var open: @MainActor (Int64) -> Void
+    var open: @MainActor (Companion.ID) -> Void
 
-    @MainActor func callAsFunction(_ companionId: Int64) { open(companionId) }
+    @MainActor func callAsFunction(_ companionId: Companion.ID) { open(companionId) }
 }
 
 private struct OpenCompanionKey: EnvironmentKey {
@@ -38,7 +38,7 @@ struct Carers: Equatable {
         self.initials = initials
     }
 
-    init(_ ids: [Int64], snapshot: CompanionSnapshot) {
+    init(_ ids: [Person.ID], snapshot: CompanionSnapshot) {
         let people = ids.compactMap { snapshot.person($0) }
         colors = people.map(\.color.color)
         initials = people.map(\.initial)

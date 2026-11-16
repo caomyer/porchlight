@@ -198,7 +198,7 @@ struct FoodTodayCard: View {
     @State private var openEntryId: OpenEntry?
 
     private struct OpenEntry: Identifiable {
-        var id: Int64
+        var id: JournalEntry.ID
     }
 
     var body: some View {
@@ -263,7 +263,7 @@ struct FoodTodayCard: View {
         if let entry = entries.last {
             // The latest dish on top; the meal sheet switches between all of them.
             Button {
-                if let id = entry.id { CompanionCover.instantly { openEntryId = OpenEntry(id: id) } }
+                CompanionCover.instantly { openEntryId = OpenEntry(id: entry.id) }
             } label: {
                 Polaroid(entry: entry, rotation: [-2, 1.5, -1][index % 3], emojiSize: 40, captionSize: 15, plate: 0.44, extra: entries.count - 1)
             }

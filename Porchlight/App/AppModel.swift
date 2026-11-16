@@ -22,7 +22,10 @@ final class AppModel {
     }
 
     var household: Household? { snapshot.household }
+    /// The people who live here now, for pickers and lists.
     var people: [Person] { snapshot.people }
+    /// Everyone, removed people included, for showing who did something in the past.
+    var everyone: [Person] { snapshot.everyone }
 
     private func observe() {
         observation = Task { [weak self, database] in
@@ -61,18 +64,17 @@ final class AppModel {
     }
 
     func updatePerson(_ person: Person, name: String, color: PersonColor) -> Bool {
-        guard let id = person.id else { return false }
-        return perform { try database.updatePerson(id: id, name: name, color: color) }
+        perform { try database.updatePerson(id: person.id, name: name, color: color) }
     }
 
-    func deletePerson(_ person: Person) -> Bool {
-        guard let id = person.id else { return false }
-        return perform { try database.deletePerson(id: id) }
+    /// Removes someone from the household; their history stays (see `archivePerson`).
+    func removePerson(_ person: Person) -> Bool {
+        perform { try database.archivePerson(id: person.id) }
     }
 
     func movePeople(fromOffsets source: IndexSet, toOffset destination: Int) {
         guard let householdId = household?.id else { return }
-        var ids = people.compactMap(\.id)
+        var ids = people.map(\.id)
         ids.move(fromOffsets: source, toOffset: destination)
         _ = perform { try database.reorderPeople(householdId: householdId, ids: ids) }
     }

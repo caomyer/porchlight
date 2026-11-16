@@ -13,7 +13,7 @@ struct MealDetailSheet: View {
     @State private var confirmingDelete = false
     @State private var editing: MealEdit?
     /// The meal shown, when another one of the slot was picked.
-    @State private var selectedId: Int64?
+    @State private var selectedId: JournalEntry.ID?
     /// The photo on the polaroid; 0 is the cover.
     @State private var photoIndex = 0
     @State private var drag: CGFloat = 0
@@ -275,7 +275,7 @@ struct MealDetailSheet: View {
                 if !confirmingDelete {
                     Button {
                         store.lastError = nil
-                        editing = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).compactMap(\.id), place: store.place(of: entry), photos: store.photos(of: entry))
+                        editing = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).map(\.id), place: store.place(of: entry), photos: store.photos(of: entry))
                     } label: {
                         Label("Edit", systemImage: "pencil")
                     }
@@ -420,7 +420,7 @@ struct MealEdit: Equatable {
     var slot: String
     var source: MealSource
     var rating: MealRating?
-    var eaterIds: Set<Int64>
+    var eaterIds: Set<Person.ID>
     var time: LogTime
     var place: PlaceDraft?
     /// The meal's photos as they will be saved, cover first.
@@ -428,7 +428,7 @@ struct MealEdit: Equatable {
     /// New photos still being written to disk.
     var savingPhotos = 0
 
-    init(entry: JournalEntry, eaterIds: [Int64], place: FoodPlace? = nil, photos: [MealPhoto] = []) {
+    init(entry: JournalEntry, eaterIds: [Person.ID], place: FoodPlace? = nil, photos: [MealPhoto] = []) {
         title = entry.title
         slot = entry.slot
         source = entry.source
@@ -537,8 +537,8 @@ private struct MealEditForm: View {
             label("Who ate")
             FlowLayout(spacing: 10) {
                 ForEach(store.people) { person in
-                    WhoButton(person: person, isSelected: edit.eaterIds.contains(person.id ?? -1)) {
-                        guard let id = person.id else { return }
+                    WhoButton(person: person, isSelected: edit.eaterIds.contains(person.id)) {
+                        let id = person.id
                         if edit.eaterIds.contains(id) {
                             if edit.eaterIds.count > 1 { edit.eaterIds.remove(id) }
                         } else {

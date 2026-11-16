@@ -5,14 +5,17 @@ import SwiftUI
 
 /// One companion as the rail needs it.
 struct CompanionSummary: Identifiable, Equatable, Sendable {
-    var id: Int64
+    var id: Companion.ID
     var name: String
 }
 
 /// Everything about companions, read in one consistent snapshot.
 struct CompanionSnapshot: Equatable, Sendable {
     var household: Household?
+    /// The people who live here now, for pickers.
     var people: [Person] = []
+    /// Everyone, removed people included, for naming who did past care.
+    var everyone: [Person] = []
     var companions: [Companion] = []
     /// Ordered by companion, then sort order.
     var routines: [CareRoutine] = []
@@ -22,57 +25,62 @@ struct CompanionSnapshot: Equatable, Sendable {
     static let empty = CompanionSnapshot()
 
     static func fetch(_ db: Database) throws -> CompanionSnapshot {
-        guard let household = try Household.order(Column("id")).fetchOne(db), let householdId = household.id else { return .empty }
-        let people = try Person
-            .filter(Column("householdId") == householdId)
-            .order(Column("sortOrder"), Column("id"))
-            .fetchAll(db)
+        guard let household = try Household.current(db) else { return .empty }
+        let householdId = household.id
+        let everyone = try Person.everyone(in: householdId).fetchAll(db)
         let companions = try Companion
             .filter(Column("householdId") == householdId)
-            .order(Column("sortOrder"), Column("id"))
+            .order(Column("sortOrder"), Column("createdAt"), Column("id"))
             .fetchAll(db)
+        // Routines have no creation time; their id only keeps equal sort orders stable.
         let routines = try CareRoutine.fetchAll(db, sql: """
             SELECT careRoutine.* FROM careRoutine
             JOIN companion ON companion.id = careRoutine.companionId
             WHERE companion.householdId = ?
-            ORDER BY companion.sortOrder, companion.id, careRoutine.sortOrder, careRoutine.id
+            ORDER BY companion.sortOrder, companion.createdAt, companion.id, careRoutine.sortOrder, careRoutine.id
             """, arguments: [householdId])
         let logs = try CareLog.fetchAll(db, sql: """
             SELECT careLog.* FROM careLog
             JOIN careRoutine ON careRoutine.id = careLog.careRoutineId
             JOIN companion ON companion.id = careRoutine.companionId
             WHERE companion.householdId = ?
-            ORDER BY careLog.occurredAt, careLog.id
+            ORDER BY careLog.occurredAt, careLog.createdAt, careLog.id
             """, arguments: [householdId])
-        let order = Dictionary(uniqueKeysWithValues: people.enumerated().compactMap { index, person in person.id.map { ($0, index) } })
-        var peopleByLog: [Int64: [Int64]] = [:]
+        let order = Dictionary(uniqueKeysWithValues: everyone.enumerated().map { index, person in (person.id, index) })
+        var peopleByLog: [CareLog.ID: [Person.ID]] = [:]
         for link in try CareLogPerson.fetchAll(db) {
             peopleByLog[link.careLogId, default: []].append(link.personId)
         }
         let entries = logs.map { log in
-            let people = (peopleByLog[log.id ?? -1] ?? []).sorted { (order[$0] ?? .max) < (order[$1] ?? .max) }
+            let people = (peopleByLog[log.id] ?? []).sorted { (order[$0] ?? .max, $0) < (order[$1] ?? .max, $1) }
             return CareEntry(log: log, people: people)
         }
-        return CompanionSnapshot(household: household, people: people, companions: companions, routines: routines, entries: entries)
+        return CompanionSnapshot(
+            household: household, people: everyone.active, everyone: everyone,
+            companions: companions, routines: routines, entries: entries
+        )
     }
 
     var calendar: Calendar { household?.calendar ?? .current }
 
-    func routines(of companionId: Int64) -> [CareRoutine] {
+    func routines(of companionId: Companion.ID) -> [CareRoutine] {
         routines.filter { $0.companionId == companionId }
     }
 
-    func entries(of routineId: Int64?) -> [CareEntry] {
+    func entries(of routineId: CareRoutine.ID?) -> [CareEntry] {
         guard let routineId else { return [] }
         return entries.filter { $0.log.careRoutineId == routineId }
     }
 
-    func person(_ id: Int64) -> Person? {
-        people.first { $0.id == id }
+    /// Anyone who ever lived here, so past care keeps its name; nil for an id that
+    /// points at nobody.
+    func person(_ id: Person.ID) -> Person? {
+        everyone.person(id)
     }
 
-    var names: [Int64: String] {
-        Dictionary(uniqueKeysWithValues: people.compactMap { person in person.id.map { ($0, person.name) } })
+    /// Names of everyone, removed people included.
+    var names: [Person.ID: String] {
+        Dictionary(everyone.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
     }
 }
 
@@ -112,7 +120,7 @@ final class CompanionStore {
     }
 
     var companions: [CompanionSummary] {
-        snapshot.companions.compactMap { companion in companion.id.map { CompanionSummary(id: $0, name: companion.name) } }
+        snapshot.companions.map { CompanionSummary(id: $0.id, name: $0.name) }
     }
 
     private func observe() {
@@ -141,12 +149,12 @@ final class CompanionStore {
 
     // MARK: Reads
 
-    func companion(_ id: Int64) -> Companion? {
+    func companion(_ id: Companion.ID) -> Companion? {
         snapshot.companions.first { $0.id == id }
     }
 
     /// Everything a companion's card and page show, as of `now` (cached per minute).
-    func report(for companionId: Int64, now: Date = CompanionClock.now()) -> CompanionReport? {
+    func report(for companionId: Companion.ID, now: Date = CompanionClock.now()) -> CompanionReport? {
         // Read the snapshot even on a cache hit, so views that only ask for a report
         // still refresh when a log is added, fixed or removed.
         let snapshot = snapshot
@@ -183,7 +191,7 @@ final class CompanionStore {
 
     /// Saves a companion draft. Returns the companion id, or nil when validation failed.
     @discardableResult
-    func save(_ draft: CompanionDraft, previousPhoto: String? = nil) -> Int64? {
+    func save(_ draft: CompanionDraft, previousPhoto: String? = nil) -> Companion.ID? {
         guard let householdId = snapshot.household?.id ?? (try? database.snapshot().household?.id) else { return nil }
         do {
             let id = try database.saveCompanion(draft, householdId: householdId)
@@ -198,7 +206,7 @@ final class CompanionStore {
         }
     }
 
-    func delete(companionId: Int64) {
+    func delete(companionId: Companion.ID) {
         perform {
             if let photo = try database.deleteCompanion(id: companionId) {
                 CompanionPhotoStore.shared.delete(photo)
@@ -207,7 +215,7 @@ final class CompanionStore {
     }
 
     @discardableResult
-    func log(routineId: Int64, _ draft: CareLogDraft) -> CareLog? {
+    func log(routineId: CareRoutine.ID, _ draft: CareLogDraft) -> CareLog? {
         do {
             let log = try database.logCare(routineId: routineId, draft)
             lastError = nil
@@ -220,17 +228,17 @@ final class CompanionStore {
 
     /// Saves edits to a log. Returns false, with `lastError` set, when they are rejected.
     @discardableResult
-    func updateLog(id: Int64, _ draft: CareLogDraft) -> Bool {
+    func updateLog(id: CareLog.ID, _ draft: CareLogDraft) -> Bool {
         perform { _ = try database.updateCareLog(id: id, draft) }
     }
 
-    func deleteLog(id: Int64) {
+    func deleteLog(id: CareLog.ID) {
         perform { try database.deleteCareLog(id: id) }
     }
 
     func moveCompanions(fromOffsets source: IndexSet, toOffset destination: Int) {
         guard let householdId = snapshot.household?.id else { return }
-        var ids = snapshot.companions.compactMap(\.id)
+        var ids = snapshot.companions.map(\.id)
         ids.move(fromOffsets: source, toOffset: destination)
         perform { try database.reorderCompanions(householdId: householdId, ids: ids) }
     }

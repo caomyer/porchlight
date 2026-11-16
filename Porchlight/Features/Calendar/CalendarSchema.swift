@@ -44,8 +44,10 @@ enum CalendarVisibility: String, Codable, CaseIterable, Sendable, DatabaseValueC
 
 /// The household's settings for one external calendar.
 struct CalendarSource: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var householdId: Int64
+    typealias ID = Porchlight.ID<CalendarSource>
+
+    var id: ID = .new()
+    var householdId: Household.ID
     /// The provider's stable calendar identifier.
     var externalId: String
     var title: String
@@ -54,7 +56,7 @@ struct CalendarSource: Codable, Equatable, Identifiable, Sendable {
     /// The calendar's own color as 0xRRGGBB.
     var colorHex: Int
     /// The person it belongs to, or nil for the whole household.
-    var ownerId: Int64?
+    var ownerId: Person.ID?
     var visibility: CalendarVisibility
     var isShown: Bool
     var createdAt: Date
@@ -62,12 +64,8 @@ struct CalendarSource: Codable, Equatable, Identifiable, Sendable {
     var owner: Owner { ownerId.map(Owner.person) ?? .everyone }
 }
 
-extension CalendarSource: FetchableRecord, MutablePersistableRecord {
+extension CalendarSource: FetchableRecord, PersistableRecord {
     static let databaseTableName = "calendarSource"
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
 }
 
 // MARK: - Writes
@@ -91,10 +89,10 @@ extension AppDatabase {
     /// Existing rows keep the household's choices; only their title, account
     /// and color follow the provider. Rows for calendars that disappeared are
     /// kept, so choices survive an account being removed and re-added.
-    func syncCalendarSources(householdId: Int64, calendars: [ExternalCalendar], now: Date = .now) throws {
+    func syncCalendarSources(householdId: Household.ID, calendars: [ExternalCalendar], now: Date = .now) throws {
         guard !calendars.isEmpty else { return }
         try writer.write { db in
-            let people = try Person.filter(Column("householdId") == householdId).fetchAll(db)
+            let people = try Person.active(in: householdId).fetchAll(db)
             let existing = try CalendarSource
                 .filter(Column("householdId") == householdId)
                 .fetchAll(db)
@@ -107,7 +105,7 @@ extension AppDatabase {
                     source.colorHex = calendar.colorHex
                     try source.update(db)
                 } else {
-                    var source = CalendarSource(
+                    let source = CalendarSource(
                         householdId: householdId,
                         externalId: calendar.id,
                         title: calendar.title,
@@ -125,7 +123,7 @@ extension AppDatabase {
     }
 
     /// Assigns a calendar to a person, or to everyone with `.everyone`.
-    func setCalendarSourceOwner(id: Int64, owner: Owner) throws {
+    func setCalendarSourceOwner(id: CalendarSource.ID, owner: Owner) throws {
         try writer.write { db in
             guard var source = try CalendarSource.fetchOne(db, id: id) else { throw CalendarSourceError.unknownCalendar }
             switch owner {
@@ -141,15 +139,15 @@ extension AppDatabase {
         }
     }
 
-    func setCalendarSourceVisibility(id: Int64, visibility: CalendarVisibility) throws {
+    func setCalendarSourceVisibility(id: CalendarSource.ID, visibility: CalendarVisibility) throws {
         try updateCalendarSource(id: id) { $0.visibility = visibility }
     }
 
-    func setCalendarSourceShown(id: Int64, isShown: Bool) throws {
+    func setCalendarSourceShown(id: CalendarSource.ID, isShown: Bool) throws {
         try updateCalendarSource(id: id) { $0.isShown = isShown }
     }
 
-    private func updateCalendarSource(id: Int64, _ change: (inout CalendarSource) -> Void) throws {
+    private func updateCalendarSource(id: CalendarSource.ID, _ change: (inout CalendarSource) -> Void) throws {
         try writer.write { db in
             guard var source = try CalendarSource.fetchOne(db, id: id) else { throw CalendarSourceError.unknownCalendar }
             change(&source)
@@ -173,7 +171,7 @@ struct CalendarSnapshot: Equatable, Sendable {
         guard let id = base.household?.id else { return .empty }
         let sources = try CalendarSource
             .filter(Column("householdId") == id)
-            .order(Column("id"))
+            .order(Column("createdAt"), Column("id"))
             .fetchAll(db)
         return CalendarSnapshot(household: base.household, people: base.people, sources: sources)
     }

@@ -66,7 +66,12 @@ extension AppDatabase {
                 t.add(column: "weekdayMask", .integer).notNull().defaults(to: 0)
                 t.add(column: "anchorDay", .text).notNull().defaults(to: "")
             }
-            let calendar = try Household.order(Column("id")).fetchOne(db)?.calendar ?? .current
+            // Raw rows, not `Household`: record types follow the latest schema, which
+            // this migration's database has not reached.
+            let household = try Row.fetchOne(db, sql: "SELECT timeZoneIdentifier, firstWeekday FROM household ORDER BY id LIMIT 1")
+            let calendar = household.map {
+                Calendar.household(timeZoneIdentifier: $0["timeZoneIdentifier"], firstWeekday: $0["firstWeekday"])
+            } ?? .current
             let today = DayKey(.now, calendar: calendar)
             let rows = try Row.fetchAll(db, sql: """
                 SELECT r.id, r.everyDays, MIN(l.occurredAt) AS first, MAX(l.occurredAt) AS last
@@ -95,9 +100,11 @@ extension AppDatabase {
 // MARK: - Records
 
 /// Someone (or something) the household looks after.
-struct Companion: Codable, Equatable, Identifiable, Sendable, FetchableRecord, MutablePersistableRecord {
-    var id: Int64?
-    var householdId: Int64
+struct Companion: Codable, Equatable, Identifiable, Sendable, FetchableRecord, PersistableRecord {
+    typealias ID = Porchlight.ID<Companion>
+
+    var id: ID = .new()
+    var householdId: Household.ID
     var name: String
     var species: Species
     var coat: CoatPreset
@@ -108,16 +115,14 @@ struct Companion: Codable, Equatable, Identifiable, Sendable, FetchableRecord, M
     var captionTone: CompanionTone
     var sortOrder: Int
     var createdAt: Date
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
 }
 
 /// Something done for a companion on a cadence: walks, meals, watering.
-struct CareRoutine: Codable, Equatable, Identifiable, Sendable, FetchableRecord, MutablePersistableRecord {
-    var id: Int64?
-    var companionId: Int64
+struct CareRoutine: Codable, Equatable, Identifiable, Sendable, FetchableRecord, PersistableRecord {
+    typealias ID = Porchlight.ID<CareRoutine>
+
+    var id: ID = .new()
+    var companionId: Companion.ID
     var kind: CareKind
     var title: String
     var emoji: String
@@ -135,10 +140,6 @@ struct CareRoutine: Codable, Equatable, Identifiable, Sendable, FetchableRecord,
     var weekdayMask: Int = 0
     /// The first day it is expected (`DayKey.rawValue`); empty means "always has been".
     var anchorDay: String = ""
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
 
     func tracks(_ field: CareField) -> Bool { trackedFields.contains(field) }
 
@@ -186,9 +187,11 @@ struct CareRoutine: Codable, Equatable, Identifiable, Sendable, FetchableRecord,
 }
 
 /// One time someone did a routine.
-struct CareLog: Codable, Equatable, Identifiable, Sendable, FetchableRecord, MutablePersistableRecord {
-    var id: Int64?
-    var careRoutineId: Int64
+struct CareLog: Codable, Equatable, Identifiable, Sendable, FetchableRecord, PersistableRecord {
+    typealias ID = Porchlight.ID<CareLog>
+
+    var id: ID = .new()
+    var careRoutineId: CareRoutine.ID
     var occurredAt: Date
     var durationMinutes: Int?
     var pee: Bool?
@@ -197,13 +200,25 @@ struct CareLog: Codable, Equatable, Identifiable, Sendable, FetchableRecord, Mut
     var note: String?
     var stars: Int
     var createdAt: Date
-
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
 }
 
-struct CareLogPerson: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
-    var careLogId: Int64
-    var personId: Int64
+/// Someone who did a logged routine. Several people can do one walk together.
+struct CareLogPerson: Codable, Equatable, Identifiable, Sendable, FetchableRecord, PersistableRecord {
+    typealias ID = Porchlight.ID<CareLogPerson>
+
+    /// Derived from the log and the person, so crediting someone twice is one row.
+    var id: ID
+    var careLogId: CareLog.ID
+    /// A plain id, not a foreign key: it may point at nobody yet after a sync.
+    var personId: Person.ID
+
+    init(careLogId: CareLog.ID, personId: Person.ID) {
+        id = Self.id(careLogId: careLogId, personId: personId)
+        self.careLogId = careLogId
+        self.personId = personId
+    }
+
+    static func id(careLogId: CareLog.ID, personId: Person.ID) -> ID {
+        .derived(careLogId.description, personId.description)
+    }
 }

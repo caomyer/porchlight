@@ -297,7 +297,7 @@ struct FoodMemory: Equatable, Sendable {
     /// Looks for meals on this date a year ago (then 2-3 years ago), and otherwise on
     /// the same day of the closest earlier month (11 months ago down to 1).
     /// `withPhotos` names the meals that have photos, which make better memories.
-    static func find(in entries: [JournalEntry], withPhotos: Set<Int64> = [], today: DayKey, calendar: Calendar) -> FoodMemory? {
+    static func find(in entries: [JournalEntry], withPhotos: Set<JournalEntry.ID> = [], today: DayKey, calendar: Calendar) -> FoodMemory? {
         let byDay = Dictionary(grouping: entries, by: \.day)
         let start = today.startDate(in: calendar)
         for months in [12, 24, 36] + Array((1...11).reversed()) {
@@ -311,9 +311,9 @@ struct FoodMemory: Equatable, Sendable {
     }
 
     /// Photos beat illustrations, then higher ratings, then later meals.
-    private static func memorable(_ a: JournalEntry, _ b: JournalEntry, withPhotos: Set<Int64>) -> Bool {
-        let left = (withPhotos.contains(a.id ?? -1) ? 1 : 0, a.rating?.rawValue ?? 0, a.eatenAt)
-        let right = (withPhotos.contains(b.id ?? -1) ? 1 : 0, b.rating?.rawValue ?? 0, b.eatenAt)
+    private static func memorable(_ a: JournalEntry, _ b: JournalEntry, withPhotos: Set<JournalEntry.ID>) -> Bool {
+        let left = (withPhotos.contains(a.id) ? 1 : 0, a.rating?.rawValue ?? 0, a.eatenAt)
+        let right = (withPhotos.contains(b.id) ? 1 : 0, b.rating?.rawValue ?? 0, b.eatenAt)
         return left < right
     }
 }

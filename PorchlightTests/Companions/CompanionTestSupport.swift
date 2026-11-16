@@ -10,9 +10,9 @@ enum CareFixture {
         return calendar
     }()
 
-    static let james: Int64 = 1
-    static let mia: Int64 = 2
-    static let ava: Int64 = 3
+    static let james: Person.ID = 1
+    static let mia: Person.ID = 2
+    static let ava: Person.ID = 3
 
     /// Saturday, November 7 2026 at `hour:minute` (or `day` of November).
     static func date(day: Int = 7, _ hour: Int, _ minute: Int = 0) -> Date {
@@ -36,16 +36,16 @@ enum CareFixture {
     )
 
     static func entry(
-        _ id: Int64,
+        _ id: CareLog.ID,
         day: Int = 7,
         _ hour: Int,
         _ minute: Int = 0,
-        by people: [Int64] = [james],
+        by people: [Person.ID] = [james],
         minutes: Int? = nil,
         pee: Bool? = nil,
         poo: Bool? = nil,
         vibe: CareVibe? = nil,
-        routine: Int64 = 10
+        routine: CareRoutine.ID = 10
     ) -> CareEntry {
         CareEntry(
             log: CareLog(
@@ -57,12 +57,12 @@ enum CareFixture {
     }
 
     /// Two on-time walks a day for `days` days ending on November `last`.
-    static func fullDays(_ days: ClosedRange<Int>, startId: Int64 = 1000) -> [CareEntry] {
+    static func fullDays(_ days: ClosedRange<Int>, startId: Int = 1000) -> [CareEntry] {
         var id = startId
         var result: [CareEntry] = []
         for day in days {
-            result.append(entry(id, day: day, 7, by: [james], minutes: 20))
-            result.append(entry(id + 1, day: day, 18, by: [mia], minutes: 30))
+            result.append(entry(.number(id), day: day, 7, by: [james], minutes: 20))
+            result.append(entry(.number(id + 1), day: day, 18, by: [mia], minutes: 30))
             id += 2
         }
         return result

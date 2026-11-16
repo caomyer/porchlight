@@ -65,7 +65,7 @@ final class FoodStore {
     func timelineItems(for day: DayKey) -> [TimelineItem] {
         guard isEnabled else { return [] }
         return entries(on: day).compactMap { entry in
-            guard let id = entry.id else { return nil }
+            let id = entry.id
             var subtitle = place(of: entry).map { "\(entry.source.label) · \($0.name)" } ?? entry.source.label
             if let rating = entry.rating { subtitle += " · \(rating.emoji) \(rating.phrase)" }
             // The thumbnail is too small for a count badge, so the count joins the subtitle.
@@ -113,6 +113,7 @@ final class FoodStore {
     // MARK: Reads
 
     var journal: Journal? { snapshot.journal }
+    /// The people who live here now, for pickers.
     var people: [Person] { snapshot.people }
     var calendar: Calendar { snapshot.household?.calendar ?? .current }
     var slots: [String] { journal?.slots ?? MealSlot.defaultNames }
@@ -129,10 +130,9 @@ final class FoodStore {
         snapshot.entries.filter { $0.day == day.rawValue && $0.slot == slot }
     }
 
+    /// Who ate a meal, removed people included; ids that point at nobody are skipped.
     func eaters(of entry: JournalEntry) -> [Person] {
-        guard let id = entry.id else { return [] }
-        let ids = snapshot.eaters[id] ?? []
-        return ids.compactMap { personId in people.first { $0.id == personId } }
+        (snapshot.eaters[entry.id] ?? []).compactMap { snapshot.everyone.person($0) }
     }
 
     /// Everyone in the household ate it (shown as ♥).
@@ -143,7 +143,7 @@ final class FoodStore {
 
     func owner(of entry: JournalEntry) -> Owner {
         let eaters = eaters(of: entry)
-        if eaters.count == 1, let id = eaters[0].id, !ateTogether(entry) { return .person(id) }
+        if eaters.count == 1, !ateTogether(entry) { return .person(eaters[0].id) }
         return .everyone
     }
 
@@ -157,7 +157,7 @@ final class FoodStore {
 
     /// A meal's photos, cover first.
     func photos(of entry: JournalEntry) -> [MealPhoto] {
-        entry.id.flatMap { snapshot.photos[$0] } ?? []
+        snapshot.photos[entry.id] ?? []
     }
 
     /// The picture shown for the meal wherever many meals appear at once.
@@ -247,7 +247,8 @@ final class FoodStore {
     /// when they could not be added.
     @discardableResult
     func addPhotos(_ images: [UIImage], to entry: JournalEntry) async -> Bool {
-        guard let id = entry.id, !images.isEmpty else { return false }
+        guard !images.isEmpty else { return false }
+        let id = entry.id
         var stored: [FoodPhotoStore.Stored] = []
         do {
             for image in images { stored.append(try await savePhoto(image)) }
@@ -265,12 +266,12 @@ final class FoodStore {
     /// `lastError` set, when they are rejected.
     @discardableResult
     func updateMeal(_ entry: JournalEntry, _ draft: MealDraft, photos items: [MealPhotoItem]? = nil) -> Bool {
-        guard let id = entry.id else { return false }
+        let id = entry.id
         return perform { try database.updateMeal(id: id, draft, photos: items, files: photos) }
     }
 
     func deleteMeal(_ entry: JournalEntry) {
-        guard let id = entry.id else { return }
+        let id = entry.id
         perform { try database.deleteMeal(id: id, files: photos) }
     }
 
@@ -279,15 +280,15 @@ final class FoodStore {
         guard let householdId = snapshot.household?.id else { return }
         perform {
             let journal = try database.ensureFoodJournal(householdId: householdId, enabled: enabled)
-            if journal.enabled != enabled, let id = journal.id { try database.setJournalEnabled(id: id, enabled) }
+            if journal.enabled != enabled { try database.setJournalEnabled(id: journal.id, enabled) }
         }
     }
 
     func setSlot(_ slot: String, on: Bool) {
-        guard let journal, let id = journal.id else { return }
+        guard let journal else { return }
         var slots = journal.slots.filter { $0 != slot }
         if on { slots.append(slot) }
-        perform { try database.setJournalSlots(id: id, slots) }
+        perform { try database.setJournalSlots(id: journal.id, slots) }
     }
 
     @discardableResult

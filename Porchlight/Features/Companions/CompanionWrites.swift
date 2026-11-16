@@ -8,7 +8,7 @@ import UIKit
 struct CareRoutineDraft: Equatable, Identifiable, Sendable {
     /// Stable identity for lists while editing; not stored.
     var id = UUID()
-    var routineId: Int64?
+    var routineId: CareRoutine.ID?
     var kind: CareKind
     var title: String
     var emoji: String
@@ -52,9 +52,9 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
     }
 
     /// The routine as it would be stored, for previews and the logic.
-    func routine(companionId: Int64 = 0, sortOrder: Int = 0) -> CareRoutine {
+    func routine(companionId: Companion.ID = .new(), sortOrder: Int = 0) -> CareRoutine {
         var routine = CareRoutine(
-            id: routineId, companionId: companionId, kind: kind, title: title, emoji: emoji,
+            id: routineId ?? .new(), companionId: companionId, kind: kind, title: title, emoji: emoji,
             everyDays: 1, windows: windows, trackedFields: trackedFields,
             stars: stars, nudgeAfterMinutes: nudgeAfterMinutes, sortOrder: sortOrder,
             anchorDay: startDay?.rawValue ?? ""
@@ -66,7 +66,7 @@ struct CareRoutineDraft: Equatable, Identifiable, Sendable {
 
 /// A companion with its routines, as edited in setup and settings.
 struct CompanionDraft: Equatable, Sendable {
-    var companionId: Int64?
+    var companionId: Companion.ID?
     var name: String = ""
     var species: Species = .dog
     var coat: CoatPreset = .honey
@@ -80,7 +80,7 @@ struct CompanionDraft: Equatable, Sendable {
         CompanionDraft(species: species, routines: CompanionPresets.routines(for: species))
     }
 
-    init(companionId: Int64? = nil, name: String = "", species: Species = .dog, coat: CoatPreset = .honey,
+    init(companionId: Companion.ID? = nil, name: String = "", species: Species = .dog, coat: CoatPreset = .honey,
          photoFile: String? = nil, about: String = "", birthDate: Date? = nil, tone: CompanionTone = .cheeky,
          routines: [CareRoutineDraft] = []) {
         self.companionId = companionId
@@ -105,7 +105,7 @@ struct CompanionDraft: Equatable, Sendable {
 
 /// What someone fills in on the log sheet.
 struct CareLogDraft: Equatable, Sendable {
-    var people: [Int64]
+    var people: [Person.ID]
     var occurredAt: Date
     var durationMinutes: Int?
     var pee: Bool?
@@ -189,7 +189,7 @@ enum CareRules {
     }
 
     /// `today` starts routines that have no start day yet.
-    static func validated(_ draft: CareRoutineDraft, companionId: Int64, sortOrder: Int, today: DayKey = DayKey(.now, calendar: .current)) throws -> CareRoutine {
+    static func validated(_ draft: CareRoutineDraft, companionId: Companion.ID, sortOrder: Int, today: DayKey = DayKey(.now, calendar: .current)) throws -> CareRoutine {
         let title = try Names.validated(draft.title)
         let emoji = draft.emoji.trimmingCharacters(in: .whitespacesAndNewlines)
         switch draft.recurrence {
@@ -216,7 +216,7 @@ enum CareRules {
         var fieldsSeen = Set<CareField>()
         let fields = draft.trackedFields.filter { fieldsSeen.insert($0).inserted }
         var routine = CareRoutine(
-            id: draft.routineId, companionId: companionId, kind: draft.kind, title: title,
+            id: draft.routineId ?? .new(), companionId: companionId, kind: draft.kind, title: title,
             emoji: emoji.isEmpty ? draft.kind.defaultEmoji : String(emoji.prefix(2)),
             everyDays: 1, windows: windows, trackedFields: fields,
             stars: draft.stars, nudgeAfterMinutes: draft.nudgeAfterMinutes, sortOrder: sortOrder,
@@ -233,7 +233,7 @@ extension AppDatabase {
     /// Creates or updates a companion and replaces its routines with the draft's.
     /// Routines missing from the draft are deleted along with their logs.
     @discardableResult
-    func saveCompanion(_ draft: CompanionDraft, householdId: Int64, now: Date = .now) throws -> Int64 {
+    func saveCompanion(_ draft: CompanionDraft, householdId: Household.ID, now: Date = .now) throws -> Companion.ID {
         let name = try Names.validated(draft.name)
         let about = draft.about.trimmingCharacters(in: .whitespacesAndNewlines)
         guard about.count <= 60 else { throw ValidationError.nameTooLong(limit: 60) }
@@ -258,19 +258,20 @@ extension AppDatabase {
             companion.birthDate = draft.birthDate
             companion.captionTone = draft.tone
             try companion.save(db)
-            let companionId = companion.id!
+            let companionId = companion.id
             let calendar = try Household.fetchOne(db, id: householdId)?.calendar ?? .current
             let today = DayKey(now, calendar: calendar)
 
-            let existingIds = try Set(Int64.fetchAll(db, sql: "SELECT id FROM careRoutine WHERE companionId = ?", arguments: [companionId]))
-            var keptIds = Set<Int64>()
+            let existingIds = try Set(CareRoutine.ID.fetchAll(db, sql: "SELECT id FROM careRoutine WHERE companionId = ?", arguments: [companionId]))
+            var keptIds = Set<CareRoutine.ID>()
             for (index, routineDraft) in draft.routines.enumerated() {
                 var routine = try CareRules.validated(routineDraft, companionId: companionId, sortOrder: index, today: today)
-                if let id = routine.id, existingIds.contains(id) {
+                if existingIds.contains(routine.id) {
                     try routine.update(db)
-                    keptIds.insert(id)
+                    keptIds.insert(routine.id)
                 } else {
-                    routine.id = nil
+                    // Never reuse an id from elsewhere: inserting it would replace that row.
+                    routine.id = .new()
                     try routine.insert(db)
                 }
             }
@@ -283,13 +284,13 @@ extension AppDatabase {
 
     /// Removes a companion with its routines and logs. Returns its photo file, if any, to clean up.
     @discardableResult
-    func deleteCompanion(id: Int64) throws -> String? {
+    func deleteCompanion(id: Companion.ID) throws -> String? {
         try writer.write { db in
             guard let companion = try Companion.fetchOne(db, id: id) else { return nil }
             _ = try Companion.deleteOne(db, id: id)
             let rest = try Companion
                 .filter(Column("householdId") == companion.householdId)
-                .order(Column("sortOrder"), Column("id"))
+                .order(Column("sortOrder"), Column("createdAt"), Column("id"))
                 .fetchAll(db)
             for (index, var other) in rest.enumerated() where other.sortOrder != index {
                 other.sortOrder = index
@@ -301,21 +302,21 @@ extension AppDatabase {
 
     /// Records that people did a routine.
     @discardableResult
-    func logCare(routineId: Int64, _ draft: CareLogDraft, now: Date = .now) throws -> CareLog {
+    func logCare(routineId: CareRoutine.ID, _ draft: CareLogDraft, now: Date = .now) throws -> CareLog {
         let note = try CareRules.validatedNote(draft, now: now)
         return try writer.write { db in
             guard let routine = try CareRoutine.fetchOne(db, id: routineId) else { throw CareValidationError.unknownRoutine }
             var log = CareLog(careRoutineId: routineId, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now)
             log.apply(draft, note: note, routine: routine)
             try log.insert(db)
-            try Self.replacePeople(of: log.id!, with: draft.people, in: db)
+            try Self.replacePeople(of: log.id, with: draft.people, in: db)
             return log
         }
     }
 
     /// Fixes a logged routine: who, when, how long and the details. The routine and
     /// the stars it earned stay as they were.
-    func updateCareLog(id: Int64, _ draft: CareLogDraft, now: Date = .now) throws -> CareLog {
+    func updateCareLog(id: CareLog.ID, _ draft: CareLogDraft, now: Date = .now) throws -> CareLog {
         let note = try CareRules.validatedNote(draft, now: now)
         return try writer.write { db in
             guard var log = try CareLog.fetchOne(db, id: id) else { throw CareValidationError.unknownLog }
@@ -329,21 +330,21 @@ extension AppDatabase {
         }
     }
 
-    private static func replacePeople(of logId: Int64, with people: [Int64], in db: Database) throws {
-        var seen = Set<Int64>()
+    private static func replacePeople(of logId: CareLog.ID, with people: [Person.ID], in db: Database) throws {
+        var seen = Set<Person.ID>()
         for personId in people where seen.insert(personId).inserted {
-            try CareLogPerson(careLogId: logId, personId: personId).insert(db)
+            try CareLogPerson(careLogId: logId, personId: personId).upsert(db)
         }
     }
 
-    func deleteCareLog(id: Int64) throws {
+    func deleteCareLog(id: CareLog.ID) throws {
         try writer.write { db in
             _ = try CareLog.deleteOne(db, id: id)
         }
     }
 
     /// Persists a new companion order, given ids in display order.
-    func reorderCompanions(householdId: Int64, ids: [Int64]) throws {
+    func reorderCompanions(householdId: Household.ID, ids: [Companion.ID]) throws {
         try writer.write { db in
             for (index, id) in ids.enumerated() {
                 try db.execute(

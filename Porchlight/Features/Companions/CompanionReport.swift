@@ -6,7 +6,7 @@ struct RoutineToday: Identifiable, Equatable {
     var slots: [CareSlot]
     var lastEntry: CareEntry?
 
-    var id: Int64 { routine.id ?? 0 }
+    var id: CareRoutine.ID { routine.id }
     var doneCount: Int { slots.filter(\.isDone).count }
     var isComplete: Bool { slots.allSatisfy(\.isDone) }
 }
@@ -14,13 +14,13 @@ struct RoutineToday: Identifiable, Equatable {
 struct DiaryItem: Identifiable, Equatable {
     var entry: CareEntry
     var caption: String?
-    var id: Int64 { entry.id }
+    var id: CareLog.ID { entry.id }
 }
 
 struct Milestone: Identifiable, Equatable {
     enum Tint: Equatable {
         case companion
-        case person(Int64)
+        case person(Person.ID)
         case together
     }
 
@@ -51,7 +51,7 @@ struct CompanionReport {
     var missed: [MissedCare]
     var milestones: [Milestone]
 
-    var id: Int64 { companion.id ?? 0 }
+    var id: Companion.ID { companion.id }
     var name: String { companion.name }
     var look: CompanionLook { CompanionLook(companion) }
     var expression: FaceExpression { FaceExpression(mood: mood) }
@@ -62,7 +62,7 @@ struct CompanionReport {
     var primaryRoutine: CareRoutine? { primary?.routine }
     var noun: String { primaryRoutine.map { $0.kind.noun(title: $0.title) } ?? "care" }
 
-    static func make(snapshot: CompanionSnapshot, companionId: Int64, now: Date) -> CompanionReport? {
+    static func make(snapshot: CompanionSnapshot, companionId: Companion.ID, now: Date) -> CompanionReport? {
         guard let companion = snapshot.companions.first(where: { $0.id == companionId }) else { return nil }
         let calendar = snapshot.calendar
         let routines = snapshot.routines(of: companionId)
@@ -70,7 +70,7 @@ struct CompanionReport {
         // The last 7 days ending today, so the page is never empty at the start of a week
         // (matches the food diary's week).
         let weekDays = (-6...0).map { today.adding(days: $0, calendar: calendar) }
-        let peopleOrder = snapshot.people.compactMap(\.id)
+        let peopleOrder = snapshot.everyone.map(\.id)
 
         let todays = routines.map { routine in
             routineToday(routine, entries: snapshot.entries(of: routine.id), today: today, now: now, calendar: calendar)
@@ -140,9 +140,9 @@ struct CompanionReport {
 
         let soggy = entries.filter { $0.log.vibe == .soggy }
         if !soggy.isEmpty {
-            var counts: [Int64: Int] = [:]
+            var counts: [Person.ID: Int] = [:]
             for entry in soggy { for person in entry.people { counts[person, default: 0] += 1 } }
-            let order = snapshot.people.compactMap(\.id)
+            let order = snapshot.everyone.map(\.id)
             if let hero = counts.max(by: { $0.value != $1.value ? $0.value < $1.value : (order.firstIndex(of: $0.key) ?? 0) > (order.firstIndex(of: $1.key) ?? 0) }) {
                 let name = snapshot.names[hero.key] ?? "Someone"
                 list.append(Milestone(
@@ -173,7 +173,7 @@ struct CompanionReport {
         return Array(list.prefix(4))
     }
 
-    static func tint(for people: [Int64]) -> Milestone.Tint {
+    static func tint(for people: [Person.ID]) -> Milestone.Tint {
         people.count == 1 ? .person(people[0]) : .together
     }
 

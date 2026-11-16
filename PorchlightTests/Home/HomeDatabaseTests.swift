@@ -8,9 +8,9 @@ import UIKit
 @Suite("Home database")
 struct HomeDatabaseTests {
     private let db: AppDatabase
-    private let householdId: Int64
-    private let a: Int64
-    private let b: Int64
+    private let householdId: Household.ID
+    private let a: Person.ID
+    private let b: Person.ID
     private let today = DayKey(rawValue: "2026-11-04")
 
     init() throws {
@@ -20,17 +20,17 @@ struct HomeDatabaseTests {
             people: [PersonDraft(name: "A", color: .blue), PersonDraft(name: "B", color: .coral)],
             timeZone: TimeZone(identifier: "America/Los_Angeles")!
         )
-        householdId = try #require(household.id)
+        householdId = household.id
         let people = try db.snapshot().people
-        a = try #require(people[0].id)
-        b = try #require(people[1].id)
+        a = people[0].id
+        b = people[1].id
     }
 
     private func snapshot() throws -> HomeSnapshot {
         try db.homeSnapshot(since: DayKey(rawValue: "2026-10-01"))
     }
 
-    private func draft(_ title: String = "Dishes", owner: Int64?, _ recurrence: Recurrence = .daily, stars: Int = 1) -> ChoreDraft {
+    private func draft(_ title: String = "Dishes", owner: Person.ID?, _ recurrence: Recurrence = .daily, stars: Int = 1) -> ChoreDraft {
         ChoreDraft(title: title, emoji: "🍽️", ownerId: owner, recurrence: recurrence, anchorDay: DayKey(rawValue: "2026-11-01"), timeHint: " after dinner ", stars: stars)
     }
 
@@ -73,12 +73,12 @@ struct HomeDatabaseTests {
 
     @Test("A chore can't belong to someone outside the household")
     func choreOwnerValidation() throws {
-        let other = try db.writer.write { db -> Int64 in
-            var household = Household(name: "Other", timeZoneIdentifier: "UTC", firstWeekday: 1, setupCompleted: true, createdAt: .now)
+        let other = try db.writer.write { db -> Person.ID in
+            let household = Household(name: "Other", timeZoneIdentifier: "UTC", firstWeekday: 1, setupCompleted: true, createdAt: .now)
             try household.insert(db)
-            var person = Person(householdId: household.id!, name: "Z", color: .sage, sortOrder: 0, createdAt: .now)
+            let person = Person(householdId: household.id, name: "Z", color: .sage, sortOrder: 0, createdAt: .now)
             try person.insert(db)
-            return person.id!
+            return person.id
         }
         #expect(throws: HomeValidationError.unknownPerson) {
             try db.saveChore(draft(owner: other), householdId: householdId)
@@ -88,7 +88,7 @@ struct HomeDatabaseTests {
     @Test("Toggling credits the owner, snapshots stars, and undoes")
     func toggleOwned() throws {
         let chore = try db.saveChore(draft(owner: a, stars: 2), householdId: householdId)
-        let id = try #require(chore.id)
+        let id = chore.id
         #expect(try db.toggleChore(id: id, day: today, personId: b))
         var completion = try #require(try snapshot().completions.first)
         // The owner gets the credit even if someone else tapped.
@@ -108,7 +108,7 @@ struct HomeDatabaseTests {
     @Test("Anyone chores need to know who did them")
     func toggleShared() throws {
         let chore = try db.saveChore(draft(owner: nil), householdId: householdId)
-        let id = try #require(chore.id)
+        let id = chore.id
         #expect(throws: HomeValidationError.unknownPerson) { try db.toggleChore(id: id, day: today, personId: nil) }
         try db.toggleChore(id: id, day: today, personId: b)
         #expect(try snapshot().completions.map(\.personId) == [b])
@@ -116,7 +116,7 @@ struct HomeDatabaseTests {
 
     @Test("Completions are per day")
     func completionsPerDay() throws {
-        let id = try #require(try db.saveChore(draft(owner: a), householdId: householdId).id)
+        let id = try db.saveChore(draft(owner: a), householdId: householdId).id
         try db.toggleChore(id: id, day: today, personId: nil)
         try db.toggleChore(id: id, day: today.adding(days: -1, calendar: HomeLogicTests.calendar), personId: nil)
         #expect(try snapshot().completions.map(\.day) == ["2026-11-03", "2026-11-04"])
@@ -124,7 +124,7 @@ struct HomeDatabaseTests {
 
     @Test("A one-off chore is done once: doing it another day moves the completion")
     func toggleOnce() throws {
-        let id = try #require(try db.saveChore(draft(owner: a, .once), householdId: householdId).id)
+        let id = try db.saveChore(draft(owner: a, .once), householdId: householdId).id
         try db.toggleChore(id: id, day: DayKey(rawValue: "2026-11-02"), personId: nil)
         try db.toggleChore(id: id, day: today, personId: nil)
         #expect(try snapshot().completions.map(\.day) == ["2026-11-04"])
@@ -132,8 +132,8 @@ struct HomeDatabaseTests {
 
     @Test("Week star totals add up through the store's board")
     func weekStars() throws {
-        let mine = try #require(try db.saveChore(draft("Mine", owner: a, stars: 2), householdId: householdId).id)
-        let shared = try #require(try db.saveChore(draft("Shared", owner: nil, stars: 3), householdId: householdId).id)
+        let mine = try db.saveChore(draft("Mine", owner: a, stars: 2), householdId: householdId).id
+        let shared = try db.saveChore(draft("Shared", owner: nil, stars: 3), householdId: householdId).id
         try db.toggleChore(id: mine, day: today, personId: nil)
         try db.toggleChore(id: mine, day: DayKey(rawValue: "2026-11-02"), personId: nil)
         try db.toggleChore(id: mine, day: DayKey(rawValue: "2026-10-30"), personId: nil) // last week
@@ -147,7 +147,7 @@ struct HomeDatabaseTests {
 
     @Test("Archiving hides a chore but keeps its stars; deleting removes them")
     func archiveAndDelete() throws {
-        let id = try #require(try db.saveChore(draft(owner: a), householdId: householdId).id)
+        let id = try db.saveChore(draft(owner: a), householdId: householdId).id
         try db.toggleChore(id: id, day: today, personId: nil)
         try db.setChoreArchived(id: id, archived: true)
         #expect(try snapshot().chores.first?.archived == true)
@@ -157,17 +157,31 @@ struct HomeDatabaseTests {
         #expect(try snapshot().completions.isEmpty)
     }
 
-    @Test("Removing a person makes their chores shared and keeps shared-goal stars")
+    @Test("Removing a person keeps their history, frees their chores and archives their rewards")
     func removePerson() throws {
-        let id = try #require(try db.saveChore(draft(owner: b), householdId: householdId).id)
+        let id = try db.saveChore(draft(owner: b), householdId: householdId).id
         try db.toggleChore(id: id, day: today, personId: nil)
-        try db.saveReward(RewardDraft(title: "Spa", targetStars: 10, ownerId: b), householdId: householdId, today: today)
-        try db.deletePerson(id: b)
+        let spa = try db.saveReward(RewardDraft(title: "Spa", targetStars: 10, ownerId: b), householdId: householdId, today: today)
+        try db.cashInReward(id: spa.id, stars: 1, day: today)
+        let walk = try dog(stars: 2)
+        try db.logCare(routineId: walk, CareLogDraft(people: [b], occurredAt: at("2026-11-03", 8)), now: at("2026-11-04", 9))
+        let list = try db.createList(title: "Groceries", kind: .grocery, householdId: householdId)
+        try db.addListItem(title: "Milk", to: list.id, addedBy: b)
+        try db.archivePerson(id: b)
+
         let snap = try snapshot()
+        #expect(snap.people.map(\.id) == [a])
+        #expect(snap.everyone.map(\.id) == [a, b])
         #expect(snap.chores.first?.ownerId == nil)
-        #expect(snap.completions.first?.personId == nil)
+        #expect(snap.completions.first?.personId == b)
         #expect(snap.completions.first?.stars == 1)
-        #expect(snap.rewards.isEmpty)
+        #expect(snap.rewards.map(\.archived) == [true])
+        #expect(snap.redemptions.first?.personId == b)
+        #expect(snap.earnings.filter(\.isCare).map(\.personId) == [b])
+        #expect(snap.lifetimeStars[b] == 3)
+        #expect(snap.items.first?.addedById == b)
+        // New credit only goes to people who live here now.
+        #expect(throws: HomeValidationError.unknownPerson) { try db.creditChore(id: id, day: today, personId: b) }
     }
 
     // MARK: Rewards
@@ -181,13 +195,13 @@ struct HomeDatabaseTests {
             try db.saveReward(RewardDraft(title: "X", targetStars: 0), householdId: householdId, today: today)
         }
         let reward = try db.saveReward(RewardDraft(title: " Date night ", emoji: "🍷", targetStars: 100, ownerId: nil), householdId: householdId, today: today)
-        let id = try #require(reward.id)
+        let id = reward.id
         var stored = try #require(try snapshot().rewards.first)
         #expect(stored.title == "Date night")
         #expect(stored.isShared)
         #expect(stored.startDay == "2026-11-04")
 
-        let chore = try #require(try db.saveChore(draft(owner: a, stars: 4), householdId: householdId).id)
+        let chore = try db.saveChore(draft(owner: a, stars: 4), householdId: householdId).id
         try db.toggleChore(id: chore, day: today, personId: nil)
         #expect(RewardProgress.earned(for: stored, earnings: try snapshot().earnings) == 4)
 
@@ -203,14 +217,14 @@ struct HomeDatabaseTests {
 
     @Test("The snapshot reads completions back to the oldest active reward")
     func snapshotWindow() throws {
-        let chore = try #require(try db.saveChore(draft(owner: a), householdId: householdId).id)
+        let chore = try db.saveChore(draft(owner: a), householdId: householdId).id
         try db.toggleChore(id: chore, day: DayKey(rawValue: "2026-08-01"), personId: nil)
         try db.toggleChore(id: chore, day: DayKey(rawValue: "2026-09-15"), personId: nil)
         try db.toggleChore(id: chore, day: today, personId: nil)
         let since = DayKey(rawValue: "2026-10-01")
         #expect(try db.homeSnapshot(since: since).completions.map(\.day) == ["2026-11-04"])
         let reward = try db.saveReward(RewardDraft(title: "Long goal", targetStars: 500), householdId: householdId, today: today)
-        try db.restartReward(id: try #require(reward.id), from: DayKey(rawValue: "2026-09-01"))
+        try db.restartReward(id: reward.id, from: DayKey(rawValue: "2026-09-01"))
         #expect(try db.homeSnapshot(since: since).completions.map(\.day) == ["2026-09-15", "2026-11-04"])
     }
 
@@ -229,9 +243,9 @@ struct HomeDatabaseTests {
     func addItems() throws {
         let groceries = try db.createList(title: "Groceries", kind: .grocery, householdId: householdId)
         let todo = try db.createList(title: "House", kind: .todo, householdId: householdId)
-        try db.addListItem(title: " Limes ", to: groceries.id!, addedBy: a)
-        try db.addListItem(title: "Candles", to: groceries.id!, section: "For the party", addedBy: b)
-        try db.addListItem(title: "Call the plumber", to: todo.id!, section: "Ignored", addedBy: nil)
+        try db.addListItem(title: " Limes ", to: groceries.id, addedBy: a)
+        try db.addListItem(title: "Candles", to: groceries.id, section: "For the party", addedBy: b)
+        try db.addListItem(title: "Call the plumber", to: todo.id, section: "Ignored", addedBy: nil)
         let items = try snapshot().items
         #expect(items.map(\.title) == ["Limes", "Candles", "Call the plumber"])
         #expect(items.map(\.section) == ["Produce", "For the party", nil])
@@ -242,37 +256,37 @@ struct HomeDatabaseTests {
     @Test("List items check off, edit, clear and delete")
     func itemLifecycle() throws {
         let list = try db.createList(title: "Groceries", kind: .grocery, householdId: householdId)
-        let listId = try #require(list.id)
+        let listId = list.id
         let basil = try db.addListItem(title: "Basil", to: listId, addedBy: a)
         let rice = try db.addListItem(title: "Rice", to: listId, addedBy: a)
         let milk = try db.addListItem(title: "Milk", to: listId, addedBy: a)
-        try db.setListItemChecked(id: basil.id!, checked: true)
-        try db.setListItemChecked(id: rice.id!, checked: true)
-        try db.setListItemChecked(id: rice.id!, checked: false)
+        try db.setListItemChecked(id: basil.id, checked: true)
+        try db.setListItemChecked(id: rice.id, checked: true)
+        try db.setListItemChecked(id: rice.id, checked: false)
         #expect(try snapshot().items.filter(\.checked).map(\.title) == ["Basil"])
 
-        try db.updateListItem(id: milk.id!, title: "Oat milk", section: "")
+        try db.updateListItem(id: milk.id, title: "Oat milk", section: "")
         #expect(try snapshot().items.last?.title == "Oat milk")
         #expect(try snapshot().items.last?.section == "Dairy")
-        try db.updateListItem(id: milk.id!, title: "Oat milk", section: "Drinks")
+        try db.updateListItem(id: milk.id, title: "Oat milk", section: "Drinks")
         #expect(try snapshot().items.last?.section == "Drinks")
-        #expect(throws: HomeValidationError.emptyTitle) { try db.updateListItem(id: milk.id!, title: "", section: nil) }
+        #expect(throws: HomeValidationError.emptyTitle) { try db.updateListItem(id: milk.id, title: "", section: nil) }
 
         #expect(try db.clearCheckedItems(listId: listId) == 1)
         #expect(try snapshot().items.map(\.title) == ["Rice", "Oat milk"])
-        try db.deleteListItem(id: rice.id!)
+        try db.deleteListItem(id: rice.id)
         #expect(try snapshot().items.map(\.title) == ["Oat milk"])
     }
 
     @Test("Lists rename and delete with their items; people must belong to the household")
     func listLifecycle() throws {
         let list = try db.createList(title: "Hardware", kind: .todo, householdId: householdId)
-        try db.addListItem(title: "Screws", to: list.id!, addedBy: nil)
-        try db.renameList(id: list.id!, to: " Hardware store ")
+        try db.addListItem(title: "Screws", to: list.id, addedBy: nil)
+        try db.renameList(id: list.id, to: " Hardware store ")
         #expect(try snapshot().lists.first?.title == "Hardware store")
-        #expect(throws: HomeValidationError.emptyTitle) { try db.renameList(id: list.id!, to: "") }
-        #expect(throws: HomeValidationError.unknownPerson) { try db.addListItem(title: "Nails", to: list.id!, addedBy: 9999) }
-        try db.deleteList(id: list.id!)
+        #expect(throws: HomeValidationError.emptyTitle) { try db.renameList(id: list.id, to: "") }
+        #expect(throws: HomeValidationError.unknownPerson) { try db.addListItem(title: "Nails", to: list.id, addedBy: 9999) }
+        try db.deleteList(id: list.id)
         #expect(try snapshot().lists.isEmpty)
         #expect(try snapshot().items.isEmpty)
     }
@@ -300,17 +314,17 @@ struct HomeDatabaseTests {
     func photos() throws {
         let photo = try db.addAmbientPhoto(fileName: "a.jpg", caption: "Aug 2026", householdId: householdId)
         #expect(try db.ambientPhotoFileNames() == ["a.jpg"])
-        #expect(try db.removeAmbientPhoto(id: photo.id!) == "a.jpg")
-        #expect(try db.removeAmbientPhoto(id: photo.id!) == nil)
+        #expect(try db.removeAmbientPhoto(id: photo.id) == "a.jpg")
+        #expect(try db.removeAmbientPhoto(id: photo.id) == nil)
         #expect(try snapshot().photos.isEmpty)
     }
 
     @Test("Deleting the household removes every Home row")
     func cascade() throws {
         let list = try db.createList(title: "L", kind: .grocery, householdId: householdId)
-        try db.addListItem(title: "Basil", to: list.id!, addedBy: a)
+        try db.addListItem(title: "Basil", to: list.id, addedBy: a)
         let chore = try db.saveChore(draft(owner: a), householdId: householdId)
-        try db.toggleChore(id: chore.id!, day: today, personId: nil)
+        try db.toggleChore(id: chore.id, day: today, personId: nil)
         try db.setMeal(day: today, title: "Soup", emoji: nil, householdId: householdId)
         try db.writer.write { db in _ = try Household.deleteAll(db) }
         let counts = try db.writer.read { db in
@@ -324,12 +338,12 @@ struct HomeDatabaseTests {
     // MARK: One star ledger
 
     /// A dog with one walk routine worth `stars`, returning the routine id.
-    private func dog(stars: Int = 2) throws -> Int64 {
+    private func dog(stars: Int = 2) throws -> CareRoutine.ID {
         var draft = CompanionDraft.new(species: .dog)
         draft.name = "Yo-Yo"
         draft.routines = [CareRoutineDraft(kind: .walk, windows: [.anyTime], stars: stars)]
         let id = try db.saveCompanion(draft, householdId: householdId)
-        return try #require(try db.writer.read { db in try Int64.fetchOne(db, sql: "SELECT id FROM careRoutine WHERE companionId = ?", arguments: [id]) })
+        return try #require(try db.writer.read { db in try CareRoutine.ID.fetchOne(db, sql: "SELECT id FROM careRoutine WHERE companionId = ?", arguments: [id]) })
     }
 
     private func at(_ day: String, _ hour: Int) -> Date {
@@ -343,14 +357,14 @@ struct HomeDatabaseTests {
         let walk = try dog(stars: 2)
         try db.logCare(routineId: walk, CareLogDraft(people: [a, b], occurredAt: at("2026-11-03", 8)), now: at("2026-11-04", 9))
         let chore = try db.saveChore(draft(owner: a, stars: 3), householdId: householdId)
-        try db.toggleChore(id: chore.id!, day: today, personId: nil)
+        try db.toggleChore(id: chore.id, day: today, personId: nil)
         let earnings = try snapshot().earnings
         #expect(earnings.count == 3)
-        let carers: Set<Int64> = Set(earnings.filter(\.isCare).compactMap(\.personId))
+        let carers: Set<Person.ID> = Set(earnings.filter(\.isCare).compactMap(\.personId))
         #expect(carers == [a, b])
         #expect(earnings.first { $0.isCare }?.title == "Walk Yo-Yo")
         #expect(earnings.first { $0.isCare }?.day == DayKey(rawValue: "2026-11-03"))
-        let lifetime: [Int64: Int] = try snapshot().lifetimeStars
+        let lifetime: [Person.ID: Int] = try snapshot().lifetimeStars
         #expect(lifetime == [a: 5, b: 2])
     }
 
@@ -363,7 +377,7 @@ struct HomeDatabaseTests {
         var home = try snapshot()
         #expect(RewardProgress.earned(for: home.rewards[0], earnings: home.earnings, redemptions: home.redemptions) == 8)
 
-        try db.cashInReward(id: reward.id!, stars: 8, day: today, now: at("2026-11-04", 10))
+        try db.cashInReward(id: reward.id, stars: 8, day: today, now: at("2026-11-04", 10))
         try db.logCare(routineId: walk, CareLogDraft(people: [a], occurredAt: at("2026-11-04", 11)), now: at("2026-11-04", 12))
         home = try snapshot()
         let redemption = try #require(home.redemptions.first)
@@ -375,10 +389,10 @@ struct HomeDatabaseTests {
     @Test("Saying who did a chore re-credits it, or checks it off for them")
     func credit() throws {
         let chore = try db.saveChore(draft(owner: a, stars: 2), householdId: householdId)
-        try db.creditChore(id: chore.id!, day: today, personId: b)
+        try db.creditChore(id: chore.id, day: today, personId: b)
         var done = try #require(try snapshot().completions.first)
         #expect(done.personId == b, "Anyone can pitch in on someone else's chore")
-        try db.creditChore(id: chore.id!, day: today, personId: a)
+        try db.creditChore(id: chore.id, day: today, personId: a)
         done = try #require(try snapshot().completions.first)
         #expect(done.personId == a)
         #expect(try snapshot().completions.count == 1)
@@ -388,18 +402,18 @@ struct HomeDatabaseTests {
     @Test("Cashing in twice in a row records it once")
     func cashInOnce() throws {
         let reward = try db.saveReward(RewardDraft(title: "Ice cream", emoji: "🍦", targetStars: 1, ownerId: a), householdId: householdId, today: today)
-        try db.cashInReward(id: reward.id!, stars: 3, day: today, after: nil)
-        #expect(throws: HomeValidationError.alreadyCashedIn) { try db.cashInReward(id: reward.id!, stars: 3, day: today, after: nil) }
+        try db.cashInReward(id: reward.id, stars: 3, day: today, after: nil)
+        #expect(throws: HomeValidationError.alreadyCashedIn) { try db.cashInReward(id: reward.id, stars: 3, day: today, after: nil) }
         #expect(try snapshot().redemptions.count == 1)
     }
 
     @Test("A chore can't be credited on a day it isn't due; a one-off is re-credited where it was done")
     func creditOnlyWhenDue() throws {
         let weekly = try db.saveChore(draft(owner: a, .weekdays([2])), householdId: householdId) // Mondays
-        #expect(throws: HomeValidationError.notDue) { try db.creditChore(id: weekly.id!, day: today, personId: b) } // a Wednesday
+        #expect(throws: HomeValidationError.notDue) { try db.creditChore(id: weekly.id, day: today, personId: b) } // a Wednesday
         let once = try db.saveChore(draft("Fix the faucet", owner: nil, .once), householdId: householdId)
-        try db.toggleChore(id: once.id!, day: DayKey(rawValue: "2026-11-02"), personId: a)
-        try db.creditChore(id: once.id!, day: today, personId: b)
+        try db.toggleChore(id: once.id, day: DayKey(rawValue: "2026-11-02"), personId: a)
+        try db.creditChore(id: once.id, day: today, personId: b)
         let done = try #require(try snapshot().completions.first { $0.choreId == once.id })
         #expect(done.day == "2026-11-02" && done.personId == b)
     }

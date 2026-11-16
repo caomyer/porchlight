@@ -12,7 +12,7 @@ struct ChoreEditor: View {
 
     @State private var title = ""
     @State private var emoji = ""
-    @State private var ownerId: Int64?
+    @State private var ownerId: Person.ID?
     @State private var repeatChoice: RepeatChoice?
     @State private var timeHint = ""
     @State private var stars = 1
@@ -128,7 +128,7 @@ struct RewardEditor: View {
     @State private var title = ""
     @State private var emoji = ""
     @State private var target = 30
-    @State private var ownerId: Int64?
+    @State private var ownerId: Person.ID?
     @State private var error: String?
     @State private var loaded = false
 

@@ -31,12 +31,12 @@ enum CaptionEngine {
         tone: CompanionTone,
         name: String,
         routine: CareRoutine,
-        names: [Int64: String],
+        names: [Person.ID: String],
         calendar: Calendar
-    ) -> [Int64: String] {
+    ) -> [CareLog.ID: String] {
         guard tone != .off else { return [:] }
         let counts = weeklyCounts(entries, calendar: calendar)
-        var result: [Int64: String] = [:]
+        var result: [CareLog.ID: String] = [:]
         var previousKey: String?
         for entry in entries.sorted(by: { $0.time < $1.time }) {
             let context = Context(
@@ -49,7 +49,7 @@ enum CaptionEngine {
                 minutes: entry.log.durationMinutes,
                 vibe: entry.log.vibe
             )
-            if let (key, text) = caption(for: context, tone: tone, seed: entry.id, avoiding: previousKey) {
+            if let (key, text) = caption(for: context, tone: tone, seed: entry.id.stableSeed, avoiding: previousKey) {
                 result[entry.id] = text
                 previousKey = key
             }
@@ -58,12 +58,12 @@ enum CaptionEngine {
     }
 
     /// For each log, how many logs its lead person has done so far in that household week (1-based).
-    static func weeklyCounts(_ entries: [CareEntry], calendar: Calendar) -> [Int64: Int] {
+    static func weeklyCounts(_ entries: [CareEntry], calendar: Calendar) -> [CareLog.ID: Int] {
         var running: [String: Int] = [:]
-        var result: [Int64: Int] = [:]
+        var result: [CareLog.ID: Int] = [:]
         for entry in entries.sorted(by: { $0.time < $1.time }) {
             let week = calendar.dateInterval(of: .weekOfYear, for: entry.time)?.start ?? entry.time
-            let key = "\(week.timeIntervalSince1970)-\(entry.people.first ?? -1)"
+            let key = "\(week.timeIntervalSince1970)-\(entry.people.first?.description ?? "nobody")"
             running[key, default: 0] += 1
             result[entry.id] = running[key]
         }
@@ -71,7 +71,7 @@ enum CaptionEngine {
     }
 
     /// Picks a template by a stable hash of `seed`, skipping `avoiding`.
-    static func caption(for context: Context, tone: CompanionTone, seed: Int64, avoiding: String?) -> (String, String)? {
+    static func caption(for context: Context, tone: CompanionTone, seed: UInt64, avoiding: String?) -> (String, String)? {
         let candidates = templates(for: tone).compactMap { template -> (String, String)? in
             if template.walkOnly && context.kind != .walk { return nil }
             return template.make(context).map { (template.key, $0) }
@@ -88,7 +88,7 @@ enum CaptionEngine {
         return candidates[start]
     }
 
-    static func whoText(_ people: [Int64], names: [Int64: String]) -> String {
+    static func whoText(_ people: [Person.ID], names: [Person.ID: String]) -> String {
         let list = people.compactMap { names[$0] }
         switch list.count {
         case 0: return "Someone"
@@ -111,8 +111,8 @@ enum CaptionEngine {
     }
 
     /// Knuth multiplicative hash: stable across launches, unlike `Hasher`.
-    static func stableHash(_ value: Int64) -> UInt64 {
-        (UInt64(bitPattern: value) &* 2_654_435_761) >> 7
+    static func stableHash(_ value: UInt64) -> UInt64 {
+        (value &* 2_654_435_761) >> 7
     }
 
     // MARK: Templates

@@ -72,10 +72,11 @@ enum FoodSamples {
     ]
 
     static func seed(_ database: AppDatabase, household: Household, people: [Person]) throws {
-        guard let householdId = household.id, !people.isEmpty else { return }
+        guard !people.isEmpty else { return }
+        let householdId = household.id
         let calendar = household.calendar
         let journal = try database.ensureFoodJournal(householdId: householdId)
-        guard let journalId = journal.id else { return }
+        let journalId = journal.id
         let photos = FoodPhotoStore.standard
         let today = DayKey(.now, calendar: calendar)
         let slots = MealSlot.defaultNames
@@ -83,7 +84,7 @@ enum FoodSamples {
 
         @discardableResult
         func add(_ dish: Dish, day: DayKey, slot: Int, later minutes: Int = 0) throws -> JournalEntry {
-            let eaters = dish.who.map { [people[min($0, people.count - 1)].id!] } ?? people.compactMap(\.id)
+            let eaters = dish.who.map { [people[min($0, people.count - 1)].id] } ?? people.map(\.id)
             let eatenAt = calendar.date(byAdding: .minute, value: times[slot] + minutes, to: day.startDate(in: calendar)) ?? .now
             let draft = MealDraft(
                 day: day, slot: slots[slot], source: dish.source, title: dish.title, emoji: dish.emoji,
@@ -94,7 +95,7 @@ enum FoodSamples {
 
         /// Gives a sample meal generated photos, so covers, counts and paging show without a camera.
         func photograph(_ entry: JournalEntry, count: Int, palette: Int) throws {
-            guard let id = entry.id else { return }
+            let id = entry.id
             let stored = try (0..<count).map { try photos.save(SamplePhoto.image(palette: palette + $0, emoji: entry.emoji ?? "🍽️")) }
             try database.addMealPhotos(entryId: id, stored, now: entry.eatenAt)
         }

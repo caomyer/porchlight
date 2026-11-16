@@ -9,7 +9,7 @@ struct MissedCare: Equatable, Identifiable, Sendable {
     /// When it usually happens, on that day.
     var usual: Date
 
-    var id: String { "\(routine.id ?? 0)-\(day.rawValue)-\(slot.index)" }
+    var id: String { "\(routine.id)-\(day.rawValue)-\(slot.index)" }
 }
 
 /// Catching up on care that was never logged. Pure and covered by CareCatchUpTests.

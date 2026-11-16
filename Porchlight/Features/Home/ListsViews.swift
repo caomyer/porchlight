@@ -7,7 +7,7 @@ enum ListsSheet: Identifiable {
     var id: String {
         switch self {
         case let .meal(day): "meal-\(day)"
-        case let .item(item, _): "item-\(item.id ?? -1)"
+        case let .item(item, _): "item-\(item.id)"
         }
     }
 }
@@ -16,8 +16,8 @@ enum ListsSheet: Identifiable {
 struct ListsScreen: View {
     @Environment(HomeStore.self) private var store
     @State private var sheet: ListsSheet?
-    @State private var groceryListId: Int64?
-    @State private var todoListId: Int64?
+    @State private var groceryListId: HomeList.ID?
+    @State private var todoListId: HomeList.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -123,7 +123,7 @@ private struct MealStrip: View {
 private struct ListCard: View {
     @Environment(HomeStore.self) private var store
     let kind: ListKind
-    @Binding var selection: Int64?
+    @Binding var selection: HomeList.ID?
     let present: (ListsSheet) -> Void
 
     private var lists: [HomeList] { store.lists(of: kind) }
@@ -298,7 +298,7 @@ private struct AddItemRow: View {
     let list: HomeList
 
     @State private var title = ""
-    @State private var addedBy: Int64?
+    @State private var addedBy: Person.ID?
     /// A section picked by hand; nil means "use the guess".
     @State private var section: String?
     @FocusState private var focused: Bool

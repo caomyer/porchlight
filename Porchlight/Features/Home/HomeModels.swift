@@ -5,12 +5,14 @@ import GRDB
 
 /// A household chore. Repeating chores start on `anchorDay`; one-off chores are due on it.
 struct Chore: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var householdId: Int64
+    typealias ID = Porchlight.ID<Chore>
+
+    var id: ID = .new()
+    var householdId: Household.ID
     var title: String
     var emoji: String?
     /// The person it belongs to; nil means "Anyone".
-    var ownerId: Int64?
+    var ownerId: Person.ID?
     var repeatKind: String
     var weekdayMask: Int
     var intervalDays: Int
@@ -35,39 +37,49 @@ struct Chore: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-extension Chore: FetchableRecord, MutablePersistableRecord {
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-}
+extension Chore: FetchableRecord, PersistableRecord {}
 
 /// A chore done on a day, and who did it.
 struct ChoreCompletion: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var choreId: Int64
+    typealias ID = Porchlight.ID<ChoreCompletion>
+
+    /// Derived from the chore and the day: a chore is done once a day, on every device.
+    var id: ID
+    var choreId: Chore.ID
     var day: String
-    /// Nil only when the person who did it has since been removed.
-    var personId: Int64?
+    /// Who did it. Nil only in rows from before people were archived rather than deleted.
+    var personId: Person.ID?
     var stars: Int
     var completedAt: Date
+
+    init(choreId: Chore.ID, day: DayKey, personId: Person.ID?, stars: Int, completedAt: Date) {
+        id = Self.id(choreId: choreId, day: day)
+        self.choreId = choreId
+        self.day = day.rawValue
+        self.personId = personId
+        self.stars = stars
+        self.completedAt = completedAt
+    }
+
+    static func id(choreId: Chore.ID, day: DayKey) -> ID {
+        .derived(choreId.description, day.rawValue)
+    }
 
     var dayKey: DayKey { DayKey(rawValue: day) }
 }
 
-extension ChoreCompletion: FetchableRecord, MutablePersistableRecord {
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-}
+extension ChoreCompletion: FetchableRecord, PersistableRecord {}
 
 /// Something to earn stars toward: a personal treat, or a shared goal when `ownerId` is nil.
 struct Reward: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var householdId: Int64
+    typealias ID = Porchlight.ID<Reward>
+
+    var id: ID = .new()
+    var householdId: Household.ID
     var title: String
     var emoji: String?
     var targetStars: Int
-    var ownerId: Int64?
+    var ownerId: Person.ID?
     var startDay: String
     var archived: Bool
     var sortOrder: Int
@@ -77,43 +89,47 @@ struct Reward: Codable, Equatable, Identifiable, Sendable {
     var isShared: Bool { ownerId == nil }
 }
 
-extension Reward: FetchableRecord, MutablePersistableRecord {
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-}
+extension Reward: FetchableRecord, PersistableRecord {}
 
 /// A reward cashed in: its stars were spent and it starts over.
 struct RewardRedemption: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var rewardId: Int64
-    /// Whose treat it was; nil for a shared goal (or a removed person).
-    var personId: Int64?
+    typealias ID = Porchlight.ID<RewardRedemption>
+
+    /// Derived from the reward and the cash-in before it (see `id(rewardId:after:)`).
+    var id: ID
+    var rewardId: Reward.ID
+    /// Whose treat it was; nil for a shared goal.
+    var personId: Person.ID?
     var stars: Int
     var day: String
     var redeemedAt: Date
 
+    /// One cash-in per round: a round is everything after the reward's previous cash-in,
+    /// so two devices cashing in the same round offline write the same row.
+    ///
+    /// The reward's start day alone can't name a round, because a reward can be cashed
+    /// in more than once on the same day.
+    static func id(rewardId: Reward.ID, after previous: ID?) -> ID {
+        .derived(rewardId.description, previous?.description ?? "first")
+    }
+
     var dayKey: DayKey { DayKey(rawValue: day) }
 }
 
-extension RewardRedemption: FetchableRecord, MutablePersistableRecord {
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-}
+extension RewardRedemption: FetchableRecord, PersistableRecord {}
 
 /// One time someone earned stars: a chore done, or care given to a companion.
 /// Every star total in the app (the board, rewards, Glow) adds these up, so a star
 /// means the same thing wherever it shows.
 struct StarEarning: Equatable, Identifiable, Sendable {
     enum Source: Equatable, Hashable, Sendable {
-        case chore(choreId: Int64, completionId: Int64)
-        case care(routineId: Int64, logId: Int64)
+        case chore(choreId: Chore.ID, completionId: ChoreCompletion.ID)
+        case care(routineId: CareRoutine.ID, logId: CareLog.ID)
     }
 
     var source: Source
-    /// Who earned them; nil only when that person was removed.
-    var personId: Int64?
+    /// Who earned them; nil only in rows from before people were archived rather than deleted.
+    var personId: Person.ID?
     var stars: Int
     var day: DayKey
     /// When it happened (a walk's start time), as shown.
@@ -125,8 +141,8 @@ struct StarEarning: Equatable, Identifiable, Sendable {
 
     var id: String {
         switch source {
-        case let .chore(_, completionId): "chore-\(completionId)-\(personId ?? 0)"
-        case let .care(_, logId): "care-\(logId)-\(personId ?? 0)"
+        case let .chore(_, completionId): "chore-\(completionId)-\(personId?.description ?? "nobody")"
+        case let .care(_, logId): "care-\(logId)-\(personId?.description ?? "nobody")"
         }
     }
 
@@ -164,8 +180,10 @@ enum ListKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible
 
 /// A shared list: groceries (grouped by section) or to-dos.
 struct HomeList: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var householdId: Int64
+    typealias ID = Porchlight.ID<HomeList>
+
+    var id: ID = .new()
+    var householdId: Household.ID
     var title: String
     var kind: ListKind
     var sortOrder: Int
@@ -174,35 +192,45 @@ struct HomeList: Codable, Equatable, Identifiable, Sendable {
     static let databaseTableName = "homeList"
 }
 
-extension HomeList: FetchableRecord, MutablePersistableRecord {
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-}
+extension HomeList: FetchableRecord, PersistableRecord {}
 
 struct ListItem: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var listId: Int64
+    typealias ID = Porchlight.ID<ListItem>
+
+    var id: ID = .new()
+    var listId: HomeList.ID
     var title: String
     var section: String?
-    var addedById: Int64?
+    var addedById: Person.ID?
     var checked: Bool
     var sortOrder: Int
     var createdAt: Date
 }
 
-extension ListItem: FetchableRecord, MutablePersistableRecord {
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-}
+extension ListItem: FetchableRecord, PersistableRecord {}
 
 /// The dinner planned for a day.
-struct MealPlan: Codable, Equatable, Sendable {
-    var householdId: Int64
+struct MealPlan: Codable, Equatable, Identifiable, Sendable {
+    typealias ID = Porchlight.ID<MealPlan>
+
+    /// Derived from the household and the day: a day has one dinner, on every device.
+    var id: ID
+    var householdId: Household.ID
     var day: String
     var title: String
     var emoji: String?
+
+    init(householdId: Household.ID, day: DayKey, title: String, emoji: String?) {
+        id = Self.id(householdId: householdId, day: day)
+        self.householdId = householdId
+        self.day = day.rawValue
+        self.title = title
+        self.emoji = emoji
+    }
+
+    static func id(householdId: Household.ID, day: DayKey) -> ID {
+        .derived(householdId.description, day.rawValue)
+    }
 
     var dayKey: DayKey { DayKey(rawValue: day) }
 }
@@ -213,15 +241,13 @@ extension MealPlan: FetchableRecord, PersistableRecord {}
 
 /// A photo imported for Ambient mode. The image lives in `AmbientPhotoLibrary`.
 struct AmbientPhoto: Codable, Equatable, Identifiable, Sendable {
-    var id: Int64?
-    var householdId: Int64
+    typealias ID = Porchlight.ID<AmbientPhoto>
+
+    var id: ID = .new()
+    var householdId: Household.ID
     var fileName: String
     var caption: String?
     var createdAt: Date
 }
 
-extension AmbientPhoto: FetchableRecord, MutablePersistableRecord {
-    mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-}
+extension AmbientPhoto: FetchableRecord, PersistableRecord {}

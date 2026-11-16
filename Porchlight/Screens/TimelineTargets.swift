@@ -21,7 +21,7 @@ private struct TimelineTargetHost: ViewModifier {
 
     /// A meal, looked up live so edits show at once.
     private struct OpenMeal: Identifiable {
-        var id: Int64
+        var id: JournalEntry.ID
     }
 
     func body(content: Content) -> some View {

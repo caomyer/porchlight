@@ -4,11 +4,11 @@ import Foundation
 enum CalendarSamples {
     /// Seeds sample data matching the mocks (DEBUG `-sampleHousehold` only).
     static func seed(_ database: AppDatabase, household: Household, people: [Person]) throws {
-        guard let householdId = household.id else { return }
+        let householdId = household.id
         try database.syncCalendarSources(householdId: householdId, calendars: calendars)
         let sources = try database.calendarSnapshot().sources
         for source in sources {
-            guard let id = source.id else { continue }
+            let id = source.id
             switch source.externalId {
             case work:
                 try database.setCalendarSourceVisibility(id: id, visibility: .busy)

@@ -9,7 +9,7 @@ struct SettingsView: View {
     @Environment(WeatherStore.self) private var weather
 
     @State private var householdName = ""
-    @State private var drafts: [Int64: PersonDraft] = [:]
+    @State private var drafts: [Person.ID: PersonDraft] = [:]
     @State private var newPerson = PersonDraft(name: "", color: .blue)
 
     var body: some View {
@@ -37,9 +37,9 @@ struct SettingsView: View {
                                 name: binding(for: person).name,
                                 color: binding(for: person).color,
                                 canRemove: model.people.count > 1,
-                                onRemove: { _ = model.deletePerson(person) }
+                                onRemove: { _ = model.removePerson(person) }
                             )
-                            .onChange(of: drafts[person.id ?? -1]) { _, draft in
+                            .onChange(of: drafts[person.id]) { _, draft in
                                 guard let draft, draft != PersonDraft(name: person.name, color: person.color),
                                       !draft.name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                                 _ = model.updatePerson(person, name: draft.name, color: draft.color)
@@ -136,7 +136,7 @@ struct SettingsView: View {
     }
 
     private func binding(for person: Person) -> Binding<PersonDraft> {
-        let id = person.id ?? -1
+        let id = person.id
         return Binding(
             get: { drafts[id] ?? PersonDraft(name: person.name, color: person.color) },
             set: { drafts[id] = $0 }

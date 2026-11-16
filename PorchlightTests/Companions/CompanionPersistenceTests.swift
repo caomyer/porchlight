@@ -7,8 +7,8 @@ import Testing
 struct CompanionPersistenceTests {
     struct Home {
         let db: AppDatabase
-        let householdId: Int64
-        let people: [Int64]
+        let householdId: Household.ID
+        let people: [Person.ID]
     }
 
     private func home() throws -> Home {
@@ -16,11 +16,11 @@ struct CompanionPersistenceTests {
         let household = try db.createHousehold(name: "Home", people: [
             PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral),
         ])
-        let people = try db.snapshot().people.compactMap(\.id)
-        return Home(db: db, householdId: try #require(household.id), people: people)
+        let people = try db.snapshot().people.map(\.id)
+        return Home(db: db, householdId: household.id, people: people)
     }
 
-    private func dog(_ home: Home, name: String = "Yo-Yo") throws -> Int64 {
+    private func dog(_ home: Home, name: String = "Yo-Yo") throws -> Companion.ID {
         var draft = CompanionDraft.new(species: .dog)
         draft.name = name
         return try home.db.saveCompanion(draft, householdId: home.householdId)
@@ -58,9 +58,9 @@ struct CompanionPersistenceTests {
         let id = try dog(home)
         var snapshot = try home.db.writer.read(CompanionSnapshot.fetch)
         let walk = snapshot.routines(of: id)[0]
-        try home.db.logCare(routineId: walk.id!, CareLogDraft(people: [home.people[0]], occurredAt: .now.addingTimeInterval(-60)))
+        try home.db.logCare(routineId: walk.id, CareLogDraft(people: [home.people[0]], occurredAt: .now.addingTimeInterval(-60)))
         let feed = snapshot.routines(of: id)[1]
-        try home.db.logCare(routineId: feed.id!, CareLogDraft(people: [home.people[1]], occurredAt: .now.addingTimeInterval(-60)))
+        try home.db.logCare(routineId: feed.id, CareLogDraft(people: [home.people[1]], occurredAt: .now.addingTimeInterval(-60)))
 
         var draft = CompanionDraft(snapshot.companions[0], routines: snapshot.routines(of: id))
         draft.name = "Yo-Yo Ma"
@@ -146,11 +146,11 @@ struct CompanionPersistenceTests {
         let routines = try home.db.writer.read(CompanionSnapshot.fetch).routines(of: id)
         let walk = routines[0], feed = routines[1]
         let now = Date.now
-        try home.db.logCare(routineId: walk.id!, CareLogDraft(
+        try home.db.logCare(routineId: walk.id, CareLogDraft(
             people: home.people + [home.people[0]], occurredAt: now.addingTimeInterval(-1800), durationMinutes: 25,
             pee: true, poo: false, vibe: .squirrel, note: "  Squirrel situation handled  "
         ), now: now)
-        try home.db.logCare(routineId: feed.id!, CareLogDraft(
+        try home.db.logCare(routineId: feed.id, CareLogDraft(
             people: [home.people[1]], occurredAt: now, durationMinutes: 10, pee: true, vibe: .soggy
         ), now: now)
         let entries = try home.db.writer.read(CompanionSnapshot.fetch).entries
@@ -174,13 +174,13 @@ struct CompanionPersistenceTests {
         let id = try dog(home)
         let walk = try home.db.writer.read(CompanionSnapshot.fetch).routines(of: id)[0]
         let now = Date.now
-        let original = try home.db.logCare(routineId: walk.id!, CareLogDraft(
+        let original = try home.db.logCare(routineId: walk.id, CareLogDraft(
             people: [home.people[0]], occurredAt: now.addingTimeInterval(-600), durationMinutes: 20, pee: true, poo: true, vibe: .smooth
         ), now: now)
         let stored = try #require(try home.db.writer.read(CompanionSnapshot.fetch).entries.first)
 
         let earlier = now.addingTimeInterval(-3 * 3600)
-        let updated = try home.db.updateCareLog(id: original.id!, CareLogDraft(
+        let updated = try home.db.updateCareLog(id: original.id, CareLogDraft(
             people: [home.people[1], home.people[0]], occurredAt: earlier, durationMinutes: 45,
             pee: false, poo: true, vibe: .soggy, note: " Rainy "
         ), now: now)
@@ -206,12 +206,12 @@ struct CompanionPersistenceTests {
         let id = try dog(home)
         let walk = try home.db.writer.read(CompanionSnapshot.fetch).routines(of: id)[0]
         let now = Date.now
-        let log = try home.db.logCare(routineId: walk.id!, CareLogDraft(people: [home.people[0]], occurredAt: now.addingTimeInterval(-600)), now: now)
+        let log = try home.db.logCare(routineId: walk.id, CareLogDraft(people: [home.people[0]], occurredAt: now.addingTimeInterval(-600)), now: now)
         #expect(throws: CareValidationError.noWalkers) {
-            try home.db.updateCareLog(id: log.id!, CareLogDraft(people: [], occurredAt: now), now: now)
+            try home.db.updateCareLog(id: log.id, CareLogDraft(people: [], occurredAt: now), now: now)
         }
         #expect(throws: CareValidationError.inTheFuture) {
-            try home.db.updateCareLog(id: log.id!, CareLogDraft(people: [home.people[1]], occurredAt: now.addingTimeInterval(3600)), now: now)
+            try home.db.updateCareLog(id: log.id, CareLogDraft(people: [home.people[1]], occurredAt: now.addingTimeInterval(3600)), now: now)
         }
         #expect(throws: CareValidationError.unknownLog) {
             try home.db.updateCareLog(id: 999, CareLogDraft(people: [home.people[0]], occurredAt: now), now: now)
@@ -226,7 +226,7 @@ struct CompanionPersistenceTests {
         let id = try dog(home)
         let walk = try home.db.writer.read(CompanionSnapshot.fetch).routines(of: id)[0]
         let now = Date.now
-        func log(_ draft: CareLogDraft) throws { try home.db.logCare(routineId: walk.id!, draft, now: now) }
+        func log(_ draft: CareLogDraft) throws { try home.db.logCare(routineId: walk.id, draft, now: now) }
         #expect(throws: CareValidationError.noWalkers) { try log(CareLogDraft(people: [], occurredAt: now)) }
         #expect(throws: CareValidationError.invalidDuration) { try log(CareLogDraft(people: home.people, occurredAt: now, durationMinutes: 0)) }
         #expect(throws: CareValidationError.noteTooLong(limit: 280)) {
@@ -236,15 +236,17 @@ struct CompanionPersistenceTests {
         #expect(throws: CareValidationError.unknownRoutine) { try home.db.logCare(routineId: 999, CareLogDraft(people: home.people, occurredAt: now)) }
     }
 
-    @Test("Deleting a person removes their credit; deleting a companion removes everything")
+    @Test("Removing a person keeps their credit; deleting a companion removes everything")
     func cascades() throws {
         let home = try home()
         let id = try dog(home)
         let walk = try home.db.writer.read(CompanionSnapshot.fetch).routines(of: id)[0]
-        try home.db.logCare(routineId: walk.id!, CareLogDraft(people: home.people, occurredAt: .now.addingTimeInterval(-60)))
-        try home.db.deletePerson(id: home.people[1])
+        try home.db.logCare(routineId: walk.id, CareLogDraft(people: home.people, occurredAt: .now.addingTimeInterval(-60)))
+        try home.db.archivePerson(id: home.people[1])
         var snapshot = try home.db.writer.read(CompanionSnapshot.fetch)
-        #expect(snapshot.entries.first?.people == [home.people[0]])
+        #expect(snapshot.entries.first?.people == home.people)
+        #expect(snapshot.people.map(\.id) == [home.people[0]])
+        #expect(snapshot.names[home.people[1]] == "Mia")
 
         let second = try dog(home, name: "Biscuit")
         try home.db.deleteCompanion(id: id)
@@ -269,8 +271,8 @@ struct CompanionPersistenceTests {
         var snapshot = try home.db.writer.read(CompanionSnapshot.fetch)
         #expect(snapshot.companions.map(\.name) == ["B", "A"])
         let walk = snapshot.routines(of: first)[0]
-        let log = try home.db.logCare(routineId: walk.id!, CareLogDraft(people: [home.people[0]], occurredAt: .now.addingTimeInterval(-60)))
-        try home.db.deleteCareLog(id: log.id!)
+        let log = try home.db.logCare(routineId: walk.id, CareLogDraft(people: [home.people[0]], occurredAt: .now.addingTimeInterval(-60)))
+        try home.db.deleteCareLog(id: log.id)
         snapshot = try home.db.writer.read(CompanionSnapshot.fetch)
         #expect(snapshot.entries.isEmpty)
     }
@@ -284,7 +286,7 @@ struct CompanionPersistenceTests {
         let today = DayKey(.now, calendar: calendar)
         let morning = CareLogic.date(today, minute: 8 * 60, calendar: calendar)
         let now = CareLogic.date(today, minute: 18 * 60 + 30, calendar: calendar)
-        try home.db.logCare(routineId: walk.id!, CareLogDraft(people: [home.people[1]], occurredAt: morning, durationMinutes: 25), now: now)
+        try home.db.logCare(routineId: walk.id, CareLogDraft(people: [home.people[1]], occurredAt: morning, durationMinutes: 25), now: now)
 
         let snapshot = try home.db.writer.read(CompanionSnapshot.fetch)
         let report = try #require(CompanionReport.make(snapshot: snapshot, companionId: id, now: now))
@@ -308,7 +310,7 @@ struct CompanionPersistenceTests {
 
     @Test("Upgrading drops turn rotation and keeps routines and their logs")
     func dropsRotation() throws {
-        let queue = try DatabaseQueue()
+        let queue = try DatabaseQueue(configuration: AppDatabase.configuration)
         try AppDatabase.migrator.migrate(queue, upTo: "companions v1: companions, routines and care logs")
         try queue.write { db in
             try db.execute(sql: "INSERT INTO household (id, name, timeZoneIdentifier, firstWeekday, createdAt) VALUES (1, 'Home', 'UTC', 1, '2026-01-01 00:00:00')")
@@ -325,7 +327,7 @@ struct CompanionPersistenceTests {
         }
         let db = try AppDatabase(queue)
         let (columns, routine, logs) = try db.writer.read { db in
-            (try db.columns(in: "careRoutine").map(\.name), try CareRoutine.fetchOne(db, id: 1), try CareLog.fetchCount(db))
+            (try db.columns(in: "careRoutine").map(\.name), try CareRoutine.fetchOne(db), try CareLog.fetchCount(db))
         }
         #expect(!columns.contains("rotation"))
         #expect(routine?.title == "Walk")
@@ -334,7 +336,7 @@ struct CompanionPersistenceTests {
 
     @Test("Upgrading gives routines chores' repeat rules; every-N-days ones start on their last log")
     func routinesGetRepeatRules() throws {
-        let queue = try DatabaseQueue()
+        let queue = try DatabaseQueue(configuration: AppDatabase.configuration)
         try AppDatabase.migrator.migrate(queue, upTo: "companions v2: no turn rotation")
         try queue.write { db in
             try db.execute(sql: "INSERT INTO household (id, name, timeZoneIdentifier, firstWeekday, createdAt) VALUES (1, 'Home', 'UTC', 1, '2026-01-01 00:00:00')")
@@ -353,7 +355,7 @@ struct CompanionPersistenceTests {
                 """)
         }
         let db = try AppDatabase(queue)
-        let routines = try db.writer.read { db in try CareRoutine.order(Column("id")).fetchAll(db) }
+        let routines = try db.writer.read { db in try CareRoutine.order(Column("sortOrder")).fetchAll(db) }
         #expect(routines[0].recurrence == .everyNDays(3))
         // Last watered long ago, so it's overdue: it starts again today rather than hiding until its next turn.
         #expect(routines[0].anchorDay == DayKey(.now, calendar: Calendar(identifier: .gregorian).withZone("UTC")).rawValue)

@@ -17,7 +17,7 @@ enum FoodDebugPhoto {
             slot: "Lunch",
             source: .home,
             title: "Test photo",
-            eaterIds: store.people.compactMap(\.id),
+            eaterIds: store.people.map(\.id),
             eatenAt: now
         )
         guard let photo = try? await store.savePhoto(image()) else { return }

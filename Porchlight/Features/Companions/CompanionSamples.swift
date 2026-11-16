@@ -6,8 +6,8 @@ import GRDB
 /// Dates are relative to now so screenshots always look lived-in.
 enum CompanionSamples {
     static func seed(_ database: AppDatabase, household: Household, people: [Person]) throws {
-        guard let householdId = household.id else { return }
-        let ids = people.compactMap(\.id)
+        let householdId = household.id
+        let ids = people.map(\.id)
         guard !ids.isEmpty else { return }
         let calendar = household.calendar
         let now = CompanionClock.now()
@@ -30,7 +30,8 @@ enum CompanionSamples {
         let routines = try database.writer.read { db in
             try CareRoutine.filter(Column("companionId") == companionId).order(Column("sortOrder")).fetchAll(db)
         }
-        guard let walk = routines.first(where: { $0.kind == .walk }), let walkId = walk.id else { return }
+        guard let walk = routines.first(where: { $0.kind == .walk }) else { return }
+        let walkId = walk.id
         let feed = routines.first(where: { $0.kind == .feed })
 
         var random = SampleRandom(seed: 7)
@@ -59,7 +60,8 @@ enum CompanionSamples {
                     note: back < 3 ? notes[random.next(in: 0...notes.count - 1)] : nil
                 ), now: now)
             }
-            if let feed, let feedId = feed.id {
+            if let feed {
+                let feedId = feed.id
                 for (slot, window) in feed.windows.enumerated() where back > 0 || CareLogic.minuteOfDay(now, calendar: calendar) > window.start + 60 {
                     if back == 1 && slot == 1 { continue }
                     let start = CareLogic.date(day, minute: window.start + 15, calendar: calendar)

@@ -19,32 +19,32 @@ struct HomeLogicTests {
     private func day(_ raw: String) -> DayKey { DayKey(rawValue: raw) }
 
     static func chore(
-        id: Int64 = 1,
-        owner: Int64? = 1,
+        id: Int = 1,
+        owner: Person.ID? = 1,
         _ recurrence: Recurrence,
         anchor: String = "2026-11-01",
         stars: Int = 1,
         archived: Bool = false
     ) -> Chore {
         var chore = Chore(
-            id: id, householdId: 1, title: "Chore \(id)", ownerId: owner, repeatKind: "daily", weekdayMask: 0,
+            id: .number(id), householdId: 1, title: "Chore \(id)", ownerId: owner, repeatKind: "daily", weekdayMask: 0,
             intervalDays: 1, anchorDay: anchor, stars: stars, archived: archived, sortOrder: Int(id), createdAt: .now
         )
         chore.recurrence = recurrence
         return chore
     }
 
-    static func done(_ choreId: Int64, _ day: String, by person: Int64?, stars: Int = 1) -> ChoreCompletion {
-        ChoreCompletion(choreId: choreId, day: day, personId: person, stars: stars, completedAt: .now)
+    static func done(_ choreId: Chore.ID, _ day: String, by person: Person.ID?, stars: Int = 1) -> ChoreCompletion {
+        ChoreCompletion(choreId: choreId, day: DayKey(rawValue: day), personId: person, stars: stars, completedAt: .now)
     }
 
     /// The ledger's view of completions (what star totals and rewards add up).
     static func earnings(_ completions: [ChoreCompletion]) -> [StarEarning] {
         completions.enumerated().map { index, completion in
             StarEarning(
-                source: .chore(choreId: completion.choreId, completionId: Int64(index + 1)),
+                source: .chore(choreId: completion.choreId, completionId: .number(index + 1)),
                 personId: completion.personId, stars: completion.stars, day: completion.dayKey,
-                at: completion.completedAt, recordedAt: completion.completedAt, title: "Chore \(completion.choreId)", emoji: "✅"
+                at: completion.completedAt, recordedAt: completion.completedAt, title: "Chore \(completion.choreId.number)", emoji: "✅"
             )
         }
     }
@@ -152,8 +152,8 @@ struct HomeLogicTests {
 
     // MARK: Board and stars
 
-    private func person(_ id: Int64, _ name: String) -> Person {
-        Person(id: id, householdId: 1, name: name, color: .blue, sortOrder: Int(id), createdAt: .now)
+    private func person(_ id: Int, _ name: String) -> Person {
+        Person(id: .number(id), householdId: 1, name: name, color: .blue, sortOrder: id, createdAt: .now)
     }
 
     @Test("The board has a column per person and an Anyone column only when needed")
@@ -215,7 +215,7 @@ struct HomeLogicTests {
 
     // MARK: Rewards
 
-    private func reward(id: Int64, owner: Int64?, target: Int, start: String) -> Reward {
+    private func reward(id: Reward.ID, owner: Person.ID?, target: Int, start: String) -> Reward {
         Reward(id: id, householdId: 1, title: "R", targetStars: target, ownerId: owner, startDay: start, archived: false, sortOrder: 0, createdAt: .now)
     }
 

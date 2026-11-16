@@ -12,10 +12,10 @@ enum ChoreSheet: Identifiable {
     var id: String {
         switch self {
         case .newChore: "new"
-        case let .editChore(chore): "edit-\(chore.id ?? -1)"
-        case let .whoDidIt(chore, day): "who-\(chore.id ?? -1)-\(day)"
-        case let .task(chore, day): "task-\(chore.id ?? -1)-\(day)"
-        case let .editReward(reward): "reward-\(reward.id ?? -1)"
+        case let .editChore(chore): "edit-\(chore.id)"
+        case let .whoDidIt(chore, day): "who-\(chore.id)-\(day)"
+        case let .task(chore, day): "task-\(chore.id)-\(day)"
+        case let .editReward(reward): "reward-\(reward.id)"
         }
     }
 }
@@ -103,7 +103,7 @@ struct ChoresScreen: View {
 
     /// Care is logged (or fixed) with the companion's own sheet: who, when, and details.
     private func openCare(_ task: CareTask) {
-        guard let routineId = task.routine.id else { return }
+        let routineId = task.routine.id
         let request = task.slot.entry.map { CareLogRequest.edit($0, companionId: task.companionId) }
             ?? CareLogRequest(companionId: task.companionId, routineId: routineId)
         var shown = request
@@ -560,7 +560,7 @@ struct ChoreTaskSheet: View {
                         ForEach(model.people) { person in
                             let isDoer = completion?.personId == person.id
                             Button {
-                                guard let id = person.id else { return }
+                                let id = person.id
                                 store.credit(current, on: day, to: id)
                             } label: {
                                 HStack(spacing: 8) {
@@ -686,7 +686,7 @@ private struct ChoreWeekView: View {
         let chores = store.activeChores
         var groups: [(Owner, [Chore])] = model.people.compactMap { person in
             let mine = chores.filter { $0.ownerId == person.id }
-            return mine.isEmpty ? nil : (.person(person.id ?? -1), mine)
+            return mine.isEmpty ? nil : (.person(person.id), mine)
         }
         let shared = chores.filter { $0.ownerId == nil }
         if !shared.isEmpty { groups.append((.everyone, shared)) }
@@ -805,7 +805,7 @@ private struct ChoreWeekView: View {
                 HStack(spacing: 8) {
                     Avatar(person: person, size: 26)
                     Text(person.name).font(.body(14, weight: 700))
-                    Text("\(totals[person.id ?? -1] ?? 0)").font(.display(18)).monospacedDigit()
+                    Text("\(totals[person.id] ?? 0)").font(.display(18)).monospacedDigit()
                     StarIcon(size: 15)
                 }
             }

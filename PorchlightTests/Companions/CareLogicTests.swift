@@ -104,7 +104,7 @@ struct CareLogicTests {
 
     @Test("Every-N-days streaks count the days in between as kept")
     func streakEveryNDays() {
-        let entries = [1, 4].map { F.entry(Int64($0), day: $0, 9, routine: 11) }
+        let entries = [1, 4].map { F.entry(.number($0), day: $0, 9, routine: 11) }
         // Nov 1 and Nov 4 watered; Nov 7 is due and not done yet, so it doesn't count.
         #expect(CareLogic.streak(for: F.water, entries: entries, now: F.date(day: 7, 8), calendar: calendar) == 6)
     }

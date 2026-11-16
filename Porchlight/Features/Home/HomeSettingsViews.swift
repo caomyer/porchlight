@@ -8,8 +8,8 @@ private enum HomeSettingsSheet: Identifiable {
 
     var id: String {
         switch self {
-        case let .chore(chore): "chore-\(chore?.id ?? -1)"
-        case let .reward(reward): "reward-\(reward?.id ?? -1)"
+        case let .chore(chore): "chore-\(chore?.id.description ?? "new")"
+        case let .reward(reward): "reward-\(reward?.id.description ?? "new")"
         case .photos: "photos"
         }
     }
@@ -226,7 +226,7 @@ private struct RewardsSettings: View {
                             .font(.body(16, weight: 700))
                         Text(reward.archived
                             ? "Archived · \(reward.targetStars) stars"
-                            : "\(earned[reward.id ?? -1] ?? 0) of \(reward.targetStars) stars\(reward.isShared ? " together" : "")")
+                            : "\(earned[reward.id] ?? 0) of \(reward.targetStars) stars\(reward.isShared ? " together" : "")")
                             .font(.body(13, weight: 600))
                             .foregroundStyle(Theme.muted)
                     }
@@ -248,7 +248,7 @@ private struct ListsSettings: View {
     @Environment(HomeStore.self) private var store
     @State private var newTitle = ""
     @State private var newKind = ListKind.todo
-    @State private var names: [Int64: String] = [:]
+    @State private var names: [HomeList.ID: String] = [:]
 
     var body: some View {
         let lists = store.snapshot.lists
@@ -264,7 +264,7 @@ private struct ListsSettings: View {
                     TextField("List name", text: name(for: list))
                         .font(.body(16, weight: 700))
                         .submitLabel(.done)
-                        .onSubmit { store.rename(list, to: names[list.id ?? -1] ?? list.title) }
+                        .onSubmit { store.rename(list, to: names[list.id] ?? list.title) }
                     Text("\(store.items(in: list).count) items · \(list.kind.label)")
                         .font(.body(13, weight: 600))
                         .foregroundStyle(Theme.muted)
@@ -295,7 +295,7 @@ private struct ListsSettings: View {
     }
 
     private func name(for list: HomeList) -> Binding<String> {
-        let id = list.id ?? -1
+        let id = list.id
         return Binding(get: { names[id] ?? list.title }, set: { names[id] = $0 })
     }
 
@@ -489,7 +489,7 @@ private struct AddPhotosButton: View {
 private struct PhotoManager: View {
     @Environment(HomeStore.self) private var store
     @State private var selecting = false
-    @State private var selected: Set<Int64> = []
+    @State private var selected: Set<AmbientPhoto.ID> = []
 
     private static let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
 
@@ -534,7 +534,7 @@ private struct PhotoManager: View {
                         .foregroundStyle(Theme.muted)
                     Spacer(minLength: 0)
                     Button(selected.isEmpty ? "Remove" : "Remove \(selected.count)") {
-                        store.remove(photos.filter { $0.id.map(selected.contains) ?? false })
+                        store.remove(photos.filter { selected.contains($0.id) })
                         selected = []
                         selecting = false
                     }
@@ -547,10 +547,10 @@ private struct PhotoManager: View {
     }
 
     private func tile(_ photo: AmbientPhoto) -> some View {
-        let isSelected = photo.id.map(selected.contains) ?? false
+        let isSelected = selected.contains(photo.id)
         return Button {
-            guard selecting, let id = photo.id else { return }
-            if isSelected { selected.remove(id) } else { selected.insert(id) }
+            guard selecting else { return }
+            if isSelected { selected.remove(photo.id) } else { selected.insert(photo.id) }
         } label: {
             PhotoThumbnail(url: store.photoLibrary.url(for: photo.fileName), aspectRatio: 1)
                 .overlay(alignment: .topLeading) {

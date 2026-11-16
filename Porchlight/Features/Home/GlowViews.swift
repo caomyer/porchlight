@@ -14,7 +14,7 @@ struct GlowScreen: View {
         var id: String {
             switch self {
             case .new: "new"
-            case let .edit(reward): "edit-\(reward.id ?? -1)"
+            case let .edit(reward): "edit-\(reward.id)"
             }
         }
     }
@@ -174,7 +174,7 @@ private struct Sparks: View {
     let sparks: [StarEarning]
     let center: CGPoint
     let maxRadius: CGFloat
-    let color: (Int64?) -> Color
+    let color: (Person.ID?) -> Color
 
     @State private var twinkles = 0
 

@@ -7,7 +7,7 @@ enum CompanionTimeline {
         let today = DayKey(now, calendar: calendar)
         var items: [TimelineItem] = []
         for companion in snapshot.companions {
-            guard let companionId = companion.id else { continue }
+            let companionId = companion.id
             let routines = snapshot.routines(of: companionId)
             let look = CompanionLook(companion)
             let expression = expression(for: routines.first, snapshot: snapshot, now: now)
@@ -64,7 +64,7 @@ enum CompanionTimeline {
             owner: entry.people.count == 1 ? .person(entry.people[0]) : .everyone,
             leading: face,
             trailing: AnyView(CarerAvatar(carers: Carers(entry.people, snapshot: snapshot))),
-            target: companion.id.map { .careLog(companionId: $0, routineId: entry.log.careRoutineId, logId: entry.id) }
+            target: .careLog(companionId: companion.id, routineId: entry.log.careRoutineId, logId: entry.id)
         )
     }
 
@@ -100,7 +100,7 @@ enum CompanionTimeline {
         default: lead = slot.window.isAllDay ? "Due today" : "Usually \(slot.window.rangeText)"
         }
         return TimelineItem(
-            id: "care-expected-\(routine.id ?? 0)-\(slot.index)",
+            id: "care-expected-\(routine.id)-\(slot.index)",
             kind: .expected,
             time: time,
             timeLabel: label,
@@ -109,15 +109,13 @@ enum CompanionTimeline {
             owner: .everyone,
             leading: face,
             trailing: AnyView(PawDot(carers: nil, size: 24)),
-            target: companion.id.flatMap { companionId in routine.id.map { .careDue(companionId: companionId, routineId: $0) } }
+            target: .careDue(companionId: companion.id, routineId: routine.id)
         )
     }
 
     private static func missedItem(_ missed: MissedCare, companion: Companion, face: AnyView) -> TimelineItem {
         let window = missed.slot.window
-        let target = companion.id.flatMap { companionId in
-            missed.routine.id.map { TimelineTarget.careMissed(companionId: companionId, routineId: $0, day: missed.day, slot: missed.slot.index) }
-        }
+        let target = TimelineTarget.careMissed(companionId: companion.id, routineId: missed.routine.id, day: missed.day, slot: missed.slot.index)
         return TimelineItem(
             id: "care-missed-\(missed.id)",
             kind: .expected,
@@ -144,7 +142,7 @@ enum CompanionTimeline {
 enum CompanionLanes {
     static func lanes(snapshot: CompanionSnapshot) -> [CalendarLane] {
         snapshot.companions.compactMap { companion in
-            guard let companionId = companion.id else { return nil }
+            let companionId = companion.id
             let routines = snapshot.routines(of: companionId).filter(\.isWalkLike)
             guard !routines.isEmpty else { return nil }
             let look = CompanionLook(companion)

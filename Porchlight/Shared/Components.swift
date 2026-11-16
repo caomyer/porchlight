@@ -210,14 +210,15 @@ struct WallSheet<Content: View>: View {
 struct OwnerAvatar: View {
     @Environment(AppModel.self) private var model
     let owner: Owner
-    /// People to look the owner up in; defaults to the household's people.
+    /// People to look the owner up in; defaults to everyone who ever lived here, so
+    /// past things keep their avatar.
     var people: [Person]? = nil
     var size: CGFloat = 30
 
     var body: some View {
         switch owner {
         case let .person(id):
-            if let person = (people ?? model.people).first(where: { $0.id == id }) {
+            if let person = (people ?? model.everyone).person(id) {
                 Avatar(person: person, size: size)
             } else {
                 AnyoneAvatar(size: size)

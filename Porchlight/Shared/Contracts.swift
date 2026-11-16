@@ -36,15 +36,20 @@ struct DayKey: Hashable, Comparable, Codable, Sendable, CustomStringConvertible 
 extension Household {
     /// The calendar every household date computation must use.
     var calendar: Calendar {
+        .household(timeZoneIdentifier: timeZoneIdentifier, firstWeekday: firstWeekday)
+    }
+}
+
+extension Calendar {
+    /// A household's calendar from its stored settings.
+    static func household(timeZoneIdentifier: String, firstWeekday: Int) -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
         calendar.firstWeekday = firstWeekday
         calendar.locale = .current
         return calendar
     }
-}
 
-extension Calendar {
     /// The 7 days of the week containing `date`, starting on `firstWeekday`.
     func weekDays(containing date: Date) -> [Date] {
         guard let interval = dateInterval(of: .weekOfYear, for: date) else { return [] }
@@ -71,7 +76,7 @@ extension Calendar {
 
 /// Who something belongs to: one person, or the whole household ("Both").
 enum Owner: Hashable, Sendable {
-    case person(Int64)
+    case person(Person.ID)
     case everyone
 }
 
@@ -115,13 +120,13 @@ struct TimelineItem: Identifiable {
 /// What a Today row (or a calendar mark) opens: a logged walk or meal to fix, a due walk
 /// to log, a missed one to catch up on, an event's details, or a chore on a day.
 enum TimelineTarget: Hashable, Sendable {
-    case careLog(companionId: Int64, routineId: Int64, logId: Int64)
-    case careDue(companionId: Int64, routineId: Int64)
+    case careLog(companionId: Companion.ID, routineId: CareRoutine.ID, logId: CareLog.ID)
+    case careDue(companionId: Companion.ID, routineId: CareRoutine.ID)
     /// A slot on an earlier day that was never logged: logs it for that day.
-    case careMissed(companionId: Int64, routineId: Int64, day: DayKey, slot: Int)
-    case meal(Int64)
+    case careMissed(companionId: Companion.ID, routineId: CareRoutine.ID, day: DayKey, slot: Int)
+    case meal(JournalEntry.ID)
     case event(String)
-    case chore(choreId: Int64, day: DayKey)
+    case chore(choreId: Chore.ID, day: DayKey)
 }
 
 /// Opens a `TimelineTarget` with the same sheet wherever it is tapped: Today, the calendar,
