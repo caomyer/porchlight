@@ -13,6 +13,17 @@ enum SyncStatus: Equatable, Sendable {
     case needsDecision
 }
 
+extension SyncStatus {
+    /// Sync can't get its changes through and needs something from someone: a network,
+    /// an account, room in iCloud or a decision. Off is a choice, and syncing is progress.
+    var isStuck: Bool {
+        switch self {
+        case .waiting, .noAccount, .iCloudFull, .needsDecision: true
+        case .off, .upToDate, .syncing: false
+        }
+    }
+}
+
 /// Why sync is off.
 enum SyncOffReason: Equatable, Sendable {
     /// The device's sync switch is off.
@@ -60,3 +71,12 @@ struct SyncPreferences {
         nonmutating set { defaults.set(newValue, forKey: Key.needsDecision) }
     }
 }
+
+#if DEBUG
+/// `-debugSyncStatus <name>` shows the sync section in one state, with no engine, for
+/// screenshots and UI tests. `lookingForHousehold` (with `-resetData`) holds the first-launch
+/// search screen until "Start fresh instead".
+enum SyncDebugStatus: String, CaseIterable, Sendable {
+    case off, upToDate, syncing, waiting, noAccount, iCloudFull, needsDecision, lookingForHousehold
+}
+#endif

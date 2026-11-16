@@ -161,7 +161,6 @@ Two cases need care, and neither has been tried on a device yet:
 ## Implementation notes
 
 Choices made while building M1, where the design above left room or did not fit the library.
-"A fresh install looks for a household first" comes in a later step.
 
 ### The engine
 
@@ -193,7 +192,14 @@ Choices made while building M1, where the design above left room or did not fit 
 - "Syncing" follows the engine's `isSynchronizing`.
   The end of a round of syncing while online is the last-synced time, kept in UserDefaults.
 - "Waiting" covers both being offline (from `NWPathMonitor`) and the moment at launch before the account has been checked.
-- The dot on the gear for sync stuck an hour (journey D3) is not built yet; nothing about sync appears anywhere on the wall but Settings.
+- Stuck means waiting, no account, iCloud full or needs a decision (`SyncStatus.isStuck`).
+  The controller starts a clock when the status becomes stuck and stops it when it no longer is; going from one stuck state to another keeps the clock.
+  After an hour the gear on the rail shows a small ochre dot (`Theme.warn`), which VoiceOver reads as "Sync needs a look".
+  The clock is kept in memory, so a relaunch starts it again.
+- A full iCloud also shows a paused banner in Settings, like the `d3pause` frame, without the owner's name, which M1 doesn't know.
+- `-debugSyncStatus off|upToDate|syncing|waiting|noAccount|iCloudFull|needsDecision|lookingForHousehold` runs a controller with no engine in that state, with its own throwaway preferences, for screenshots and UI tests.
+  It works only on sample data: on real data a launch without the engine would leave its writes unrecorded.
+  A stuck one shows the gear's dot at once.
 
 ### Project
 
@@ -235,9 +241,23 @@ Choices made while building M1, where the design above left room or did not fit 
 - Grids and lists load thumbnails only; the whole shot loads where one photo fills the view (the saved polaroid, the whole-photo view, reframing) and in the photo frame, which downsamples it for the screen and never puts it in the cache.
 - `AppFiles` only knows the photo frame's `Ambient` folder now, and "Remove it from this iPad" removes only that: the photo rows go with the household.
 
+### A fresh install looks for a household first
+
+- `SyncController` starts the search at launch when there is no household, the engine exists and the switch is on (always so for a new install).
+  It waits for the account check and the engine's start, then `fetchChanges()`, at most 30 seconds.
+  The search screen shows only while there is no household, so a household that arrives ends it at once; the fetch ends it otherwise, as does the time limit.
+- `HouseholdSearchView` uses the onboarding's logo, fonts and secondary button, and offers "Start fresh instead" after four seconds.
+  Starting fresh only ends the search: sync keeps running, so the household it sets up uploads.
+- `RootScreen.pick` decides the screen: the search, onboarding or the wall.
+  A household that is set up opens the wall wherever it came from, so a household that arrives while onboarding shows its first two steps opens too, not only on the first screen.
+  Holding onboarding there instead would let it create a second household next to the one that arrived.
+  Once onboarding has created its household, a household from iCloud that arrives later is older, so `Household.current` would pick it; choosing between households is M2's.
+- Sample data and builds without the entitlement have no engine, so they never search, and simulators and UI tests behave as before.
+
 ### Tests
 
 - SQLiteData's stand-in for iCloud refuses more than 200 records in one request, where the real `CKSyncEngine` splits them into batches itself, so the sync tests fill each table with a few rows rather than the sample household.
 - Account events are given to `SyncController` directly, as the engine's delegate would, since the stand-in's controls are internal to its package.
+- A household arriving from iCloud is written to the database directly, as the engine would, for the same reason; the search's time limit and the gear's hour are shortened through `SyncController.Timing`.
 - The "sync v1" comparisons migrate only up to "sync v1", since "sync v2" removes columns they compare.
 - `PORCHLIGHT_REAL_DATA_DIR`, like `PORCHLIGHT_REAL_DB`, runs a test on a copy of the wall's data folder: it migrates a further copy and checks that every photo file a row named is in a row with its bytes.

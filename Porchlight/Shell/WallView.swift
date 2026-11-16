@@ -181,6 +181,7 @@ struct RailItem: Identifiable {
 private struct Rail: View {
     let items: [RailItem]
     @Binding var selection: Destination
+    @Environment(SyncController.self) private var sync
 
     var body: some View {
         VStack(spacing: 4) {
@@ -188,7 +189,8 @@ private struct Rail: View {
                 .padding(.bottom, 14)
             ForEach(items) { item($0) }
             Spacer()
-            item(RailItem(destination: .settings, title: "Settings", icon: .symbol("gearshape")))
+            // A dot on the gear when sync has been stuck an hour; Settings says why (journey D3).
+            item(RailItem(destination: .settings, title: "Settings", icon: .symbol("gearshape")), dot: sync.needsAttention)
         }
         .padding(.top, 20)
         .padding(.bottom, 16)
@@ -200,7 +202,7 @@ private struct Rail: View {
         }
     }
 
-    private func item(_ item: RailItem) -> some View {
+    private func item(_ item: RailItem, dot: Bool = false) -> some View {
         let isSelected = selection == item.destination
         return Button {
             selection = item.destination
@@ -215,6 +217,16 @@ private struct Rail: View {
                     }
                 }
                 .frame(width: 30, height: 26)
+                .overlay(alignment: .topTrailing) {
+                    if dot {
+                        Circle()
+                            .fill(Theme.warn)
+                            .frame(width: 8, height: 8)
+                            .overlay(Circle().stroke(Theme.rail, lineWidth: 2))
+                            .offset(x: 1, y: -1)
+                            .accessibilityHidden(true)
+                    }
+                }
                 Text(item.title)
                     .font(.body(11, weight: 600))
                     .lineLimit(1)
@@ -232,6 +244,7 @@ private struct Rail: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(item.title)
+        .accessibilityValue(dot ? "Sync needs a look" : "")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

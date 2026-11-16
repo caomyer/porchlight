@@ -312,6 +312,149 @@ struct SyncStatusTests {
     }
 }
 
+@Suite("A fresh install looks for a household first")
+@MainActor
+struct HouseholdSearchTests {
+    @Test("A household that arrives while looking opens the wall")
+    func householdArrives() async throws {
+        let harness = try SyncHarness()
+        await harness.device.answer(after: .seconds(5))
+        let controller = SyncController(
+            .sync(harness.database.writer, device: harness.device), preferences: harness.preferences, hasHousehold: false, removeFiles: {}
+        )
+        #expect(controller.isLookingForHousehold)
+        #expect(RootScreen.pick(household: nil, isLookingForHousehold: controller.isLookingForHousehold) == .householdSearch)
+
+        // As the engine would write it: a household set up on another device.
+        let arrived = try harness.database.createHousehold(name: "The Lake House", people: [PersonDraft(name: "James", color: .blue)])
+        try harness.database.markSetupCompleted(householdId: arrived.id)
+        let household = try harness.database.snapshot().household
+        #expect(RootScreen.pick(household: household, isLookingForHousehold: controller.isLookingForHousehold) == .wall)
+        // Let the slow account check end without starting the engine.
+        await harness.device.signOut()
+        await controller.settle()
+    }
+
+    @Test("When none arrives, the search ends and onboarding shows")
+    func noneArrives() async throws {
+        let harness = try SyncHarness()
+        let controller = await harness.controller()
+        try await eventually { !controller.isLookingForHousehold }
+        #expect(controller.engine?.isRunning == true, "a new install syncs the household it sets up")
+        #expect(RootScreen.pick(household: nil, isLookingForHousehold: controller.isLookingForHousehold) == .onboarding)
+    }
+
+    @Test("The search gives up after its time, and can be ended by starting fresh")
+    func timesOut() async throws {
+        let harness = try SyncHarness()
+        await harness.device.answer(after: .seconds(10))
+        var timing = SyncController.Timing()
+        timing.householdSearch = .milliseconds(100)
+        let controller = SyncController(
+            .sync(harness.database.writer, device: harness.device), preferences: harness.preferences, hasHousehold: false,
+            timing: timing, removeFiles: {}
+        )
+        #expect(controller.isLookingForHousehold)
+        try await eventually { !controller.isLookingForHousehold }
+
+        let other = try SyncHarness()
+        await other.device.answer(after: .seconds(10))
+        let again = SyncController(.sync(other.database.writer, device: other.device), preferences: other.preferences, hasHousehold: false, removeFiles: {})
+        again.stopLookingForHousehold()
+        #expect(!again.isLookingForHousehold, "Start fresh instead")
+        for (harness, controller) in [(harness, controller), (other, again)] {
+            await harness.device.signOut()
+            await controller.settle()
+        }
+    }
+
+    @Test("Without sync, or without an iCloud account, onboarding shows at once")
+    func unavailable() async throws {
+        let preferences = SyncPreferences(defaults: UserDefaults(suiteName: "sync-tests-\(UUID().uuidString)")!)
+        for reason in [SyncOffReason.sampleData, .noEntitlement] {
+            let controller = SyncController(.unavailable(reason), preferences: preferences, hasHousehold: false, removeFiles: {})
+            #expect(!controller.isLookingForHousehold)
+            #expect(RootScreen.pick(household: nil, isLookingForHousehold: controller.isLookingForHousehold) == .onboarding)
+        }
+
+        let harness = try SyncHarness()
+        await harness.device.signOut()
+        let signedOut = await harness.controller()
+        try await eventually { !signedOut.isLookingForHousehold }
+        #expect(signedOut.status == .noAccount)
+    }
+
+    @Test("A device that has a household, or has sync switched off, never looks")
+    func neverLooks() async throws {
+        let harness = try SyncHarness()
+        try harness.fill()
+        #expect(await !harness.controller().isLookingForHousehold)
+
+        let empty = try SyncHarness()
+        empty.preferences.isEnabled = false
+        #expect(await !empty.controller().isLookingForHousehold)
+    }
+
+    @Test("Onboarding shows until setup is done, and a debug onboarding step keeps it")
+    func screens() throws {
+        let draft = Household(name: "Home", timeZoneIdentifier: "UTC", firstWeekday: 1, setupCompleted: false, createdAt: .now)
+        var done = draft
+        done.setupCompleted = true
+        #expect(RootScreen.pick(household: draft, isLookingForHousehold: true) == .onboarding, "a household being set up here")
+        #expect(RootScreen.pick(household: done, isLookingForHousehold: false) == .wall)
+        #expect(RootScreen.pick(household: done, isLookingForHousehold: false, debugOnboarding: true) == .onboarding)
+    }
+}
+
+@Suite("The gear's dot")
+@MainActor
+struct SyncAttentionTests {
+    private static func timing() -> SyncController.Timing {
+        var timing = SyncController.Timing()
+        timing.attention = .milliseconds(150)
+        return timing
+    }
+
+    @Test("Sync stuck long enough puts a dot on the gear, which goes once it moves again")
+    func stuckShowsDot() async throws {
+        let harness = try SyncHarness()
+        try harness.fill()
+        harness.preferences.isEnabled = true
+        let controller = await harness.controller(timing: Self.timing())
+        #expect(controller.status == .upToDate(lastSynced: nil))
+
+        controller.networkChanged(isOnline: false)
+        #expect(controller.status == .waiting(lastSynced: nil))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!controller.needsAttention, "not before it has been stuck a while")
+        try await eventually { controller.needsAttention }
+
+        controller.networkChanged(isOnline: true)
+        try await eventually { !controller.needsAttention }
+    }
+
+    @Test("A short stall never shows the dot, and one stuck state after another keeps the clock")
+    func timing() async throws {
+        let harness = try SyncHarness()
+        try harness.fill()
+        harness.preferences.isEnabled = true
+        let controller = await harness.controller(timing: Self.timing())
+
+        controller.networkChanged(isOnline: false)
+        try await Task.sleep(for: .milliseconds(50))
+        controller.networkChanged(isOnline: true)
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(!controller.needsAttention)
+
+        let start = Date.now
+        controller.statusChanged(to: .waiting(lastSynced: nil), at: start)
+        controller.statusChanged(to: .iCloudFull, at: start.addingTimeInterval(1))
+        try await eventually { controller.needsAttention }
+        #expect(SyncStatus.needsDecision.isStuck && SyncStatus.noAccount.isStuck)
+        #expect(!SyncStatus.off(.switchedOff).isStuck && !SyncStatus.syncing.isStuck)
+    }
+}
+
 /// Waits up to two seconds for something the controller does on its own.
 @MainActor
 private func eventually(_ condition: () -> Bool) async throws {

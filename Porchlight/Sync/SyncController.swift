@@ -20,6 +20,18 @@ final class SyncController {
         case sync(any DatabaseWriter, device: any SyncDevice)
         /// Sync can't run in this launch or build.
         case unavailable(SyncOffReason)
+        #if DEBUG
+        /// No engine, showing a fixed status: `-debugSyncStatus`, for screenshots and UI tests.
+        case debug(SyncDebugStatus)
+        #endif
+    }
+
+    /// How long things take; tests make them short.
+    struct Timing {
+        /// The most a launch with no household waits for one to arrive from iCloud.
+        var householdSearch: Duration = .seconds(30)
+        /// How long sync is stuck before the gear on the rail shows a dot.
+        var attention: Duration = .seconds(60 * 60)
     }
 
     private(set) var isEnabled: Bool
@@ -32,6 +44,12 @@ final class SyncController {
     private var isOnline = true
     private var isFull = false
     private var isSynchronizing = false
+    /// True while a launch with no household looks for one in iCloud before onboarding
+    /// (docs/design/sync-icloud.md, "A fresh install looks for a household first").
+    private(set) var isLookingForHousehold = false
+    /// Sync has been stuck (see `SyncStatus.isStuck`) for `Timing.attention`, so the gear on
+    /// the wall's rail shows a dot (journey D3). Nothing about sync shows on Today itself.
+    private(set) var needsAttention = false
 
     /// Nil when sync can't run in this launch or build.
     @ObservationIgnored let engine: SyncEngine?
@@ -39,17 +57,28 @@ final class SyncController {
     @ObservationIgnored private let preferences: SyncPreferences
     @ObservationIgnored private let removeFiles: () -> Void
     @ObservationIgnored private let events = SyncEvents()
+    @ObservationIgnored private let timing: Timing
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var changesTask: Task<Void, Never>?
+    @ObservationIgnored private var searchTasks: [Task<Void, Never>] = []
+    @ObservationIgnored private var stuckSince: Date?
+    @ObservationIgnored private var attentionTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - hasHousehold: Whether this device already has a household, which decides the
     ///     switch the first time: on for a new install, off on a wall that already has data,
     ///     so its first upload is a deliberate act.
     ///   - removeFiles: Removes the household's files when the owner removes its data.
-    init(_ setup: Setup, preferences: SyncPreferences, hasHousehold: Bool, removeFiles: @escaping () -> Void) {
+    init(
+        _ setup: Setup, preferences: SyncPreferences, hasHousehold: Bool, timing: Timing = Timing(),
+        removeFiles: @escaping () -> Void
+    ) {
         self.preferences = preferences
         self.removeFiles = removeFiles
+        self.timing = timing
+        #if DEBUG
+        var debugStatus: SyncDebugStatus?
+        #endif
         switch setup {
         case let .sync(database, device):
             if preferences.isEnabled == nil {
@@ -66,20 +95,50 @@ final class SyncController {
             engine = nil
             device = nil
             unavailable = reason
+        #if DEBUG
+        case let .debug(status):
+            engine = nil
+            device = nil
+            debugStatus = status
+        #endif
         }
         isEnabled = preferences.isEnabled ?? false
         needsDecision = preferences.needsDecision
         lastSynced = preferences.lastSynced
         events.controller = self
+        #if DEBUG
+        if let debugStatus {
+            show(debugStatus)
+            watchStatus()
+            return
+        }
+        #endif
         guard engine != nil else { return }
         listenForChanges()
         watchActivity()
+        watchStatus()
         refresh()
+        if !hasHousehold && isEnabled && !needsDecision {
+            lookForHousehold()
+        }
     }
 
     /// The controller for this launch. Sample data never syncs, and a build without the
     /// iCloud entitlement can't (creating a `CKContainer` would trap), so neither gets an engine.
     static func live(database: AppDatabase) -> SyncController {
+        #if DEBUG
+        // Only on sample data, which never syncs: on real data a launch without the engine
+        // would leave its writes unrecorded.
+        if AppFiles.isSandboxed, let name = UserDefaults.standard.string(forKey: "debugSyncStatus") {
+            guard let status = SyncDebugStatus(rawValue: name) else {
+                fatalError("-debugSyncStatus \(name) is not one of \(SyncDebugStatus.allCases.map(\.rawValue))")
+            }
+            // Its own throwaway preferences: a debug launch never changes the device's sync switch.
+            let defaults = UserDefaults(suiteName: "Porchlight.debugSync")!
+            defaults.removePersistentDomain(forName: "Porchlight.debugSync")
+            return SyncController(.debug(status), preferences: SyncPreferences(defaults: defaults), hasHousehold: true, removeFiles: {})
+        }
+        #endif
         let setup: Setup
         if AppFiles.isSandboxed {
             setup = .unavailable(.sampleData)
@@ -244,6 +303,93 @@ final class SyncController {
             preferences.lastSynced = date
         }
         isSynchronizing = active
+    }
+
+    // MARK: Looking for a household
+
+    /// Starts the engine and waits for its first fetch, at most `Timing.householdSearch`, so
+    /// a new or wiped device signed in to an account that has a household opens it instead
+    /// of walking through setup. A household that arrives ends it early by itself: the root
+    /// view opens any household that appears.
+    private func lookForHousehold() {
+        isLookingForHousehold = true
+        let timeout = timing.householdSearch
+        searchTasks = [
+            Task { [weak self] in
+                await self?.fetchFirstChanges()
+                self?.stopLookingForHousehold()
+            },
+            Task { [weak self] in
+                try? await Task.sleep(for: timeout)
+                guard !Task.isCancelled else { return }
+                self?.stopLookingForHousehold()
+            },
+        ]
+    }
+
+    private func fetchFirstChanges() async {
+        await settle()
+        guard let engine, engine.isRunning else { return }
+        try? await engine.fetchChanges()
+    }
+
+    /// Ends the search: it found nothing in time, or the owner chose to start fresh. Sync
+    /// keeps running, so a household that arrives later still opens.
+    func stopLookingForHousehold() {
+        for task in searchTasks { task.cancel() }
+        searchTasks = []
+        isLookingForHousehold = false
+    }
+
+    #if DEBUG
+    /// Sets the state behind a `-debugSyncStatus` status. A stuck one shows the dot at once.
+    private func show(_ debug: SyncDebugStatus) {
+        isEnabled = debug != .off
+        hasAccount = debug != .noAccount
+        switch debug {
+        case .off, .upToDate, .noAccount: break
+        case .syncing: isSynchronizing = true
+        case .waiting: isOnline = false
+        case .iCloudFull: isFull = true
+        case .needsDecision: needsDecision = true
+        case .lookingForHousehold: isLookingForHousehold = true
+        }
+        if debug == .upToDate || debug == .waiting {
+            lastSynced = Date.now.addingTimeInterval(-25 * 60)
+        }
+        needsAttention = status.isStuck
+    }
+    #endif
+
+    // MARK: Being stuck
+
+    /// Follows the status, so the dot appears once it has been stuck long enough.
+    private func watchStatus() {
+        let status = withObservationTracking {
+            self.status
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.watchStatus() }
+        }
+        statusChanged(to: status)
+    }
+
+    /// Starts the clock when sync becomes stuck and stops it when it isn't. Going from one
+    /// stuck state to another (offline, then signed out) keeps the clock running.
+    func statusChanged(to status: SyncStatus, at date: Date = .now) {
+        guard status.isStuck else {
+            stuckSince = nil
+            attentionTask?.cancel()
+            needsAttention = false
+            return
+        }
+        guard stuckSince == nil else { return }
+        stuckSince = date
+        let delay = timing.attention
+        attentionTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.needsAttention = true
+        }
     }
 
     private func listenForChanges() {

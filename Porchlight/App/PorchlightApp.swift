@@ -71,20 +71,48 @@ private struct Stores {
     }
 }
 
-/// Picks onboarding or the wall, and applies the kiosk behavior everywhere.
+/// What the app shows.
+enum RootScreen: Equatable {
+    case householdSearch
+    case onboarding
+    case wall
+
+    /// A household that is set up opens the wall, wherever it came from: a household that
+    /// arrives from iCloud while the search or onboarding's first steps are showing opens
+    /// right away. Before any household exists, the search comes first while it runs.
+    static func pick(household: Household?, isLookingForHousehold: Bool, debugOnboarding: Bool = false) -> RootScreen {
+        if household == nil && isLookingForHousehold { return .householdSearch }
+        if household?.setupCompleted != true || debugOnboarding { return .onboarding }
+        return .wall
+    }
+}
+
+/// Picks the household search, onboarding or the wall, and applies the kiosk behavior everywhere.
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(WeatherStore.self) private var weather
+    @Environment(SyncController.self) private var sync
+
+    private var screen: RootScreen {
+        .pick(household: model.household, isLookingForHousehold: sync.isLookingForHousehold, debugOnboarding: DebugLaunch.onboardingStep != nil)
+    }
 
     var body: some View {
         Group {
-            if model.household?.setupCompleted != true || DebugLaunch.onboardingStep != nil {
+            switch screen {
+            case .householdSearch:
+                HouseholdSearchView()
+                    .transition(.opacity)
+            case .onboarding:
                 OnboardingView()
-            } else {
+                    .transition(.opacity)
+            case .wall:
                 WallView()
                     .task { weather.start() }
+                    .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.35), value: screen)
         .hostsWallLayers()
         .kioskMode()
         .preferredColorScheme(.light)

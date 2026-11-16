@@ -34,12 +34,13 @@ final class SyncHarness {
     var preferences: SyncPreferences { SyncPreferences(defaults: defaults) }
 
     /// A controller as the app makes one at launch, settled.
-    func controller() async -> SyncController {
+    func controller(timing: SyncController.Timing = SyncController.Timing()) async -> SyncController {
         let hasHousehold = try? database.snapshot().household != nil
         let controller = SyncController(
             .sync(database.writer, device: device),
             preferences: preferences,
             hasHousehold: hasHousehold ?? false,
+            timing: timing,
             removeFiles: { [weak self] in self?.removedFiles += 1 }
         )
         await controller.settle()
@@ -143,6 +144,8 @@ final class SyncHarness {
 actor FakeSyncDevice: SyncDevice {
     private var status = CKAccountStatus.available
     private var name = "owner"
+    /// How long checking the account takes, as on a slow network.
+    private var delay: Duration?
     private nonisolated let stream: AsyncStream<SyncDeviceChange>
     private nonisolated let continuation: AsyncStream<SyncDeviceChange>.Continuation
 
@@ -150,7 +153,14 @@ actor FakeSyncDevice: SyncDevice {
         (stream, continuation) = AsyncStream.makeStream()
     }
 
-    func accountStatus() -> CKAccountStatus { status }
+    func accountStatus() async -> CKAccountStatus {
+        if let delay { try? await Task.sleep(for: delay) }
+        return status
+    }
+
+    func answer(after delay: Duration) {
+        self.delay = delay
+    }
     func accountName() -> String { name }
     nonisolated func changes() -> AsyncStream<SyncDeviceChange> { stream }
 

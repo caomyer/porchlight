@@ -14,20 +14,55 @@ struct SyncSettingsSection: View {
             if sync.needsDecision {
                 decision
             } else {
-                Toggle(isOn: Binding(get: { sync.isEnabled }, set: { sync.setEnabled($0) })) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Sync with iCloud")
-                            .font(.body(17, weight: 600))
-                        Text(sync.status.summary)
-                            .font(.body(14))
-                            .foregroundStyle(Theme.muted)
+                VStack(alignment: .leading, spacing: 14) {
+                    if sync.status == .iCloudFull {
+                        paused
                     }
+                    Toggle(isOn: Binding(get: { sync.isEnabled }, set: { sync.setEnabled($0) })) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Sync with iCloud")
+                                .font(.body(17, weight: 600))
+                            Text(sync.status.summary)
+                                .font(.body(14))
+                                .foregroundStyle(Theme.muted)
+                        }
+                    }
+                    .tint(Theme.good)
+                    .disabled(!sync.isAvailable)
+                    .accessibilityIdentifier("sync-switch")
                 }
-                .tint(Theme.good)
-                .disabled(!sync.isAvailable)
                 .card(padding: 16)
                 .frame(maxWidth: 980)
             }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("sync-settings")
+    }
+
+    /// A full iCloud is the owner's to fix, from any device on the account (journey D3).
+    private var paused: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "pause.circle.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Theme.warn)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sync is paused: iCloud is full")
+                        .font(.body(16, weight: 700))
+                    Text("Everything still works on this iPad. Changes send as soon as there's room.")
+                        .font(.body(14, weight: 600))
+                        .opacity(0.85)
+                }
+            }
+            .foregroundStyle(Theme.warnInk)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.warnSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            Text("Free up space, or choose a bigger iCloud plan, on any iPhone or iPad signed in to this account. Nothing is lost while it's paused.")
+                .font(.body(14, weight: 600))
+                .foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -85,7 +120,7 @@ extension SyncStatus {
         case let .waiting(lastSynced):
             "Waiting for iCloud\(Self.lastSyncedText(lastSynced)). Changes keep saving on this iPad."
         case .iCloudFull:
-            "Paused: iCloud is full. Changes keep saving on this iPad until there's room."
+            "Paused until there's room in iCloud."
         case .needsDecision:
             "The household on this iPad belongs to the earlier account, so nothing syncs until you choose what to do with it."
         }

@@ -14,6 +14,10 @@ enum Theme {
     static let accent = Color(hex: 0xD9653B)
     static let accentInk = Color.white
     static let good = Color(hex: 0x5B9F72)
+    /// Something paused that needs a look, never an error: sync waiting on iCloud.
+    static let warn = Color(hex: 0xB7791F)
+    static let warnSoft = Color(hex: 0xF6E7C8)
+    static let warnInk = Color(hex: 0x7A5214)
 
     // MARK: Shape
     static let radius: CGFloat = 20
