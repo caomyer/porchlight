@@ -7,6 +7,8 @@ import GRDB
 ///   -sampleHousehold    start with a sample two-person household
 ///   -samplePhotos N     with -sampleHousehold, also put N painted photos in the photo frame
 ///   -me NAME            on a phone, belong to the person called NAME (skips "Which one is you?")
+///   -debugRemoved       this device's household was removed by its owner (journey A6)
+/// `-debugSharing` and `-debugJoin` are in `DebugSharing`.
 enum DebugLaunch {
     /// `-onboardingStep calendars|companions|journals|display` shows that onboarding
     /// step over a sample household, for screenshots.
@@ -18,27 +20,26 @@ enum DebugLaunch {
     static func apply(_ arguments: [String], to database: AppDatabase) throws {
         if arguments.contains("-resetData") || arguments.contains("-sampleHousehold") {
             // Deleting the household cascades to every feature's rows.
-            _ = try database.writer.write { db in
+            try database.writer.write { db in
                 try Household.deleteAll(db)
+                // Which household this device showed goes with it, or it would read as removed.
+                try db.execute(sql: "DELETE FROM deviceState WHERE key != ?", arguments: [DeviceState.Key.databaseToken.rawValue])
             }
-            // A new household gets new people, so who this device was is gone too.
+            // A new household gets new people, so who this device was is gone too, and the
+            // device starts with its own name and role, as a new install would.
             DeviceSettings.forgetMe()
+            DeviceSettings.forgetNameAndRole()
         }
         if arguments.contains("-sampleHousehold") {
-            let household = try database.createHousehold(
-                name: "The Lake House",
-                people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)]
-            )
-            try database.markSetupCompleted(householdId: household.id)
-            let snapshot = try database.snapshot()
-            guard let seeded = snapshot.household else { return }
-            try CalendarSamples.seed(database, household: seeded, people: snapshot.people)
-            try CompanionSamples.seed(database, household: seeded, people: snapshot.people)
-            try FoodSamples.seed(database, household: seeded, people: snapshot.people)
-            try HomeSamples.seed(database, household: seeded, people: snapshot.people)
-            let photoCount = UserDefaults.standard.integer(forKey: "samplePhotos")
-            if photoCount > 0 {
-                try HomeSamples.seedPhotos(photoCount, database: database, householdId: seeded.id)
+            try seedSampleHousehold(database)
+        }
+        if AppFiles.isSandboxed && arguments.contains("-debugRemoved") {
+            // A household this device showed, gone: its owner removed this device.
+            try database.writer.write { db in
+                let gone = Household.ID.new()
+                try DeviceState.set(.currentHouseholdId, gone.description, db)
+                try DeviceState.set(.currentHouseholdName, "The Lake House", db)
+                try DeviceState.set(DeviceState.ownerKey(gone), "James", db)
             }
         }
         if let name = UserDefaults.standard.string(forKey: "me") {
@@ -47,6 +48,28 @@ enum DebugLaunch {
                 DeviceSettings.store(me: person.id, in: household.id)
             }
         }
+    }
+
+    /// The sample household, "The Lake House": James and Mia, with a week of everything.
+    @MainActor
+    @discardableResult
+    static func seedSampleHousehold(_ database: AppDatabase) throws -> Household {
+        let household = try database.createHousehold(
+            name: "The Lake House",
+            people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)]
+        )
+        try database.markSetupCompleted(householdId: household.id)
+        let snapshot = try database.snapshot()
+        guard let seeded = snapshot.household else { return household }
+        try CalendarSamples.seed(database, household: seeded, people: snapshot.people)
+        try CompanionSamples.seed(database, household: seeded, people: snapshot.people)
+        try FoodSamples.seed(database, household: seeded, people: snapshot.people)
+        try HomeSamples.seed(database, household: seeded, people: snapshot.people)
+        let photoCount = UserDefaults.standard.integer(forKey: "samplePhotos")
+        if photoCount > 0 {
+            try HomeSamples.seedPhotos(photoCount, database: database, householdId: seeded.id)
+        }
+        return seeded
     }
 }
 #endif

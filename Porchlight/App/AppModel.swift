@@ -10,6 +10,9 @@ final class AppModel {
 
     let database: AppDatabase
     @ObservationIgnored private var observation: Task<Void, Never>?
+    /// True while this device removes its household itself, so the household going is not
+    /// taken for someone else removing it.
+    @ObservationIgnored private var isRemovingHousehold = false
 
     init(database: AppDatabase) {
         self.database = database
@@ -26,17 +29,58 @@ final class AppModel {
     var people: [Person] { snapshot.people }
     /// Everyone, removed people included, for showing who did something in the past.
     var everyone: [Person] { snapshot.everyone }
+    /// Every device that has opened the household.
+    var devices: [Device] { snapshot.devices }
+    /// The household this device showed and no longer has (journey A6).
+    var removedHousehold: RemovedHousehold? { snapshot.removed }
+
+    /// This device's row in the current household.
+    var thisDeviceId: Device.ID? {
+        household.map { database.thisDeviceId(in: $0.id) }
+    }
+
+    /// "from Mia's phone" for a row written on someone's own device; nil otherwise.
+    func tag(for deviceId: Device.ID?) -> String? {
+        snapshot.tag(for: deviceId)
+    }
 
     private func observe() {
         observation = Task { [weak self, database] in
             do {
                 for try await snapshot in database.householdUpdates() {
-                    self?.snapshot = snapshot
+                    guard let self else { return }
+                    self.snapshot = snapshot
+                    if !isRemovingHousehold {
+                        try? database.rememberCurrentHousehold()
+                    }
                 }
             } catch {
                 self?.lastError = error.localizedDescription
             }
         }
+    }
+
+    // MARK: This device
+
+    /// Writes this device's row in the current household when something about it changed,
+    /// and at most once a day otherwise.
+    func saveThisDevice(_ device: ThisDevice) {
+        guard let id = household?.id else { return }
+        perform { try database.saveThisDevice(device, in: id) }
+    }
+
+    /// Removes the household from this device, on the owner's own choice (a different
+    /// account, a restored copy): the household going is not shown as being removed.
+    func removeHouseholdHere(_ removal: () async -> Void) async {
+        isRemovingHousehold = true
+        defer { isRemovingHousehold = false }
+        _ = perform { try database.forgetCurrentHousehold() }
+        await removal()
+    }
+
+    /// Acknowledges that the household left: the device shows another one, or the welcome.
+    func forgetRemovedHousehold() {
+        perform { try database.forgetCurrentHousehold() }
     }
 
     // MARK: Edits (validation errors are surfaced through `lastError`)

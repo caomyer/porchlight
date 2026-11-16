@@ -17,30 +17,57 @@ enum DeviceRole: String, CaseIterable, Sendable {
     }
 }
 
-/// Settings that belong to this device, never to the household: its role, and which
-/// person it belongs to in each household ("me"). Kept in `UserDefaults`, so they are
-/// never stored in, or synced with, the database.
+/// Settings that belong to this device, never to the household: its role, its name, and
+/// which person it belongs to in each household ("me"). Kept in `UserDefaults`; this
+/// device's row in the household mirrors them so others can see them (`ThisDeviceRow`).
 @MainActor
 @Observable
 final class DeviceSettings {
     static let roleKey = "device.role"
+    static let nameKey = "device.name"
     static let mePrefix = "device.me."
 
     private(set) var role: DeviceRole
+    /// The name someone gave this device; nil until they do.
+    private(set) var customName: String?
+    /// "iPhone" or "iPad": only words, never behavior.
+    let model: String
     /// "Me" per household id, mirrored from the defaults so views update when it changes.
     private var me: [Household.ID: Person.ID]
 
     @ObservationIgnored private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard, idiom: UIUserInterfaceIdiom = UIDevice.current.userInterfaceIdiom) {
+    init(
+        defaults: UserDefaults = .standard,
+        idiom: UIUserInterfaceIdiom = UIDevice.current.userInterfaceIdiom,
+        model: String = UIDevice.current.model
+    ) {
         self.defaults = defaults
+        self.model = model
         role = defaults.string(forKey: Self.roleKey).flatMap(DeviceRole.init(rawValue:)) ?? .standard(for: idiom)
+        customName = defaults.string(forKey: Self.nameKey)
         me = Self.storedMe(in: defaults)
     }
 
     func setRole(_ role: DeviceRole) {
         self.role = role
         defaults.set(role.rawValue, forKey: Self.roleKey)
+    }
+
+    /// This device's name: the one it was given, else "Mia's iPhone" on someone's own
+    /// device and "Shared iPad" on a shared screen. iOS no longer tells apps the name the
+    /// owner gave the device, so the app makes its own.
+    func name(me person: Person?) -> String {
+        if let customName { return customName }
+        if role == .personal, let person { return "\(person.name)'s \(model)" }
+        return "Shared \(model)"
+    }
+
+    /// Names the device; a blank name goes back to the one the app makes.
+    func setName(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        customName = trimmed.isEmpty ? nil : String(trimmed.prefix(Names.limit))
+        defaults.set(customName, forKey: Self.nameKey)
     }
 
     /// Who this device belongs to in a household, if it has been said.
@@ -72,6 +99,12 @@ final class DeviceSettings {
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(mePrefix) {
             defaults.removeObject(forKey: key)
         }
+    }
+
+    /// Forgets this device's name and role, for sample and reset launches.
+    static func forgetNameAndRole(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: nameKey)
+        defaults.removeObject(forKey: roleKey)
     }
 
     private static func storedMe(in defaults: UserDefaults) -> [Household.ID: Person.ID] {

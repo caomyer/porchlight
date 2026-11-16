@@ -6,14 +6,19 @@ import SwiftUI
 /// own whatever iCloud does.
 struct SyncSettingsSection: View {
     @Environment(SyncController.self) private var sync
+    @Environment(AppModel.self) private var model
     @State private var confirmRemove = false
+    @State private var confirmUseICloud = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionLabel("iCloud sync")
-            if sync.needsDecision {
-                decision
-            } else {
+            switch sync.decision {
+            case .accountChanged?:
+                accountDecision
+            case .restoredCopy?:
+                restoreDecision
+            case nil:
                 VStack(alignment: .leading, spacing: 14) {
                     if sync.status == .iCloudFull {
                         paused
@@ -30,6 +35,7 @@ struct SyncSettingsSection: View {
                     .tint(Theme.good)
                     .disabled(!sync.isAvailable)
                     .accessibilityIdentifier("sync-switch")
+                    LastChangeLine()
                 }
                 .card(padding: 16)
                 .frame(maxWidth: 980)
@@ -66,33 +72,58 @@ struct SyncSettingsSection: View {
         }
     }
 
-    private var decision: some View {
+    private var accountDecision: some View {
+        decisionCard(title: "A different iCloud account signed in") {
+            Button("Keep it here without sync") { sync.keepDataWithoutSync() }
+                .buttonStyle(SecondaryButtonStyle())
+            Button("Remove it from this iPad") { confirmRemove = true }
+                .buttonStyle(SecondaryButtonStyle())
+                .foregroundStyle(Theme.accent)
+        }
+        .confirmationDialog("Remove the household from this iPad?", isPresented: $confirmRemove, titleVisibility: .visible) {
+            Button("Remove from this iPad", role: .destructive) {
+                Task { await model.removeHouseholdHere { await sync.removeDataFromDevice() } }
+            }
+        } message: {
+            Text("Everything here goes: people, companions, meals, chores and photos. It stays in the earlier account's iCloud. Then this iPad syncs with the account signed in now.")
+        }
+    }
+
+    /// A restored backup: iCloud's copy, or this one kept here alone. Sending this copy up
+    /// over everyone's newer data is never offered.
+    private var restoreDecision: some View {
+        decisionCard(title: "This iPad's data was replaced by an older copy") {
+            Button("Use what is in iCloud") { confirmUseICloud = true }
+                .buttonStyle(SecondaryButtonStyle())
+            Button("Keep this copy on this iPad, without sync") { sync.keepRestoredCopyWithoutSync() }
+                .buttonStyle(SecondaryButtonStyle())
+        }
+        .confirmationDialog("Use what is in iCloud?", isPresented: $confirmUseICloud, titleVisibility: .visible) {
+            Button("Use what is in iCloud", role: .destructive) {
+                Task { await model.removeHouseholdHere { await sync.useCopyInICloud() } }
+            }
+        } message: {
+            Text("The copy on this iPad goes, and the household comes back from iCloud as everyone last left it. Photos fill in as they arrive.")
+        }
+    }
+
+    private func decisionCard<Buttons: View>(title: String, @ViewBuilder buttons: () -> Buttons) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("A different iCloud account signed in")
+                Text(title)
                     .font(.body(17, weight: 600))
                 Text(sync.status.summary)
                     .font(.body(14))
                     .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: 12) {
-                Button("Keep it here without sync") { sync.keepDataWithoutSync() }
-                    .buttonStyle(SecondaryButtonStyle())
-                Button("Remove it from this iPad") { confirmRemove = true }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .foregroundStyle(Theme.accent)
+            FlowLayout(spacing: 12) {
+                buttons()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .card(padding: 16)
         .frame(maxWidth: 980)
-        .confirmationDialog("Remove the household from this iPad?", isPresented: $confirmRemove, titleVisibility: .visible) {
-            Button("Remove from this iPad", role: .destructive) {
-                Task { await sync.removeDataFromDevice() }
-            }
-        } message: {
-            Text("Everything here goes: people, companions, meals, chores and photos. It stays in the earlier account's iCloud. Then this iPad syncs with the account signed in now.")
-        }
     }
 }
 
@@ -121,8 +152,10 @@ extension SyncStatus {
             "Waiting for iCloud\(Self.lastSyncedText(lastSynced)). Changes keep saving on this iPad."
         case .iCloudFull:
             "Paused until there's room in iCloud."
-        case .needsDecision:
+        case .needsDecision(.accountChanged):
             "The household on this iPad belongs to the earlier account, so nothing syncs until you choose what to do with it."
+        case .needsDecision(.restoredCopy):
+            "It was put back from a backup, so iCloud may have newer walks, meals and chores. Nothing syncs until you choose, and this copy is never sent over what is in iCloud."
         }
     }
 

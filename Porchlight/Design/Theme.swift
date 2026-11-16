@@ -27,6 +27,8 @@ enum Theme {
     /// Something that needs a look, like care that was never logged.
     static let warnSoft = Color(light: 0xF6E7C8, dark: 0x3D3122)
     static let warnInk = Color(light: 0x7A5214, dark: 0xE8C27E)
+    /// The one color for what can't be undone: removing someone's devices.
+    static let danger = Color(light: 0xB54A3A, dark: 0xD4705E)
     /// The undo toast floats above both looks, so it stays dark in both.
     static let toast = Color(light: 0x2A2420, dark: 0x3B332D)
     static let toastInk = Color(hex: 0xFFFCF6)

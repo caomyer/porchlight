@@ -45,10 +45,12 @@ final class WallTourTests: XCTestCase {
             ("09-lists", ["-startScreen", "lists"]),
             ("10-ambient", ["-startScreen", "photos", "-ambient.nightEnabled", "NO"]),
             ("11-settings", ["-startScreen", "settings"]),
+            ("11b-onboarding-role", ["-onboardingStep", "role"]),
             ("12-onboarding-calendars", ["-onboardingStep", "calendars"]),
             ("13-onboarding-companions", ["-onboardingStep", "companions"]),
             ("14-onboarding-journals", ["-onboardingStep", "journals"]),
             ("15-onboarding-display", ["-onboardingStep", "display"]),
+            ("16-onboarding-icloud", ["-onboardingStep", "iCloud"]),
         ]
         for (name, arguments) in screens {
             let app = launch(arguments)

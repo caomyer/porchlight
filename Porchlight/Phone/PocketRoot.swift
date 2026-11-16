@@ -1,14 +1,20 @@
 import SwiftUI
 
-/// The phone: a welcome when there is no household yet, "Which one is you?" until a
-/// personal device knows whose it is, then the four tabs.
+/// The phone: an invite that opened the app, or the household having left, first; else a
+/// welcome when there is no household yet, "Which one is you?" until a personal device
+/// knows whose it is, then the four tabs.
 struct PocketRoot: View {
     @Environment(AppModel.self) private var model
     @Environment(DeviceSettings.self) private var device
+    @Environment(ShareInbox.self) private var inbox
 
     var body: some View {
         Group {
-            if let household = model.household, household.setupCompleted {
+            if let invitation = inbox.invitation {
+                JoinFlowView(invitation: invitation)
+            } else if let removed = model.removedHousehold {
+                RemovedHouseholdView(removed: removed)
+            } else if let household = model.household, household.setupCompleted {
                 let me = device.me(in: household.id).flatMap(model.people.person)
                 if device.role == .personal && me == nil {
                     WhoAreYouView { device.setMe($0, in: household.id) }
@@ -40,8 +46,8 @@ struct OpenYouAction {
     @MainActor func callAsFunction() { open() }
 }
 
-/// The first screen on a phone that isn't in a household. Joining happens from an
-/// invite link, which a later version brings, so this only says so.
+/// The first screen on a phone that isn't in a household: the two ways in, an invite link
+/// someone sent, or the code on the family's shared screen.
 struct PocketWelcome: View {
     var body: some View {
         ScrollView {
@@ -53,9 +59,14 @@ struct PocketWelcome: View {
                 Text("Your family's day in one place: who walked the dog, what's for dinner, who pitched in.")
                     .phoneFont(.body, 15, weight: 500)
                     .foregroundStyle(Theme.muted)
-                Text("On iPhone, Porchlight joins a household from an invite link sent from your family's shared screen. Invites arrive in a coming version.")
-                    .phoneFont(.body, 15, weight: 500)
-                    .foregroundStyle(Theme.muted)
+                VStack(alignment: .leading, spacing: 0) {
+                    way("✉️", "Open the invite someone sent you", "It opens Porchlight and asks if you want to join.")
+                    RowDivider()
+                    way("📷", "Or scan your family's code", "On the shared screen, open Settings › Family & devices › Show a code to join, and point the Camera app at it.")
+                }
+                .padding(.horizontal, 14)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                .padding(.top, 18)
             }
             .multilineTextAlignment(.center)
             .frame(maxWidth: 340)
@@ -65,5 +76,22 @@ struct PocketWelcome: View {
             .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
+    }
+
+    private func way(_ emoji: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(emoji).phoneFont(.body, 20).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
+                Text(detail)
+                    .phoneFont(.body, 12.5, weight: 600, relativeTo: .caption)
+                    .foregroundStyle(Theme.muted)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .multilineTextAlignment(.leading)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
     }
 }

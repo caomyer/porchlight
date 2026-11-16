@@ -40,6 +40,12 @@ final class FirstRunTests: XCTestCase {
         type("Test House", into: household)
         household.typeText("\n")
 
+        // How this iPad is used: a shared screen unless someone says otherwise (journey A1).
+        XCTAssertTrue(app.staticTexts["How will this iPad be used?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["role-sharedScreen"].isSelected, "An iPad starts as a shared screen")
+        snapshot("29-onboarding-role")
+        app.buttons["Continue"].tap()
+
         let firstName = app.textFields["Name"].firstMatch
         XCTAssertTrue(firstName.waitForExistence(timeout: 5))
         type("James", into: firstName)
@@ -79,8 +85,15 @@ final class FirstRunTests: XCTestCase {
         XCTAssertTrue(assigned.waitForExistence(timeout: 5), "\(calendarName) should now belong to Mia")
         snapshot("33-calendar-assigned")
 
-        for _ in 0..<3 { app.buttons["Continue"].tap() }
-        app.buttons["Start using Porchlight"].tap()
+        for _ in 0..<4 { app.buttons["Continue"].tap() }
+
+        // The last step says where the household lives, and can go straight to inviting.
+        XCTAssertTrue(app.staticTexts["Test House lives in your iCloud"].waitForExistence(timeout: 5))
+        snapshot("35-onboarding-icloud")
+        app.buttons["Invite phones now"].tap()
+        XCTAssertTrue(app.staticTexts["Who has the app"].waitForExistence(timeout: 10), "Setup ends on Family & devices")
+        XCTAssertTrue(app.buttons["Invite someone"].isHittable, "with the invite on screen")
+        snapshot("36-onboarding-ends-on-family")
 
         // The assignment survives onboarding and shows in Settings.
         let settings = app.buttons["Settings"]

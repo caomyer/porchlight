@@ -26,7 +26,8 @@ struct PocketTodayScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     PocketHeader(small: now.formatted(dateStyle), title: me.map { "Hi, \($0.name)" } ?? "Today")
-                    catchUpBanner(reports)
+                    // One banner at a time: sync's, when it is stuck, comes first.
+                    PocketSyncBanner { catchUpBanner(reports) }
                     if !cards.isEmpty {
                         PocketCareSection(cards: cards, handlers: careHandlers)
                     }

@@ -45,9 +45,16 @@ struct WallView: View {
     @Environment(HomeStore.self) private var home
     @AppStorage(DisplaySettings.ambientMinutesKey) private var ambientMinutes = DisplaySettings.defaultAmbientMinutes
 
-    @State private var selection: Destination = .today
+    @State private var selection: Destination
     @State private var lastInteraction = Date.now
     @State private var showAmbient = false
+    /// Settings opens on Family & devices once, after setup's "Invite phones now".
+    @State private var focusFamily: Bool
+
+    init(startsInFamily: Bool = false) {
+        _selection = State(initialValue: startsInFamily ? .settings : .today)
+        _focusFamily = State(initialValue: startsInFamily)
+    }
 
     #if DEBUG
     /// The `-startScreen` destination, e.g. `-startScreen settings` for screenshots.
@@ -103,6 +110,8 @@ struct WallView: View {
                     .ignoresSafeArea()
             }
         }
+        // Rows from people's phones glow once on Today, with one short toast.
+        .showsArrivals(resting: showAmbient)
         // Any touch counts as activity, observed outside SwiftUI gestures so scrolling is untouched.
         .onAnyTouch { lastInteraction = .now }
         .environment(\.openCompanion, OpenCompanionAction { selection = .companion($0) })
@@ -119,6 +128,7 @@ struct WallView: View {
         }
         .onChange(of: selection) { _, newValue in
             lastInteraction = .now
+            focusFamily = false
             if newValue == .photos {
                 withAnimation(.easeInOut(duration: 0.6)) { showAmbient = true }
                 selection = .today
@@ -145,7 +155,7 @@ struct WallView: View {
         case .glow: GlowScreen()
         case .lists: ListsScreen()
         case .photos: TodayView()
-        case .settings: SettingsView()
+        case .settings: SettingsView(focusFamily: focusFamily)
         }
     }
 

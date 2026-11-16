@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct PorchlightApp: App {
+    /// Only so invite links reach the app (`SceneDelegate`); everything else stays SwiftUI's.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var launch = Launch.start()
 
     var body: some Scene {
@@ -18,6 +20,8 @@ struct PorchlightApp: App {
                     .environment(stores.sync)
                     .environment(stores.photos)
                     .environment(stores.device)
+                    .environment(stores.sharing)
+                    .environment(ShareInbox.shared)
             case let .failed(message):
                 StartupErrorView(message: message)
             }
@@ -33,10 +37,16 @@ private enum Launch {
     @MainActor
     static func start() -> Launch {
         do {
+            // Before opening: opening the database creates the engine's metadata database.
+            let metadataExisted = FileManager.default.fileExists(atPath: DatabaseIdentity.metadataURL(in: AppFiles.root).path)
             let database = try AppDatabase.openOnDisk()
             #if DEBUG
             try DebugLaunch.apply(ProcessInfo.processInfo.arguments, to: database)
             #endif
+            // Sample data never syncs, so only the household's real database is checked.
+            if !AppFiles.isSandboxed {
+                try DatabaseIdentity.check(database, metadataExisted: metadataExisted, preferences: SyncPreferences(defaults: .standard))
+            }
             // Before any store: the engine records every write from the moment it exists.
             let sync = SyncController.live(database: database)
             // Rows written by migrations once sync has been on must be recorded by the engine.
@@ -60,6 +70,7 @@ private struct Stores {
     let sync: SyncController
     let photos: PhotoImages
     let device: DeviceSettings
+    let sharing: HouseholdSharingModel
 
     init(database: AppDatabase, sync: SyncController) {
         app = AppModel(database: database)
@@ -71,6 +82,18 @@ private struct Stores {
         self.sync = sync
         photos = PhotoImages(database: database)
         device = DeviceSettings()
+        sharing = HouseholdSharingModel(service: Self.sharingService(database: database, sync: sync), database: database)
+        #if DEBUG
+        DebugArrivals.start(ProcessInfo.processInfo.arguments, database: database)
+        #endif
+    }
+
+    /// The live sharing, or in a DEBUG launch with `-debugSharing` or `-debugJoin` the fake.
+    private static func sharingService(database: AppDatabase, sync: SyncController) -> any HouseholdSharing {
+        #if DEBUG
+        if let fake = DebugSharing.fake(ProcessInfo.processInfo.arguments, database: database) { return fake }
+        #endif
+        return LiveHouseholdSharing(sync: sync, database: database)
     }
 }
 
@@ -95,6 +118,8 @@ enum RootScreen: Equatable {
 /// the kind of device, so an iPad used as someone's own still gets the wall.
 struct RootView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(AppModel.self) private var model
+    @Environment(HouseholdSharingModel.self) private var sharing
 
     var body: some View {
         Group {
@@ -104,6 +129,9 @@ struct RootView: View {
                 WallRoot()
             }
         }
+        .keepsThisDeviceRow()
+        // Who is on the share, read once the household is here and again when it changes.
+        .task(id: model.household?.id) { await sharing.refresh(model.household) }
         #if DEBUG
         .task { await DebugSnapshot.captureIfRequested() }
         #endif
@@ -115,6 +143,9 @@ private struct WallRoot: View {
     @Environment(AppModel.self) private var model
     @Environment(WeatherStore.self) private var weather
     @Environment(SyncController.self) private var sync
+    @Environment(ShareInbox.self) private var inbox
+    /// Setup ended with "Invite phones now": the wall opens on Family & devices.
+    @State private var invitesNext = false
 
     private var screen: RootScreen {
         .pick(household: model.household, isLookingForHousehold: sync.isLookingForHousehold, debugOnboarding: DebugLaunch.onboardingStep != nil)
@@ -127,11 +158,21 @@ private struct WallRoot: View {
                 HouseholdSearchView()
                     .transition(.opacity)
             case .onboarding:
-                OnboardingView()
+                OnboardingView(onInvite: { invitesNext = true })
                     .transition(.opacity)
             case .wall:
-                WallView()
+                WallView(startsInFamily: invitesNext)
                     .task { weather.start() }
+                    .transition(.opacity)
+            }
+        }
+        // An invite link, or the household leaving, takes the whole screen until answered.
+        .overlay {
+            if let invitation = inbox.invitation {
+                JoinFlowView(invitation: invitation)
+                    .transition(.opacity)
+            } else if let removed = model.removedHousehold {
+                RemovedHouseholdView(removed: removed)
                     .transition(.opacity)
             }
         }

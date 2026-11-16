@@ -178,7 +178,7 @@ final class PhoneTests: XCTestCase {
         XCTAssertTrue(you.waitForExistence(timeout: 60))
         you.tap()
         XCTAssertTrue(app.staticTexts["The Lake House"].waitForExistence(timeout: 5), "The household's name")
-        XCTAssertTrue(element(app, beginningWith: "This iPhone, Personal").exists, "This phone's role")
+        XCTAssertTrue(element(app, beginningWith: "James's iPhone, Personal").exists, "This phone's role")
         snapshot("phone-60-you")
         app.buttons["change-me"].tap()
         XCTAssertTrue(app.staticTexts["Which one is you?"].waitForExistence(timeout: 5))

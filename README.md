@@ -50,7 +50,10 @@ Debug-only launch arguments:
 - `-startScreen today|calendar|companion-1|food|chores|glow|lists|photos|settings` on the wall, `-startScreen today|food|lists|glow|you` on a phone (`you` opens the You sheet)
 - `-me NAME` on a phone: this phone belongs to the person called NAME, so it skips "Which one is you?" (for example `-sampleHousehold -me James`)
 - `-debugCompanionNow yyyy-MM-ddTHH:mm` pins "now" for care, for example `2026-11-16T17:20` so Yo-Yo's evening walk and dinner are open; the phone's writes use it too
-- `-debugSyncStatus off|upToDate|syncing|waiting|noAccount|iCloudFull|needsDecision` (with `-sampleHousehold` or `-resetData`) puts sync in that state, without iCloud, for screenshots of Settings and the gear's dot; `lookingForHousehold` with `-resetData` holds the first-launch "Looking for your household in iCloud" screen
+- `-debugSyncStatus off|upToDate|syncing|waiting|noAccount|iCloudFull|needsDecision|restoredCopy` (with `-sampleHousehold` or `-resetData`) puts sync in that state, without iCloud, for screenshots of Settings, the phone's banners and the gear's dot (`needsDecision` is a different iCloud account, `restoredCopy` a database put back from a backup); `lookingForHousehold` with `-resetData` holds the first-launch "Looking for your household in iCloud" screen
+- Sharing without iCloud, with a fake (sample data only): `-debugSharing invited|joined|member` (with `-sampleHousehold`): this device is the owner James's with Mia invited and Ava without a phone, the same with Mia joined from her iPhone, or this device is Mia's and James owns the household
+- Joining: `-debugJoin preview|failing|known` (with `-resetData`): an invite to The Lake House opened the app; `failing` fails the first try as if offline, `known` means this iCloud user already has a phone in the household
+- `-debugRemoved` (with `-resetData` or `-sampleHousehold`): this device's household was removed by its owner; `-debugArrival` (with `-sampleHousehold`, on the wall): lunch came from Mia's phone and a walk arrives from James's phone a few seconds after launch
 - Feature previews: `-calendarMode month|day` (with `-calendarDate yyyy-MM-dd` to open on a day), `-debugCompanionSheet log|celebrate|onboarding|editor|routine` (on a phone, `log|catchUp` opens the care sheet or the catch-up sheet), `-debugFoodView month|write|capture|saved|detail` (with `-debugCaptureShots N` to start the capture with N generated photos), `-homeSheet newChore|whoDidIt|week|ambient|...`
 
 Review the real iPad's rendering (sample data lives in a separate storage sandbox, so the household's data is never touched).
@@ -99,6 +102,7 @@ An install signed with a paid Apple Developer team lasts a year; with a free App
 
 The app is universal.
 The iPad keeps the wall, landscape only; an iPhone gets the pocket shell, portrait only: Today, Food, Lists and Glow tabs and the You sheet (only Today is built so far).
+It joins a household from an invite link or the code on the shared screen, and You lists the household's people and their devices and invites more (see [docs/design/households.md](docs/design/households.md)).
 The layout follows the available width, and whether logging asks "who did it?" follows the device's role (shared screen or personal), kept on the device.
 See [docs/design/phone-shell.md](docs/design/phone-shell.md).
 
