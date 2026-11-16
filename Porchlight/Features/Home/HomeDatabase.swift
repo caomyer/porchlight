@@ -3,6 +3,13 @@ import GRDB
 
 // Every Home write, with validation. Views go through `HomeStore`, which calls these.
 
+/// What checking off a chore did: wrote a completion, or found it already done.
+enum ChoreCheckOff: Equatable, Sendable {
+    case done(ChoreCompletion)
+    /// Someone checked it off first; nothing was written.
+    case alreadyDone(ChoreCompletion)
+}
+
 enum HomeValidationError: Error, Equatable, LocalizedError {
     case emptyTitle
     case titleTooLong(limit: Int)
@@ -156,18 +163,45 @@ extension AppDatabase {
                 _ = try existing.delete(db)
                 return false
             }
-            // Credit goes to the owner, or to whoever was picked for an "Anyone" chore.
-            let person = chore.ownerId ?? personId
-            guard let person else { throw HomeValidationError.unknownPerson }
-            try Self.requirePerson(person, in: chore.householdId, db)
-            if chore.recurrence.isOnce {
-                // A one-off chore can only be done once.
-                try ChoreCompletion.filter(Column("choreId") == id).deleteAll(db)
-            }
-            let completion = ChoreCompletion(choreId: id, day: day, personId: person, stars: chore.stars, completedAt: now)
-            try completion.upsert(db)
+            try Self.checkOff(chore, on: day, by: personId, now: now, in: db)
             return true
         }
+    }
+
+    /// Checks a chore off on `day` unless it is already done. Unlike `toggleChore`, a
+    /// screen that is a little behind never unchecks what someone else just did: it gets
+    /// their completion back instead ("never confidently out of date").
+    func completeChore(id: Chore.ID, day: DayKey, personId: Person.ID?, now: Date = .now) throws -> ChoreCheckOff {
+        let day = try Self.validatedDay(day)
+        return try writer.write { db in
+            guard let chore = try Chore.fetchOne(db, id: id) else { throw HomeValidationError.notFound }
+            let existing = chore.recurrence.isOnce
+                ? try ChoreCompletion.filter(Column("choreId") == id).fetchOne(db)
+                : try ChoreCompletion.fetchOne(db, id: ChoreCompletion.id(choreId: id, day: day))
+            if let existing { return .alreadyDone(existing) }
+            return .done(try Self.checkOff(chore, on: day, by: personId, now: now, in: db))
+        }
+    }
+
+    /// Removes one completion, undoing a check-off. Nothing happens if it is already gone.
+    func deleteChoreCompletion(id: ChoreCompletion.ID) throws {
+        try writer.write { db in _ = try ChoreCompletion.deleteOne(db, id: id) }
+    }
+
+    /// Writes a completion. Credit goes to the owner, or to whoever was picked for an
+    /// "Anyone" chore.
+    @discardableResult
+    private static func checkOff(_ chore: Chore, on day: DayKey, by personId: Person.ID?, now: Date, in db: Database) throws -> ChoreCompletion {
+        let person = chore.ownerId ?? personId
+        guard let person else { throw HomeValidationError.unknownPerson }
+        try requirePerson(person, in: chore.householdId, db)
+        if chore.recurrence.isOnce {
+            // A one-off chore can only be done once.
+            try ChoreCompletion.filter(Column("choreId") == chore.id).deleteAll(db)
+        }
+        let completion = ChoreCompletion(choreId: chore.id, day: day, personId: person, stars: chore.stars, completedAt: now)
+        try completion.upsert(db)
+        return completion
     }
 
     /// Says who did a chore on a day: changes the credit of an existing completion, or

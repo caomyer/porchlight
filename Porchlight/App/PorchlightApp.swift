@@ -17,6 +17,7 @@ struct PorchlightApp: App {
                     .environment(stores.weather)
                     .environment(stores.sync)
                     .environment(stores.photos)
+                    .environment(stores.device)
             case let .failed(message):
                 StartupErrorView(message: message)
             }
@@ -58,6 +59,7 @@ private struct Stores {
     let weather: WeatherStore
     let sync: SyncController
     let photos: PhotoImages
+    let device: DeviceSettings
 
     init(database: AppDatabase, sync: SyncController) {
         app = AppModel(database: database)
@@ -68,6 +70,7 @@ private struct Stores {
         weather = WeatherStore()
         self.sync = sync
         photos = PhotoImages(database: database)
+        device = DeviceSettings()
     }
 }
 
@@ -87,8 +90,28 @@ enum RootScreen: Equatable {
     }
 }
 
-/// Picks the household search, onboarding or the wall, and applies the kiosk behavior everywhere.
+/// Picks the wall or the phone by the space there is: a regular width gets the wall
+/// (an iPad, landscape), a compact one the pocket shell (an iPhone). Neither looks at
+/// the kind of device, so an iPad used as someone's own still gets the wall.
 struct RootView: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    var body: some View {
+        Group {
+            if sizeClass == .compact {
+                PocketRoot()
+            } else {
+                WallRoot()
+            }
+        }
+        #if DEBUG
+        .task { await DebugSnapshot.captureIfRequested() }
+        #endif
+    }
+}
+
+/// Onboarding or the wall, with the kiosk behavior and the wall's single light look.
+private struct WallRoot: View {
     @Environment(AppModel.self) private var model
     @Environment(WeatherStore.self) private var weather
     @Environment(SyncController.self) private var sync
@@ -116,9 +139,6 @@ struct RootView: View {
         .hostsWallLayers()
         .kioskMode()
         .preferredColorScheme(.light)
-        #if DEBUG
-        .task { await DebugSnapshot.captureIfRequested() }
-        #endif
     }
 }
 

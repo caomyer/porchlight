@@ -9,7 +9,7 @@
 #
 # macOS does not let background jobs read ~/Documents, so the job builds from a
 # private mirror in ~/Library/Application Support/Porchlight:
-#   deploy.git  bare mirror; a post-commit hook in this repo pushes every commit to it
+#   deploy.git  bare mirror; a post-commit hook in this repo pushes main to it after every commit
 #   src/        clean checkout the job refreshes and builds
 # Output goes to ~/Library/Logs/Porchlight/deploy.log; failures raise a notification.
 set -euo pipefail
@@ -45,10 +45,12 @@ git -C "$root" remote add deploy "$support/deploy.git"
 cat > "$root/.git/hooks/post-commit" <<'EOF'
 #!/bin/sh
 # Keeps the Porchlight deploy mirror current (see scripts/schedule-deploy.sh).
-git push -q --force deploy HEAD:refs/heads/main >/dev/null 2>&1 || true
+# Only main is mirrored: a commit on another branch or in a worktree must never
+# reach the wall through the scheduled install.
+git push -q --force deploy refs/heads/main:refs/heads/main >/dev/null 2>&1 || true
 EOF
 chmod +x "$root/.git/hooks/post-commit"
-git -C "$root" push -q --force deploy HEAD:refs/heads/main
+git -C "$root" push -q --force deploy refs/heads/main:refs/heads/main
 
 # 2. Signing settings the job needs (git-ignored, so copied separately).
 cp "$root/Config/Local.xcconfig" "$support/Local.xcconfig"

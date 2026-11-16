@@ -1,5 +1,6 @@
 #!/bin/zsh
-# Builds Porchlight, launches it in an iPad simulator and saves a landscape screenshot.
+# Builds Porchlight, launches it in a simulator and saves a screenshot: landscape on an
+# iPad (the wall), portrait on an iPhone.
 #
 #   scripts/sim-shot.sh <simulator-udid> <out.png> [launch arguments...]
 #
@@ -24,9 +25,9 @@ xcrun simctl launch "$udid" com.porchlight.porchlight "$@" > /dev/null
 /usr/bin/python3 -c "import time; time.sleep(${WAIT:-4})"
 timeout 30 xcrun simctl io "$udid" screenshot "$out" > /dev/null 2>&1
 # Older simulators save the portrait framebuffer; newer ones save the screen as shown.
-# The app is landscape, so turn a portrait shot.
+# The wall is landscape, so turn an iPad's portrait shot. A phone's stays as it is.
 size=($(sips -g pixelWidth -g pixelHeight "$out" | awk '/pixel/ {print $2}'))
-if (( size[2] > size[1] )); then
+if xcrun simctl list devices | grep "$udid" | grep -q iPad && (( size[2] > size[1] )); then
   sips -r 270 "$out" > /dev/null
 fi
 echo "$out"

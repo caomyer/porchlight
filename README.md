@@ -47,9 +47,11 @@ scripts/sim-shot.sh <simulator-udid> /tmp/today.png -sampleHousehold -startScree
 
 Debug-only launch arguments:
 - `-resetData` (start at onboarding), `-sampleHousehold` (seed a sample household with a week of everything; add `-samplePhotos N` for N photos in the photo frame)
-- `-startScreen today|calendar|companion-1|food|chores|glow|lists|photos|settings`
+- `-startScreen today|calendar|companion-1|food|chores|glow|lists|photos|settings` on the wall, `-startScreen today|food|lists|glow|you` on a phone (`you` opens the You sheet)
+- `-me NAME` on a phone: this phone belongs to the person called NAME, so it skips "Which one is you?" (for example `-sampleHousehold -me James`)
+- `-debugCompanionNow yyyy-MM-ddTHH:mm` pins "now" for care, for example `2026-11-16T17:20` so Yo-Yo's evening walk and dinner are open; the phone's writes use it too
 - `-debugSyncStatus off|upToDate|syncing|waiting|noAccount|iCloudFull|needsDecision` (with `-sampleHousehold` or `-resetData`) puts sync in that state, without iCloud, for screenshots of Settings and the gear's dot; `lookingForHousehold` with `-resetData` holds the first-launch "Looking for your household in iCloud" screen
-- Feature previews: `-calendarMode month|day` (with `-calendarDate yyyy-MM-dd` to open on a day), `-debugCompanionSheet log|celebrate|onboarding|editor|routine`, `-debugFoodView month|write|capture|saved|detail` (with `-debugCaptureShots N` to start the capture with N generated photos), `-homeSheet newChore|whoDidIt|week|ambient|...`
+- Feature previews: `-calendarMode month|day` (with `-calendarDate yyyy-MM-dd` to open on a day), `-debugCompanionSheet log|celebrate|onboarding|editor|routine` (on a phone, `log|catchUp` opens the care sheet or the catch-up sheet), `-debugFoodView month|write|capture|saved|detail` (with `-debugCaptureShots N` to start the capture with N generated photos), `-homeSheet newChore|whoDidIt|week|ambient|...`
 
 Review the real iPad's rendering (sample data lives in a separate storage sandbox, so the household's data is never touched).
 The tour needs a Debug build, so install one first and put the Release build back afterwards:
@@ -93,12 +95,25 @@ Before installing, it copies the wall's database and photos to `~/Library/Applic
 That keeps the wall on the latest commit and backed up twice a week.
 An install signed with a paid Apple Developer team lasts a year; with a free Apple ID it expires after 7 days, which the schedule also covers.
 
+## On iPhone
+
+The app is universal.
+The iPad keeps the wall, landscape only; an iPhone gets the pocket shell, portrait only: Today, Food, Lists and Glow tabs and the You sheet (only Today is built so far).
+The layout follows the available width, and whether logging asks "who did it?" follows the device's role (shared screen or personal), kept on the device.
+See [docs/design/phone-shell.md](docs/design/phone-shell.md).
+
+```bash
+scripts/sim-shot.sh <iphone-udid> /tmp/phone.png -sampleHousehold -me James
+scripts/test.sh --phone --ui-only   # the phone's UI tests on the iOS 17.5 iPhone 15 simulator
+```
+
 ## Layout
 
 - `Porchlight/App` - app entry, live stores, kiosk behavior, debug launch hooks
 - `Porchlight/Data` - SQLite (GRDB) core schema: household and people
 - `Porchlight/Shared` - contracts between features (DayKey, TimelineItem, TimelineTarget, CalendarLane), shared components, weather
 - `Porchlight/Shell` - the wall: side rail, destinations, idle switch to Ambient
+- `Porchlight/Phone` - the pocket shell, its Today and the You sheet; `Phone/Kit` holds the phone's shared pieces
 - `Porchlight/Screens`, `Onboarding`, `Settings` - Today, setup and settings
 - `Porchlight/Features/{Calendar,Companions,Food,Home}` - each feature owns its schema, store, views and sample data
 - `PorchlightTests` - Swift Testing suites, one folder per feature

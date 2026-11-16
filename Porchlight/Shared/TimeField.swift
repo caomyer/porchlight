@@ -145,6 +145,9 @@ struct TimeKeypadCard: View {
     let onChange: (Int) -> Void
     let onSuggestion: (TimeSuggestion) -> Void
     let onClose: () -> Void
+    /// Laid out in a sheet rather than its own popover, as on the phone's catch-up
+    /// sheet: it fills the sheet's width, and the sheet's own button replaces Done.
+    var isInline = false
 
     @FocusState private var hasKeys: Bool
 
@@ -194,25 +197,27 @@ struct TimeKeypadCard: View {
                     }
                 }
             }
-            HStack {
-                Spacer(minLength: 0)
-                Button(action: onClose) {
-                    Text("Done")
-                        .font(.body(14, weight: 800))
-                        .foregroundStyle(Theme.surface)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 9)
-                        .background(Theme.ink, in: Capsule())
-                        .contentShape(Capsule())
+            if !isInline {
+                HStack {
+                    Spacer(minLength: 0)
+                    Button(action: onClose) {
+                        Text("Done")
+                            .font(.body(14, weight: 800))
+                            .foregroundStyle(Theme.surface)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 9)
+                            .background(Theme.ink, in: Capsule())
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(note != nil)
+                    .opacity(note == nil ? 1 : 0.35)
+                    .accessibilityIdentifier("time-done")
                 }
-                .buttonStyle(.plain)
-                .disabled(note != nil)
-                .opacity(note == nil ? 1 : 0.35)
-                .accessibilityIdentifier("time-done")
             }
         }
-        .padding(14)
-        .frame(width: 272)
+        .padding(isInline ? 0 : 14)
+        .frame(width: isInline ? nil : 272)
         // A hardware keyboard types straight in.
         .focusable()
         .focusEffectDisabled()
@@ -340,6 +345,66 @@ struct TimeKeypadCard: View {
 
 // MARK: - A time something happened
 
+/// The times a log can take on its day, as minutes from that day's midnight: only times
+/// that have happened that day. Shared by the time pill and the phone's inline pad.
+struct LogTimeDay {
+    /// Within one day, e.g. the meal's day up to now.
+    let range: ClosedRange<Date>
+    var calendar: Calendar = .current
+    var clock: ClockStyle = .current
+
+    private var dayStart: Date { calendar.startOfDay(for: range.lowerBound) }
+
+    func minute(_ date: Date) -> Int {
+        let parts = calendar.dateComponents([.day, .hour, .minute], from: dayStart, to: date)
+        return (parts.day ?? 0) * TimeEntry.day + (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    }
+
+    func date(_ minute: Int) -> Date {
+        calendar.date(byAdding: .minute, value: minute, to: dayStart) ?? dayStart
+    }
+
+    func clamp(_ date: Date) -> Date { min(max(date, range.lowerBound), range.upperBound) }
+
+    /// When `time` starts on this day, kept inside it.
+    func resolved(_ time: LogTime, now: Date, lasting: Int) -> Date {
+        clamp(time.start(now: now, lasting: lasting))
+    }
+
+    private var allowed: ClosedRange<Int> { minute(range.lowerBound)...max(minute(range.lowerBound), minute(range.upperBound)) }
+
+    /// Why `minute` can't be used, if it can't.
+    func problem(_ minute: Int) -> String? {
+        guard !allowed.contains(minute) else { return nil }
+        return minute > allowed.upperBound
+            ? "\(clock.text(minute)) is later than now, so it can't be logged yet."
+            : "\(clock.text(minute)) is too early for this day."
+    }
+
+    /// The card's one-tap choices that fall on this day; choosing one calls `choose`.
+    func suggestions(
+        _ suggestions: [(title: String, time: LogTime)], selected: LogTime, now: Date, lasting: Int, choose: @escaping (LogTime) -> Void
+    ) -> [TimeSuggestion] {
+        suggestions.compactMap { suggestion in
+            let start = suggestion.time.start(now: now, lasting: lasting)
+            // "Just now" is offered whenever now is in range, even if a walk that just
+            // ended started before midnight. A minute's slack: "now" was read a moment
+            // after the range was.
+            let probe = suggestion.time == .justNow ? now : start
+            guard probe >= range.lowerBound, probe <= range.upperBound.addingTimeInterval(60) else { return nil }
+            let showsTime = !suggestion.title.contains(":")
+            return TimeSuggestion(
+                title: suggestion.title,
+                detail: showsTime && suggestion.time != .justNow ? clock.text(minute(clamp(start))) : nil,
+                isSelected: selected == suggestion.time
+            ) {
+                choose(suggestion.time)
+                return nil
+            }
+        }
+    }
+}
+
 /// When something happened on a day: the label, then the time on the right.
 /// Only times that have happened that day can be set.
 struct LogTimeField<Leading: View>: View {
@@ -356,68 +421,24 @@ struct LogTimeField<Leading: View>: View {
     var clock: ClockStyle = .current
     @ViewBuilder var leading: () -> Leading
 
+    private var day: LogTimeDay { LogTimeDay(range: range, calendar: calendar, clock: clock) }
+
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
             leading()
             Spacer(minLength: 8)
             TimeFieldControl(
-                minute: minute(resolved), clock: clock, suggestions: shownSuggestions,
+                minute: day.minute(day.resolved(time, now: now, lasting: lasting)), clock: clock,
+                suggestions: day.suggestions(suggestions, selected: time, now: now, lasting: lasting) { time = $0 },
                 accessibilityLabel: accessibilityLabel, identifier: identifier,
                 apply: apply
             )
         }
     }
 
-    private var shownSuggestions: [TimeSuggestion] {
-        suggestions.compactMap { suggestion in
-            let start = suggestion.time.start(now: now, lasting: lasting)
-            // "Just now" is offered whenever now is in range, even if a walk that just
-            // ended started before midnight. A minute's slack: "now" was read a moment
-            // after the range was.
-            let probe = suggestion.time == .justNow ? now : start
-            guard probe >= range.lowerBound, probe <= range.upperBound.addingTimeInterval(60) else { return nil }
-            let showsTime = !suggestion.title.contains(":")
-            return TimeSuggestion(
-                title: suggestion.title,
-                detail: showsTime && suggestion.time != .justNow ? clock.text(minute(clamp(start))) : nil,
-                isSelected: time == suggestion.time
-            ) {
-                time = suggestion.time
-                return nil
-            }
-        }
-    }
-
-    // MARK: Times on the day
-
-    private var dayStart: Date { calendar.startOfDay(for: range.lowerBound) }
-
-    private func minute(_ date: Date) -> Int {
-        let parts = calendar.dateComponents([.day, .hour, .minute], from: dayStart, to: date)
-        return (parts.day ?? 0) * TimeEntry.day + (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-    }
-
-    private func date(_ minute: Int) -> Date {
-        calendar.date(byAdding: .minute, value: minute, to: dayStart) ?? dayStart
-    }
-
-    private func clamp(_ date: Date) -> Date { min(max(date, range.lowerBound), range.upperBound) }
-
-    private var resolved: Date { clamp(time.start(now: now, lasting: lasting)) }
-
-    private var allowed: ClosedRange<Int> { minute(range.lowerBound)...max(minute(range.lowerBound), minute(range.upperBound)) }
-
-    private func outside(_ minute: Int) -> String {
-        minute > allowed.upperBound
-            ? "\(clock.text(minute)) is later than now, so it can't be logged yet."
-            : "\(clock.text(minute)) is too early for this day."
-    }
-
-    // MARK: Setting
-
     private func apply(_ minute: Int) -> String? {
-        guard allowed.contains(minute) else { return outside(minute) }
-        time = .at(date(minute))
+        if let problem = day.problem(minute) { return problem }
+        time = .at(day.date(minute))
         return nil
     }
 }

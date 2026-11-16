@@ -9,7 +9,10 @@
 # clones were no faster than one simulator and made timing-sensitive tests flaky,
 # so it is off by default; try it on an idle, bigger machine.
 #
-# Usage: scripts/test.sh [--tour] [--unit-only | --ui-only] [--workers N] [simulator-udid]
+# --phone runs on the iOS 17.5 iPhone 15 simulator instead, and its UI run is the
+# phone's own tests (PhoneTests). The iPad run skips them.
+#
+# Usage: scripts/test.sh [--tour] [--phone] [--unit-only | --ui-only] [--workers N] [simulator-udid]
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -19,19 +22,24 @@ tour=0
 unit=1
 ui=1
 workers=1
+phone=0
 udid=""
 while (( $# )); do
   case "$1" in
     --tour) tour=1 ;;
+    --phone) phone=1 ;;
     --unit-only) ui=0 ;;
     --ui-only) unit=0 ;;
     --workers) shift; workers="$1" ;;
-    -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) udid="$1" ;;
   esac
   shift
 done
 
+if [[ -z "$udid" ]] && (( phone )); then
+  udid=47B9AD5F-E3F3-4EC2-A22F-364E3D90C55C
+fi
 if [[ -z "$udid" ]]; then
   udid=$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
@@ -78,8 +86,12 @@ if (( ui )); then
   # simulator (clones copy this state too).
   xcrun simctl bootstatus "$udid" -b >/dev/null
   xcrun simctl privacy "$udid" reset calendar com.porchlight.porchlight
-  skip=()
-  (( tour )) || skip=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
+  if (( phone )); then
+    skip=(-only-testing:PorchlightUITests/PhoneTests)
+  else
+    skip=(-skip-testing:PorchlightUITests/PhoneTests)
+    (( tour )) || skip+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
+  fi
   parallel=()
   (( workers > 1 )) && parallel=(-parallel-testing-enabled YES -parallel-testing-worker-count "$workers")
   rm -rf "$results/ui.xcresult"

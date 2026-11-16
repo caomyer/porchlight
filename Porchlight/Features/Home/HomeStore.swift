@@ -172,6 +172,22 @@ final class HomeStore {
         perform { try database.toggleChore(id: id, day: day ?? today, personId: personId) }
     }
 
+    /// Checks a chore off today unless it is already done, crediting `personId` for
+    /// "Anyone" chores. Nil, with `lastError` set, when it is rejected.
+    func complete(_ chore: Chore, by personId: Person.ID?, now: Date = .now) -> ChoreCheckOff? {
+        let id = chore.id
+        let day = today
+        var result: ChoreCheckOff?
+        perform { result = try database.completeChore(id: id, day: day, personId: personId, now: now) }
+        return result
+    }
+
+    /// Undoes one check-off.
+    func undo(_ completion: ChoreCompletion) {
+        let id = completion.id
+        perform { try database.deleteChoreCompletion(id: id) }
+    }
+
     // MARK: Rewards
 
     @discardableResult

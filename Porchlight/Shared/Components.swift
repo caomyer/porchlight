@@ -4,15 +4,29 @@ import UIKit
 extension Color {
     /// This color laid at `opacity` over the paper surface, as a solid color.
     /// The Sunday Paper tint used for event blocks, chips and selected states.
-    func wash(_ opacity: Double, over base: Color = Theme.surface) -> Color {
-        let top = UIColor(self).rgba
-        let bottom = UIColor(base).rgba
+    ///
+    /// Both colors are read in `scheme`'s look: a wash is computed outside any view, so
+    /// it can't follow the look on its own. The wall is always light; the phone passes
+    /// its environment's color scheme.
+    func wash(_ opacity: Double, over base: Color = Theme.surface, in scheme: ColorScheme = .light) -> Color {
+        let top = rgba(in: scheme)
+        let bottom = base.rgba(in: scheme)
         return Color(
             .sRGB,
             red: bottom.r + (top.r - bottom.r) * opacity,
             green: bottom.g + (top.g - bottom.g) * opacity,
             blue: bottom.b + (top.b - bottom.b) * opacity
         )
+    }
+}
+
+private extension Color {
+    /// The color's components in a look, resolved by SwiftUI for exactly that look (a
+    /// UIColor made from it would follow whatever the current traits happen to be).
+    func rgba(in scheme: ColorScheme) -> (r: Double, g: Double, b: Double, a: Double) {
+        var environment = EnvironmentValues()
+        environment.colorScheme = scheme
+        return UIColor(cgColor: resolve(in: environment).cgColor).rgba
     }
 }
 

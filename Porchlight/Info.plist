@@ -47,14 +47,25 @@
 		<key>UIColorName</key>
 		<string>LaunchBackground</string>
 	</dict>
+	<key>UILaunchScreen~iphone</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>PocketLaunchBackground</string>
+	</dict>
 	<key>UIRequiresFullScreen</key>
 	<true/>
 	<key>UIStatusBarHidden</key>
 	<true/>
+	<key>UIStatusBarHidden~iphone</key>
+	<false/>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~iphone</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 </dict>
 </plist>

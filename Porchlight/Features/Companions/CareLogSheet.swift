@@ -128,18 +128,10 @@ private struct CareLogForm: View {
     @Environment(CompanionStore.self) private var store
     @Environment(AppModel.self) private var model
 
-    @State private var people: [Person.ID] = []
-    @State private var duration = 20
-    @State private var pee = true
-    @State private var poo = true
-    @State private var vibe: CareVibe = .smooth
-    @State private var when: LogTime = .justNow
-    @State private var note = ""
+    @State private var fields = CareLogFields()
     @State private var didSetDefaults = false
     @State private var confirmingDelete = false
     @FocusState private var noteFocused: Bool
-
-    private static let durations = [10, 20, 30, 45, 60]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -184,18 +176,18 @@ private struct CareLogForm: View {
                 }
             }
             LogTimeField(
-                time: $when,
-                range: dayRange,
+                time: $fields.when,
+                range: logDay.range,
                 now: report.now,
-                lasting: routine.tracks(.duration) ? duration : 0,
-                suggestions: isToday ? LogTime.recentSuggestions(justNow: routine.tracks(.duration) ? "Just got back" : "Just now") : slotSuggestions,
+                lasting: logDay.lasting(fields),
+                suggestions: logDay.suggestions,
                 accessibilityLabel: routine.tracks(.duration) ? "Started" : "When",
                 identifier: "exact-time",
                 calendar: store.snapshot.calendar
             ) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     SectionLabel(routine.tracks(.duration) ? "Started" : "When")
-                    if let timingNote {
+                    if let timingNote = logDay.timingNote(fields) {
                         Text(timingNote).font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted)
                     }
                 }
@@ -204,19 +196,19 @@ private struct CareLogForm: View {
             if routine.tracks(.duration) {
                 label("How long")
                 FlowLayout(spacing: 8) {
-                    ForEach(Self.durations, id: \.self) { minutes in
-                        ChoicePill(title: minutes >= 60 ? "1 hr+" : "\(minutes) min", isSelected: duration == minutes) { duration = minutes }
+                    ForEach(CareLogFields.durations, id: \.self) { minutes in
+                        ChoicePill(title: minutes >= 60 ? "1 hr+" : "\(minutes) min", isSelected: fields.duration == minutes) { fields.duration = minutes }
                     }
                 }
             }
             if routine.tracks(.pee) || routine.tracks(.poo) {
                 label("Business")
                 FlowLayout(spacing: 8) {
-                    if routine.tracks(.pee) { ChoicePill(title: "💧 Pee", isSelected: pee) { pee.toggle() } }
-                    if routine.tracks(.poo) { ChoicePill(title: "💩 Poo", isSelected: poo) { poo.toggle() } }
-                    ChoicePill(title: "🤷 Nothing doing", isSelected: !pee && !poo) {
-                        pee = false
-                        poo = false
+                    if routine.tracks(.pee) { ChoicePill(title: "💧 Pee", isSelected: fields.pee) { fields.pee.toggle() } }
+                    if routine.tracks(.poo) { ChoicePill(title: "💩 Poo", isSelected: fields.poo) { fields.poo.toggle() } }
+                    ChoicePill(title: "🤷 Nothing doing", isSelected: !fields.pee && !fields.poo) {
+                        fields.pee = false
+                        fields.poo = false
                     }
                 }
             }
@@ -224,12 +216,12 @@ private struct CareLogForm: View {
                 label("Vibe")
                 FlowLayout(spacing: 8) {
                     ForEach(CareVibe.allCases, id: \.self) { option in
-                        ChoicePill(title: "\(option.emoji) \(option.label)", isSelected: vibe == option) { vibe = option }
+                        ChoicePill(title: "\(option.emoji) \(option.label)", isSelected: fields.vibe == option) { fields.vibe = option }
                     }
                 }
             }
             label("Note")
-            TextField("Optional: what happened?", text: $note)
+            TextField("Optional: what happened?", text: $fields.note)
                 .font(.body(15, weight: 600))
                 .submitLabel(.done)
                 .focused($noteFocused)
@@ -267,7 +259,7 @@ private struct CareLogForm: View {
                     Label(editing == nil ? "Save \(noun)" : "Save changes", systemImage: "checkmark")
                 }
                 .buttonStyle(PrimaryButtonStyle())
-                .disabled(people.isEmpty)
+                .disabled(fields.people.isEmpty)
             }
         }
     }
@@ -280,19 +272,6 @@ private struct CareLogForm: View {
             return CareCatchUp.subtitle(window, of: routine, on: catchUp.day, today: report.today, calendar: store.snapshot.calendar)
         }
         return "Tap everyone who came along"
-    }
-
-    /// On an earlier day, the time card offers that day's slots at their usual times.
-    private var slotSuggestions: [(title: String, time: LogTime)] {
-        routine.effectiveWindows.indices.compactMap { index in
-            let window = routine.effectiveWindows[index]
-            guard !window.isAllDay else { return nil }
-            return (window.label, .at(usualTime(index)))
-        }
-    }
-
-    private func usualTime(_ slot: Int) -> Date {
-        CareCatchUp.usualTime(slot, of: routine, on: day, entries: store.snapshot.entries(of: routine.id), now: report.now, calendar: store.snapshot.calendar)
     }
 
     private var title: String {
@@ -313,10 +292,10 @@ private struct CareLogForm: View {
 
     private func personButton(_ person: Person) -> some View {
         let id = person.id
-        let isSelected = people.contains(id)
+        let isSelected = fields.people.contains(id)
         let color = person.color.color
         return Button {
-            if isSelected { people.removeAll { $0 == id } } else { people.append(id) }
+            fields.toggle(id)
         } label: {
             VStack(spacing: 6) {
                 Avatar(person: person, size: 76)
@@ -352,32 +331,14 @@ private struct CareLogForm: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    /// The log's day: the day of the one being fixed, the missed slot's day, or today.
-    private var day: DayKey {
-        if let editing { return DayKey(editing.time, calendar: store.snapshot.calendar) }
-        return catchUp?.day ?? report.today
-    }
-
-    private var isToday: Bool { day == report.today }
-
-    /// The day's start up to now, or its last minute for an earlier day.
-    private var dayRange: ClosedRange<Date> {
+    /// The log's day and the times it can take.
+    private var logDay: CareLogDay {
         let calendar = store.snapshot.calendar
-        let start = day.startDate(in: calendar)
-        let end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-60) ?? start
-        return start...max(start, min(end, CompanionClock.now()))
-    }
-
-    private var startedAt: Date {
-        let lasting = routine.tracks(.duration) ? duration : 0
-        return min(max(when.start(now: CompanionClock.now(), lasting: lasting), dayRange.lowerBound), dayRange.upperBound)
-    }
-
-    /// "back by 6:32pm" next to the Started label, so the saved times are never a guess.
-    private var timingNote: String? {
-        guard routine.tracks(.duration) else { return nil }
-        let end = when.start(now: report.now, lasting: duration).addingTimeInterval(Double(duration) * 60)
-        return "back by \(CareText.timeWithPeriod(end, calendar: store.snapshot.calendar))"
+        let day = editing.map { DayKey($0.time, calendar: calendar) } ?? catchUp?.day ?? report.today
+        return CareLogDay(
+            routine: routine, day: day, today: report.today, now: report.now, calendar: calendar,
+            history: store.snapshot.entries(of: routine.id)
+        )
     }
 
     private func setDefaults() {
@@ -385,46 +346,20 @@ private struct CareLogForm: View {
         didSetDefaults = true
         store.lastError = nil
         if let editing {
-            let draft = CareLogDraft(editing)
-            people = draft.people
-            when = .at(draft.occurredAt)
-            duration = draft.durationMinutes ?? duration
-            pee = draft.pee ?? false
-            poo = draft.poo ?? false
-            vibe = draft.vibe ?? vibe
-            note = draft.note ?? ""
+            fields = CareLogFields(editing: editing)
             return
         }
-        if let first = model.people.first?.id {
-            people = [first]
-        }
-        if let catchUp {
-            when = .at(usualTime(catchUp.slot))
-        }
-        // Start from the usual length of recent logs.
-        let recent = store.snapshot.entries(of: routine.id).suffix(10).compactMap(\.log.durationMinutes)
-        if !recent.isEmpty {
-            let average = recent.reduce(0, +) / recent.count
-            duration = Self.durations.min { abs($0 - average) < abs($1 - average) } ?? 20
-        }
+        fields = .new(people: model.people.first.map { [$0.id] } ?? [], for: logDay, catchUpSlot: catchUp?.slot)
     }
 
     private func save() {
-        let draft = CareLogDraft(
-            people: people,
-            occurredAt: startedAt,
-            durationMinutes: routine.tracks(.duration) ? duration : nil,
-            pee: routine.tracks(.pee) ? pee : nil,
-            poo: routine.tracks(.poo) ? poo : nil,
-            vibe: routine.tracks(.vibe) ? vibe : nil,
-            note: note
-        )
+        let draft = fields.draft(for: logDay)
         if let editing {
             if store.updateLog(id: editing.id, draft) { onClose() }
             return
         }
         guard store.log(routineId: routine.id, draft) != nil else { return }
-        onSaved(Celebration.after(report: report, routine: routine, people: people, names: store.snapshot.names, calendar: store.snapshot.calendar))
+        onSaved(Celebration.after(report: report, routine: routine, people: fields.people, names: store.snapshot.names, calendar: store.snapshot.calendar))
     }
 
     private func delete() {
