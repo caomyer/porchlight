@@ -43,6 +43,20 @@ enum PocketGlowLogic {
             .sorted { (-(stars[$0.id] ?? 0), order[$0.id] ?? 0) < (-(stars[$1.id] ?? 0), order[$1.id] ?? 0) }
     }
 
+    /// What cashing in a reward spends, in words a reader who just saw "20 of 20" follows:
+    /// the reward's price, who earned it, and, when the round earned more than the price,
+    /// that the extra goes too. Cashing in spends the whole round (`cashInReward` records
+    /// every star earned since the last cash-in) and starts the count again from zero.
+    static func cashInMessage(_ status: ChoreBoard.RewardStatus, earners: [Person], me: Person.ID?) -> String {
+        let price = status.reward.targetStars
+        let who = names(earners, me: me)
+        let extra = status.earned - price
+        let spent = extra > 0
+            ? "It costs \(StarWords.count(price)), and \(who) earned \(status.earned), so the \(extra) extra \(StarWords.noun(extra)) \(extra == 1 ? "goes" : "go") with it."
+            : "\(StarWords.count(price)) from \(who)."
+        return spent + " Then it starts again from zero."
+    }
+
     /// "James, Mia and Ava", with me as "you".
     static func names(_ people: [Person], me: Person.ID?) -> String {
         let names = people.map { $0.id == me ? "you" : $0.name }

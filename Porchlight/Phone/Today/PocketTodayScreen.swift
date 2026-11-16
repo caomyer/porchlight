@@ -72,11 +72,11 @@ struct PocketTodayScreen: View {
         }
         .background(Theme.background)
         .paperUnderStatusBar()
-        .sheet(item: $careSheet) { request in
-            PocketCareSheet(request: request, logging: logging)
+        .sheet(item: $careSheet, onDismiss: toasts.showPending) { request in
+            PocketCareSheet(request: request, logging: logging.inSheet)
         }
-        .sheet(item: $catchUp) { request in
-            PocketCatchUpSheet(request: request, logging: logging)
+        .sheet(item: $catchUp, onDismiss: toasts.showPending) { request in
+            PocketCatchUpSheet(request: request, logging: logging.inSheet)
         }
         .confirmationDialog(asking?.question ?? "", isPresented: isAsking, titleVisibility: .visible, presenting: asking) { pending in
             ForEach(model.people) { person in
@@ -303,24 +303,26 @@ private struct PocketAgendaCard: View {
     }
 
     private func row(time: String, title: String, subtitle: String?, owner: Owner) -> some View {
-        HStack(alignment: .center, spacing: 10) {
+        AdaptiveRow {
             Text(time)
                 .phoneFont(.body, 12, weight: 700, relativeTo: .caption)
                 .monospacedDigit()
                 .foregroundStyle(Theme.muted)
                 .frame(minWidth: 46, alignment: .leading)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                if let subtitle {
-                    Text(subtitle)
-                        .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                        .foregroundStyle(Theme.muted)
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                    if let subtitle {
+                        Text(subtitle)
+                            .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                            .foregroundStyle(Theme.muted)
+                    }
                 }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if case let .person(id) = owner {
-                PersonAvatar(model.person(id), size: .small)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if case let .person(id) = owner {
+                    PersonAvatar(model.person(id), size: .small)
+                }
             }
         }
         .padding(.vertical, 7)

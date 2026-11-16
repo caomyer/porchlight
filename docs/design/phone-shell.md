@@ -135,6 +135,8 @@ With access, each of the phone's calendars has a check (shown on Today or not) a
 Household and Busy only are the calendar's existing visibility; Just me is a new device-local flag, `calendarSource.isPersonal`, added by the migration "calendar v2: just me" after the sync rebuild.
 Calendar ids and these choices stay on the device: `calendarSource` is device-local.
 Today every calendar is read only on the device that has it, so Just me changes nothing visible yet; sharing a calendar-to-person mapping between devices is a later sync task, and nothing here builds it.
+Once it exists, shared screens can show calendars set to Household in full and Busy only as "Busy", and never one set to Just me.
+The page itself only says what the choices mean on this phone: Household and Just me show events in full, Busy only shows them as "Busy".
 
 ## You (E1)
 
@@ -147,6 +149,8 @@ All phone text uses `phoneFont`, so it follows Dynamic Type to the largest acces
 At accessibility sizes, rows with a trailing action, banners and the toast stack instead of squeezing, the slot grid becomes one column, and buttons keep their full width and wrap their label.
 Every control is at least 44 pt; small pills keep their look and get a 44 pt tap area.
 Buttons read their result: "Log Yo-Yo's evening walk", "Check off Fix the leaky faucet", "Check off Vacuum the living room as yours".
+Rows that put two pieces of text side by side (a reward and its count, a person's bar and number, a chore and its stars, an event and its time, a dinner and its day) become columns at accessibility sizes (`AdaptiveRow`, `PersonBarRow`, decided by `dynamicTypeSize.isAccessibilitySize`).
+Star counts always agree in number ("+1 star", "2 stars") through `StarWords`.
 
 ## Tests
 
@@ -184,7 +188,10 @@ Where the atlas was silent, or didn't fit the code:
 - **A dinner's needs are typed.** Dinners have no ingredients in the data, so "Needs: tortillas, limes" is something you type for a dinner; each item goes on the groceries in its aisle, credited to you.
 - **List rows check with a plain box.** Like the wall's list rows, not the accent box chores use.
 - **Glow without Lately.** The phone shows my week, saving for and everyone; the feed and the porch sparks stay on the wall.
-- **Cash-in words.** The sheet says who earned the stars and that Glow starts saving again; it doesn't promise that the shared screen celebrates, since the wall-side celebration for a cash-in from another device is a later task.
+- **Cash-in words.** The sheet names the reward's price and who earned it; it doesn't promise that the shared screen celebrates, since the wall-side celebration for a cash-in from another device is a later task.
+- **What a cash-in spends.** The wall's cash-in records every star of the round, and the round can earn more than the price (21 for a reward of 20, the bar showing "20 of 20"). The phone keeps that rule and says it plainly: the celebration shows the price ("20 stars from you"), and the sheet says when the extra goes with it ("It costs 20 stars, and you earned 21, so the 1 extra star goes with it. Then it starts again from zero.").
+- **The celebration covers the page.** It is opaque paper in both looks, so nothing of Glow is legible behind the title; the tab bar stays.
+- **Toasts wait for sheets.** A toast from a sheet (the care sheet, catch-up, a dinner's needs) is held until the sheet has finished closing (`ToastCenter.showAfterSheet`, flushed by the sheet's `onDismiss`), and the cash-in celebration waits the same way; shown at once, they sat behind the closing sheet and could be gone before anyone saw them.
 - **"Just me" is stored, not yet enforced.** Nothing leaves the phone today, so it can't change what others see; the choice is kept so it's right when calendar mappings sync.
 
 ## Fixed on the wall along the way
@@ -192,6 +199,11 @@ Where the atlas was silent, or didn't fit the code:
 Nothing on the wall looked broken while working here.
 Wall code changed only to share it: the care form's logic and the time pill's day math, `Color.wash` resolving its colors explicitly, the companion page's week line, the grocery sections, `HomeStore.cashIn` returning the cash-in, and the chore editor's compact layout (its regular layout is unchanged).
 The wall's UI tests cover all of them.
+
+Seeding the sample household used to spend about 4 seconds (6.4 the first time, on a loaded Mac) on the sample day pages: each line of sample text is rendered at 5x, thinned pixel by pixel and traced into PencilKit strokes, which is slow in a debug build, and it ran on every sample launch before the first frame.
+The traced pages are now cached in Caches (`SampleHandwriting.cachedPage`), keyed by their words, inks and tracing settings, outside the sample sandbox; the same strokes come back, so the wall's Food page looks exactly as before.
+That brought seeding to about 1.8 seconds, of which 1.6 went on drawing, resizing and encoding the six sample meal photos; their stored files are cached the same way (`SamplePhoto.stored`) and copied in.
+Measured on the iPhone 15 simulator with the Mac under load: seeding took 4.1 seconds a launch before (6.7 on the first), and 0.26 seconds after, once the caches are filled by a first launch.
 
 Sample and reset launches (`-sampleHousehold`, `-resetData`) now start from an empty sandbox folder.
 A simulator is shared by every checkout of the app, and the iPad suite failed almost entirely when another branch's build had migrated the sandbox database to a schema this build doesn't know ("table companion has no column named photoFile").

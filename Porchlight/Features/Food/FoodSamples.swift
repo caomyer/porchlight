@@ -1,4 +1,5 @@
 #if DEBUG
+import CryptoKit
 import Foundation
 import PencilKit
 import UIKit
@@ -96,7 +97,7 @@ enum FoodSamples {
         /// Gives a sample meal generated photos, so covers, counts and paging show without a camera.
         func photograph(_ entry: JournalEntry, count: Int, palette: Int) throws {
             let id = entry.id
-            let stored = try (0..<count).map { try photos.save(SamplePhoto.image(palette: palette + $0, emoji: entry.emoji ?? "🍽️")) }
+            let stored = try (0..<count).map { try SamplePhoto.stored(palette: palette + $0, emoji: entry.emoji ?? "🍽️", in: photos) }
             try database.addMealPhotos(entryId: id, stored, now: entry.eatenAt)
         }
 
@@ -116,7 +117,7 @@ enum FoodSamples {
             let lines = notes[index].map { text, writer, ink in
                 (text, ink ?? PageInk.defaultInk(for: people[min(writer, people.count - 1)].color))
             }
-            let drawing = SampleHandwriting.page(lines: lines)
+            let drawing = SampleHandwriting.cachedPage(lines: lines)
             try database.savePage(journalId: journalId, day: day, drawing: drawing.dataRepresentation())
         }
 
@@ -138,6 +139,31 @@ enum SamplePhoto {
         (0x6D4A32, 0x3D2A1E), (0x8A6A4A, 0x4A3424), (0x5A6B55, 0x2F3A2C),
         (0x9B5D3C, 0x522F1E), (0x444F63, 0x232A38), (0x7C6A4D, 0x3E3424),
     ]
+
+    /// A sample photo saved in `store` like a camera shot. Drawing, resizing and encoding
+    /// one takes a quarter of a second in a debug build, so the stored files are kept in
+    /// Caches (outside the sample sandbox, which each sample launch clears) and copied in.
+    static func stored(palette: Int, emoji: String, in store: FoodPhotoStore) throws -> FoodPhotoStore.Stored {
+        let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("SamplePhotos", isDirectory: true)
+        let key = "v1-\(abs(palette) % tables.count)-\(palette % 3)-" + emoji.unicodeScalars.map { String($0.value, radix: 16) }.joined(separator: "_")
+        let cachedPhoto = folder.appendingPathComponent(key + ".jpg")
+        let cachedThumbnail = folder.appendingPathComponent(key + "-thumb.jpg")
+        let manager = FileManager.default
+        if manager.fileExists(atPath: cachedPhoto.path), manager.fileExists(atPath: cachedThumbnail.path) {
+            try manager.createDirectory(at: store.directory, withIntermediateDirectories: true)
+            let name = FoodPhotoStore.filePrefix + UUID().uuidString.lowercased()
+            let stored = FoodPhotoStore.Stored(photoFile: name + ".jpg", thumbnailFile: name + "-thumb.jpg", crop: nil)
+            try manager.copyItem(at: cachedPhoto, to: store.url(for: stored.photoFile))
+            try manager.copyItem(at: cachedThumbnail, to: store.url(for: stored.thumbnailFile))
+            return stored
+        }
+        let stored = try store.save(image(palette: palette, emoji: emoji))
+        try? manager.createDirectory(at: folder, withIntermediateDirectories: true)
+        try? manager.copyItem(at: store.url(for: stored.photoFile), to: cachedPhoto)
+        try? manager.copyItem(at: store.url(for: stored.thumbnailFile), to: cachedThumbnail)
+        return stored
+    }
 
     static func image(palette: Int, emoji: String) -> UIImage {
         let size = CGSize(width: 1600, height: 1200)
@@ -178,6 +204,33 @@ enum SampleHandwriting {
     private static let resolution: CGFloat = 5
     private static let fontSize: CGFloat = 20
     private static let strokeWidth: CGFloat = 1.45
+    /// Bump when the tracing changes, so cached pages are traced again.
+    private static let version = 1
+
+    /// The page for these lines, traced once and then read back from Caches. Tracing thins
+    /// every glyph pixel by pixel, which takes seconds in a debug build, and every sample
+    /// launch seeds the same seven pages, so it would otherwise hold up the first frame.
+    /// The cache lives outside the sample sandbox, which each sample launch clears.
+    static func cachedPage(lines: [(String, PageInk)]) -> PKDrawing {
+        let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("SampleHandwriting", isDirectory: true)
+        let url = folder.appendingPathComponent(cacheKey(lines) + ".drawing")
+        if let data = try? Data(contentsOf: url), let drawing = try? PKDrawing(data: data) {
+            return drawing
+        }
+        let drawing = page(lines: lines)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try? drawing.dataRepresentation().write(to: url, options: .atomic)
+        return drawing
+    }
+
+    /// Everything the strokes depend on: the words, their ink, and how they are traced.
+    private static func cacheKey(_ lines: [(String, PageInk)]) -> String {
+        let parts = ["v\(version)", "\(resolution)", "\(fontSize)", "\(strokeWidth)"]
+            + lines.map { "\($0.0)\u{1F}\($0.1.rawValue)" }
+        let digest = SHA256.hash(data: Data(parts.joined(separator: "\u{1E}").utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
 
     static func page(lines: [(String, PageInk)]) -> PKDrawing {
         var strokes: [PKStroke] = []

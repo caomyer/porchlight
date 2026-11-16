@@ -30,7 +30,7 @@ struct PocketDinners: View {
         let isToday = day == home.today
         return HStack(spacing: 10) {
             Button { onEdit(day) } label: {
-                HStack(spacing: 10) {
+                AdaptiveRow {
                     Text(weekday)
                         .phoneFont(.body, 12, weight: 700, relativeTo: .caption)
                         .foregroundStyle(isToday ? Theme.accent : Theme.muted)
@@ -103,7 +103,7 @@ struct PocketDinnerNeeds: View {
         let added = titles.filter { home.addItem($0, to: groceries, addedBy: me?.id) }
         dismiss()
         guard !added.isEmpty else { return }
-        toasts.show(UndoToast(
+        toasts.showAfterSheet(UndoToast(
             emoji: "🛒",
             title: added.count == 1 ? "\(added[0]) added to \(groceries.title.lowercased())" : "\(added.count) items added to \(groceries.title.lowercased())",
             detail: ListFormatter.localizedString(byJoining: added)

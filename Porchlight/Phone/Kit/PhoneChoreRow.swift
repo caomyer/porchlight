@@ -44,7 +44,7 @@ struct PhoneChoreRow: View {
     }
 
     private var row: some View {
-        let layout = typeSize.isAccessibilitySize && kind == .anyone && !isDone
+        let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
             : AnyLayout(HStackLayout(alignment: .center, spacing: 10))
         return layout {
@@ -75,7 +75,7 @@ struct PhoneChoreRow: View {
         switch kind {
         case .mine, .theirs:
             PhoneTag(text: "+\(stars)")
-                .accessibilityLabel("\(stars) \(stars == 1 ? "star" : "stars")")
+                .accessibilityLabel(StarWords.count(stars))
         case .anyone:
             if isDone {
                 PersonAvatar(doneBy, size: .small)
@@ -93,7 +93,7 @@ struct PhoneChoreRow: View {
                 .buttonStyle(.plain)
                 .fixedSize()
                 .accessibilityLabel("Check off \(title) as yours")
-                .accessibilityHint("Earns \(stars) \(stars == 1 ? "star" : "stars")")
+                .accessibilityHint("Earns \(StarWords.count(stars))")
             }
         }
     }

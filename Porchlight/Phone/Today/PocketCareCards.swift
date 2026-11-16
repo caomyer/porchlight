@@ -71,7 +71,7 @@ private struct FullCareCard: View {
                 .accessibilityLabel(PocketCareWords.logLabel(lead, companion: report.name))
                 .accessibilityIdentifier("log-\(report.name)")
             } else if card.standing == .allSet, let latest {
-                DoneCapsule(text: "✓ Logged · +\(latest.log.stars) \(latest.log.stars == 1 ? "star" : "stars")")
+                DoneCapsule(text: "✓ Logged · \(StarWords.earned(latest.log.stars))")
             } else if let routine = card.shown?.routine {
                 Button("Log a \(routine.kind.noun(title: routine.title))…") { handlers.more(card, routine, []) }
                     .buttonStyle(PhoneButtonStyle(kind: .ghost))

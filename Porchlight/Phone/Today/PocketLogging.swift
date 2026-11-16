@@ -10,6 +10,19 @@ struct PocketLogging {
     let toasts: ToastCenter
     /// Who "you" is in the words, on a personal device.
     let me: Person.ID?
+    /// Logging from a sheet: its toast waits until the sheet has closed.
+    var fromSheet = false
+
+    /// The same, for a sheet to log with.
+    var inSheet: PocketLogging {
+        var logging = self
+        logging.fromSheet = true
+        return logging
+    }
+
+    private func present(_ toast: UndoToast) {
+        if fromSheet { toasts.showAfterSheet(toast) } else { toasts.show(toast) }
+    }
 
     private var names: [Person.ID: String] { companions.snapshot.names }
     private var calendar: Calendar { companions.snapshot.calendar }
@@ -28,7 +41,7 @@ struct PocketLogging {
         let slotName = CareCatchUp.slotName(routine.effectiveWindows[safe: slot] ?? .anyTime, of: routine)
         switch companions.log(routineId: routine.id, slot: slot, on: day, draft, now: now) {
         case let .logged(log):
-            toasts.show(UndoToast(
+            present(UndoToast(
                 emoji: routine.emoji,
                 title: PocketCareWords.capitalized(slotName) + " logged",
                 detail: detail(people: draft.people, stars: routine.stars),
@@ -46,10 +59,10 @@ struct PocketLogging {
         let sentence = PocketToday.alreadyDone(entry, routine: routine, companion: companion, me: me, names: names, calendar: calendar)
         let newcomers = people.filter { !entry.people.contains($0) }
         guard !newcomers.isEmpty else {
-            toasts.show(UndoToast(emoji: routine.emoji, title: sentence, detail: "Already logged, so nothing was added"))
+            present(UndoToast(emoji: routine.emoji, title: sentence, detail: "Already logged, so nothing was added"))
             return
         }
-        toasts.show(UndoToast(
+        present(UndoToast(
             emoji: routine.emoji,
             title: sentence,
             detail: "Already logged, so nothing was added",
@@ -60,17 +73,17 @@ struct PocketLogging {
     private func join(_ entry: CareEntry, routine: CareRoutine, adding people: [Person.ID]) {
         guard companions.addPeople(people, toLog: entry.id) else { return failed() }
         let who = PocketToday.who(people, me: me, names: names)
-        toasts.show(UndoToast(
+        present(UndoToast(
             emoji: routine.emoji,
             title: "Added \(who) to the \(routine.kind.noun(title: routine.title))",
-            detail: "+\(routine.stars) \(routine.stars == 1 ? "star" : "stars") each",
+            detail: "\(StarWords.earned(routine.stars)) each",
             action: .init(title: "Undo") { companions.removePeople(people, fromLog: entry.id) }
         ))
     }
 
     /// After the full care sheet saved a log.
     func logged(_ log: CareLog, routine: CareRoutine, people: [Person.ID]) {
-        toasts.show(UndoToast(
+        present(UndoToast(
             emoji: routine.emoji,
             title: PocketCareWords.capitalized(routine.kind.noun(title: routine.title)) + " logged",
             detail: detail(people: people, stars: routine.stars),
@@ -85,16 +98,16 @@ struct PocketLogging {
         let emoji = chore.emoji ?? "✅"
         switch home.complete(chore, by: person, now: CompanionClock.now()) {
         case let .done(completion):
-            toasts.show(UndoToast(
+            present(UndoToast(
                 emoji: emoji,
                 title: "\(chore.title) done",
-                detail: "+\(completion.stars) \(completion.stars == 1 ? "star" : "stars")",
+                detail: StarWords.earned(completion.stars),
                 action: .init(title: "Undo") { home.undo(completion) }
             ))
         case let .alreadyDone(completion):
             let who = completion.personId.map { PocketToday.who([$0], me: me, names: names) } ?? "Someone"
             let time = CareText.timeWithPeriod(completion.completedAt, calendar: home.calendar)
-            toasts.show(UndoToast(
+            present(UndoToast(
                 emoji: emoji,
                 title: "\(PocketCareWords.capitalized(who)) did it at \(time)",
                 detail: "\(chore.title) was already done"
@@ -109,12 +122,12 @@ struct PocketLogging {
     /// "With Mia · +2 stars": who else came, and what it earned.
     private func detail(people: [Person.ID], stars: Int) -> String {
         let others = people.filter { $0 != me }
-        let earned = "+\(stars) \(stars == 1 ? "star" : "stars")"
+        let earned = StarWords.earned(stars)
         guard !others.isEmpty, me != nil else { return earned }
         return "With \(CaptionEngine.whoText(others, names: names)) · \(earned)"
     }
 
     private func failed(_ message: String? = nil) {
-        toasts.show(UndoToast(emoji: "⚠️", title: "That didn't save", detail: message ?? companions.lastError))
+        present(UndoToast(emoji: "⚠️", title: "That didn't save", detail: message ?? companions.lastError))
     }
 }

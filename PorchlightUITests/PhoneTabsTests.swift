@@ -91,6 +91,7 @@ final class PhoneTabsTests: XCTestCase {
         reveal(missed, in: app)
         missed.tap()
         XCTAssertTrue(app.staticTexts["When did Yo-Yo go out?"].waitForExistence(timeout: 5), "A missed slot in the diary is caught up on")
+        app.buttons["save-catch-up"].waitToSettle()
         app.buttons["save-catch-up"].tap()
         XCTAssertTrue(app.staticTexts["Morning walk logged"].waitForExistence(timeout: 5))
     }
@@ -144,10 +145,9 @@ final class PhoneTabsTests: XCTestCase {
         type("tortillas, limes", into: text, in: app)
         snapshot("m3-32-dinner-needs")
         app.buttons["add-needs"].tap()
-        // The toast is brief, and on a busy simulator the sheet can still be closing while
-        // it shows, so the lasting proof is the grocery list: 8 open items, then Lemons
-        // (checked off) and these two.
-        XCTAssertTrue(app.buttons["Groceries · 10"].waitForExistence(timeout: 10), "Both went on the groceries")
+        XCTAssertTrue(app.staticTexts["2 items added to groceries"].waitForExistence(timeout: 5), "The toast shows once the sheet has closed")
+        // 8 open items, then Lemons (checked off) and these two.
+        XCTAssertTrue(app.buttons["Groceries · 10"].exists, "Both went on the groceries")
         app.buttons["Groceries · 10"].tap()
         XCTAssertTrue(app.buttons["Tortillas"].waitForExistence(timeout: 5))
     }
@@ -166,6 +166,7 @@ final class PhoneTabsTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Cash in Fancy coffee run?"].waitForExistence(timeout: 5), "It asks once")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'stars from you'")).firstMatch.exists, "It names who earned it")
         snapshot("m3-41-cash-in")
+        app.buttons["confirm-cash-in"].waitToSettle()
         app.buttons["confirm-cash-in"].tap()
         XCTAssertTrue(app.staticTexts["Fancy coffee run!"].waitForExistence(timeout: 5), "This phone celebrates")
         snapshot("m3-42-celebration")
@@ -206,7 +207,10 @@ final class PhoneTabsTests: XCTestCase {
     func testCalendarsFromYou() {
         let app = launch()
         app.buttons["you"].tap()
-        app.buttons["calendars"].tap()
+        let calendars = app.buttons["calendars"]
+        XCTAssertTrue(calendars.waitForExistence(timeout: 5))
+        calendars.waitToSettle()
+        calendars.tap()
         XCTAssertTrue(app.buttons["sharing-Us"].waitForExistence(timeout: 5), "Calendars are in the You sheet")
     }
 
@@ -224,6 +228,13 @@ final class PhoneTabsTests: XCTestCase {
         app.tabBars.buttons["Glow"].tap()
         XCTAssertTrue(element(app, beginningWith: "Saving for").waitForExistence(timeout: 5))
         snapshot("m3-82-glow-dark")
+        let cashIn = app.buttons["Cash in Fancy coffee run"]
+        reveal(cashIn, in: app)
+        cashIn.tap()
+        app.buttons["confirm-cash-in"].waitToSettle()
+        app.buttons["confirm-cash-in"].tap()
+        XCTAssertTrue(app.staticTexts["Fancy coffee run!"].waitForExistence(timeout: 5))
+        snapshot("m3-83-celebration-dark")
     }
 
     func testLargestText() {
@@ -239,5 +250,21 @@ final class PhoneTabsTests: XCTestCase {
         reveal(cashIn, in: app)
         XCTAssertTrue(window.contains(cashIn.frame), "The cash-in button is whole on screen")
         snapshot("m3-91-glow-largest")
+        let everyone = element(app, beginningWith: "You,")
+        reveal(everyone, in: app)
+        snapshot("m3-92-glow-everyone-largest")
+
+        app.tabBars.buttons["Today"].tap()
+        let seeAll = app.buttons["see-all"]
+        reveal(seeAll, in: app)
+        seeAll.tap()
+        XCTAssertTrue(app.staticTexts["Pitch in"].waitForExistence(timeout: 5))
+        snapshot("m3-93-pitch-in-largest")
+        app.navigationBars.buttons.firstMatch.tap()
+        let next = app.buttons["next-7-days"]
+        reveal(next, in: app)
+        next.tap()
+        XCTAssertTrue(app.staticTexts["Next 7 days"].waitForExistence(timeout: 5))
+        snapshot("m3-94-next-7-days-largest")
     }
 }

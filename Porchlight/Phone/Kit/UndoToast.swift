@@ -24,6 +24,8 @@ struct UndoToast: Identifiable {
 @Observable
 final class ToastCenter {
     private(set) var current: UndoToast?
+    /// A toast waiting for the sheet it came from to finish closing.
+    @ObservationIgnored private var pending: UndoToast?
     @ObservationIgnored private var timer: Task<Void, Never>?
 
     static let seconds: Double = 5
@@ -40,6 +42,19 @@ final class ToastCenter {
             guard !Task.isCancelled, self?.current?.id == id else { return }
             self?.dismiss()
         }
+    }
+
+    /// Keeps a toast until `showPending()`, which the sheet's `onDismiss` calls: shown at
+    /// once, it would sit behind the sheet while it slides away, and could be gone before
+    /// anyone sees it.
+    func showAfterSheet(_ toast: UndoToast) {
+        pending = toast
+    }
+
+    func showPending() {
+        guard let toast = pending else { return }
+        pending = nil
+        show(toast)
     }
 
     func dismiss() {

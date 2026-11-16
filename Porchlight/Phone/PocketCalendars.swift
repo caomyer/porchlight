@@ -76,7 +76,7 @@ struct PocketCalendars: View {
 
     @ViewBuilder
     private var choices: some View {
-        Text("Pick which of your calendars belong on Today. Shared screens in the household can show the ones set to Household or Busy only once calendars are shared between devices.")
+        Text("Tick the calendars Today shows. On this \(DeviceWords.this), Household and Just me show their events in full, and Busy only shows them as \"Busy\", without titles.")
             .phoneFont(.body, 13.5, weight: 500, relativeTo: .subheadline)
             .foregroundStyle(Theme.muted)
         let mappings = store.mappings
@@ -94,7 +94,7 @@ struct PocketCalendars: View {
             }
             .phoneCard()
         }
-        Text("Events are read on this \(DeviceWords.this) and never stored by Porchlight. Busy only hides titles.")
+        Text("Events are read on this \(DeviceWords.this) and never stored or sent anywhere by Porchlight.")
             .phoneFont(.body, 12.5, weight: 500, relativeTo: .footnote)
             .foregroundStyle(Theme.muted)
     }

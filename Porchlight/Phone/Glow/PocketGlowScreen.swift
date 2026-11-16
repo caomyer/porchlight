@@ -8,6 +8,8 @@ struct PocketGlowScreen: View {
     @Environment(\.me) private var me
     @State private var confirming: ChoreBoard.RewardStatus?
     @State private var celebrating: Celebration?
+    /// A cash-in made in the sheet, celebrated once the sheet has closed.
+    @State private var cashedIn: Celebration?
 
     /// A cash-in this phone just made.
     struct Celebration: Identifiable {
@@ -37,7 +39,7 @@ struct PocketGlowScreen: View {
         .scrollBounceBehavior(.basedOnSize)
         .background(Theme.background)
         .paperUnderStatusBar()
-        .sheet(item: $confirming) { status in
+        .sheet(item: $confirming, onDismiss: celebrate) { status in
             CashInSheet(status: status, earners: earners(status.reward)) { cashIn(status) }
         }
         .overlay {
@@ -56,9 +58,13 @@ struct PocketGlowScreen: View {
         let earners = earners(status.reward)
         confirming = nil
         guard let redemption = home.cashIn(status.reward, now: CompanionClock.now()) else { return }
-        withAnimation(.easeOut(duration: 0.25)) {
-            celebrating = Celebration(reward: status.reward, stars: redemption.stars, earners: earners)
-        }
+        cashedIn = Celebration(reward: status.reward, stars: redemption.stars, earners: earners)
+    }
+
+    private func celebrate() {
+        guard let cashedIn else { return }
+        self.cashedIn = nil
+        withAnimation(.easeOut(duration: 0.25)) { celebrating = cashedIn }
     }
 
     // MARK: Cards
@@ -70,7 +76,7 @@ struct PocketGlowScreen: View {
             Text("\(mine?.weekStars ?? summary.weekStars)")
                 .phoneFont(.display, 42, weight: 600, relativeTo: .largeTitle)
                 .monospacedDigit()
-            Text(mine.map { "stars from you this week · \($0.lifetimeStars) all time" } ?? "stars from the household this week")
+            Text(mine.map { "\(StarWords.noun($0.weekStars)) from you this week · \($0.lifetimeStars) all time" } ?? "\(StarWords.noun(summary.weekStars)) from the household this week")
                 .phoneFont(.body, 13, weight: 600, relativeTo: .footnote)
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
@@ -97,10 +103,10 @@ struct PocketGlowScreen: View {
 
     private func rewardRow(_ status: ChoreBoard.RewardStatus) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            AdaptiveRow(alignment: .firstTextBaseline) {
                 Text([status.reward.emoji, status.reward.title].compactMap { $0 }.joined(separator: " "))
                     .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                Spacer(minLength: 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Text("\(min(status.earned, status.reward.targetStars)) of \(status.reward.targetStars)")
                     .phoneFont(.body, 12, weight: 700, relativeTo: .caption)
                     .foregroundStyle(Theme.muted)
@@ -121,19 +127,14 @@ struct PocketGlowScreen: View {
         return VStack(alignment: .leading, spacing: 8) {
             PhoneCardHeader(title: "Everyone", meta: "this week")
             ForEach(summary.people) { glow in
-                HStack(spacing: 8) {
+                PersonBarRow(
+                    name: glow.id == me?.id ? "You" : glow.person.name, count: glow.weekStars,
+                    fraction: Double(glow.weekStars) / Double(most), color: glow.person.color.color
+                ) {
                     PersonAvatar(glow.person, size: .small)
-                    Text(glow.id == me?.id ? "You" : glow.person.name)
-                        .phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
-                        .frame(minWidth: 44, alignment: .leading)
-                    ProgressBar(fraction: Double(glow.weekStars) / Double(most), fill: AnyShapeStyle(glow.person.color.color), height: 8, track: Theme.surface2)
-                    Text("\(glow.weekStars)")
-                        .phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
-                        .monospacedDigit()
                 }
-                .frame(minHeight: 32)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(glow.id == me?.id ? "You" : glow.person.name), \(glow.weekStars) stars this week")
+                .accessibilityLabel("\(glow.id == me?.id ? "You" : glow.person.name), \(StarWords.count(glow.weekStars)) this week")
             }
         }
         .phoneCard()
@@ -195,11 +196,7 @@ private struct CashInSheet: View {
     }
 
     private var message: String {
-        let stars = "\(status.earned) stars from \(PocketGlowLogic.names(earners, me: me?.id))."
-        let next = status.reward.isShared
-            ? " Glow starts saving for it again, and the household keeps every star it earned."
-            : " Glow starts saving for it again."
-        return stars + next
+        PocketGlowLogic.cashInMessage(status, earners: earners, me: me?.id)
     }
 }
 
@@ -214,7 +211,8 @@ private struct CashInCelebration: View {
 
     var body: some View {
         ZStack {
-            Theme.background.opacity(0.97).ignoresSafeArea()
+            // Opaque: nothing of the page behind should be legible under the title.
+            Theme.background.ignoresSafeArea()
             ConfettiOnce(landed: landed)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
@@ -227,7 +225,7 @@ private struct CashInCelebration: View {
                     .phoneFont(.display, 32, weight: 600, relativeTo: .largeTitle)
                     .multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
-                Text("\(celebration.stars) stars from \(PocketGlowLogic.names(celebration.earners, me: me))")
+                Text("\(StarWords.count(celebration.reward.targetStars)) from \(PocketGlowLogic.names(celebration.earners, me: me))")
                     .phoneFont(.body, 15, weight: 600)
                     .foregroundStyle(Theme.muted)
                     .multilineTextAlignment(.center)

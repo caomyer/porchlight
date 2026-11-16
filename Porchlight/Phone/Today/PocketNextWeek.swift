@@ -60,28 +60,30 @@ struct PocketNextWeek: View {
         return Button {
             if let url = URL(string: "calshow:\(event.start.timeIntervalSinceReferenceDate)") { openURL(url) }
         } label: {
-            HStack(spacing: 10) {
+            AdaptiveRow {
                 Text(time)
                     .phoneFont(.body, 12, weight: 700, relativeTo: .caption)
                     .monospacedDigit()
                     .foregroundStyle(Theme.muted)
                     .frame(minWidth: 46, alignment: .leading)
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(calendarStore.color(for: event.owner))
-                    .frame(width: 4, height: 28)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text([event.emoji, event.title].compactMap { $0 }.joined(separator: " "))
-                        .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                    if !detail.isEmpty {
-                        Text(detail)
-                            .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                            .foregroundStyle(Theme.muted)
+                HStack(spacing: 10) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(calendarStore.color(for: event.owner))
+                        .frame(width: 4, height: 28)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text([event.emoji, event.title].compactMap { $0 }.joined(separator: " "))
+                            .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                        if !detail.isEmpty {
+                            Text(detail)
+                                .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                                .foregroundStyle(Theme.muted)
+                        }
                     }
-                }
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if case let .person(id) = event.owner {
-                    PersonAvatar(model.person(id), size: .small)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if case let .person(id) = event.owner {
+                        PersonAvatar(model.person(id), size: .small)
+                    }
                 }
             }
             .padding(.vertical, 7)

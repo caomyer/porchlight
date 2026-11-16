@@ -53,7 +53,7 @@ struct YoursTodayCard: View {
 
     /// "Recycling and the faucet done. +5 stars today."
     private func detail(done: [ChoreBoard.Task]) -> String {
-        let stars = starsToday > 0 ? "+\(starsToday) \(starsToday == 1 ? "star" : "stars") today." : nil
+        let stars = starsToday > 0 ? "\(StarWords.earned(starsToday)) today." : nil
         let chores: String? = switch done.count {
         case 0: tasks.isEmpty ? "No chores of yours today." : nil
         case 1, 2: ListFormatter.localizedString(byJoining: done.map(\.chore.title)) + " done."

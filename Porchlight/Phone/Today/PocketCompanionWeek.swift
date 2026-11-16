@@ -9,6 +9,7 @@ struct PocketCompanionWeek: View {
     @Environment(CompanionStore.self) private var store
     @Environment(\.me) private var me
     @Environment(\.colorScheme) private var scheme
+    @Environment(ToastCenter.self) private var toasts
     @State private var catchUp: PocketCatchUpSheet.Request?
     let logging: PocketLogging
 
@@ -37,7 +38,7 @@ struct PocketCompanionWeek: View {
             }
         }
         .background(Theme.background)
-        .sheet(item: $catchUp) { PocketCatchUpSheet(request: $0, logging: logging) }
+        .sheet(item: $catchUp, onDismiss: toasts.showPending) { PocketCatchUpSheet(request: $0, logging: logging.inSheet) }
     }
 
     // MARK: Hero
@@ -199,17 +200,12 @@ struct PocketCompanionWeek: View {
         case .together: (Carers(colors: [Theme.everyone, Theme.everyone], initials: [CareText.heart]), "Together")
         }
         let color = carers.isTogether ? Theme.everyone : carers.single
-        return HStack(spacing: 8) {
+        return PersonBarRow(
+            name: name + (crowned ? " 👑" : ""), count: standing.count,
+            fraction: Double(standing.count) / Double(max(most, 1)), color: color
+        ) {
             CarerAvatar(carers: carers, size: 24)
-            Text(name + (crowned ? " 👑" : ""))
-                .phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
-                .frame(minWidth: 70, alignment: .leading)
-            ProgressBar(fraction: Double(standing.count) / Double(max(most, 1)), fill: AnyShapeStyle(color), height: 8, track: Theme.surface2)
-            Text("\(standing.count)")
-                .phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
-                .monospacedDigit()
         }
-        .frame(minHeight: 32)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(standing.count)")
     }

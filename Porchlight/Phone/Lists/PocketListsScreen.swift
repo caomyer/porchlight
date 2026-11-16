@@ -45,7 +45,7 @@ struct PocketListsScreen: View {
         .sheet(item: Binding(get: { editingDinner.map(DayItem.init) }, set: { editingDinner = $0?.day })) { item in
             PhoneEditorSheet { MealEditor(day: item.day) }
         }
-        .sheet(item: Binding(get: { needs.map(DayItem.init) }, set: { needs = $0?.day })) { item in
+        .sheet(item: Binding(get: { needs.map(DayItem.init) }, set: { needs = $0?.day }), onDismiss: toasts.showPending) { item in
             PocketDinnerNeeds(day: item.day)
         }
     }

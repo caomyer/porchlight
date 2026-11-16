@@ -71,6 +71,18 @@ struct PocketTabsTests {
         #expect(PocketGlowLogic.names(people.prefix(2).map { $0 }, me: F.james).contains("you"))
     }
 
+    @Test("Cashing in names the price, and says when the round earned more than it")
+    func cashInWords() {
+        let james = person(F.james, "James", order: 0)
+        let reward = Reward(id: 1, householdId: 100, title: "Coffee", emoji: "☕", targetStars: 20, ownerId: F.james, startDay: "2026-11-01", archived: false, sortOrder: 0, createdAt: F.date(day: 1, 0))
+        #expect(PocketGlowLogic.cashInMessage(.init(reward: reward, earned: 20), earners: [james], me: F.james)
+            == "20 stars from you. Then it starts again from zero.")
+        #expect(PocketGlowLogic.cashInMessage(.init(reward: reward, earned: 21), earners: [james], me: F.james)
+            == "It costs 20 stars, and you earned 21, so the 1 extra star goes with it. Then it starts again from zero.")
+        #expect(StarWords.earned(1) == "+1 star")
+        #expect(StarWords.count(2) == "2 stars")
+    }
+
     @Test("My Glow is my week and all-time stars, and the rewards I'm saving for")
     func mine() {
         let people = [person(F.james, "James", order: 0), person(F.mia, "Mia", order: 1)]

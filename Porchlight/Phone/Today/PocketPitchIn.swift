@@ -64,7 +64,7 @@ struct PocketPitchIn: View {
             let done = PocketPitchInLogic.doneThisWeek(by: me.id, chores: home.snapshot.chores, completions: home.snapshot.completions, week: home.week, before: home.today)
             if !done.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    PhoneCardHeader(title: "Done this week", meta: "+\(done.map(\.completion.stars).reduce(0, +)) stars")
+                    PhoneCardHeader(title: "Done this week", meta: StarWords.earned(done.map(\.completion.stars).reduce(0, +)))
                     rows(done.map { ChoreBoard.Task(chore: $0.chore, completion: $0.completion) }, kind: .mine, dayLabels: true)
                 }
                 .phoneCard()
