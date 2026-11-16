@@ -176,7 +176,20 @@ The rule from now on: migrations use raw SQL and rows only, never record types.
   Until sync is on, schema changes are still free.
 - The current household is still "the only one".
   Choosing between several arrives with joining (M2) and switching (M5).
-- The bundle id and shared container move is its own step, described separately once S1 (widgets reaching the database) is settled.
+- The database stays in the app's own container.
+  Widgets will read a small summary the app writes for them (M4), so no shared container is needed.
+
+## The move to `com.porchlight.porchlight`
+
+The bundle id, and the iCloud container named after it, can never change once data syncs, so the app takes its permanent id in M0.
+To an iPad a new bundle id is a new app with an empty container, so the household is carried across from the Mac:
+
+1. `scripts/backup-ipad.sh --bundle com.mingyucao.porchlight` copies the old app's data.
+2. `scripts/deploy-ipad.sh --no-backup` installs the new app.
+3. With the new app closed, `scripts/restore-ipad.sh <backup>` puts the data into its container.
+4. The new app opens, keeps its own safety copy, and runs the "sync v1" migration.
+
+The old app stays installed, untouched, until the new one has been checked.
 
 ## Implementation notes
 
