@@ -32,22 +32,8 @@ if [[ ! -f Config/Local.xcconfig ]]; then
   exit 1
 fi
 
-device="${PORCHLIGHT_DEVICE:-}"
-if [[ -z "$device" ]]; then
-  json="$(mktemp)"
-  xcrun devicectl list devices --json-output "$json" >/dev/null
-  device="$(/usr/bin/python3 -c '
-import json, sys
-devices = json.load(open(sys.argv[1]))["result"]["devices"]
-ipads = [d for d in devices if d.get("hardwareProperties", {}).get("deviceType") == "iPad"]
-print(ipads[0]["identifier"] if ipads else "")
-' "$json")"
-  rm -f "$json"
-fi
-if [[ -z "$device" ]]; then
-  echo "No iPad found. Connect it with a cable, unlock it and tap Trust." >&2
-  exit 1
-fi
+source "$root/scripts/lib/device.sh"
+device="$(porchlight_device)"
 
 xcodegen generate --quiet
 xcodebuild build \
