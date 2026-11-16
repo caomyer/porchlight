@@ -26,7 +26,7 @@ target="$backups/$(date +%Y-%m-%d-%H%M%S)"
 mkdir -p "$target"
 
 # Everything the app stores lives under one folder (see AppFiles.swift).
-if ! xcrun devicectl device copy from \
+if ! porchlight_devicectl device copy from \
     --device "$device" \
     --domain-type appDataContainer \
     --domain-identifier "$bundle" \

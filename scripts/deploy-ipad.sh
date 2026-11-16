@@ -63,7 +63,7 @@ app="$derived/Build/Products/$configuration-iphoneos/Porchlight.app"
 if (( backup )); then
   "$root/scripts/backup-ipad.sh"
 fi
-xcrun devicectl device install app --device "$device" "$app"
+porchlight_devicectl device install app --device "$device" "$app"
 if (( launch )); then
   # Opening the app fails while the iPad is locked; the install itself is done.
   xcrun devicectl device process launch --device "$device" com.porchlight.porchlight || true

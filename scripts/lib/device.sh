@@ -1,5 +1,6 @@
 # Shared by the scripts that talk to the wall iPad. Source it, then call
-# porchlight_device to get the device identifier.
+# porchlight_device to get the device identifier and porchlight_devicectl to
+# run a devicectl command on it.
 
 # Prints the identifier of the wall iPad: PORCHLIGHT_DEVICE if set, else the
 # first real (not simulated) paired iPad. Exits with a message if there is none.
@@ -25,4 +26,16 @@ print(ipads[0]["identifier"] if ipads else "")
     exit 1
   fi
   echo "$device"
+}
+
+# Runs `xcrun devicectl "$@"`, trying up to three times. Over Wi-Fi the iPad
+# often drops a connection right after it opens ("The device disconnected
+# immediately after connecting"), and the next attempt goes through.
+porchlight_devicectl() {
+  local attempt
+  for attempt in 1 2 3; do
+    xcrun devicectl "$@" && return 0
+    (( attempt < 3 )) && echo "The iPad did not answer; trying again ($attempt of 3)." >&2
+  done
+  return 1
 }

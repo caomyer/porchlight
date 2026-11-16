@@ -48,7 +48,7 @@ if [[ "$(sqlite3 "$staging/Porchlight/porchlight.sqlite" 'PRAGMA integrity_check
   exit 1
 fi
 
-xcrun devicectl device copy to \
+porchlight_devicectl device copy to \
   --device "$device" \
   --domain-type appDataContainer \
   --domain-identifier "$bundle" \
