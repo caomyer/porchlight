@@ -361,6 +361,7 @@ th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-botto
 th { font: 800 11.5px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); }
 tr:last-child td { border-bottom: 0; }
 td b { font-weight: 800; }
+code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface2); border-radius: 5px; padding: 1px 5px; }
 .flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 760px) { .flow { grid-template-columns: minmax(0, 1fr); } }
 .step { background: var(--surface); border-radius: 18px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; border-top: 4px solid var(--line); }
@@ -486,8 +487,8 @@ td b { font-weight: 800; }
   <table>
     <thead><tr><th style="width:17%">Milestone</th><th style="width:27%">What ships</th><th style="width:16%">Journeys</th><th>Gate to pass</th></tr></thead>
     <tbody>
-      <tr><td><b>M0 · Sync-ready data</b><br>Wall only, nothing visible</td><td>UUID ids under one household, the home time zone, photos and Pencil pages in their own tables, the database moved to where widgets can reach it. iCloud stays off.</td><td>None</td><td>The migration is run on a copy of the wall's real data and every row and link is compared. All tests pass. The wall's idle CPU is unchanged. A backup of the wall is on the Mac before it installs.</td></tr>
-      <tr><td><b>M1 · iCloud on</b><br>Wall only</td><td>The household syncs to its owner's iCloud, with a switch to turn sync off. Device role, sync status and the paused state.</td><td>A1, D3</td><td>A wiped device signed in to the same Apple ID gets the whole household back. Three days on the wall with no sync error.</td></tr>
+      <tr><td><b>M0 · Sync-ready data</b><br>Wall only, nothing visible</td><td>Every table reshaped for sync: UUID ids, one parent per table, people archived instead of deleted. The app moves to its permanent id, <code>com.porchlight.porchlight</code>. iCloud stays off.</td><td>None</td><td>The migration is run on a copy of the wall's real data and every row and link is compared. All tests pass. The wall's idle CPU is unchanged. A backup of the wall is on the Mac before it installs.</td></tr>
+      <tr><td><b>M1 · iCloud on</b><br>Wall only</td><td>The household syncs to its owner's iCloud, with a switch to turn sync off. Photos move into synced tables. Device role, sync status and the paused state.</td><td>A1, D3</td><td>A wiped device signed in to the same Apple ID gets the whole household back. Three days on the wall with no sync error.</td></tr>
       <tr><td><b>M2 · First phones</b><br>The core loop</td><td>The iPhone shell and phone kit, invite and join, Today, one-tap care logging, the "from a phone" tags, the You menu and failure banners.</td><td>A3, A4, B1, B2, D1, D2, E1, E5</td><td>Two parents use it for a week. A phone log shows on the wall within 5 seconds on Wi-Fi. Nothing lost or doubled, including logs made offline.</td></tr>
       <tr><td><b>M3 · Every day</b></td><td>The other tabs and reminders: companion week, Pitch in, Food, Lists, Glow, the agenda, routine reminders and their settings.</td><td>B3 to B8, C1, E2, E3</td><td>A second week of family use. Reminders arrive only for your own routines. Phone screens are covered by UI tests.</td></tr>
       <tr><td><b>M4 · Beyond the app, setup anywhere</b></td><td>Widgets, Siri and Shortcuts, household setup from a phone, starting a household on an iPhone, storage, leaving and removing.</td><td>C3, C4, F1, F2, A2, A6, E4</td><td>A household is created and fully set up on an iPhone alone. A widget log reaches the wall without opening the app.</td></tr>
@@ -497,11 +498,11 @@ td b { font-weight: 800; }
   </table>
   </div>
   <h3>Proven before the design depends on it</h3>
-  <p class="note">Five small experiments run during M0 and M1. Each answers a question the journeys take for granted, and each has a fallback.</p>
+  <p class="note">Five small experiments run during M0 and M1. Each answers a question the journeys take for granted, and each has a fallback. A sixth is already done: the app's existing way of writing data works unchanged with the sync library, proven against its stand-in for iCloud.</p>
   <div class="rules">
-    <div><span>S1</span><span><b>A widget or Siri log reaches iCloud without opening the app.</b> Widgets run in their own process. If sync can't run there, the log is saved at once and sent when the app next wakes, and the widget says so.</span></div>
+    <div><span>S1</span><span><b>A widget or Siri log reaches iCloud without opening the app.</b> Settled on paper: only the app itself can sync, so every logging action runs inside the app, woken in the background, and widgets read a small summary the app writes for them. A widget tap that can't wake the app is saved and sent when the app next runs. Still to be confirmed on a real phone in M4.</span></div>
     <div><span>S2</span><span><b>Invites and removal.</b> Whether a QR code can be a link that works only while the invite screen is open, and that removing someone really ends their access. If not, invites go to named people only.</span></div>
-    <div><span>S3</span><span><b>The new Xcode still serves the wall.</b> It must build for iPadOS 17 and install on the 2017 iPad Pro. If not, the sync library is pinned to the release this Xcode supports.</span></div>
+    <div><span>S3</span><span><b>The toolchain serves the wall.</b> Done: the sync library's current release builds with the Xcode already on this Mac, for iPadOS 17. No Xcode upgrade is needed.</span></div>
     <div><span>S4</span><span><b>Cable installs and TestFlight installs share one iCloud.</b> Apple keeps development and production data apart, so the wall and the phones must be on the same side.</span></div>
     <div><span>S5</span><span><b>One Apple ID, two roles.</b> The owner's phone and a shared wall signed in to the same Apple ID must behave as one member with two devices.</span></div>
   </div>
