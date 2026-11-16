@@ -177,3 +177,58 @@ The rule from now on: migrations use raw SQL and rows only, never record types.
 - The current household is still "the only one".
   Choosing between several arrives with joining (M2) and switching (M5).
 - The bundle id and shared container move is its own step, described separately once S1 (widgets reaching the database) is settled.
+
+## Implementation notes
+
+Choices made while building M0, where the design above left room or did not fit the code.
+
+### Ids
+
+- `ID` stores a `UUID` and writes it as lowercase text; it reads either case, but every id written is lowercase.
+- `ID.derived` folds the SHA-256 by XOR-ing its two halves, then marks the result as a version 8 (custom) UUID.
+- Fixed inputs therefore give a fixed id forever: changing `derived` once sync is on would split rows that should merge.
+- `uuid()` is registered through `AppDatabase.configuration` on every connection, and the migration registers it again, so it never depends on how its connection was opened.
+- Records are now plain `PersistableRecord`s: with the id set at creation, nothing is written back after an insert.
+
+### Cash-ins are named by the cash-in before them
+
+The design derives `rewardRedemption`'s id from the reward and its `startDay` at cash-in.
+That does not fit how cash-ins work: a reward can be cashed in more than once on the same day (stars earned after a cash-in count toward the next round, split by `redeemedAt`), so the second and third cash-ins of a day would share an id, and the upsert would quietly replace a real cash-in.
+Instead the id is derived from the reward and the id of the cash-in before it (`"first"` for the first one).
+That is exactly what "one round" means: two devices that cash in the same round offline both saw the same previous cash-in, so they write the same row, while every later round gets a new one.
+It is also the token the board already passed to guard against double taps (`after:`), so `cashInReward` still refuses a second cash-in of the same round.
+The migration builds the same chain from the old rows, in the order they were written.
+"The latest cash-in" is now the newest by `redeemedAt`, not the highest id.
+
+### The migration
+
+- Map tables exist only for tables whose ids are referenced or random; tables with derived ids compute them in Swift from their translated parents, as the design says.
+- Every copied reference goes through its map with a subquery, so a reference to a missing row becomes NULL, which a `NOT NULL` column refuses: an orphan fails the migration instead of vanishing.
+- Every old index is recreated except the autoindexes behind dropped unique constraints; the parent columns of the old composite keys already had their own indexes.
+- `calendarSource` and `ambientPhoto` are device-local but are rebuilt the same way (STRICT, the same id column), keeping their unique constraints and, for `calendarSource`, its second foreign key to `person`.
+- `sqlite_sequence` stays, as SQLite does not allow dropping it; nothing uses it any more.
+- "companions v3" now reads the household's time zone and first weekday from a raw row and builds the calendar with `Calendar.household(timeZoneIdentifier:firstWeekday:)`, the same function `Household.calendar` uses.
+- Older migrations stay exactly as they were otherwise, so fresh installs still build the old schema and then rebuild it; a test checks that fresh and upgraded databases end with identical schemas.
+
+### The safety copy
+
+- The copy is made only when `porchlight.sqlite` already exists and has applied at least one migration but not "sync v1".
+- A copy left by an earlier launch whose migration failed is replaced, since the database it came from is still unmigrated.
+
+### People
+
+- `HouseholdSnapshot`, `CompanionSnapshot`, `FoodSnapshot` and `HomeSnapshot` have `people` (active, for pickers, columns and lists) and `everyone` (archived included, for naming who did something).
+- Lookups for past things (`AppModel.person`, `OwnerAvatar`, care log names, meal eaters, chore credit on Today) use `everyone`; an id that points at nobody gives no name and the household's heart avatar.
+- New credit, chore and reward owners, and "added by" must be active people; editing an old meal or walk keeps any archived person already on it.
+- Archived people keep their `sortOrder`; the active ones are renumbered, and a new person goes after them.
+- Completions whose person was deleted before this change keep their `NULL` person.
+- `foodPlace` has no delete path in the app (only the household cascade), so nothing needed to change there.
+
+### Ordering
+
+- The household is the oldest by `createdAt`; `careRoutine` has no creation time, so routines order by `sortOrder`, then `id`, which only keeps ties stable.
+- Captions are picked by a seed taken from the log's id, so existing logs get new (still stable) captions once.
+
+### Debug launches
+
+- `-startScreen companion-N` now opens the N-th companion on the rail, since ids are no longer small numbers; `companion-1` works as before.
