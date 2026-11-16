@@ -15,6 +15,7 @@ struct PorchlightApp: App {
                     .environment(stores.food)
                     .environment(stores.home)
                     .environment(stores.weather)
+                    .environment(stores.sync)
             case let .failed(message):
                 StartupErrorView(message: message)
             }
@@ -34,7 +35,9 @@ private enum Launch {
             #if DEBUG
             try DebugLaunch.apply(ProcessInfo.processInfo.arguments, to: database)
             #endif
-            return .ready(Stores(database: database))
+            // Before any store: the engine records every write from the moment it exists.
+            let sync = SyncController.live(database: database)
+            return .ready(Stores(database: database, sync: sync))
         } catch {
             return .failed(error.localizedDescription)
         }
@@ -50,14 +53,16 @@ private struct Stores {
     let food: FoodStore
     let home: HomeStore
     let weather: WeatherStore
+    let sync: SyncController
 
-    init(database: AppDatabase) {
+    init(database: AppDatabase, sync: SyncController) {
         app = AppModel(database: database)
         calendar = CalendarStore(database: database)
         companions = CompanionStore(database: database)
         food = FoodStore(database: database)
         home = HomeStore(database: database)
         weather = WeatherStore()
+        self.sync = sync
     }
 }
 

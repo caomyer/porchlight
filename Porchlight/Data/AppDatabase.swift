@@ -18,6 +18,8 @@ struct AppDatabase: Sendable {
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent("porchlight.sqlite")
         let exists = fileManager.fileExists(atPath: url.path)
+        var configuration = configuration
+        configuration.prepareDatabase { try $0.attachSyncMetadata() }
         let pool = try DatabasePool(path: url.path, configuration: configuration)
         if exists {
             try keepCopyBeforeSync(pool, at: url, fileManager: fileManager)
@@ -25,7 +27,8 @@ struct AppDatabase: Sendable {
         return try AppDatabase(pool)
     }
 
-    /// An empty in-memory database, for tests and previews.
+    /// An empty in-memory database, for tests and previews. It never syncs, so it has no
+    /// sync metadata attached.
     static func inMemory() throws -> AppDatabase {
         try AppDatabase(DatabaseQueue(configuration: configuration))
     }

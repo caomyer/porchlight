@@ -1,0 +1,166 @@
+import CloudKit
+import Foundation
+import GRDB
+import Testing
+@testable import Porchlight
+
+/// A database on disk with its own sync metadata, the device's own preferences, and a
+/// device whose iCloud account a test controls. Sync runs against SQLiteData's stand-in
+/// for iCloud, which it uses whenever it runs under tests.
+@MainActor
+final class SyncHarness {
+    let folder: URL
+    let database: AppDatabase
+    let device = FakeSyncDevice()
+    let defaults: UserDefaults
+    private let suiteName = "sync-tests-\(UUID().uuidString)"
+    private(set) var removedFiles = 0
+
+    init() throws {
+        folder = FileManager.default.temporaryDirectory.appendingPathComponent(suiteName, isDirectory: true)
+        database = try AppDatabase.openOnDisk(folder: folder)
+        defaults = UserDefaults(suiteName: suiteName)!
+    }
+
+    deinit {
+        // The engine and the database keep each other alive (it observes every transaction),
+        // so close the connections here, or each test would leave its files open. The folder
+        // stays: the engine's own metadata database is still open.
+        try? database.writer.close()
+        UserDefaults().removePersistentDomain(forName: suiteName)
+    }
+
+    var preferences: SyncPreferences { SyncPreferences(defaults: defaults) }
+
+    /// A controller as the app makes one at launch, settled.
+    func controller() async -> SyncController {
+        let hasHousehold = try? database.snapshot().household != nil
+        let controller = SyncController(
+            .sync(database.writer, device: device),
+            preferences: preferences,
+            hasHousehold: hasHousehold ?? false,
+            removeFiles: { [weak self] in self?.removedFiles += 1 }
+        )
+        await controller.settle()
+        return controller
+    }
+
+    /// Fills every synced table through the app's own write functions.
+    ///
+    /// A few rows each: SQLiteData's stand-in for iCloud refuses more than 200 records per
+    /// request, where the real sync engine splits them into batches itself.
+    func fill() throws {
+        let household = try database.createHousehold(
+            name: "The Lake House",
+            people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)]
+        )
+        try database.markSetupCompleted(householdId: household.id)
+        let people = try database.snapshot().people.map(\.id)
+        let today = DayKey(.now, calendar: household.calendar)
+
+        var yoyo = CompanionDraft.new(species: .dog)
+        yoyo.name = "Yo-Yo"
+        let companionId = try database.saveCompanion(yoyo, householdId: household.id)
+        let walk = try #require(try database.writer.read { db in
+            try CareRoutine.filter(Column("companionId") == companionId).fetchOne(db)
+        })
+        _ = try database.logCare(routineId: walk.id, CareLogDraft(people: people, occurredAt: .now, vibe: .smooth))
+
+        let chore = try database.saveChore(
+            ChoreDraft(title: "Dishes", emoji: "🍽️", ownerId: people[0], recurrence: .daily, anchorDay: today, timeHint: nil, stars: 1),
+            householdId: household.id
+        )
+        _ = try database.toggleChore(id: chore.id, day: today, personId: people[1])
+        let reward = try database.saveReward(
+            RewardDraft(title: "Ice cream trip", emoji: "🍦", targetStars: 20, ownerId: people[0]), householdId: household.id, today: today
+        )
+        try database.cashInReward(id: reward.id, stars: 20, day: today, after: nil)
+        let list = try database.createList(title: "Groceries", kind: .grocery, householdId: household.id)
+        _ = try database.addListItem(title: "Basil", to: list.id, addedBy: people[0])
+        try database.setMeal(day: today, title: "Tacos", emoji: "🌮", householdId: household.id)
+
+        let journal = try database.ensureFoodJournal(householdId: household.id)
+        let dinner = MealDraft(
+            day: today, slot: MealSlot.defaultNames[2], source: .dineOut, title: "Sushi", emoji: "🍣",
+            eaterIds: people, eatenAt: .now, place: PlaceDraft(name: "Sakura Sushi Bar")
+        )
+        let photo = FoodPhotoStore.Stored(photoFile: "sushi.jpg", thumbnailFile: "sushi-thumb.jpg", crop: nil)
+        _ = try database.addMeal(dinner, journalId: journal.id, photos: [photo])
+        let page = SampleHandwriting.page(lines: [("Sushi night", PageInk.defaultInk(for: .blue))])
+        try database.savePage(journalId: journal.id, day: today, drawing: page.dataRepresentation())
+    }
+
+    /// Row counts of every synced table.
+    func counts() throws -> [String: Int] {
+        try database.writer.read { db in
+            var counts: [String: Int] = [:]
+            for table in SyncSchema.tables where table.synced {
+                counts[table.name] = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \"\(table.name)\"")
+            }
+            return counts
+        }
+    }
+
+    /// Every synced row the engine hasn't had confirmed by iCloud, as "table id", plus
+    /// every change still queued for it.
+    func unsynced() throws -> [String] {
+        try database.writer.read { db in
+            var missing: [String] = []
+            for table in SyncSchema.tables where table.synced {
+                let sent = try Set(String.fetchAll(db, sql: """
+                    SELECT recordPrimaryKey FROM sqlitedata_icloud_metadata
+                    WHERE recordType = ? AND lastKnownServerRecord IS NOT NULL
+                    """, arguments: [table.name]))
+                for id in try String.fetchAll(db, sql: "SELECT id FROM \"\(table.name)\"") where !sent.contains(id) {
+                    missing.append("\(table.name) \(id)")
+                }
+            }
+            let queued = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM sqlitedata_icloud_pendingRecordZoneChanges") ?? 0
+            if queued > 0 { missing.append("\(queued) queued changes") }
+            return missing
+        }
+    }
+
+    /// Rows the engine has been told about at all.
+    func knownRows() throws -> Int {
+        try database.writer.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM sqlitedata_icloud_metadata") ?? 0
+        }
+    }
+}
+
+/// The device, with an iCloud account the test signs in and out.
+actor FakeSyncDevice: SyncDevice {
+    private var status = CKAccountStatus.available
+    private var name = "owner"
+    private nonisolated let stream: AsyncStream<SyncDeviceChange>
+    private nonisolated let continuation: AsyncStream<SyncDeviceChange>.Continuation
+
+    init() {
+        (stream, continuation) = AsyncStream.makeStream()
+    }
+
+    func accountStatus() -> CKAccountStatus { status }
+    func accountName() -> String { name }
+    nonisolated func changes() -> AsyncStream<SyncDeviceChange> { stream }
+
+    func signIn(as name: String) {
+        status = .available
+        self.name = name
+        continuation.yield(.account)
+    }
+
+    func signOut() {
+        status = .noAccount
+        continuation.yield(.account)
+    }
+}
+
+extension CKSyncEngine.Event.AccountChange.ChangeType {
+    static let ownerSignedOut = Self.signOut(previousUser: CKRecord.ID(recordName: "owner"))
+    static let ownerSignedIn = Self.signIn(currentUser: CKRecord.ID(recordName: "owner"))
+    static let switched = Self.switchAccounts(
+        previousUser: CKRecord.ID(recordName: "owner"),
+        currentUser: CKRecord.ID(recordName: "someone else")
+    )
+}

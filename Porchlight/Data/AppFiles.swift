@@ -26,4 +26,14 @@ enum AppFiles {
     static func folder(_ name: String) -> URL {
         root.appendingPathComponent(name, isDirectory: true)
     }
+
+    /// The folders that hold the household's photos, next to its rows in the database.
+    static let householdFolders = ["Photos", "CompanionPhotos", "Ambient"]
+
+    /// Removes the household's photos, after its rows were removed from this device.
+    static func removeHouseholdFiles() {
+        for name in householdFolders {
+            try? FileManager.default.removeItem(at: folder(name))
+        }
+    }
 }
