@@ -13,7 +13,7 @@
 # Optional: PORCHLIGHT_DEVICE=<device identifier from `xcrun devicectl list devices`>
 set -euo pipefail
 
-bundle="com.mingyucao.porchlight"
+bundle="com.porchlight.porchlight"
 [[ "${1:-}" == "--bundle" ]] && bundle="$2"
 
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"

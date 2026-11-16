@@ -1,8 +1,8 @@
 #!/bin/zsh
 # Builds Porchlight and installs it on the wall iPad.
 #
-# Run it once by hand for the first install. With a free Apple ID the install
-# expires after 7 days, so the Mac mini runs this weekly to keep it alive.
+# Run it by hand, or let scripts/schedule-deploy.sh run it twice a week to keep
+# the wall on the latest commit.
 #
 # Needs: Xcode, `brew install xcodegen`, Config/Local.xcconfig with your
 # DEVELOPMENT_TEAM, and the iPad paired with this Mac (USB once, then Wi-Fi).
@@ -12,13 +12,24 @@
 # Debug-only launch arguments (device-tour.sh, idle-cpu.sh); run it again without
 # --debug afterwards.
 #
-#   scripts/deploy-ipad.sh [--debug]
+# The wall's data is copied to this Mac first (scripts/backup-ipad.sh), and the
+# install does not go ahead if that copy fails. --no-backup skips it, for the
+# very first install, when the app has no data yet.
+#
+#   scripts/deploy-ipad.sh [--debug] [--no-backup]
 #
 # Optional: PORCHLIGHT_DEVICE=<device identifier from `xcrun devicectl list devices`>
 set -euo pipefail
 
 configuration=Release
-[[ "${1:-}" == "--debug" ]] && configuration=Debug
+backup=1
+for argument in "$@"; do
+  case "$argument" in
+    --debug) configuration=Debug ;;
+    --no-backup) backup=0 ;;
+    *) echo "Unknown option: $argument" >&2; exit 1 ;;
+  esac
+done
 
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 root="${0:A:h:h}"
@@ -46,6 +57,9 @@ xcodebuild build \
   | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
 
 app="$derived/Build/Products/$configuration-iphoneos/Porchlight.app"
+if (( backup )); then
+  "$root/scripts/backup-ipad.sh"
+fi
 xcrun devicectl device install app --device "$device" "$app"
-xcrun devicectl device process launch --device "$device" com.mingyucao.porchlight || true
+xcrun devicectl device process launch --device "$device" com.porchlight.porchlight || true
 echo "Installed a $configuration build of Porchlight on $device"

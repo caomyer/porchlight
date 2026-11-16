@@ -19,8 +19,8 @@ if ! xcodebuild build -project Porchlight.xcodeproj -scheme Porchlight -destinat
 fi
 xcrun simctl boot "$udid" 2>/dev/null || true
 xcrun simctl install "$udid" "$derived/Build/Products/Debug-iphonesimulator/Porchlight.app"
-xcrun simctl terminate "$udid" com.mingyucao.porchlight 2>/dev/null || true
-xcrun simctl launch "$udid" com.mingyucao.porchlight "$@" > /dev/null
+xcrun simctl terminate "$udid" com.porchlight.porchlight 2>/dev/null || true
+xcrun simctl launch "$udid" com.porchlight.porchlight "$@" > /dev/null
 /usr/bin/python3 -c "import time; time.sleep(${WAIT:-4})"
 timeout 30 xcrun simctl io "$udid" screenshot "$out" > /dev/null 2>&1
 sips -r 270 "$out" > /dev/null   # the simulator framebuffer is portrait; the app is landscape

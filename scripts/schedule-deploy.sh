@@ -1,6 +1,7 @@
 #!/bin/zsh
 # Schedules a reinstall of Porchlight on the wall iPad every Sunday and
-# Wednesday at 3:00 am, so a free-Apple-ID install never hits its 7-day expiry.
+# Wednesday at 3:00 am, so the wall stays on the latest commit and is backed up
+# twice a week (and a free-Apple-ID install never hits its 7-day expiry).
 #
 #   scripts/schedule-deploy.sh            install or update the schedule
 #   scripts/schedule-deploy.sh --run-now  install, then run once immediately

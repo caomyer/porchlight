@@ -77,7 +77,7 @@ if (( ui )); then
   # The first-run test needs the calendar prompt, and resetting it needs a booted
   # simulator (clones copy this state too).
   xcrun simctl bootstatus "$udid" -b >/dev/null
-  xcrun simctl privacy "$udid" reset calendar com.mingyucao.porchlight
+  xcrun simctl privacy "$udid" reset calendar com.porchlight.porchlight
   skip=()
   (( tour )) || skip=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
   parallel=()

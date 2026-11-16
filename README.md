@@ -81,7 +81,12 @@ scripts/deploy-ipad.sh
 ```
 
 This installs a Release build, which costs less CPU and power on a screen that is always on.
-With a free Apple ID the install expires after 7 days. `scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror (macOS does not let background jobs read ~/Documents).
+Before installing, it copies the wall's database and photos to `~/Library/Application Support/Porchlight/Backups` and stops if that copy fails.
+`scripts/backup-ipad.sh` makes such a copy on its own, and `scripts/restore-ipad.sh <backup folder>` puts one back.
+
+`scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror (macOS does not let background jobs read ~/Documents).
+That keeps the wall on the latest commit and backed up twice a week.
+An install signed with a paid Apple Developer team lasts a year; with a free Apple ID it expires after 7 days, which the schedule also covers.
 
 ## Layout
 
