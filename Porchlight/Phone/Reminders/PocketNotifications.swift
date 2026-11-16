@@ -123,7 +123,7 @@ struct PocketNotifications: View {
                     }
                 }
             } label: {
-                ChoiceLabel(text: timing == .off ? "Off" : "On", isOn: timing != .off)
+                ChoiceLabel(text: ReminderSlots.short(timing), isOn: timing != .off, isMenu: true)
             }
             .accessibilityLabel("\(slot.title): \(ReminderSlots.describe(timing, window: slot.window))")
             .accessibilityIdentifier("remind-\(slot.title)")
@@ -135,7 +135,10 @@ struct PocketNotifications: View {
         let isOn = settings.choices.chores
         return AdaptiveRow {
             HStack(spacing: 10) {
-                Text("☑️").phoneFont(.body, 18).accessibilityHidden(true)
+                Image(systemName: "checkmark.square.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.good)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Your chores").phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
                     Text(isOn ? "The evening before they're due · 7 pm" : "Off")
@@ -157,21 +160,30 @@ struct PocketNotifications: View {
     }
 }
 
-/// The small outlined "On" / "Off" on a choice row.
+/// The small outlined choice on a row: "On" / "Off" for a switch, or the current choice
+/// with a chevron when it opens a menu of several, like the Calendars pickers.
 private struct ChoiceLabel: View {
     let text: String
     let isOn: Bool
+    var isMenu = false
 
     var body: some View {
-        Text(text)
-            .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
-            .foregroundStyle(Theme.ink)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(isOn ? Theme.accentSoft : Theme.surface, in: Capsule())
-            .overlay(Capsule().strokeBorder(isOn ? Theme.accent : Theme.line))
-            .frame(minWidth: 44, minHeight: 44)
-            .contentShape(Rectangle())
+        HStack(spacing: 4) {
+            Text(text)
+            if isMenu {
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+            }
+        }
+        .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
+        .foregroundStyle(Theme.ink)
+        // A new value replaces the old at once; a crossfade showed both mid-change.
+        .contentTransition(.identity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(isOn ? Theme.accentSoft : Theme.surface, in: Capsule())
+        .overlay(Capsule().strokeBorder(isOn ? Theme.accent : Theme.line))
+        .frame(minWidth: 44, minHeight: 44)
+        .contentShape(Rectangle())
     }
 }
 
@@ -201,6 +213,15 @@ enum ReminderSlots {
         case .off: "Off"
         case .opens: window.isAllDay ? "Due days · 9 am" : "\(window.rangeText) · when it opens"
         case .missed: window.isAllDay ? "Only if missed by 7 pm" : "Only if missed by \(window.end >= 24 * 60 ? "midnight" : CareTime.hour(window.end))"
+        }
+    }
+
+    /// The pill's words: "Off", "When it opens", "If missed".
+    static func short(_ timing: CareReminderTiming) -> String {
+        switch timing {
+        case .off: "Off"
+        case .opens: "When it opens"
+        case .missed: "If missed"
         }
     }
 

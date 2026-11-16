@@ -236,6 +236,9 @@ The traced pages are now cached in Caches (`SampleHandwriting.cachedPage`), keye
 That brought seeding to about 1.8 seconds, of which 1.6 went on drawing, resizing and encoding the six sample meal photos; their stored files are cached the same way (`SamplePhoto.stored`) and copied in.
 Measured on the iPhone 15 simulator with the Mac under load: seeding took 4.1 seconds a launch before (6.7 on the first), and 0.26 seconds after, once the caches are filled by a first launch.
 
+The app icon was a solid black square, on the wall and the phone alike (its source PNG was all black since M0), and showed as such on notifications and the Home Screen.
+It is now the rail's logo, a white house on the accent, drawn by `scripts/app-icon.swift` as a single 1024 px image the asset catalog makes every size from.
+
 The phone's dinner editor (the wall's `MealEditor`) now tints the chosen emoji in the night look too; the wall, always light, is unchanged.
 
 Sample and reset launches (`-sampleHousehold`, `-resetData`) now start from an empty sandbox folder.

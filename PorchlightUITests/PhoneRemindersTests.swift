@@ -62,6 +62,7 @@ final class PhoneRemindersTests: XCTestCase {
         let app = openNotifications("allowed")
         let evening = app.buttons["remind-Yo-Yo · evening walk"]
         XCTAssertTrue(evening.waitForExistence(timeout: 5), "Each routine's slots are listed")
+        XCTAssertTrue(app.navigationBars.buttons["You"].exists, "Back goes to You")
         XCTAssertEqual(evening.label, "Yo-Yo · evening walk: Off", "Nothing reminds until chosen")
         evening.tap()
         app.buttons["When it opens, 5pm"].tap()
@@ -71,6 +72,8 @@ final class PhoneRemindersTests: XCTestCase {
         chores.tap()
         XCTAssertEqual(chores.value as? String, "Off")
         chores.tap()
+        XCTAssertEqual(chores.value as? String, "On")
+        sleep(1)
         snapshot("e2-12-choices")
     }
 

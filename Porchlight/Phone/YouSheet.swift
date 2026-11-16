@@ -55,7 +55,11 @@ struct YouSheet: View {
                 .padding(.bottom, 24)
             }
             .background(Theme.background)
+            // Named, so pages pushed from here go back to "You", as Today's go back to "Today".
+            .navigationTitle("You")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                         .phoneFont(.body, 15, weight: 700)
