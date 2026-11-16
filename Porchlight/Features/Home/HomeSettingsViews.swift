@@ -453,14 +453,17 @@ private struct AddPhotosButton: View {
     @State private var importing = false
 
     var body: some View {
+        // Read here, on the main actor: the picker's label closure isn't isolated to it.
+        let isImporting = importing
+        let title = title
         PhotosPicker(selection: $picked, maxSelectionCount: 30, matching: .images) {
             HStack(spacing: 6) {
-                if importing {
+                if isImporting {
                     ProgressView().controlSize(.small)
                 } else {
                     Image(systemName: "plus").font(.system(size: 12, weight: .bold))
                 }
-                Text(importing ? "Adding" : title)
+                Text(isImporting ? "Adding" : title)
             }
         }
         .buttonStyle(SecondaryButtonStyle())

@@ -2,6 +2,7 @@ import XCTest
 
 /// Settings > Photo frame: Show picks our photos (shuffled, with a slow drift) or the porch view
 /// (a still sky), and Manage handles a big library: select several photos and remove them at once.
+@MainActor
 final class PhotoFrameTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
