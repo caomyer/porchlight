@@ -115,6 +115,16 @@ struct TimelineItem: Identifiable {
     var trailing: AnyView?
     /// What tapping the row opens; nil leaves it inert.
     var target: TimelineTarget? = nil
+    /// The row it shows and the device that wrote it, for "from Mia's phone" and for the
+    /// glow when it arrives from someone's phone (journey D1).
+    var origin: RowOrigin? = nil
+}
+
+/// The stored row behind a timeline item.
+struct RowOrigin: Hashable, Sendable {
+    /// The row's id, as stored.
+    var rowId: String
+    var deviceId: Device.ID?
 }
 
 /// What a Today row (or a calendar mark) opens: a logged walk or meal to fix, a due walk

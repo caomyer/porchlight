@@ -14,6 +14,7 @@ struct SyncMirrorTests {
         SyncMirror.Chore.self, SyncMirror.ChoreCompletion.self, SyncMirror.Reward.self, SyncMirror.RewardRedemption.self,
         SyncMirror.HomeList.self, SyncMirror.ListItem.self, SyncMirror.MealPlan.self,
         SyncMirror.CompanionPhoto.self, SyncMirror.JournalEntryPhotoThumb.self, SyncMirror.JournalEntryPhotoImage.self,
+        SyncMirror.Device.self,
     ]
 
     /// The SQLite column each plain Swift type stands for, and whether it may be NULL.

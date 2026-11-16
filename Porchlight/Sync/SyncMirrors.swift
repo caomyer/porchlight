@@ -69,6 +69,7 @@ enum SyncMirror {
         var note: String?
         var stars: Int
         var createdAt: Date
+        var deviceId: UUID?
     }
 
     @Table("careLogPerson") struct CareLogPerson {
@@ -114,6 +115,7 @@ enum SyncMirror {
         var eatenAt: Date
         var createdAt: Date
         var placeId: UUID?
+        var deviceId: UUID?
     }
 
     @Table("journalEntryEater") struct JournalEntryEater {
@@ -165,6 +167,7 @@ enum SyncMirror {
         var personId: UUID?
         var stars: Int
         var completedAt: Date
+        var deviceId: UUID?
     }
 
     @Table("reward") struct Reward {
@@ -187,6 +190,7 @@ enum SyncMirror {
         var stars: Int
         var day: String
         var redeemedAt: Date
+        var deviceId: UUID?
     }
 
     @Table("homeList") struct HomeList {
@@ -207,6 +211,7 @@ enum SyncMirror {
         var checked: Bool
         var sortOrder: Int
         var createdAt: Date
+        var deviceId: UUID?
     }
 
     @Table("mealPlan") struct MealPlan {
@@ -237,6 +242,20 @@ enum SyncMirror {
         var byteCount: Int
         var image: Data
     }
+
+    // Households (docs/design/households.md).
+
+    @Table("device") struct Device {
+        let id: UUID
+        var householdId: UUID
+        var name: String
+        var role: String
+        var model: String?
+        var personId: UUID?
+        var userName: String?
+        var createdAt: Date
+        var seenAt: Date
+    }
 }
 
 extension SyncMirror {
@@ -255,6 +274,7 @@ extension SyncMirror {
             Chore.self, ChoreCompletion.self, Reward.self, RewardRedemption.self,
             HomeList.self, ListItem.self, MealPlan.self,
             CompanionPhoto.self, JournalEntryPhotoThumb.self, JournalEntryPhotoImage.self,
+            Device.self,
             containerIdentifier: SyncController.containerIdentifier,
             startImmediately: false,
             delegate: delegate

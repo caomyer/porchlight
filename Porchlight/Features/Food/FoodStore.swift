@@ -71,7 +71,8 @@ final class FoodStore {
                 owner: owner(of: entry),
                 leading: AnyView(MealThumbnail(entry: entry, size: 34)),
                 trailing: AnyView(EaterBadge(people: eaters(of: entry), everyone: ateTogether(entry), size: 30)),
-                target: .meal(id)
+                target: .meal(id),
+                origin: RowOrigin(rowId: id.description, deviceId: entry.deviceId)
             )
         }
     }

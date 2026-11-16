@@ -135,6 +135,8 @@ struct JournalEntry: Codable, Equatable, Identifiable, Sendable {
     /// The restaurant, for delivery or dining out. A plain id, not a foreign key:
     /// after a sync it may point at a place that has not arrived yet.
     var placeId: FoodPlace.ID?
+    /// The device that logged it (a plain id); nil for meals from before devices were known.
+    var deviceId: Device.ID? = nil
 }
 
 extension JournalEntry: FetchableRecord, PersistableRecord {

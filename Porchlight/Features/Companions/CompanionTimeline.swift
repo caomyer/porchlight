@@ -64,7 +64,8 @@ enum CompanionTimeline {
             owner: entry.people.count == 1 ? .person(entry.people[0]) : .everyone,
             leading: face,
             trailing: AnyView(CarerAvatar(carers: Carers(entry.people, snapshot: snapshot))),
-            target: .careLog(companionId: companion.id, routineId: entry.log.careRoutineId, logId: entry.id)
+            target: .careLog(companionId: companion.id, routineId: entry.log.careRoutineId, logId: entry.id),
+            origin: RowOrigin(rowId: entry.log.id.description, deviceId: entry.log.deviceId)
         )
     }
 

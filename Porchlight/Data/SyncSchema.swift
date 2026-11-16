@@ -1,6 +1,6 @@
 /// The table definitions "sync v1" builds, parents before children
-/// (see docs/design/sync-foundation.md, "Table definitions"), and the photo tables
-/// "sync v2" adds.
+/// (see docs/design/sync-foundation.md, "Table definitions"), the photo tables
+/// "sync v2" adds, and the device tables "households v1" adds.
 ///
 /// Later migrations may add nullable or defaulted columns, never rename or remove one.
 /// "sync v2" removed the photo file names from `companion` and `journalEntryPhoto`, the
@@ -137,9 +137,31 @@ enum SyncSchema {
             """)
     }
 
+    /// The tables "households v1" adds (docs/design/households.md): one row per install that
+    /// has opened the household, and the device-only state that says which household this
+    /// device shows. `deviceState` hangs off nothing, so it outlives a household that leaves.
+    static let householdTables: [Table] = [
+        Table(name: "device", parent: "household", columns: """
+            \(id), \(parent("householdId", "household")), "name" TEXT NOT NULL, "role" TEXT NOT NULL,
+            "model" TEXT, "personId" TEXT, "userName" TEXT, "createdAt" TEXT NOT NULL, "seenAt" TEXT NOT NULL
+            """),
+        Table(name: "deviceState", synced: false, columns: """
+            "key" TEXT PRIMARY KEY NOT NULL, "value" TEXT NOT NULL
+            """),
+    ]
+
+    /// The rows that say which device wrote them ("from Mia's phone"). Each gains a nullable
+    /// `deviceId`, a plain id: rows from before have none, and show no tag.
+    static let stampedTables = ["careLog", "journalEntry", "choreCompletion", "rewardRedemption", "listItem"]
+
+    /// Every table, synced or not, in the order the migrations create them.
+    static var all: [Table] {
+        tables + photoTables + householdTables
+    }
+
     /// Every synced table, parents before children, in the order the sync engine is given them.
     static var synced: [Table] {
-        (tables + photoTables).filter(\.synced)
+        all.filter(\.synced)
     }
 
     /// The indexes the old schema had, minus the ones that only backed a unique constraint.

@@ -99,7 +99,8 @@ extension HomeStore {
                 owner: completion.personId.map(Owner.person) ?? .everyone,
                 leading: AnyView(ChoreEmojiTile(emoji: mark.chore.emoji, size: 32)),
                 trailing: AnyView(OwnerAvatar(owner: completion.personId.map(Owner.person) ?? .everyone, people: people)),
-                target: .chore(choreId: mark.chore.id, day: day)
+                target: .chore(choreId: mark.chore.id, day: day),
+                origin: RowOrigin(rowId: completion.id.description, deviceId: completion.deviceId)
             )
         }
     }

@@ -214,6 +214,8 @@ struct CareLog: Codable, Equatable, Identifiable, Sendable, FetchableRecord, Per
     var note: String?
     var stars: Int
     var createdAt: Date
+    /// The device that logged it (a plain id); nil for logs from before devices were known.
+    var deviceId: Device.ID? = nil
 }
 
 /// Someone who did a logged routine. Several people can do one walk together.

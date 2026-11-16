@@ -58,6 +58,9 @@ final class SyncHarness {
         )
         try database.markSetupCompleted(householdId: household.id)
         let people = try database.snapshot().people.map(\.id)
+        try database.saveThisDevice(
+            ThisDevice(name: "Hallway iPad", role: .sharedScreen, model: "iPad", personId: nil, userName: "owner"), in: household.id
+        )
         let today = DayKey(.now, calendar: household.calendar)
 
         var yoyo = CompanionDraft.new(species: .dog)

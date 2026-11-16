@@ -152,7 +152,8 @@ struct SyncMigrationTests {
 @Suite("Sync schema rules")
 struct SyncSchemaRulesTests {
     /// The tree from docs/design/sync-foundation.md, with the photo tables from
-    /// docs/design/sync-icloud.md: each synced table and its one parent.
+    /// docs/design/sync-icloud.md and the devices from docs/design/households.md: each
+    /// synced table and its one parent.
     private static let tree: [String: String?] = [
         "household": nil,
         "person": "household",
@@ -166,15 +167,18 @@ struct SyncSchemaRulesTests {
         "mealPlan": "household",
         "companionPhoto": "companion",
         "journalEntryPhotoThumb": "journalEntryPhoto", "journalEntryPhotoImage": "journalEntryPhoto",
+        "device": "household",
     ]
 
     /// Tables keyed by their parent's id, one row per parent, instead of an id of their own.
+    /// `deviceState` is a device-only key-value table, keyed by its key.
     private static let keyedByParent = [
         "companionPhoto": "companionId", "journalEntryPhotoThumb": "photoId", "journalEntryPhotoImage": "photoId",
+        "deviceState": "key",
     ]
 
     /// Tables that stay on the device and never sync.
-    private static let deviceLocal: Set<String> = ["calendarSource", "ambientPhoto"]
+    private static let deviceLocal: Set<String> = ["calendarSource", "ambientPhoto", "deviceState"]
 
     @Test("Every synced table has a text UUID key, no unique index and one cascading parent in the tree")
     func rules() throws {
@@ -219,7 +223,20 @@ struct SyncSchemaRulesTests {
         for table in SyncSchema.synced {
             #expect(Self.tree[table.name] == .some(table.parent), "\(table.name)")
         }
-        #expect(Set(SyncSchema.tables.filter { !$0.synced }.map(\.name)) == Self.deviceLocal)
+        #expect(Set(SyncSchema.all.filter { !$0.synced }.map(\.name)) == Self.deviceLocal)
+    }
+
+    @Test("Every row that says where it came from has a nullable, plain deviceId")
+    func stampedColumns() throws {
+        let database = try AppDatabase.inMemory()
+        try database.writer.read { db in
+            for table in SyncSchema.stampedTables {
+                let column = try #require(try db.columns(in: table).first { $0.name == "deviceId" }, "\(table)")
+                #expect(column.type == "TEXT" && !column.isNotNull, "\(table).deviceId is nullable text")
+                let keys = try Row.fetchAll(db, sql: "SELECT \"from\" FROM pragma_foreign_key_list(?)", arguments: [table])
+                #expect(!keys.contains { $0["from"] as String == "deviceId" }, "\(table).deviceId is not a foreign key")
+            }
+        }
     }
 }
 

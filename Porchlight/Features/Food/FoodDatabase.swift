@@ -270,6 +270,7 @@ extension AppDatabase {
                 guard let journal = try Journal.fetchOne(db, id: journalId) else { throw FoodError.noJournal }
                 var entry = try Self.validated(draft, journal: journal, db: db, now: now)
                 entry.placeId = try Self.resolvePlace(draft, householdId: journal.householdId, db: db, now: now)
+                entry.deviceId = try stamp(db)
                 try entry.insert(db)
                 for personId in Set(draft.eaterIds) {
                     try JournalEntryEater(entryId: entry.id, personId: personId).upsert(db)

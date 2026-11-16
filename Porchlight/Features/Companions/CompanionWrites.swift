@@ -332,7 +332,7 @@ extension AppDatabase {
         let note = try CareRules.validatedNote(draft, now: now)
         return try writer.write { db in
             guard let routine = try CareRoutine.fetchOne(db, id: routineId) else { throw CareValidationError.unknownRoutine }
-            return try Self.insertLog(draft, note: note, routine: routine, now: now, in: db)
+            return try insertLog(draft, note: note, routine: routine, now: now, in: db)
         }
     }
 
@@ -361,7 +361,7 @@ extension AppDatabase {
             }
             let slots = CareLogic.slots(for: routine, on: day, byDay: CareLogic.byDay(entries, calendar: calendar), now: now, calendar: calendar)
             if let done = slots[safe: index]?.entry { return .alreadyLogged(done) }
-            return .logged(try Self.insertLog(draft, note: note, routine: routine, now: now, in: db))
+            return .logged(try insertLog(draft, note: note, routine: routine, now: now, in: db))
         }
     }
 
@@ -385,11 +385,12 @@ extension AppDatabase {
         }
     }
 
-    private static func insertLog(_ draft: CareLogDraft, note: String?, routine: CareRoutine, now: Date, in db: Database) throws -> CareLog {
-        var log = CareLog(careRoutineId: routine.id, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now)
+    /// The one place a care log is added, stamped with the device that wrote it.
+    private func insertLog(_ draft: CareLogDraft, note: String?, routine: CareRoutine, now: Date, in db: Database) throws -> CareLog {
+        var log = CareLog(careRoutineId: routine.id, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now, deviceId: try stamp(db))
         log.apply(draft, note: note, routine: routine)
         try log.insert(db)
-        try replacePeople(of: log.id, with: draft.people, in: db)
+        try Self.replacePeople(of: log.id, with: draft.people, in: db)
         return log
     }
 
