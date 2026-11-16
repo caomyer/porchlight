@@ -163,7 +163,7 @@ extension AppDatabase {
                 _ = try existing.delete(db)
                 return false
             }
-            try Self.checkOff(chore, on: day, by: personId, now: now, in: db)
+            try checkOff(chore, on: day, by: personId, now: now, in: db)
             return true
         }
     }
@@ -179,7 +179,7 @@ extension AppDatabase {
                 ? try ChoreCompletion.filter(Column("choreId") == id).fetchOne(db)
                 : try ChoreCompletion.fetchOne(db, id: ChoreCompletion.id(choreId: id, day: day))
             if let existing { return .alreadyDone(existing) }
-            return .done(try Self.checkOff(chore, on: day, by: personId, now: now, in: db))
+            return .done(try checkOff(chore, on: day, by: personId, now: now, in: db))
         }
     }
 
@@ -191,15 +191,17 @@ extension AppDatabase {
     /// Writes a completion. Credit goes to the owner, or to whoever was picked for an
     /// "Anyone" chore.
     @discardableResult
-    private static func checkOff(_ chore: Chore, on day: DayKey, by personId: Person.ID?, now: Date, in db: Database) throws -> ChoreCompletion {
+    private func checkOff(_ chore: Chore, on day: DayKey, by personId: Person.ID?, now: Date, in db: Database) throws -> ChoreCompletion {
         let person = chore.ownerId ?? personId
         guard let person else { throw HomeValidationError.unknownPerson }
-        try requirePerson(person, in: chore.householdId, db)
+        try Self.requirePerson(person, in: chore.householdId, db)
         if chore.recurrence.isOnce {
             // A one-off chore can only be done once.
             try ChoreCompletion.filter(Column("choreId") == chore.id).deleteAll(db)
         }
-        let completion = ChoreCompletion(choreId: chore.id, day: day, personId: person, stars: chore.stars, completedAt: now)
+        let completion = ChoreCompletion(
+            choreId: chore.id, day: day, personId: person, stars: chore.stars, completedAt: now, deviceId: try stamp(db)
+        )
         try completion.upsert(db)
         return completion
     }
@@ -224,7 +226,9 @@ extension AppDatabase {
             guard chore.recurrence.isOnce || ChoreSchedule.occurs(chore, on: day, calendar: calendar) else {
                 throw HomeValidationError.notDue
             }
-            let completion = ChoreCompletion(choreId: id, day: day, personId: personId, stars: chore.stars, completedAt: now)
+            let completion = ChoreCompletion(
+                choreId: id, day: day, personId: personId, stars: chore.stars, completedAt: now, deviceId: try stamp(db)
+            )
             try completion.upsert(db)
         }
     }
@@ -285,7 +289,7 @@ extension AppDatabase {
             guard latest == known, stars > 0 else { throw HomeValidationError.alreadyCashedIn }
             let redemption = RewardRedemption(
                 id: RewardRedemption.id(rewardId: id, after: known), rewardId: id, personId: reward.ownerId,
-                stars: max(stars, 0), day: day.rawValue, redeemedAt: now
+                stars: max(stars, 0), day: day.rawValue, redeemedAt: now, deviceId: try stamp(db)
             )
             try redemption.upsert(db)
             try db.execute(sql: "UPDATE reward SET startDay = ? WHERE id = ?", arguments: [day.rawValue, id])
@@ -354,7 +358,8 @@ extension AppDatabase {
                 addedById: addedBy,
                 checked: false,
                 sortOrder: try Self.nextOrder(db, table: "listItem", where: "listId", listId),
-                createdAt: now
+                createdAt: now,
+                deviceId: try stamp(db)
             )
             try item.insert(db)
             return item

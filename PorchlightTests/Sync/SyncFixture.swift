@@ -9,11 +9,17 @@ enum SyncFixture {
     /// The last migration before "sync v1".
     static let lastOldMigration = "home v2: reward cash-ins"
 
+    /// Runs the migrations up to "sync v1", but not the photo import after it, which removes
+    /// file-name columns the "sync v1" comparisons look at.
+    static func migrateToSyncV1(_ queue: DatabaseQueue) throws {
+        try AppDatabase.migrator(files: nil).migrate(queue, upTo: AppDatabase.syncMigration)
+    }
+
     /// A database migrated only up to the old schema, opened like the app opens one.
     static func oldDatabase(path: String? = nil) throws -> DatabaseQueue {
         let queue = try path.map { try DatabaseQueue(path: $0, configuration: AppDatabase.configuration) }
             ?? DatabaseQueue(configuration: AppDatabase.configuration)
-        try AppDatabase.migrator.migrate(queue, upTo: lastOldMigration)
+        try AppDatabase.migrator(files: nil).migrate(queue, upTo: lastOldMigration)
         return queue
     }
 

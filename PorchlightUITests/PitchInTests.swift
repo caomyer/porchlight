@@ -9,7 +9,7 @@ final class PitchInTests: XCTestCase {
     }
 
     private func launch(_ arguments: [String]) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold"] + arguments
         app.launch()
         _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
@@ -94,6 +94,9 @@ final class PitchInTests: XCTestCase {
         let app = launch(["-startScreen", "chores", "-homeSheet", "newChore"])
         let title = app.textFields["What needs doing?"]
         XCTAssertTrue(title.waitForExistence(timeout: 40))
+        // The sheet fades and scales in; a tap computed mid-animation lands on a field
+        // that has moved, and XCTest reports it as lost after interruption handling.
+        title.waitToSettle()
         title.tap()
         title.typeText("Water the ferns\n")
         app.buttons["Some days"].tap()

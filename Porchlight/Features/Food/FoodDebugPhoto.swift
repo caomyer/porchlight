@@ -3,8 +3,8 @@ import SwiftUI
 import UIKit
 
 /// `-debugInjectMealPhoto`: in a sample launch, saves a generated photo as today's lunch
-/// through the path the capture sheet uses (`savePhoto`, then `addMeal`), so photo
-/// storage, thumbnails and polaroids can be checked on a device without the camera.
+/// through the path the capture sheet uses (`preparePhoto`, then `addMeal`), so photo
+/// rows, thumbnails and polaroids can be checked on a device without the camera.
 enum FoodDebugPhoto {
     @MainActor
     static func injectIfRequested(into store: FoodStore) async {
@@ -20,8 +20,8 @@ enum FoodDebugPhoto {
             eaterIds: store.people.map(\.id),
             eatenAt: now
         )
-        guard let photo = try? await store.savePhoto(image()) else { return }
-        do { _ = try store.addMeal(draft, photos: [photo]) } catch { store.discard([photo]) }
+        guard let photo = try? await store.preparePhoto(image()) else { return }
+        _ = try? store.addMeal(draft, photos: [photo])
     }
 
     /// A 1600 x 1200 "photo": warm tablecloth, a plate and a bowl.

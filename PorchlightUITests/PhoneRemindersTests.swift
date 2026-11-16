@@ -4,7 +4,7 @@ import XCTest
 /// choosing which routines remind. `-notificationAccess` pretends each permission state, so
 /// the system prompt never shows. Runs only on an iPhone (`scripts/test.sh --phone`).
 @MainActor
-final class PhoneRemindersTests: XCTestCase {
+final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
     override func setUpWithError() throws {
         continueAfterFailure = false
         let isPad = MainActor.assumeIsolated { UIDevice.current.userInterfaceIdiom == .pad }
@@ -23,7 +23,7 @@ final class PhoneRemindersTests: XCTestCase {
 
     /// Opens the Notifications page with the given pretend permission.
     private func openNotifications(_ access: String, _ arguments: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.evening, "-me", "James", "-notificationAccess", access] + arguments
         app.launch()
         XCTAssertTrue(app.buttons["you"].waitForExistence(timeout: 60))
@@ -34,13 +34,6 @@ final class PhoneRemindersTests: XCTestCase {
         row.tap()
         XCTAssertTrue(app.staticTexts["Notifications"].waitForExistence(timeout: 5))
         return app
-    }
-
-    private func snapshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
     }
 
     func testSaysWhyBeforeAsking() {
@@ -96,7 +89,7 @@ final class PhoneRemindersTests: XCTestCase {
         app.terminate()
 
         // A reminder 20 seconds out, then quit, so the action has to launch the app.
-        let quiet = XCUIApplication()
+        let quiet = XCUIApplication.porchlight()
         quiet.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.evening, "-me", "James", "-debugReminderIn", "20"]
         quiet.launch()
         XCTAssertTrue(quiet.staticTexts["Hi, James"].waitForExistence(timeout: 60))

@@ -51,14 +51,17 @@ struct ChoreCompletion: Codable, Equatable, Identifiable, Sendable {
     var personId: Person.ID?
     var stars: Int
     var completedAt: Date
+    /// The device that checked it off (a plain id); nil for rows from before devices were known.
+    var deviceId: Device.ID?
 
-    init(choreId: Chore.ID, day: DayKey, personId: Person.ID?, stars: Int, completedAt: Date) {
+    init(choreId: Chore.ID, day: DayKey, personId: Person.ID?, stars: Int, completedAt: Date, deviceId: Device.ID? = nil) {
         id = Self.id(choreId: choreId, day: day)
         self.choreId = choreId
         self.day = day.rawValue
         self.personId = personId
         self.stars = stars
         self.completedAt = completedAt
+        self.deviceId = deviceId
     }
 
     static func id(choreId: Chore.ID, day: DayKey) -> ID {
@@ -103,6 +106,8 @@ struct RewardRedemption: Codable, Equatable, Identifiable, Sendable {
     var stars: Int
     var day: String
     var redeemedAt: Date
+    /// The device that cashed it in (a plain id); nil for rows from before devices were known.
+    var deviceId: Device.ID? = nil
 
     /// One cash-in per round: a round is everything after the reward's previous cash-in,
     /// so two devices cashing in the same round offline write the same row.
@@ -205,6 +210,8 @@ struct ListItem: Codable, Equatable, Identifiable, Sendable {
     var checked: Bool
     var sortOrder: Int
     var createdAt: Date
+    /// The device that added it (a plain id); nil for items from before devices were known.
+    var deviceId: Device.ID? = nil
 }
 
 extension ListItem: FetchableRecord, PersistableRecord {}

@@ -32,8 +32,12 @@ Run the tests on an iPad simulator (build output must stay outside iCloud-synced
 ```bash
 xcodebuild test -project Porchlight.xcodeproj -scheme Porchlight \
   -destination 'platform=iOS Simulator,name=iPad (10th generation)' \
-  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Porchlight-main CODE_SIGNING_ALLOWED=NO
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Porchlight-main CODE_SIGNING_ALLOWED=NO -skipMacroValidation
 ```
+
+iCloud sync uses Point-Free's SQLiteData, whose Swift macros Xcode asks to trust once when the project is opened.
+Command-line builds pass `-skipMacroValidation` instead; every script here does.
+Builds with `CODE_SIGNING_ALLOWED=NO` (simulators, tests) have no iCloud entitlement, so sync stays off in them and Settings says why.
 
 Screenshot a screen with sample data:
 
@@ -50,6 +54,10 @@ Debug-only launch arguments:
 - `-debugReminderIn N` on a phone with notifications really allowed: the day's first care reminder arrives N seconds after launch, to try delivery and its actions by hand; `TEST_RUNNER_PORCHLIGHT_DELIVERY=1` with `-only-testing:PorchlightUITests/PhoneRemindersTests/testDeliveryByHand` runs that check
 - `-me NAME` on a phone: this phone belongs to the person called NAME, so it skips "Which one is you?" (for example `-sampleHousehold -me James`)
 - `-debugCompanionNow yyyy-MM-ddTHH:mm` pins "now" for care, for example `2026-11-16T17:20` so Yo-Yo's evening walk and dinner are open; the phone's writes use it too
+- `-debugSyncStatus off|upToDate|syncing|waiting|noAccount|iCloudFull|needsDecision|restoredCopy` (with `-sampleHousehold` or `-resetData`) puts sync in that state, without iCloud, for screenshots of Settings, the phone's banners and the gear's dot (`needsDecision` is a different iCloud account, `restoredCopy` a database put back from a backup); `lookingForHousehold` with `-resetData` holds the first-launch "Looking for your household in iCloud" screen
+- Sharing without iCloud, with a fake (sample data only): `-debugSharing invited|joined|member` (with `-sampleHousehold`): this device is the owner James's with Mia invited and Ava without a phone, the same with Mia joined from her iPhone, or this device is Mia's and James owns the household
+- Joining: `-debugJoin preview|failing|known` (with `-resetData`): an invite to The Lake House opened the app; `failing` fails the first try as if offline, `known` means this iCloud user already has a phone in the household
+- `-debugRemoved` (with `-resetData` or `-sampleHousehold`): this device's household was removed by its owner; `-debugArrival` (with `-sampleHousehold`, on the wall): lunch came from Mia's phone and a walk arrives from James's phone a few seconds after launch
 - Feature previews: `-calendarMode month|day` (with `-calendarDate yyyy-MM-dd` to open on a day), `-debugCompanionSheet log|celebrate|onboarding|editor|routine` (on a phone, `log|catchUp` opens the care sheet or the catch-up sheet), `-debugFoodView month|write|capture|saved|detail` (with `-debugCaptureShots N` to start the capture with N generated photos), `-homeSheet newChore|whoDidIt|week|ambient|...`
 
 Review the real iPad's rendering (sample data lives in a separate storage sandbox, so the household's data is never touched).
@@ -70,7 +78,7 @@ Decorative motion should play briefly and rest, never loop: on the 120 Hz screen
 scripts/idle-cpu.sh
 ```
 
-UI tests (screen tour, handwriting round trip, meal editing, choosing the photo frame and removing several photos, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, several photos per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, typing times on the number pad (meals, night hours across midnight, routine windows), chores on Today and in the calendar, walks and meals in the week grid, keyboard placement, scrolling, the idle timer, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
+UI tests (screen tour, handwriting round trip, meal editing, choosing the photo frame and removing several photos, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, several photos per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, typing times on the number pad (meals, night hours across midnight, routine windows), chores on Today and in the calendar, walks and meals in the week grid, keyboard placement, scrolling, the idle timer, sync's states in Settings with the gear's dot, the first launch looking for a household in iCloud, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
 The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
 `scripts/test.sh` runs the unit tests and then the UI tests on an iOS 17.5 iPad simulator, resetting the calendar permission so the first-run test sees the prompt.
 It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
@@ -98,6 +106,7 @@ An install signed with a paid Apple Developer team lasts a year; with a free App
 
 The app is universal.
 The iPad keeps the wall, landscape only; an iPhone gets the pocket shell, portrait only: Today (with a companion's week, Pitch in and the next 7 days), Lists, Glow, a Food tab still to come, and the You sheet with this phone's calendars.
+It joins a household from an invite link or the code on the shared screen, and You lists the household's people and their devices and invites more (see [docs/design/households.md](docs/design/households.md)).
 The layout follows the available width, and whether logging asks "who did it?" follows the device's role (shared screen or personal), kept on the device.
 See [docs/design/phone-shell.md](docs/design/phone-shell.md).
 

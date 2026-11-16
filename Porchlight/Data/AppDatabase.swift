@@ -7,10 +7,23 @@ import GRDB
 /// transactions live in one place. It is `Sendable` and safe to share.
 struct AppDatabase: Sendable {
     let writer: any DatabaseWriter
+    /// This install's own id (`DeviceInstall`): with a household's id it names this device's
+    /// row, which every write stamps on the rows it adds.
+    let installId: String
 
-    init(_ writer: any DatabaseWriter) throws {
+    /// Opens the database and brings it up to date.
+    ///
+    /// - Parameter files: The data folder next to the database, which held photos as files
+    ///   before they became rows; nil for a database that never had files (in memory).
+    init(_ writer: any DatabaseWriter, files: URL? = nil, installId: String = DeviceInstall.id()) throws {
         self.writer = writer
-        try Self.migrator.migrate(writer)
+        self.installId = installId
+        try Self.migrator(files: files).migrate(writer)
+        if let files {
+            // Only once the migration that read them has committed. A cleanup that fails
+            // leaves the files for the next launch, and the wall works the same.
+            try? PhotoFileCleanup.run(writer, files: files)
+        }
     }
 
     /// The on-device database in Application Support.
@@ -18,16 +31,19 @@ struct AppDatabase: Sendable {
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent("porchlight.sqlite")
         let exists = fileManager.fileExists(atPath: url.path)
+        var configuration = configuration
+        configuration.prepareDatabase { try $0.attachSyncMetadata() }
         let pool = try DatabasePool(path: url.path, configuration: configuration)
         if exists {
             try keepCopyBeforeSync(pool, at: url, fileManager: fileManager)
         }
-        return try AppDatabase(pool)
+        return try AppDatabase(pool, files: folder)
     }
 
-    /// An empty in-memory database, for tests and previews.
-    static func inMemory() throws -> AppDatabase {
-        try AppDatabase(DatabaseQueue(configuration: configuration))
+    /// An empty in-memory database, for tests and previews. It never syncs, so it has no
+    /// sync metadata attached.
+    static func inMemory(installId: String = DeviceInstall.id()) throws -> AppDatabase {
+        try AppDatabase(DatabaseQueue(configuration: configuration), installId: installId)
     }
 
     /// The settings every connection opens with, on disk or in memory.
@@ -47,7 +63,7 @@ struct AppDatabase: Sendable {
     /// Copies an existing database that hasn't run "sync v1" yet, before it does.
     /// The WAL is checkpointed into the main file first, so the one file is complete.
     private static func keepCopyBeforeSync(_ pool: DatabasePool, at url: URL, fileManager: FileManager) throws {
-        let applied = try pool.read { try migrator.appliedIdentifiers($0) }
+        let applied = try pool.read { try migrator(files: nil).appliedIdentifiers($0) }
         guard !applied.isEmpty, !applied.contains(syncMigration) else { return }
         try pool.writeWithoutTransaction { _ = try $0.checkpoint(.truncate) }
         let copy = copyBeforeSyncURL(next: url)
@@ -58,7 +74,8 @@ struct AppDatabase: Sendable {
         try fileManager.copyItem(at: url, to: copy)
     }
 
-    static var migrator: DatabaseMigrator {
+    /// Every migration, in order. `files` is the data folder the photo import reads from.
+    static func migrator(files: URL?) -> DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1: household and people") { db in
             try db.create(table: "household") { t in
@@ -91,7 +108,11 @@ struct AppDatabase: Sendable {
         registerHomeMigrations(&migrator)
         // Always last among the schemas above: it rebuilds every one of their tables.
         registerSyncMigrations(&migrator)
-        // Changes made since, on the rebuilt tables, oldest first.
+        // Changes made since, on the rebuilt tables. Each stands on its own, so a database
+        // that already ran a later one (a simulator shared with another branch) still runs
+        // the earlier ones it missed, in this order.
+        registerPhotoMigrations(&migrator, files: files)
+        registerHouseholdMigrations(&migrator)
         registerCalendarMigrationsAfterSync(&migrator)
         return migrator
     }
@@ -254,9 +275,14 @@ extension AppDatabase {
 // MARK: - Reads
 
 extension Household {
-    /// The household this display belongs to: the only one, for now.
+    /// The household this device shows: the one it chose (`deviceState`), while that one is
+    /// here, else the oldest. Choosing between several is for the switcher (M5).
     static func current(_ db: Database) throws -> Household? {
-        try Household.order(Column("createdAt"), Column("id")).fetchOne(db)
+        if let chosen = try DeviceState.value(.currentHouseholdId, db).flatMap(Household.ID.init),
+           let household = try Household.fetchOne(db, id: chosen) {
+            return household
+        }
+        return try Household.order(Column("createdAt"), Column("id")).fetchOne(db)
     }
 }
 
@@ -293,13 +319,57 @@ struct HouseholdSnapshot: Equatable, Sendable {
     var people: [Person]
     /// Everyone, removed people included, for showing who did something in the past.
     var everyone: [Person]
+    /// Every install that has opened the household, this one included once it has.
+    var devices: [Device] = []
+    /// The household this device showed and no longer has: someone removed it from the
+    /// household, or stopped sharing it (journey A6). Nil until the person has seen it.
+    var removed: RemovedHousehold?
 
     static let empty = HouseholdSnapshot(household: nil, people: [], everyone: [])
 
     static func fetch(_ db: Database) throws -> HouseholdSnapshot {
-        guard let household = try Household.current(db) else { return .empty }
+        let removed = try RemovedHousehold.fetch(db)
+        guard let household = try Household.current(db) else {
+            return HouseholdSnapshot(household: nil, people: [], everyone: [], removed: removed)
+        }
         let everyone = try Person.everyone(in: household.id).fetchAll(db)
-        return HouseholdSnapshot(household: household, people: everyone.active, everyone: everyone)
+        let devices = try Device
+            .filter(Column("householdId") == household.id)
+            .order(Column("createdAt"), Column("id"))
+            .fetchAll(db)
+        return HouseholdSnapshot(household: household, people: everyone.active, everyone: everyone, devices: devices, removed: removed)
+    }
+
+    /// The personal devices a person has, newest first.
+    func devices(of personId: Person.ID) -> [Device] {
+        devices.filter { $0.owner == personId }.sorted { $0.seenAt > $1.seenAt }
+    }
+
+    /// "from Mia's phone", for a row written on someone's own device; nil for a shared
+    /// screen, a device that belongs to nobody, or a row from before devices were known.
+    func tag(for deviceId: Device.ID?) -> String? {
+        guard let device = deviceId.flatMap({ id in devices.first { $0.id == id } }),
+              let person = everyone.person(device.owner) else { return nil }
+        return "from \(person.name)'s \(device.kindWord)"
+    }
+}
+
+/// A household that left this device while it was showing it.
+struct RemovedHousehold: Equatable, Sendable {
+    var id: Household.ID
+    var name: String
+    /// Whose iCloud held it, when this device knew.
+    var ownerName: String?
+
+    /// The household this device chose, when it is no longer here.
+    static func fetch(_ db: Database) throws -> RemovedHousehold? {
+        guard let id = try DeviceState.value(.currentHouseholdId, db).flatMap(Household.ID.init),
+              try !Household.exists(db, id: id) else { return nil }
+        return RemovedHousehold(
+            id: id,
+            name: try DeviceState.value(.currentHouseholdName, db) ?? "the household",
+            ownerName: try DeviceState.value(DeviceState.ownerKey(id), db)
+        )
     }
 }
 

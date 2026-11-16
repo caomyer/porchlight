@@ -31,14 +31,14 @@ final class CaptureForm {
     /// The restaurant, for delivery or eating out.
     var place: PlaceDraft?
     var title = ""
-    /// Photos taken or picked so far, saved to disk but not attached until Save. Cover first.
+    /// Photos taken or picked so far, held in memory until Save. Cover first.
     var photos: [MealPhotoItem] = []
-    /// Photos still being written to disk.
+    /// Photos still being made from a shot or a pick.
     var savingPhotos = 0
 
-    /// The photo files this capture owns until it saves.
-    var storedPhotos: [FoodPhotoStore.Stored] {
-        photos.compactMap { if case let .added(stored) = $0 { stored } else { nil } }
+    /// The photos this capture would save.
+    var newPhotos: [NewMealPhoto] {
+        photos.compactMap { if case let .added(new) = $0 { new } else { nil } }
     }
 
     /// Room left for more photos, counting ones still being saved.
@@ -224,19 +224,17 @@ struct CaptureSheet: View {
         }
     }
 
-    /// Saves each image to disk off the main actor and adds it to the form's photos, up to
-    /// the limit. Nothing is attached to a meal until Save.
+    /// Makes each image into a photo off the main actor and adds it to the form's photos, up
+    /// to the limit. Nothing is attached to a meal until Save.
     private func add(_ images: [UIImage], to form: CaptureForm) {
         for image in images.prefix(form.photoRoom) {
             form.savingPhotos += 1
             Task {
                 defer { form.savingPhotos -= 1 }
                 do {
-                    let stored = try await store.savePhoto(image)
+                    let photo = try await store.preparePhoto(image)
                     if form.photos.count < AppDatabase.photoLimit, saved == nil {
-                        withAnimation(.easeOut(duration: 0.2)) { form.photos.append(.added(stored)) }
-                    } else {
-                        store.discard([stored])
+                        withAnimation(.easeOut(duration: 0.2)) { form.photos.append(.added(photo)) }
                     }
                 } catch {
                     self.error = error.userMessage
@@ -251,7 +249,7 @@ struct CaptureSheet: View {
         defer { isSaving = false }
         let now = Date.now
         do {
-            let entry = try store.addMeal(form.draft(now: now, calendar: store.calendar, today: store.today(now)), photos: form.storedPhotos)
+            let entry = try store.addMeal(form.draft(now: now, calendar: store.calendar, today: store.today(now)), photos: form.newPhotos)
             error = nil
             withAnimation(.easeInOut(duration: 0.3)) { saved = entry }
         } catch {
@@ -261,7 +259,7 @@ struct CaptureSheet: View {
 
     /// Closes right away unless that would lose photos that were never saved.
     private func requestClose() {
-        if saved == nil, let form, !form.storedPhotos.isEmpty {
+        if saved == nil, let form, !form.newPhotos.isEmpty {
             withAnimation(.easeOut(duration: 0.15)) { confirmingDiscard = true }
         } else {
             onClose()
@@ -269,7 +267,7 @@ struct CaptureSheet: View {
     }
 
     private func discardPrompt(_ form: CaptureForm) -> some View {
-        let count = form.storedPhotos.count
+        let count = form.newPhotos.count
         return ZStack {
             Color.black.opacity(0.25).ignoresSafeArea()
                 .onTapGesture { confirmingDiscard = false }
@@ -284,7 +282,6 @@ struct CaptureSheet: View {
                     Button("Keep editing") { withAnimation(.easeOut(duration: 0.15)) { confirmingDiscard = false } }
                         .buttonStyle(SecondaryButtonStyle())
                     Button("Discard") {
-                        store.discard(form.storedPhotos)
                         form.photos = []
                         onClose()
                     }
@@ -411,10 +408,6 @@ private struct CaptureFormView: View {
         }
         .padding(.top, 14)
         .frame(minHeight: CaptureForm.minimumFormHeight, alignment: .topLeading)
-        .onChange(of: form.photos) { old, new in
-            // A photo removed from the row was never saved; its files go now.
-            store.discard(files: MealPhotoItem.unusedFiles(from: old, to: new))
-        }
     }
 
     private var footnote: String {

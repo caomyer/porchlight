@@ -78,7 +78,6 @@ enum FoodSamples {
         let calendar = household.calendar
         let journal = try database.ensureFoodJournal(householdId: householdId)
         let journalId = journal.id
-        let photos = FoodPhotoStore.standard
         let today = DayKey(.now, calendar: calendar)
         let slots = MealSlot.defaultNames
         let times = [8 * 60 + 40, 12 * 60 + 30, 19 * 60]
@@ -97,8 +96,8 @@ enum FoodSamples {
         /// Gives a sample meal generated photos, so covers, counts and paging show without a camera.
         func photograph(_ entry: JournalEntry, count: Int, palette: Int) throws {
             let id = entry.id
-            let stored = try (0..<count).map { try SamplePhoto.stored(palette: palette + $0, emoji: entry.emoji ?? "🍽️", in: photos) }
-            try database.addMealPhotos(entryId: id, stored, now: entry.eatenAt)
+            let photos = try (0..<count).map { try SamplePhoto.prepared(palette: palette + $0, emoji: entry.emoji ?? "🍽️") }
+            try database.addMealPhotos(entryId: id, photos, now: entry.eatenAt)
         }
 
         for (index, meals) in history.enumerated() {
@@ -140,29 +139,25 @@ enum SamplePhoto {
         (0x9B5D3C, 0x522F1E), (0x444F63, 0x232A38), (0x7C6A4D, 0x3E3424),
     ]
 
-    /// A sample photo saved in `store` like a camera shot. Drawing, resizing and encoding
-    /// one takes a quarter of a second in a debug build, so the stored files are kept in
-    /// Caches (outside the sample sandbox, which each sample launch clears) and copied in.
-    static func stored(palette: Int, emoji: String, in store: FoodPhotoStore) throws -> FoodPhotoStore.Stored {
+    /// A sample photo prepared like a camera shot, ready to be stored as rows. Drawing,
+    /// resizing and encoding one takes a quarter of a second in a debug build, so the
+    /// prepared whole shot and thumbnail are kept in Caches (outside the sample sandbox,
+    /// which each sample launch clears) and read back.
+    static func prepared(palette: Int, emoji: String) throws -> NewMealPhoto {
         let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("SamplePhotos", isDirectory: true)
-        let key = "v1-\(abs(palette) % tables.count)-\(palette % 3)-" + emoji.unicodeScalars.map { String($0.value, radix: 16) }.joined(separator: "_")
+        // v2: the bytes `MealPhotoImaging.prepare` makes, which the photo rows store.
+        let key = "v2-\(abs(palette) % tables.count)-\(palette % 3)-" + emoji.unicodeScalars.map { String($0.value, radix: 16) }.joined(separator: "_")
         let cachedPhoto = folder.appendingPathComponent(key + ".jpg")
         let cachedThumbnail = folder.appendingPathComponent(key + "-thumb.jpg")
-        let manager = FileManager.default
-        if manager.fileExists(atPath: cachedPhoto.path), manager.fileExists(atPath: cachedThumbnail.path) {
-            try manager.createDirectory(at: store.directory, withIntermediateDirectories: true)
-            let name = FoodPhotoStore.filePrefix + UUID().uuidString.lowercased()
-            let stored = FoodPhotoStore.Stored(photoFile: name + ".jpg", thumbnailFile: name + "-thumb.jpg", crop: nil)
-            try manager.copyItem(at: cachedPhoto, to: store.url(for: stored.photoFile))
-            try manager.copyItem(at: cachedThumbnail, to: store.url(for: stored.thumbnailFile))
-            return stored
+        if let image = try? Data(contentsOf: cachedPhoto), let thumbnail = try? Data(contentsOf: cachedThumbnail) {
+            return NewMealPhoto(id: .new(), image: image, thumbnail: thumbnail, crop: nil)
         }
-        let stored = try store.save(image(palette: palette, emoji: emoji))
-        try? manager.createDirectory(at: folder, withIntermediateDirectories: true)
-        try? manager.copyItem(at: store.url(for: stored.photoFile), to: cachedPhoto)
-        try? manager.copyItem(at: store.url(for: stored.thumbnailFile), to: cachedThumbnail)
-        return stored
+        let photo = try MealPhotoImaging.prepare(image(palette: palette, emoji: emoji))
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try? photo.image.write(to: cachedPhoto, options: .atomic)
+        try? photo.thumbnail.write(to: cachedThumbnail, options: .atomic)
+        return photo
     }
 
     static func image(palette: Int, emoji: String) -> UIImage {

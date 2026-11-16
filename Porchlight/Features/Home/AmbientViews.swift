@@ -3,12 +3,12 @@ import UIKit
 
 /// Full-screen photo frame shown when the wall is idle, or from the rail.
 ///
-/// Settings > Photo frame > Show picks photos (Settings imports plus `extraPhotoURLs`, meal photos
+/// Settings > Photo frame > Show picks photos (Settings imports plus `extraPhotos`, meal photos
 /// from other features), shuffled, or the porch view: a still painted sky that follows the time of
 /// day. Without any photos it shows the porch view. At night it dims to a minimal clock.
 /// `glance` is an optional row of glass cards (next event, companion status) shown bottom-right.
 struct AmbientView: View {
-    var extraPhotoURLs: [URL]
+    var extraPhotos: [FramePhoto]
     var onWake: () -> Void
     var glance: AnyView? = nil
 
@@ -50,13 +50,13 @@ struct AmbientView: View {
         .accessibilityAction(named: "Wake", onWake)
     }
 
-    private var photos: [URL] { store.photoURLs + extraPhotoURLs }
+    private var photos: [FramePhoto] { store.photoURLs.map(FramePhoto.file) + extraPhotos }
 
     private var showsPhotos: Bool { show == .photos && !photos.isEmpty }
 
-    private var captions: [URL: String] {
+    private var captions: [FramePhoto: String] {
         Dictionary(
-            store.snapshot.photos.compactMap { photo in photo.caption.map { (store.photoLibrary.url(for: photo.fileName), "📷 " + $0) } },
+            store.snapshot.photos.compactMap { photo in photo.caption.map { (.file(store.photoLibrary.url(for: photo.fileName)), "📷 " + $0) } },
             uniquingKeysWith: { first, _ in first }
         )
     }
@@ -75,7 +75,7 @@ struct AmbientView: View {
     private func day(date: Date) -> some View {
         ZStack(alignment: .bottomLeading) {
             if showsPhotos {
-                PhotoSlideshow(urls: photos, captions: captions, caption: $caption)
+                PhotoSlideshow(photos: photos, captions: captions, caption: $caption)
             } else {
                 PorchView(sky: PorchSky.at(date, calendar: store.calendar))
             }
@@ -184,10 +184,16 @@ enum NightBrightness {
 
 // MARK: - Photos
 
+/// A photo the frame can show: a file of its own library, or a household photo's row.
+enum FramePhoto: Hashable, Sendable {
+    case file(URL)
+    case stored(PhotoSource)
+}
+
 /// Crossfades through photos every ~20 seconds in a shuffled order, each with a slow Ken Burns pan.
 private struct PhotoSlideshow: View {
-    let urls: [URL]
-    let captions: [URL: String]
+    let photos: [FramePhoto]
+    let captions: [FramePhoto: String]
     @Binding var caption: String?
 
     private struct Slide: Equatable {
@@ -196,7 +202,8 @@ private struct PhotoSlideshow: View {
     }
 
     @State private var slide: Slide?
-    @State private var deck = ShuffleDeck<URL>()
+    @State private var deck = ShuffleDeck<FramePhoto>()
+    @Environment(PhotoImages.self) private var images
 
     var body: some View {
         KenBurns(image: slide?.image, seed: slide?.number ?? 0, fade: 2.5)
@@ -204,7 +211,7 @@ private struct PhotoSlideshow: View {
             .accessibilityElement()
             .accessibilityLabel("Photos")
             .accessibilityIdentifier("photoSlideshow")
-            .task(id: urls) { await run() }
+            .task(id: photos) { await run() }
     }
 
     private func run() async {
@@ -212,18 +219,28 @@ private struct PhotoSlideshow: View {
         let maxPixels = 2560
         var number = slide.map { $0.number + 1 } ?? 0
         var failures = 0
-        while !Task.isCancelled, let url = deck.next(from: urls) {
-            if let image = await AmbientPhotoLibrary.loadForDisplay(url, maxPixelSize: maxPixels) {
+        while !Task.isCancelled, let photo = deck.next(from: photos) {
+            if let image = await load(photo, maxPixels: maxPixels) {
                 failures = 0
                 slide = Slide(number: number, image: image)
-                caption = captions[url]
+                caption = captions[photo]
                 number += 1
                 try? await Task.sleep(for: .seconds(AmbientSettings.slideSeconds))
             } else {
-                // Skip unreadable files; stop spinning if none can be read.
+                // Skip unreadable photos; stop spinning if none can be read.
                 failures += 1
-                if failures >= urls.count { return }
+                if failures >= photos.count { return }
             }
+        }
+    }
+
+    private func load(_ photo: FramePhoto, maxPixels: Int) async -> UIImage? {
+        switch photo {
+        case let .file(url):
+            return await AmbientPhotoLibrary.loadForDisplay(url, maxPixelSize: maxPixels)
+        case let .stored(source):
+            guard let data = await images.bytes(of: source) else { return nil }
+            return await AmbientPhotoLibrary.loadForDisplay(data, maxPixelSize: maxPixels)
         }
     }
 }

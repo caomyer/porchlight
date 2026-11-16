@@ -135,6 +135,8 @@ struct JournalEntry: Codable, Equatable, Identifiable, Sendable {
     /// The restaurant, for delivery or dining out. A plain id, not a foreign key:
     /// after a sync it may point at a place that has not arrived yet.
     var placeId: FoodPlace.ID?
+    /// The device that logged it (a plain id); nil for meals from before devices were known.
+    var deviceId: Device.ID? = nil
 }
 
 extension JournalEntry: FetchableRecord, PersistableRecord {
@@ -149,15 +151,15 @@ extension JournalEntry: FetchableRecord, PersistableRecord {
 
 /// One photo of a meal. A meal has up to `AppDatabase.photoLimit`; the first in
 /// `sortOrder` is its cover, the picture shown wherever many meals appear at once.
+///
+/// Its pictures are rows of their own, keyed by its id: the whole shot in
+/// `MealPhotoImage` and the square the wall shows in `MealPhotoThumbnail`, so lists of
+/// photos never load either.
 struct MealPhoto: Codable, Equatable, Hashable, Identifiable, Sendable {
     typealias ID = Porchlight.ID<MealPhoto>
 
     var id: ID = .new()
     var entryId: JournalEntry.ID
-    /// File names inside the photo folder (see `FoodPhotoStore`). The photo is the whole
-    /// shot; the thumbnail is the square the wall shows.
-    var photoFile: String
-    var thumbnailFile: String
     var sortOrder: Int
     var createdAt: Date
     /// The square shown on the wall, as fractions of the photo's width and height.
@@ -244,6 +246,46 @@ struct PhotoCrop: Codable, Equatable, Hashable, Sendable {
 
 extension MealPhoto: FetchableRecord, PersistableRecord {
     static let databaseTableName = "journalEntryPhoto"
+}
+
+/// A meal photo's whole shot, at most `MealPhotoImaging.maxPixels` on its long side.
+/// Shown only where one photo fills the view; grids use the thumbnail.
+struct MealPhotoImage: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "journalEntryPhotoImage"
+
+    var photoId: MealPhoto.ID
+    /// The size of `image`, read without loading it (and summed by the storage meter).
+    var byteCount: Int
+    var image: Data
+
+    init(photoId: MealPhoto.ID, image: Data) {
+        self.photoId = photoId
+        byteCount = image.count
+        self.image = image
+    }
+}
+
+/// The square of a meal photo the wall shows, as a small JPEG.
+struct MealPhotoThumbnail: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "journalEntryPhotoThumb"
+
+    var photoId: MealPhoto.ID
+    var byteCount: Int
+    var image: Data
+
+    init(photoId: MealPhoto.ID, image: Data) {
+        self.photoId = photoId
+        byteCount = image.count
+        self.image = image
+    }
+}
+
+/// The byte counts of a meal photo's pictures, nil for one it doesn't have (yet: a sync can
+/// deliver the photo before its pictures). They change whenever a picture does, which is
+/// how a cached image knows it is stale.
+struct MealPhotoSizes: Equatable, Sendable {
+    var thumbnail: Int?
+    var image: Int?
 }
 
 /// "Who ate": a person credited with an entry.

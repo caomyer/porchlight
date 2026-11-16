@@ -8,7 +8,7 @@ import XCTest
 /// and dinner are open whenever the suite runs. The sample household also missed
 /// yesterday's dinner, gives James the leaky faucet, and leaves the vacuuming to anyone.
 @MainActor
-final class PhoneTests: XCTestCase {
+final class PhoneTests: XCTestCase, PhoneTestHelpers {
     override func setUpWithError() throws {
         continueAfterFailure = false
         let isPad = MainActor.assumeIsolated { UIDevice.current.userInterfaceIdiom == .pad }
@@ -26,36 +26,14 @@ final class PhoneTests: XCTestCase {
     }
 
     private func launch(_ arguments: [String] = [], me: String? = "James") -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.evening] + (me.map { ["-me", $0] } ?? []) + arguments
         app.launch()
         return app
     }
 
-    private func snapshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
-
-    private func element(_ app: XCUIApplication, beginningWith part: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch
-    }
-
     private func logButton(_ app: XCUIApplication) -> XCUIElement {
         app.buttons["Log Yo-Yo's evening walk"]
-    }
-
-    /// Scrolls Today a little at a time until `element` is wholly in view above the tab bar.
-    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        let window = app.windows.firstMatch.frame
-        let tabBar = app.tabBars.firstMatch.frame
-        let visible = CGRect(x: window.minX, y: window.minY, width: window.width, height: tabBar.minY - window.minY)
-        for _ in 0..<12 where !(element.isHittable && visible.contains(element.frame)) {
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)))
-        }
     }
 
     // MARK: Who you are
@@ -160,7 +138,7 @@ final class PhoneTests: XCTestCase {
 
     /// Late in the evening Yo-Yo is all set, and with the faucet fixed nothing is left for James.
     func testAllClear() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
         let late = String(format: "%04d-%02d-%02dT21:30", parts.year!, parts.month!, parts.day!)
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", late, "-me", "James"]
@@ -180,7 +158,7 @@ final class PhoneTests: XCTestCase {
         XCTAssertTrue(you.waitForExistence(timeout: 60))
         you.tap()
         XCTAssertTrue(app.staticTexts["The Lake House"].waitForExistence(timeout: 5), "The household's name")
-        XCTAssertTrue(element(app, beginningWith: "This iPhone, Personal").exists, "This phone's role")
+        XCTAssertTrue(element(app, beginningWith: "James's iPhone, Personal").exists, "This phone's role")
         snapshot("phone-60-you")
         app.buttons["change-me"].waitToSettle()
         app.buttons["change-me"].tap()

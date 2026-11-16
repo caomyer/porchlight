@@ -5,17 +5,15 @@ import Testing
 import UIKit
 @testable import Porchlight
 
-@Suite("Food: persistence and photo files")
+@Suite("Food: persistence and photos")
 struct FoodDatabaseTests {
     let db: AppDatabase
-    let photos: FoodPhotoStore
     let householdId: Household.ID
     let people: [Person]
     let journal: Journal
 
     init() throws {
         db = try AppDatabase.inMemory()
-        photos = FoodPhotoStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("food-tests-\(UUID().uuidString)", isDirectory: true))
         let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)])
         householdId = household.id
         people = try db.snapshot().people
@@ -26,15 +24,21 @@ struct FoodDatabaseTests {
         MealDraft(day: DayKey(rawValue: day), slot: slot, title: title, eaterIds: eaters ?? people.map(\.id), eatenAt: Date(timeIntervalSince1970: 1_000))
     }
 
-    private func image() -> UIImage {
-        UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30)).image { context in
+    /// A new photo of a plain image, `width` by `height` pixels.
+    private func photo(width: CGFloat = 40, height: CGFloat = 30) throws -> NewMealPhoto {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return try MealPhotoImaging.prepare(UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format).image { context in
             UIColor.orange.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 40, height: 30))
-        }
+            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        })
     }
 
-    private func files() -> [String] {
-        ((try? FileManager.default.contentsOfDirectory(atPath: photos.directory.path)) ?? []).sorted()
+    /// Rows in each photo table: whole shots, then thumbnails.
+    private func pictureCounts() throws -> [Int] {
+        try db.writer.read { db in
+            try ["journalEntryPhotoImage", "journalEntryPhotoThumb"].map { try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \($0)") ?? 0 }
+        }
     }
 
     @Test("The food journal is created once with the default meals")
@@ -77,7 +81,7 @@ struct FoodDatabaseTests {
     @Test("Editing a meal changes its details and eaters, keeping photo and day")
     func updateMeal() throws {
         let james = people[0].id, mia = people[1].id
-        let stored = try photos.save(image())
+        let stored = try photo()
         let original = draft("Pho", eaters: [james])
         _ = try db.addMeal(original, journalId: journal.id, photos: [stored])
         let entry = try #require(try db.foodSnapshot().entries.first)
@@ -97,10 +101,10 @@ struct FoodDatabaseTests {
         #expect(row.source == .delivery)
         #expect(row.rating == .fine)
         #expect(row.dayKey == entry.dayKey)
-        #expect(snapshot.photos[entry.id]?.map(\.photoFile) == [stored.photoFile], "photos stay unless the edit names them")
+        #expect(snapshot.photos[entry.id]?.map(\.id) == [stored.id], "photos stay unless the edit names them")
         #expect(row.createdAt == entry.createdAt)
         #expect(Set(snapshot.eaters[entry.id] ?? []) == [james, mia])
-        #expect(files() == [stored.photoFile, stored.thumbnailFile].sorted())
+        #expect(try pictureCounts() == [1, 1])
     }
 
     @Test("Editing keeps a hand-picked illustration while the title stays the same")
@@ -159,55 +163,65 @@ struct FoodDatabaseTests {
         }
     }
 
-    @Test("Photos are saved with a thumbnail and deleted with their meal")
+    @Test("A photo is stored as two rows, the whole shot and a square thumbnail, and deleted with its meal")
     func photoLifecycle() throws {
-        let stored = try photos.save(image())
-        #expect(files() == [stored.photoFile, stored.thumbnailFile].sorted())
-        #expect(stored.photoFile.hasPrefix("meal-") && stored.thumbnailFile.hasSuffix("-thumb.jpg"))
-        let thumbnail = try #require(UIImage(contentsOfFile: photos.url(for: stored.thumbnailFile).path))
+        let new = try photo()
+        let thumbnail = try #require(UIImage(data: new.thumbnail))
         #expect(thumbnail.size.width == thumbnail.size.height)
 
-        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [stored])
-        #expect(try db.referencedPhotoFiles() == [stored.photoFile, stored.thumbnailFile])
-        try db.deleteMeal(id: entry.id, files: photos)
-        #expect(files().isEmpty)
+        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [new])
+        let saved = try #require(try db.foodSnapshot().photos[entry.id]?.first)
+        #expect(saved.id == new.id)
+        #expect(try db.bytes(of: .mealImage(saved.id, byteCount: new.image.count)) == new.image)
+        #expect(try db.bytes(of: .mealThumbnail(saved.id, byteCount: new.thumbnail.count)) == new.thumbnail)
+        #expect(try db.foodSnapshot().photoSizes[saved.id] == MealPhotoSizes(thumbnail: new.thumbnail.count, image: new.image.count))
+        try db.deleteMeal(id: entry.id)
+        #expect(try pictureCounts() == [0, 0])
         #expect(try db.foodSnapshot().entries.isEmpty)
     }
 
-    @Test("A failed save leaves its photos for the next try")
+    @Test("The whole shot is at most 2048 pixels on its long side")
+    func photoSize() throws {
+        let large = try #require(UIImage(data: try photo(width: 3000, height: 1000).image))
+        #expect(large.size == CGSize(width: 2048, height: 683))
+        let small = try #require(UIImage(data: try photo().image))
+        #expect(small.size == CGSize(width: 40, height: 30), "smaller shots keep their size")
+    }
+
+    @Test("A failed save stores nothing, and the photos can be saved again")
     func failedSaveKeepsPhotos() throws {
-        let stored = try photos.save(image())
+        let new = try photo()
         #expect(throws: FoodError.nobodyAte) {
-            try db.addMeal(draft(eaters: []), journalId: journal.id, photos: [stored])
+            try db.addMeal(draft(eaters: []), journalId: journal.id, photos: [new])
         }
-        #expect(files() == [stored.photoFile, stored.thumbnailFile].sorted(), "the capture sheet still shows them")
+        #expect(try pictureCounts() == [0, 0])
         #expect(try db.foodSnapshot().entries.isEmpty)
-        let saved = try db.addMeal(draft(), journalId: journal.id, photos: [stored])
+        let saved = try db.addMeal(draft(), journalId: journal.id, photos: [new])
         #expect(try db.foodSnapshot().photos[saved.id]?.count == 1)
     }
 
     @Test("A meal keeps several photos in order, the first as its cover")
     func severalPhotos() throws {
-        let shots = try (0..<3).map { _ in try photos.save(image()) }
+        let shots = try (0..<3).map { _ in try photo() }
         let entry = try db.addMeal(draft(), journalId: journal.id, photos: shots)
         let stored = try #require(try db.foodSnapshot().photos[entry.id])
-        #expect(stored.map(\.photoFile) == shots.map(\.photoFile))
+        #expect(stored.map(\.id) == shots.map(\.id))
         #expect(stored.map(\.sortOrder) == [0, 1, 2])
-        #expect(try db.referencedPhotoFiles().count == 6)
+        #expect(try pictureCounts() == [3, 3])
     }
 
     @Test("Photos can be added to a saved meal, up to the limit")
     func addPhotosLater() throws {
         let entry = try db.addMeal(draft(), journalId: journal.id)
-        let first = try photos.save(image())
+        let first = try photo()
         try db.addMealPhotos(entryId: entry.id, [first])
-        let more = try (0..<(AppDatabase.photoLimit - 1)).map { _ in try photos.save(image()) }
+        let more = try (0..<(AppDatabase.photoLimit - 1)).map { _ in try photo() }
         try db.addMealPhotos(entryId: entry.id, more)
         let all = try #require(try db.foodSnapshot().photos[entry.id])
         #expect(all.count == AppDatabase.photoLimit)
-        #expect(all.first?.photoFile == first.photoFile, "new photos go after the cover")
+        #expect(all.first?.id == first.id, "new photos go after the cover")
 
-        let extra = try photos.save(image())
+        let extra = try photo()
         #expect(throws: FoodError.tooManyPhotos(limit: AppDatabase.photoLimit)) {
             try db.addMealPhotos(entryId: entry.id, [extra])
         }
@@ -222,42 +236,68 @@ struct FoodDatabaseTests {
 
     @Test("Editing photos re-orders, removes and adds them on save")
     func editPhotos() throws {
-        let shots = try (0..<3).map { _ in try photos.save(image()) }
+        let shots = try (0..<3).map { _ in try photo() }
         let entry = try db.addMeal(draft(), journalId: journal.id, photos: shots)
         let saved = try #require(try db.foodSnapshot().photos[entry.id])
-        let added = try photos.save(image())
+        let added = try photo()
 
         // The third becomes the cover, the first goes, a new one joins at the end.
         let items: [MealPhotoItem] = [.kept(saved[2]), .kept(saved[1]), .added(added)]
-        try db.updateMeal(id: entry.id, draft(), photos: items, files: photos)
+        try db.updateMeal(id: entry.id, draft(), photos: items)
 
         let after = try #require(try db.foodSnapshot().photos[entry.id])
-        #expect(after.map(\.photoFile) == [shots[2].photoFile, shots[1].photoFile, added.photoFile])
+        #expect(after.map(\.id) == [shots[2].id, shots[1].id, added.id])
         #expect(after.map(\.sortOrder) == [0, 1, 2])
-        #expect(!files().contains(shots[0].photoFile), "a removed photo's files go once saved")
-        #expect(files().contains(added.photoFile))
+        #expect(try pictureCounts() == [3, 3], "a removed photo's pictures go with it")
+        #expect(try db.bytes(of: .mealImage(shots[0].id, byteCount: 0)) == nil)
     }
 
-    @Test("A rejected photo edit changes nothing and touches no file")
+    @Test("A rejected photo edit changes nothing")
     func invalidPhotoEdit() throws {
-        let shot = try photos.save(image())
+        let shot = try photo()
         let entry = try db.addMeal(draft(), journalId: journal.id, photos: [shot])
-        let other = try db.addMeal(draft("Rice"), journalId: journal.id, photos: [try photos.save(image())])
+        let other = try db.addMeal(draft("Rice"), journalId: journal.id, photos: [try photo()])
         let foreign = try #require(try db.foodSnapshot().photos[other.id]?.first)
         #expect(throws: FoodError.mealNotFound) {
-            try db.updateMeal(id: entry.id, draft(), photos: [.kept(foreign)], files: photos)
+            try db.updateMeal(id: entry.id, draft(), photos: [.kept(foreign)])
         }
         #expect(throws: FoodError.nobodyAte) {
-            try db.updateMeal(id: entry.id, draft(eaters: []), photos: [], files: photos)
+            try db.updateMeal(id: entry.id, draft(eaters: []), photos: [])
         }
-        #expect(try db.foodSnapshot().photos[entry.id]?.map(\.photoFile) == [shot.photoFile])
-        #expect(files().contains(shot.photoFile))
+        #expect(try db.foodSnapshot().photos[entry.id]?.map(\.id) == [shot.id])
+        #expect(try pictureCounts() == [2, 2])
+    }
+
+    @Test("Views read a saved photo's thumbnail and whole shot through the photo cache")
+    @MainActor
+    func viewsReadRows() async throws {
+        let new = try photo(width: 300, height: 100)
+        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [new])
+        let store = FoodStore(database: db)
+        let saved = try #require(store.photos(of: entry).first)
+        let images = PhotoImages(database: db)
+
+        let thumbnail = try #require(store.thumbnail(of: saved))
+        let square = try #require(await images.image(PhotoRequest(thumbnail)))
+        #expect(square.size == CGSize(width: MealPhotoImaging.thumbnailPixels, height: MealPhotoImaging.thumbnailPixels))
+        #expect(images.cached(PhotoRequest(thumbnail)) === square, "a second view draws it in its first frame")
+        let whole = try #require(store.image(of: saved))
+        #expect(await images.image(PhotoRequest(whole))?.size == CGSize(width: 300, height: 100))
+        #expect(await images.image(PhotoRequest(whole, crop: .centeredSquare(in: CGSize(width: 300, height: 100))))?.size == CGSize(width: 100, height: 100))
+        #expect(store.recentPhotos(limit: 5) == [whole], "the photo frame shows whole shots")
+
+        // Reframing writes a new thumbnail, so its size changes and nothing stale is shown.
+        let crop = PhotoCrop.square(in: CGSize(width: 300, height: 100), position: 0)
+        let reframed = try MealPhotoImaging.thumbnail(ofImage: new.image, crop: crop)
+        try db.updateMeal(id: entry.id, draft(), photos: [MealPhotoItem.kept(saved).reframed(crop, thumbnail: reframed)])
+        #expect(try db.foodSnapshot().photoSizes[saved.id]?.thumbnail == reframed.count)
+        #expect(try db.bytes(of: .mealThumbnail(saved.id, byteCount: reframed.count)) == reframed)
     }
 
     @Test("Upgrading moves each meal's one photo into its photos, as the cover")
     func photoMigration() throws {
         let queue = try DatabaseQueue(configuration: AppDatabase.configuration)
-        try AppDatabase.migrator.migrate(queue, upTo: "food v3: notes belong to the day's page, not a meal")
+        try AppDatabase.migrator(files: nil).migrate(queue, upTo: "food v3: notes belong to the day's page, not a meal")
         try queue.write { db in
             try db.execute(sql: "INSERT INTO household (id, name, timeZoneIdentifier, firstWeekday, createdAt) VALUES (1, 'Home', 'UTC', 1, '2026-01-01 00:00:00')")
             try db.execute(sql: "INSERT INTO journal (id, householdId, kind, title, enabled, slots, createdAt) VALUES (1, 1, 'food', 'Food diary', 1, '[\"Lunch\"]', '2026-01-01 00:00:00')")
@@ -268,28 +308,17 @@ struct FoodDatabaseTests {
                     """)
             }
         }
-        let upgraded = try AppDatabase(queue)
-        let snapshot = try upgraded.foodSnapshot()
-        #expect(snapshot.entries.count == 2)
-        let photos = snapshot.entries.map { snapshot.photos[$0.id] }
-        #expect(photos.compactMap { $0?.map(\.photoFile) } == [["meal-a.jpg"]])
-        #expect(photos.compactMap { $0?.first?.thumbnailFile } == ["meal-a-thumb.jpg"])
+        try AppDatabase.migrator(files: nil).migrate(queue, upTo: "food v5: which square of a photo the wall shows")
+        let photos = try queue.read { db in
+            try Row.fetchAll(db, sql: "SELECT entryId, photoFile, thumbnailFile, sortOrder FROM journalEntryPhoto")
+        }
+        #expect(photos.count == 1)
+        #expect(photos.first?["entryId"] == 1)
+        #expect(photos.first?["photoFile"] == "meal-a.jpg")
+        #expect(photos.first?["thumbnailFile"] == "meal-a-thumb.jpg")
+        #expect(photos.first?["sortOrder"] == 0)
         let columns = try queue.read { db in try db.columns(in: "journalEntry").map(\.name) }
         #expect(!columns.contains("photoFile") && !columns.contains("thumbnailFile"))
-    }
-
-    @Test("Sweeping removes only unreferenced meal photos")
-    func sweep() throws {
-        let kept = try photos.save(image())
-        let orphan = try photos.save(image())
-        let other = photos.directory.appendingPathComponent("someone-elses.jpg")
-        try Data([1]).write(to: other)
-        photos.sweep(keeping: [kept.photoFile, kept.thumbnailFile])
-        #expect(files() == [kept.photoFile, kept.thumbnailFile, "someone-elses.jpg"].sorted())
-        #expect(!files().contains(orphan.photoFile))
-        // Never touches paths outside the folder.
-        #expect(!FoodPhotoStore.isOwnFile("meal-../../x"))
-        #expect(!FoodPhotoStore.isOwnFile("other.jpg"))
     }
 
     @Test("Pages are upserted per day and removed when blank")

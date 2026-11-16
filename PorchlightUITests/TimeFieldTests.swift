@@ -47,7 +47,7 @@ final class TimeFieldTests: XCTestCase {
     /// The card opens on the meal's time; each digit counts at once, so 2 to 1
     /// is one tap, and AM | PM flips the half of the day.
     func testTypingAMealTime() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "food"]
         app.launch()
 
@@ -99,7 +99,7 @@ final class TimeFieldTests: XCTestCase {
 
     /// The night runs past midnight: an end before the start is the next day.
     func testNightHoursCrossMidnight() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "settings"]
         app.launch()
 
@@ -128,7 +128,7 @@ final class TimeFieldTests: XCTestCase {
 
     /// A routine's window can't end before it starts, and says so.
     func testARoutineWindow() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "settings", "-debugCompanionSheet", "routine"]
         app.launch()
 

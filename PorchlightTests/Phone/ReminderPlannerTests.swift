@@ -142,6 +142,39 @@ struct ReminderPlannerTests {
         #expect(Set(reminders.map(\.id)).count == 64, "Ids are unique and stable")
     }
 
+    @Test("A walk that arrives from another device, written straight into the tables, takes its reminder away")
+    func remoteLog() async throws {
+        let db = try AppDatabase.inMemory()
+        let household = try db.createHousehold(
+            name: "Home", people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)],
+            timeZone: TimeZone(identifier: "America/Los_Angeles")!
+        )
+        let people = try db.snapshot().people
+        var yoyo = CompanionDraft.new(species: .dog)
+        yoyo.name = "Yo-Yo"
+        let companionId = try db.saveCompanion(yoyo, householdId: household.id, now: F.date(day: 1, 0))
+        let walk = try #require(try await db.writer.read(CompanionSnapshot.fetch).routines(of: companionId).first { $0.kind == .walk })
+        var choices = ReminderChoices(chores: false)
+        choices.care[ReminderChoices.slotKey(walk.id, slot: 1)] = .opens
+        let now = F.date(16, 30)
+        func plan() async throws -> [PlannedReminder] {
+            ReminderPlanner.plan(companions: try await db.writer.read(CompanionSnapshot.fetch), chores: [], completions: [], me: people[0].id, choices: choices, now: now)
+        }
+        let todays = PlannedReminder.prefix + "care." + ReminderChoices.dayKey(walk.id, slot: 1, day: F.key(7))
+        #expect(try await plan().contains { $0.id == todays })
+
+        // As the sync engine writes Mia's walk: plain inserts, no app write path.
+        let log = CareLog.ID.new()
+        try await db.writer.write { db in
+            try db.execute(sql: """
+                INSERT INTO careLog (id, careRoutineId, occurredAt, stars, createdAt) VALUES (?, ?, ?, 2, ?)
+                """, arguments: [log, walk.id, F.date(16, 10), F.date(16, 10)])
+            try db.execute(sql: "INSERT INTO careLogPerson (id, careLogId, personId) VALUES (?, ?, ?)",
+                           arguments: [CareLogPerson.id(careLogId: log, personId: people[1].id), log, people[1].id])
+        }
+        #expect(try await !plan().contains { $0.id == todays }, "Mia already walked Yo-Yo this evening")
+    }
+
     @Test("Choices keep only today's and later snoozes and hand-offs")
     func prune() {
         var choices = ReminderChoices()

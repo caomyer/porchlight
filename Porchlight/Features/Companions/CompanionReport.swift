@@ -34,6 +34,7 @@ struct Milestone: Identifiable, Equatable {
 /// Everything a companion's Today card and page show, computed from a snapshot at `now`.
 struct CompanionReport {
     var companion: Companion
+    var look: CompanionLook
     var routines: [CareRoutine]
     var primary: RoutineToday?
     var others: [RoutineToday]
@@ -53,7 +54,6 @@ struct CompanionReport {
 
     var id: Companion.ID { companion.id }
     var name: String { companion.name }
-    var look: CompanionLook { CompanionLook(companion) }
     var expression: FaceExpression { FaceExpression(mood: mood) }
     var moodLabel: (emoji: String, label: String)? {
         mood.map { CompanionPresets.mood(for: companion.species, level: $0) }
@@ -77,7 +77,7 @@ struct CompanionReport {
         }
         guard let primary = todays.first else {
             return CompanionReport(
-                companion: companion, routines: [], primary: nil, others: [], mood: nil, streak: 0, today: today, now: now,
+                companion: companion, look: snapshot.look(of: companion), routines: [], primary: nil, others: [], mood: nil, streak: 0, today: today, now: now,
                 weekDays: weekDays, trail: weekDays.map { _ in [] }, weekStats: .init(), leaderboard: [], diary: [], missed: [], milestones: []
             )
         }
@@ -91,6 +91,7 @@ struct CompanionReport {
         )
         return CompanionReport(
             companion: companion,
+            look: snapshot.look(of: companion),
             routines: routines,
             primary: primary,
             others: Array(todays.dropFirst()),

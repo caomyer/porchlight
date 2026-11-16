@@ -17,6 +17,8 @@ enum Theme {
     static let accent = Color(light: 0xD9653B, dark: 0xE67A50)
     static let accentInk = Color.white
     static let good = Color(hex: 0x5B9F72)
+    /// Something paused that needs a look, never an error: sync waiting on iCloud.
+    static let warn = Color(light: 0xB7791F, dark: 0xD9A441)
     /// A selected pill or a claimed row: the accent laid softly on paper.
     static let accentSoft = Color(light: 0xFDF1EA, dark: 0x4A2E22)
     /// Done things: a filled care slot, an all-clear banner.
@@ -25,6 +27,8 @@ enum Theme {
     /// Something that needs a look, like care that was never logged.
     static let warnSoft = Color(light: 0xF6E7C8, dark: 0x3D3122)
     static let warnInk = Color(light: 0x7A5214, dark: 0xE8C27E)
+    /// The one color for what can't be undone: removing someone's devices.
+    static let danger = Color(light: 0xB54A3A, dark: 0xD4705E)
     /// The undo toast floats above both looks, so it stays dark in both.
     static let toast = Color(light: 0x2A2420, dark: 0x3B332D)
     static let toastInk = Color(hex: 0xFFFCF6)

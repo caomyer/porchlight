@@ -7,7 +7,7 @@ import XCTest
 ///
 /// Time is pinned to 5:20 pm today, like PhoneTests.
 @MainActor
-final class PhoneTabsTests: XCTestCase {
+final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
     override func setUpWithError() throws {
         continueAfterFailure = false
         let isPad = MainActor.assumeIsolated { UIDevice.current.userInterfaceIdiom == .pad }
@@ -25,44 +25,11 @@ final class PhoneTabsTests: XCTestCase {
     }
 
     private func launch(_ arguments: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.evening, "-me", "James"] + arguments
         app.launch()
         XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
         return app
-    }
-
-    private func snapshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
-
-    private func element(_ app: XCUIApplication, beginningWith part: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch
-    }
-
-    /// Scrolls a little at a time until `element` is wholly in view above the tab bar.
-    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        let window = app.windows.firstMatch.frame
-        let tabBar = app.tabBars.firstMatch.frame
-        let visible = CGRect(x: window.minX, y: window.minY, width: window.width, height: tabBar.minY - window.minY)
-        for _ in 0..<14 where !(element.exists && element.isHittable && visible.contains(element.frame)) {
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)))
-        }
-    }
-
-    /// Types into a field a key at a time and checks it all arrived: on a busy simulator a
-    /// fast `typeText` can drop keys.
-    private func type(_ text: String, into field: XCUIElement, in app: XCUIApplication) {
-        field.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        for character in text {
-            field.typeText(String(character))
-        }
-        XCTAssertEqual(field.value as? String, text, "Every key arrived")
     }
 
     // MARK: Companions

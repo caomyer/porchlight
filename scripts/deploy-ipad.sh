@@ -57,6 +57,7 @@ xcodebuild build \
   -destination "generic/platform=iOS" \
   -derivedDataPath "$derived" \
   -allowProvisioningUpdates \
+  -skipMacroValidation \
   | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
 
 app="$derived/Build/Products/$configuration-iphoneos/Porchlight.app"

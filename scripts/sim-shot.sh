@@ -14,7 +14,7 @@ udid=$1; out=$2; shift 2
 derived="$HOME/Library/Developer/Xcode/DerivedData/${DERIVED:-Porchlight-main}"
 xcodegen generate --quiet
 if ! xcodebuild build -project Porchlight.xcodeproj -scheme Porchlight -destination "platform=iOS Simulator,id=$udid" \
-    -derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO > "$derived.build.log" 2>&1; then
+    -derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO -skipMacroValidation > "$derived.build.log" 2>&1; then
   grep -E "error:" "$derived.build.log" | head -20
   exit 1
 fi
@@ -24,7 +24,10 @@ xcrun simctl terminate "$udid" com.porchlight.porchlight 2>/dev/null || true
 xcrun simctl launch "$udid" com.porchlight.porchlight "$@" > /dev/null
 /usr/bin/python3 -c "import time; time.sleep(${WAIT:-4})"
 timeout 30 xcrun simctl io "$udid" screenshot "$out" > /dev/null 2>&1
-if xcrun simctl list devices | grep "$udid" | grep -q iPad; then
-  sips -r 270 "$out" > /dev/null   # the simulator framebuffer is portrait; the wall is landscape
+# Older simulators save the portrait framebuffer; newer ones save the screen as shown.
+# The wall is landscape, so turn an iPad's portrait shot. A phone's stays as it is.
+size=($(sips -g pixelWidth -g pixelHeight "$out" | awk '/pixel/ {print $2}'))
+if xcrun simctl list devices | grep "$udid" | grep -q iPad && (( size[2] > size[1] )); then
+  sips -r 270 "$out" > /dev/null
 fi
 echo "$out"

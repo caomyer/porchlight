@@ -19,7 +19,7 @@ final class LoggedEntryTests: XCTestCase {
     /// depend on the time of day, so the test makes its own (10 minutes, a length no
     /// sample walk has) and changes it to 45, which Yo-Yo's card must show at once.
     func testFixingAWalkFromToday() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "today"]
         app.launch()
 
@@ -57,7 +57,7 @@ final class LoggedEntryTests: XCTestCase {
     }
 
     func testLoggingAWalkSaysWhenItStarted() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "today"]
         app.launch()
 
@@ -89,7 +89,7 @@ final class LoggedEntryTests: XCTestCase {
     }
 
     func testOpeningMealsFromToday() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "today"]
         app.launch()
 
@@ -115,7 +115,7 @@ final class LoggedEntryTests: XCTestCase {
     }
 
     func testFixingAWalkFromTheCompanionPage() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "companion-1"]
         app.launch()
 

@@ -1,0 +1,230 @@
+import XCTest
+
+/// Households on the iPhone: the welcome, joining from an invite (A4), the removed screen
+/// (A6), sync's banners on Today (E5), and the You sheet's people and invite (A3, E1).
+/// Sharing is the fake (`-debugJoin`, `-debugSharing`). Runs only on an iPhone simulator
+/// (`scripts/test.sh --phone`); the iPad run skips it.
+@MainActor
+final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        let isPad = MainActor.assumeIsolated { UIDevice.current.userInterfaceIdiom == .pad }
+        try XCTSkipIf(isPad, "The phone tests run on an iPhone")
+    }
+
+    override func tearDown() {
+        MainActor.assumeIsolated { XCUIDevice.shared.appearance = .light }
+        super.tearDown()
+    }
+
+    private static let largestText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+
+    private func launch(_ arguments: [String]) -> XCUIApplication {
+        let app = XCUIApplication.porchlight()
+        app.launchArguments = arguments
+        app.launch()
+        return app
+    }
+
+    // MARK: Welcome and joining
+
+    func testTheWelcomeExplainsBothWaysIn() {
+        let app = launch(["-resetData"])
+        XCTAssertTrue(app.staticTexts["Open the invite someone sent you"].waitForExistence(timeout: 60))
+        XCTAssertTrue(app.staticTexts["Or scan your family's code"].exists)
+        snapshot("phone-100-welcome")
+    }
+
+    func testJoiningFromAnInvite() {
+        let app = launch(["-resetData", "-debugJoin", "preview"])
+        XCTAssertTrue(app.staticTexts["Join The Lake House?"].waitForExistence(timeout: 60), "The invite opens a preview first")
+        XCTAssertTrue(app.staticTexts["James invited you. You'll share walks, meals, chores and lists with the household."].exists)
+        XCTAssertTrue(app.staticTexts["Stored in James's iCloud"].exists)
+        snapshot("phone-101-join-preview")
+
+        app.buttons["join"].tap()
+        XCTAssertTrue(app.staticTexts["Which one is you?"].waitForExistence(timeout: 30))
+        let mia = app.buttons["who-Mia"]
+        let james = app.buttons["who-James"]
+        XCTAssertTrue(mia.label.contains("Hasn't joined yet"), mia.label)
+        XCTAssertTrue(james.label.contains("On James's iPhone"), james.label)
+        XCTAssertLessThan(mia.frame.minY, james.frame.minY, "People without a phone come first")
+        mia.tap()
+        XCTAssertEqual(app.buttons["continue-as"].label, "Continue as Mia")
+        snapshot("phone-102-join-who")
+
+        app.buttons["continue-as"].tap()
+        XCTAssertTrue(app.staticTexts["Bringing everything in"].waitForExistence(timeout: 10))
+        snapshot("phone-103-join-bringing-in")
+        app.buttons["go-to-today"].tap()
+        XCTAssertTrue(app.staticTexts["Hi, Mia"].waitForExistence(timeout: 10), "Joining ends on Today")
+    }
+
+    func testImNewHere() {
+        let app = launch(["-resetData", "-debugJoin", "preview"])
+        XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
+        app.buttons["join"].tap()
+        let new = app.buttons["who-new"]
+        XCTAssertTrue(new.waitForExistence(timeout: 30))
+        new.tap()
+        let name = app.textFields["new-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        type("Ava", into: name, in: app)
+        let proceed = app.buttons["continue-as"]
+        let named = expectation(for: NSPredicate(format: "label == %@", "Continue as Ava"), evaluatedWith: proceed)
+        wait(for: [named], timeout: 5)
+        snapshot("phone-104-join-new-here")
+        app.buttons["continue-as"].tap()
+        XCTAssertTrue(app.buttons["go-to-today"].waitForExistence(timeout: 10))
+        app.buttons["go-to-today"].tap()
+        XCTAssertTrue(app.staticTexts["Hi, Ava"].waitForExistence(timeout: 10))
+    }
+
+    func testAnAccountTheHouseholdKnowsSkipsWhoYouAre() {
+        let app = launch(["-resetData", "-debugJoin", "known"])
+        XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
+        app.buttons["join"].tap()
+        XCTAssertTrue(app.staticTexts["Bringing everything in"].waitForExistence(timeout: 30), "This iCloud user is already Mia")
+        XCTAssertFalse(app.staticTexts["Which one is you?"].exists)
+        app.buttons["go-to-today"].tap()
+        XCTAssertTrue(app.staticTexts["Hi, Mia"].waitForExistence(timeout: 10))
+    }
+
+    func testAJoinThatFailsCanBeTriedAgain() {
+        let app = launch(["-resetData", "-debugJoin", "failing"])
+        XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
+        app.buttons["join"].tap()
+        let banner = app.descendants(matching: .any)["join-failed"].firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 10), "Offline, a banner offers to try again")
+        XCTAssertTrue(app.staticTexts["Join The Lake House?"].exists, "and nothing is half joined")
+        snapshot("phone-105-join-failed")
+        banner.tap()
+        XCTAssertTrue(app.staticTexts["Which one is you?"].waitForExistence(timeout: 30))
+    }
+
+    // MARK: Removed
+
+    func testARemovedHouseholdSaysSoOnce() {
+        let app = launch(["-resetData", "-debugRemoved"])
+        XCTAssertTrue(app.staticTexts["You're no longer in The Lake House"].waitForExistence(timeout: 60))
+        XCTAssertTrue(app.staticTexts["James removed this iPhone from the household, or stopped sharing it. What you logged stays with the household."].exists)
+        snapshot("phone-106-removed")
+        app.buttons["removed-ok"].tap()
+        XCTAssertTrue(app.staticTexts["Open the invite someone sent you"].waitForExistence(timeout: 10), "then the household is gone from this phone")
+    }
+
+    // MARK: Sync banners
+
+    func testSyncBannersOnToday() {
+        let states: [(String, String)] = [
+            ("iCloudFull", "Sync paused: James's iCloud is full"),
+            ("noAccount", "You're signed out of iCloud"),
+            ("waiting", "Offline since"),
+            ("restoredCopy", "Sync is waiting for you"),
+        ]
+        for (index, (status, title)) in states.enumerated() {
+            let app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", status])
+            let banner = app.descendants(matching: .any)["sync-banner"].firstMatch
+            XCTAssertTrue(banner.waitForExistence(timeout: 60), status)
+            XCTAssertTrue(banner.label.hasPrefix(title), "\(status): \(banner.label)")
+            snapshot("phone-11\(index)-banner-\(status)")
+            if status == "restoredCopy" {
+                banner.tap()
+                XCTAssertTrue(app.buttons["Use what is in iCloud"].waitForExistence(timeout: 5), "Choose opens the choice")
+                snapshot("phone-115-restored-choice")
+            }
+            app.terminate()
+        }
+    }
+
+    // MARK: You
+
+    func testYouListsPeopleAndInvites() {
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you"])
+        let people = app.descendants(matching: .any)["people-card"]
+        XCTAssertTrue(people.waitForExistence(timeout: 60))
+        XCTAssertTrue(app.staticTexts["Invited, hasn't joined yet"].exists, "Mia is invited")
+        XCTAssertTrue(app.staticTexts["No phone yet"].exists, "Ava has no phone")
+        snapshot("phone-120-you")
+
+        app.buttons["invite-someone"].tap()
+        XCTAssertTrue(app.staticTexts["Invite someone"].waitForExistence(timeout: 5))
+        snapshot("phone-121-invite")
+        app.buttons["Invite Mia"].tap()
+        XCTAssertTrue(app.staticTexts["Join The Lake House on Porchlight"].waitForExistence(timeout: 5), "Invite opens the sharing sheet")
+        snapshot("phone-122-invite-sheet")
+        app.buttons["invite-done"].tap()
+        XCTAssertTrue(app.staticTexts["Join The Lake House on Porchlight"].waitForNonExistence(timeout: 5))
+    }
+
+    /// On its own launch: after a sheet over the You sheet closes, iOS 17's accessibility
+    /// tree stops seeing the You sheet, though it is on screen.
+    func testShowingTheCodeOnThePhone() {
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you"])
+        let invite = app.buttons["invite-someone"]
+        XCTAssertTrue(invite.waitForExistence(timeout: 60))
+        invite.tap()
+        let show = app.buttons["show-code"]
+        // Once the page has finished sliding in: a tap during the push is dropped.
+        let settled = expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: show)
+        wait(for: [settled], timeout: 10)
+        show.tap()
+        XCTAssertTrue(app.staticTexts["Join The Lake House"].waitForExistence(timeout: 10), "The code's page opens")
+        // Core Image takes a while to start the first time on a simulator.
+        XCTAssertTrue(app.images["join-code"].waitForExistence(timeout: 30), "The code is drawn on the phone")
+        snapshot("phone-123-join-code")
+    }
+
+    func testRenamingThisPhone() {
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you"])
+        let device = app.buttons["this-device"]
+        XCTAssertTrue(device.waitForExistence(timeout: 60))
+        XCTAssertTrue(device.label.hasPrefix("James's iPhone"), device.label)
+        device.tap()
+        let name = app.textFields["device-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Work phone\n")
+        XCTAssertTrue(app.buttons["this-device"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["this-device"].label.hasPrefix("Work phone"), app.buttons["this-device"].label)
+    }
+
+    // MARK: Looks
+
+    func testNightLook() {
+        XCUIDevice.shared.appearance = .dark
+        var app = launch(["-resetData", "-debugJoin", "preview"])
+        XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
+        snapshot("phone-130-join-preview-dark")
+        app.buttons["join"].tap()
+        XCTAssertTrue(app.staticTexts["Which one is you?"].waitForExistence(timeout: 30))
+        snapshot("phone-131-join-who-dark")
+        app.terminate()
+
+        app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you"])
+        XCTAssertTrue(app.descendants(matching: .any)["people-card"].waitForExistence(timeout: 60))
+        snapshot("phone-132-you-dark")
+    }
+
+    func testLargestText() {
+        var app = launch(["-resetData", "-debugJoin", "preview"] + Self.largestText)
+        let join = app.buttons["join"]
+        XCTAssertTrue(join.waitForExistence(timeout: 60))
+        reveal(join, in: app)
+        snapshot("phone-140-join-preview-largest")
+        join.tap()
+        let proceed = app.buttons["continue-as"]
+        XCTAssertTrue(proceed.waitForExistence(timeout: 30))
+        app.buttons["who-Mia"].tap()
+        reveal(proceed, in: app)
+        XCTAssertEqual(proceed.label, "Continue as Mia")
+        snapshot("phone-141-join-who-largest")
+        app.terminate()
+
+        app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "noAccount"] + Self.largestText)
+        let banner = app.descendants(matching: .any)["sync-banner"].firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 60))
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(banner.frame), "The banner fits, its fix included")
+        snapshot("phone-142-banner-largest")
+    }
+}

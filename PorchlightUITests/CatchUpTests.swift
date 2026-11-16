@@ -10,7 +10,7 @@ final class CatchUpTests: XCTestCase {
     }
 
     private func launch(_ arguments: [String]) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold"] + arguments
         app.launch()
         _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)

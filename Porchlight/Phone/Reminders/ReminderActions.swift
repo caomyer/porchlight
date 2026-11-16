@@ -3,12 +3,10 @@ import UIKit
 import UserNotifications
 
 /// Receives Porchlight's notification actions, also when the app isn't running: iOS
-/// launches it in the background, and this delegate does the work without any screen.
-final class ReminderAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        UNUserNotificationCenter.current().delegate = self
-        return true
-    }
+/// launches it in the background, the app opens its data the usual way, and this does the
+/// work without any screen. The app delegate makes it the notification center's delegate.
+final class ReminderNotifications: NSObject, UNUserNotificationCenterDelegate, Sendable {
+    static let shared = ReminderNotifications()
 
     // The completion-handler forms, not the async ones: UIKit asserts when the async form
     // finishes off the main thread, which it does when the app was launched for an action.
@@ -39,6 +37,11 @@ final class ReminderAppDelegate: NSObject, UIApplicationDelegate, UNUserNotifica
             done.run()
         }
     }
+}
+
+/// The app couldn't open its data at launch, so an action has nothing to write to.
+private enum ReminderActionError: Error {
+    case notOpen
 }
 
 /// UIKit's completion handler, carried to the main actor where it is called.
@@ -76,35 +79,47 @@ enum ReminderActions {
         #if DEBUG
         if fromSample && !AppFiles.isSandboxed { return try AppDatabase.openOnDisk(folder: AppFiles.sampleRoot) }
         #endif
-        return try AppDatabase.sharedOnDisk()
+        guard let launched = AppDatabase.launched else { throw ReminderActionError.notOpen }
+        return launched
     }
 
-    private static func log(routine routineId: CareRoutine.ID, slot: Int, day: DayKey, database: AppDatabase, defaults: UserDefaults, now: Date) async {
-        guard let snapshot = try? await database.writer.read(CompanionSnapshot.fetch),
-              let household = snapshot.household,
-              let me = DeviceSettings(defaults: defaults).me(in: household.id),
-              let routine = snapshot.routines.first(where: { $0.id == routineId }),
-              let companion = snapshot.companions.first(where: { $0.id == routine.companionId }) else { return }
-        let draft = CareLogDraft(people: [me], occurredAt: now, durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil)
-        let slotName = CareCatchUp.slotName(routine.effectiveWindows[safe: slot] ?? .anyTime, of: routine)
-        let (title, body): (String, String)
-        switch try? database.logCare(routineId: routineId, slot: slot, on: day, draft, now: now) {
-        case .logged:
-            title = "Logged: \(slotName)"
-            body = "Credited to you at \(CareText.timeWithPeriod(now, calendar: snapshot.calendar))."
-        case let .alreadyLogged(entry):
-            title = PocketToday.alreadyDone(entry, routine: routine, companion: companion.name, me: me, names: snapshot.names, calendar: snapshot.calendar)
-            body = "Already logged, so nothing was added."
-        case nil:
-            title = "That didn't save"
-            body = "Open Porchlight to log \(companion.name)'s \(slotName)."
-        }
+    private static func log(routine: CareRoutine.ID, slot: Int, day: DayKey, database: AppDatabase, defaults: UserDefaults, now: Date) async {
+        guard let confirmation = await logSlot(routine: routine, slot: slot, day: day, database: database, defaults: defaults, now: now) else { return }
         let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
+        content.title = confirmation.title
+        content.body = confirmation.body
         content.threadIdentifier = "porchlight"
         try? await UNUserNotificationCenter.current().add(
             UNNotificationRequest(identifier: "porchlight.logged.\(UUID().uuidString)", content: content, trigger: nil)
         )
+    }
+
+    /// What the log action says afterwards.
+    struct Confirmation: Equatable {
+        var title: String
+        var body: String
+    }
+
+    /// The log action's write, credited to this device's person and stamped with this
+    /// device like every other phone write. Nil when there is no one to credit.
+    static func logSlot(routine routineId: CareRoutine.ID, slot: Int, day: DayKey, database: AppDatabase, defaults: UserDefaults, now: Date) async -> Confirmation? {
+        guard let snapshot = try? await database.writer.read(CompanionSnapshot.fetch),
+              let household = snapshot.household,
+              let me = DeviceSettings(defaults: defaults).me(in: household.id),
+              let routine = snapshot.routines.first(where: { $0.id == routineId }),
+              let companion = snapshot.companions.first(where: { $0.id == routine.companionId }) else { return nil }
+        let draft = CareLogDraft(people: [me], occurredAt: now, durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil)
+        let slotName = CareCatchUp.slotName(routine.effectiveWindows[safe: slot] ?? .anyTime, of: routine)
+        switch try? database.logCare(routineId: routineId, slot: slot, on: day, draft, now: now) {
+        case .logged:
+            return Confirmation(title: "Logged: \(slotName)", body: "Credited to you at \(CareText.timeWithPeriod(now, calendar: snapshot.calendar)).")
+        case let .alreadyLogged(entry):
+            return Confirmation(
+                title: PocketToday.alreadyDone(entry, routine: routine, companion: companion.name, me: me, names: snapshot.names, calendar: snapshot.calendar),
+                body: "Already logged, so nothing was added."
+            )
+        case nil:
+            return Confirmation(title: "That didn't save", body: "Open Porchlight to log \(companion.name)'s \(slotName).")
+        }
     }
 }

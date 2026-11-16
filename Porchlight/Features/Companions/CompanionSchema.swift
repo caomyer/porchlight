@@ -108,13 +108,27 @@ struct Companion: Codable, Equatable, Identifiable, Sendable, FetchableRecord, P
     var name: String
     var species: Species
     var coat: CoatPreset
-    var photoFile: String?
     /// Free text under the name, e.g. "Toy poodle".
     var about: String
     var birthDate: Date?
     var captionTone: CompanionTone
     var sortOrder: Int
     var createdAt: Date
+}
+
+/// A companion's photo, in its own row so lists of companions never load it
+/// (docs/design/sync-icloud.md, "Photos").
+struct CompanionPhoto: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    var companionId: Companion.ID
+    /// The size of `image`, read without loading it (and summed by the storage meter).
+    var byteCount: Int
+    var image: Data
+
+    init(companionId: Companion.ID, image: Data) {
+        self.companionId = companionId
+        byteCount = image.count
+        self.image = image
+    }
 }
 
 /// Something done for a companion on a cadence: walks, meals, watering.
@@ -200,6 +214,8 @@ struct CareLog: Codable, Equatable, Identifiable, Sendable, FetchableRecord, Per
     var note: String?
     var stars: Int
     var createdAt: Date
+    /// The device that logged it (a plain id); nil for logs from before devices were known.
+    var deviceId: Device.ID? = nil
 }
 
 /// Someone who did a logged routine. Several people can do one walk together.

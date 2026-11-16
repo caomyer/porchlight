@@ -45,9 +45,16 @@ struct WallView: View {
     @Environment(HomeStore.self) private var home
     @AppStorage(DisplaySettings.ambientMinutesKey) private var ambientMinutes = DisplaySettings.defaultAmbientMinutes
 
-    @State private var selection: Destination = .today
+    @State private var selection: Destination
     @State private var lastInteraction = Date.now
     @State private var showAmbient = false
+    /// Settings opens on Family & devices once, after setup's "Invite phones now".
+    @State private var focusFamily: Bool
+
+    init(startsInFamily: Bool = false) {
+        _selection = State(initialValue: startsInFamily ? .settings : .today)
+        _focusFamily = State(initialValue: startsInFamily)
+    }
 
     #if DEBUG
     /// The `-startScreen` destination, e.g. `-startScreen settings` for screenshots.
@@ -98,11 +105,13 @@ struct WallView: View {
         .ignoresSafeArea(.container, edges: .vertical)
         .overlay {
             if showAmbient {
-                AmbientView(extraPhotoURLs: food.recentPhotoURLs(limit: 40), onWake: { wake() }, glance: AnyView(AmbientGlance()))
+                AmbientView(extraPhotos: food.recentPhotos(limit: 40).map(FramePhoto.stored), onWake: { wake() }, glance: AnyView(AmbientGlance()))
                     .transition(.opacity)
                     .ignoresSafeArea()
             }
         }
+        // Rows from people's phones glow once on Today, with one short toast.
+        .showsArrivals(resting: showAmbient)
         // Any touch counts as activity, observed outside SwiftUI gestures so scrolling is untouched.
         .onAnyTouch { lastInteraction = .now }
         .environment(\.openCompanion, OpenCompanionAction { selection = .companion($0) })
@@ -119,6 +128,7 @@ struct WallView: View {
         }
         .onChange(of: selection) { _, newValue in
             lastInteraction = .now
+            focusFamily = false
             if newValue == .photos {
                 withAnimation(.easeInOut(duration: 0.6)) { showAmbient = true }
                 selection = .today
@@ -145,7 +155,7 @@ struct WallView: View {
         case .glow: GlowScreen()
         case .lists: ListsScreen()
         case .photos: TodayView()
-        case .settings: SettingsView()
+        case .settings: SettingsView(focusFamily: focusFamily)
         }
     }
 
@@ -181,6 +191,7 @@ struct RailItem: Identifiable {
 private struct Rail: View {
     let items: [RailItem]
     @Binding var selection: Destination
+    @Environment(SyncController.self) private var sync
 
     var body: some View {
         VStack(spacing: 4) {
@@ -188,7 +199,8 @@ private struct Rail: View {
                 .padding(.bottom, 14)
             ForEach(items) { item($0) }
             Spacer()
-            item(RailItem(destination: .settings, title: "Settings", icon: .symbol("gearshape")))
+            // A dot on the gear when sync has been stuck an hour; Settings says why (journey D3).
+            item(RailItem(destination: .settings, title: "Settings", icon: .symbol("gearshape")), dot: sync.needsAttention)
         }
         .padding(.top, 20)
         .padding(.bottom, 16)
@@ -200,7 +212,7 @@ private struct Rail: View {
         }
     }
 
-    private func item(_ item: RailItem) -> some View {
+    private func item(_ item: RailItem, dot: Bool = false) -> some View {
         let isSelected = selection == item.destination
         return Button {
             selection = item.destination
@@ -215,6 +227,16 @@ private struct Rail: View {
                     }
                 }
                 .frame(width: 30, height: 26)
+                .overlay(alignment: .topTrailing) {
+                    if dot {
+                        Circle()
+                            .fill(Theme.warn)
+                            .frame(width: 8, height: 8)
+                            .overlay(Circle().stroke(Theme.rail, lineWidth: 2))
+                            .offset(x: 1, y: -1)
+                            .accessibilityHidden(true)
+                    }
+                }
                 Text(item.title)
                     .font(.body(11, weight: 600))
                     .lineLimit(1)
@@ -232,6 +254,7 @@ private struct Rail: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(item.title)
+        .accessibilityValue(dot ? "Sync needs a look" : "")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

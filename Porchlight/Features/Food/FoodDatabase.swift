@@ -18,65 +18,53 @@ struct MealDraft: Equatable, Sendable {
     var place: PlaceDraft?
 }
 
-/// A meal's photo while it is being edited: one it already has, or a new one whose
-/// files are saved but not yet attached. A list of these, in order, is the meal's photos.
-enum MealPhotoItem: Equatable, Hashable, Identifiable, Sendable {
-    case kept(MealPhoto)
-    case added(FoodPhotoStore.Stored)
+/// A meal's photo while it is being edited: one it already has, or a new one held in
+/// memory until the meal saves. A list of these, in order, is the meal's photos.
+enum MealPhotoItem: Hashable, Identifiable, Sendable {
+    /// A saved photo. `reframed` is its new thumbnail once it was reframed in this edit.
+    case kept(MealPhoto, reframed: Data? = nil)
+    case added(NewMealPhoto)
 
-    var id: String {
+    var id: MealPhoto.ID {
         switch self {
-        case let .kept(photo): "kept-\(photo.id)"
-        case let .added(stored): "added-\(stored.photoFile)"
-        }
-    }
-
-    var thumbnailFile: String {
-        switch self {
-        case let .kept(photo): photo.thumbnailFile
-        case let .added(stored): stored.thumbnailFile
-        }
-    }
-
-    var photoFile: String {
-        switch self {
-        case let .kept(photo): photo.photoFile
-        case let .added(stored): stored.photoFile
+        case let .kept(photo, _): photo.id
+        case let .added(new): new.id
         }
     }
 
     /// The square the wall shows; nil is the center square.
     var crop: PhotoCrop? {
         switch self {
-        case let .kept(photo): photo.crop
-        case let .added(stored): stored.crop
+        case let .kept(photo, _): photo.crop
+        case let .added(new): new.crop
         }
     }
 
     /// The same photo framed by `crop`, with the thumbnail made for it.
-    func reframed(_ crop: PhotoCrop, thumbnailFile: String) -> MealPhotoItem {
+    func reframed(_ crop: PhotoCrop, thumbnail: Data) -> MealPhotoItem {
         switch self {
-        case var .kept(photo):
+        case var .kept(photo, _):
             photo.crop = crop
-            photo.thumbnailFile = thumbnailFile
-            return .kept(photo)
-        case var .added(stored):
-            stored.crop = crop
-            stored.thumbnailFile = thumbnailFile
-            return .added(stored)
+            return .kept(photo, reframed: thumbnail)
+        case var .added(new):
+            new.crop = crop
+            new.thumbnail = thumbnail
+            return .added(new)
         }
     }
 
-    /// Files of new (never attached) photos that going from `old` to `new` left unused: a
-    /// new photo taken out, or the old thumbnail of one that was reframed. A saved photo's
-    /// files are left to the save, which knows what the meal still uses.
-    static func unusedFiles(from old: [MealPhotoItem], to new: [MealPhotoItem]) -> [String] {
-        let current = Dictionary(new.map { ($0.photoFile, $0) }, uniquingKeysWith: { first, _ in first })
-        return old.flatMap { item -> [String] in
-            guard case let .added(stored) = item else { return [] }
-            guard let now = current[stored.photoFile] else { return [stored.photoFile, stored.thumbnailFile] }
-            return now.thumbnailFile == stored.thumbnailFile ? [] : [stored.thumbnailFile]
+    // A thumbnail is always its photo's crop, so the photo and the crop say it all.
+    static func == (lhs: MealPhotoItem, rhs: MealPhotoItem) -> Bool {
+        switch (lhs, rhs) {
+        case let (.kept(a, _), .kept(b, _)): a == b
+        case let (.added(a), .added(b)): a == b
+        default: false
         }
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(crop)
     }
 }
 
@@ -123,6 +111,8 @@ struct FoodSnapshot: Equatable, Sendable {
     var eaters: [JournalEntry.ID: [Person.ID]]
     /// Each entry's photos by entry id, cover first.
     var photos: [JournalEntry.ID: [MealPhoto]] = [:]
+    /// The size of each photo's pictures, by photo id.
+    var photoSizes: [MealPhoto.ID: MealPhotoSizes] = [:]
     /// Days with ink and when each page last changed (drawings load lazily).
     var pages: [String: Date]
     /// The household's restaurants, most recently eaten at first.
@@ -153,15 +143,23 @@ struct FoodSnapshot: Equatable, Sendable {
         for key in eaters.keys { eaters[key]?.sort { (order[$0] ?? .max, $0) < (order[$1] ?? .max, $1) } }
         let pageRows = try Row.fetchAll(db, sql: "SELECT day, updatedAt FROM journalPage WHERE journalId = ?", arguments: [journal.id])
         let pages = Dictionary(pageRows.map { ($0["day"] as String, $0["updatedAt"] as Date) }, uniquingKeysWith: max)
-        let photoRows = try MealPhoto.fetchAll(
+        // Only the pictures' sizes: the bytes themselves load when a view shows them.
+        let photoRows = try Row.fetchAll(
             db,
             sql: """
-                SELECT p.* FROM journalEntryPhoto p JOIN journalEntry j ON j.id = p.entryId
+                SELECT p.*, t.byteCount AS thumbnailBytes, i.byteCount AS imageBytes
+                FROM journalEntryPhoto p JOIN journalEntry j ON j.id = p.entryId
+                LEFT JOIN journalEntryPhotoThumb t ON t.photoId = p.id
+                LEFT JOIN journalEntryPhotoImage i ON i.photoId = p.id
                 WHERE j.journalId = ? ORDER BY p.entryId, p.sortOrder, p.createdAt, p.id
                 """,
             arguments: [journal.id]
         )
-        let photos = Dictionary(grouping: photoRows, by: \.entryId)
+        let photoList = try photoRows.map { try MealPhoto(row: $0) }
+        let photos = Dictionary(grouping: photoList, by: \.entryId)
+        let photoSizes = Dictionary(uniqueKeysWithValues: zip(photoList, photoRows).map { photo, row in
+            (photo.id, MealPhotoSizes(thumbnail: row["thumbnailBytes"], image: row["imageBytes"]))
+        })
         let places = try FoodPlace.fetchAll(
             db,
             sql: """
@@ -173,7 +171,7 @@ struct FoodSnapshot: Equatable, Sendable {
                 """,
             arguments: [householdId]
         )
-        return FoodSnapshot(household: household, people: people, everyone: everyone, journal: journal, entries: entries, eaters: eaters, photos: photos, pages: pages, places: places)
+        return FoodSnapshot(household: household, people: people, everyone: everyone, journal: journal, entries: entries, eaters: eaters, photos: photos, photoSizes: photoSizes, pages: pages, places: places)
     }
 }
 
@@ -258,14 +256,13 @@ extension AppDatabase {
 
     // MARK: Entries
 
-    /// Logs a meal with its already-saved photos (cover first) in one transaction.
-    /// The caller owns the photo files until this succeeds: if it throws, they are
-    /// left alone so the person can fix the form and save again.
+    /// Logs a meal with its photos (cover first) in one transaction. If it throws, nothing
+    /// is saved and the caller still holds the photos, to fix the form and save again.
     @discardableResult
     func addMeal(
         _ draft: MealDraft,
         journalId: Journal.ID,
-        photos: [FoodPhotoStore.Stored] = [],
+        photos: [NewMealPhoto] = [],
         now: Date = .now
     ) throws -> JournalEntry {
         guard photos.count <= Self.photoLimit else { throw FoodError.tooManyPhotos(limit: Self.photoLimit) }
@@ -273,65 +270,69 @@ extension AppDatabase {
                 guard let journal = try Journal.fetchOne(db, id: journalId) else { throw FoodError.noJournal }
                 var entry = try Self.validated(draft, journal: journal, db: db, now: now)
                 entry.placeId = try Self.resolvePlace(draft, householdId: journal.householdId, db: db, now: now)
+                entry.deviceId = try stamp(db)
                 try entry.insert(db)
                 for personId in Set(draft.eaterIds) {
                     try JournalEntryEater(entryId: entry.id, personId: personId).upsert(db)
                 }
-                for (index, stored) in photos.enumerated() {
-                    var photo = MealPhoto(entryId: entry.id, photoFile: stored.photoFile, thumbnailFile: stored.thumbnailFile, sortOrder: index, createdAt: now)
-                    photo.crop = stored.crop
-                    try photo.insert(db)
+                for (index, new) in photos.enumerated() {
+                    try Self.insert(new, entryId: entry.id, sortOrder: index, db: db, now: now)
                 }
                 return entry
         }
     }
 
-    /// Adds already-saved photos after a meal's others. If they would pass the limit, or
-    /// the meal is gone, nothing is added; the caller still owns the files then.
+    /// Adds photos after a meal's others. If they would pass the limit, or the meal is gone,
+    /// nothing is added.
     @discardableResult
-    func addMealPhotos(entryId: JournalEntry.ID, _ photos: [FoodPhotoStore.Stored], now: Date = .now) throws -> [MealPhoto] {
+    func addMealPhotos(entryId: JournalEntry.ID, _ photos: [NewMealPhoto], now: Date = .now) throws -> [MealPhoto] {
         try writer.write { db in
                 guard try JournalEntry.exists(db, id: entryId) else { throw FoodError.mealNotFound }
                 let count = try MealPhoto.filter(Column("entryId") == entryId).fetchCount(db)
                 guard count + photos.count <= Self.photoLimit else { throw FoodError.tooManyPhotos(limit: Self.photoLimit) }
-                return try photos.enumerated().map { index, stored in
-                    var photo = MealPhoto(entryId: entryId, photoFile: stored.photoFile, thumbnailFile: stored.thumbnailFile, sortOrder: count + index, createdAt: now)
-                    photo.crop = stored.crop
-                    try photo.insert(db)
-                    return photo
+                return try photos.enumerated().map { index, new in
+                    try Self.insert(new, entryId: entryId, sortOrder: count + index, db: db, now: now)
                 }
         }
     }
 
     /// Replaces a meal's photos with `items`, in order: kept ones stay (re-ordered, and
-    /// reframed when their crop changed), added ones are attached, and the rest are removed.
-    /// Returns the files nobody uses any more (removed photos, replaced thumbnails), to
-    /// delete once saved. Kept photos must belong to the meal. On failure nothing changes.
-    private static func writePhotos(_ items: [MealPhotoItem], entryId: JournalEntry.ID, db: Database, now: Date) throws -> [String] {
+    /// reframed when their crop changed), added ones are attached, and the rest are removed
+    /// with their pictures. Kept photos must belong to the meal. On failure nothing changes.
+    private static func writePhotos(_ items: [MealPhotoItem], entryId: JournalEntry.ID, db: Database, now: Date) throws {
         guard items.count <= photoLimit else { throw FoodError.tooManyPhotos(limit: photoLimit) }
         let existing = try MealPhoto.filter(Column("entryId") == entryId).fetchAll(db)
-        let keptIds = Set(items.compactMap { if case let .kept(photo) = $0 { photo.id } else { nil } })
+        let keptIds = Set(items.compactMap { if case let .kept(photo, _) = $0 { photo.id } else { nil } })
         guard keptIds.isSubset(of: Set(existing.map(\.id))) else { throw FoodError.mealNotFound }
-        let removed = existing.filter { !keptIds.contains($0.id) }
-        for photo in removed { _ = try photo.delete(db) }
-        var unused = removed.flatMap { [$0.photoFile, $0.thumbnailFile] }
+        for photo in existing where !keptIds.contains(photo.id) {
+            _ = try photo.delete(db)
+        }
         let byId = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
         for (index, item) in items.enumerated() {
             switch item {
-            case let .kept(photo):
+            case let .kept(photo, reframed):
                 guard var stored = byId[photo.id] else { continue }
-                if stored.thumbnailFile != photo.thumbnailFile { unused.append(stored.thumbnailFile) }
                 stored.sortOrder = index
                 stored.crop = photo.crop
-                stored.thumbnailFile = photo.thumbnailFile
                 try stored.update(db)
-            case let .added(stored):
-                var photo = MealPhoto(entryId: entryId, photoFile: stored.photoFile, thumbnailFile: stored.thumbnailFile, sortOrder: index, createdAt: now)
-                photo.crop = stored.crop
-                try photo.insert(db)
+                if let reframed {
+                    try MealPhotoThumbnail(photoId: photo.id, image: reframed).upsert(db)
+                }
+            case let .added(new):
+                try insert(new, entryId: entryId, sortOrder: index, db: db, now: now)
             }
         }
-        return unused
+    }
+
+    /// Attaches a new photo to a meal: its row, then its two pictures.
+    @discardableResult
+    private static func insert(_ new: NewMealPhoto, entryId: JournalEntry.ID, sortOrder: Int, db: Database, now: Date) throws -> MealPhoto {
+        var photo = MealPhoto(id: new.id, entryId: entryId, sortOrder: sortOrder, createdAt: now)
+        photo.crop = new.crop
+        try photo.insert(db)
+        try MealPhotoImage(photoId: photo.id, image: new.image).insert(db)
+        try MealPhotoThumbnail(photoId: photo.id, image: new.thumbnail).insert(db)
+        return photo
     }
 
     private static func validated(_ draft: MealDraft, journal: Journal, db: Database, now: Date) throws -> JournalEntry {
@@ -413,8 +414,8 @@ extension AppDatabase {
     /// given (see `writePhotos`). The creation time stays; the day comes from the entry,
     /// not the draft. A new title gets a fresh illustration unless the draft names one.
     @discardableResult
-    func updateMeal(id: JournalEntry.ID, _ draft: MealDraft, photos: [MealPhotoItem]? = nil, files: FoodPhotoStore = .standard, now: Date = .now) throws -> JournalEntry {
-        let (updated, unused) = try writer.write { db -> (JournalEntry, [String]) in
+    func updateMeal(id: JournalEntry.ID, _ draft: MealDraft, photos: [MealPhotoItem]? = nil, now: Date = .now) throws -> JournalEntry {
+        try writer.write { db in
             guard var existing = try JournalEntry.fetchOne(db, id: id),
                   let journal = try Journal.fetchOne(db, id: existing.journalId) else { throw FoodError.mealNotFound }
             var draft = draft
@@ -438,21 +439,25 @@ extension AppDatabase {
             for personId in Set(draft.eaterIds) {
                 try JournalEntryEater(entryId: id, personId: personId).upsert(db)
             }
-            let unused = try photos.map { try Self.writePhotos($0, entryId: id, db: db, now: now) } ?? []
-            return (existing, unused)
+            if let photos {
+                try Self.writePhotos(photos, entryId: id, db: db, now: now)
+            }
+            return existing
         }
-        files.delete(unused)
-        return updated
     }
 
-    /// Deletes an entry and its photo files.
-    func deleteMeal(id: JournalEntry.ID, files: FoodPhotoStore) throws {
-        let photos = try writer.write { db -> [MealPhoto] in
-            let photos = try MealPhoto.filter(Column("entryId") == id).fetchAll(db)
+    /// Deletes an entry; its photos and their pictures go with it.
+    func deleteMeal(id: JournalEntry.ID) throws {
+        try writer.write { db in
             _ = try JournalEntry.deleteOne(db, id: id)
-            return photos
         }
-        files.delete(photos.flatMap { [$0.photoFile, $0.thumbnailFile] })
+    }
+
+    /// A meal photo's whole shot, nil when it has none (yet).
+    func mealPhotoImage(id: MealPhoto.ID) throws -> Data? {
+        try writer.read { db in
+            try Data.fetchOne(db, sql: "SELECT image FROM journalEntryPhotoImage WHERE photoId = ?", arguments: [id])
+        }
     }
 
     // MARK: Pages
@@ -478,13 +483,5 @@ extension AppDatabase {
             return
         }
         try JournalPage(journalId: journalId, day: day, drawing: drawing, updatedAt: now).upsert(db)
-    }
-
-    /// Every photo file name still referenced, for `FoodPhotoStore.sweep`.
-    func referencedPhotoFiles() throws -> Set<String> {
-        try writer.read { db in
-            let rows = try Row.fetchAll(db, sql: "SELECT photoFile, thumbnailFile FROM journalEntryPhoto")
-            return Set(rows.flatMap { [$0["photoFile"] as String, $0["thumbnailFile"] as String] })
-        }
     }
 }

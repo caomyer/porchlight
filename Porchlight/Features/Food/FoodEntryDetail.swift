@@ -151,13 +151,8 @@ struct MealDetailSheet: View {
             FlowLayout(spacing: 8) {
                 ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
                     Button { withAnimation(.easeInOut(duration: 0.2)) { photoIndex = index } } label: {
-                        Color.clear
+                        PhotoView(store.thumbnail(of: photo).map { PhotoRequest($0) }) { _ in Color.clear }
                             .frame(width: 46, height: 46)
-                            .overlay {
-                                if let image = MealImages.image(at: store.photoURL(photo.thumbnailFile)) {
-                                    Image(uiImage: image).resizable().scaledToFill()
-                                }
-                            }
                             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                             .padding(3)
                             .overlay {
@@ -339,17 +334,8 @@ struct MealDetailSheet: View {
         }
     }
 
-    /// Leaves the edit. Photos added during it were never attached, and thumbnails made
-    /// by reframing a saved photo were never saved, so their files go.
+    /// Leaves the edit. Photos added or reframed in it only ever lived in the edit.
     private func cancelEdit() {
-        if let editing {
-            let saved = Set(store.photos(of: current).map(\.thumbnailFile))
-            let reframed = editing.photos.compactMap { item -> String? in
-                guard case let .kept(photo) = item, !saved.contains(photo.thumbnailFile) else { return nil }
-                return photo.thumbnailFile
-            }
-            store.discard(files: MealPhotoItem.unusedFiles(from: editing.photos, to: []) + reframed)
-        }
         editing = nil
     }
 
@@ -384,14 +370,17 @@ struct WholePhotoView: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.82).ignoresSafeArea()
-            if let image = MealImages.image(at: store.photoURL(photo.photoFile)) {
-                Image(uiImage: image)
+            // The thumbnail is all there is of a photo whose whole shot was lost.
+            PhotoView(request: (store.image(of: photo) ?? store.thumbnail(of: photo)).map { PhotoRequest($0) }) { image in
+                image
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .padding(48)
                     .accessibilityLabel("Whole photo")
                     .accessibilityIdentifier("whole-photo")
+            } placeholder: { _ in
+                Color.clear
             }
             VStack {
                 Spacer()
@@ -425,7 +414,7 @@ struct MealEdit: Equatable {
     var place: PlaceDraft?
     /// The meal's photos as they will be saved, cover first.
     var photos: [MealPhotoItem]
-    /// New photos still being written to disk.
+    /// New photos still being made from a shot or a pick.
     var savingPhotos = 0
 
     init(entry: JournalEntry, eaterIds: [Person.ID], place: FoodPlace? = nil, photos: [MealPhoto] = []) {
@@ -436,7 +425,7 @@ struct MealEdit: Equatable {
         self.eaterIds = Set(eaterIds)
         time = .at(entry.eatenAt)
         self.place = place.map(PlaceDraft.init)
-        self.photos = photos.map(MealPhotoItem.kept)
+        self.photos = photos.map { .kept($0) }
     }
 
     /// The meal's day, up to now if that's today.
@@ -497,10 +486,6 @@ private struct MealEditForm: View {
             label("Photos")
             MealPhotoRow(items: $edit.photos, pending: edit.savingPhotos, size: 52, emptyText: "No photos yet. Add one from the camera or Photos.") {
                 AddPhotoTile(remaining: AppDatabase.photoLimit - edit.photos.count - edit.savingPhotos, size: 52, onAdd: add)
-            }
-            .onChange(of: edit.photos) { old, new in
-                // A new photo removed again was never attached; its files go now.
-                store.discard(files: MealPhotoItem.unusedFiles(from: old, to: new))
             }
 
             // The time rides on the label line, so the meals get the row's full width.
@@ -575,15 +560,15 @@ private struct MealEditForm: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    /// Saves new images to disk and adds them to the edit; they attach on Save.
+    /// Makes new images into photos and adds them to the edit; they attach on Save.
     private func add(_ images: [UIImage]) {
         let room = AppDatabase.photoLimit - edit.photos.count - edit.savingPhotos
         for image in images.prefix(max(room, 0)) {
             edit.savingPhotos += 1
             Task {
                 defer { edit.savingPhotos -= 1 }
-                if let stored = try? await store.savePhoto(image) {
-                    edit.photos.append(.added(stored))
+                if let photo = try? await store.preparePhoto(image) {
+                    edit.photos.append(.added(photo))
                 }
             }
         }

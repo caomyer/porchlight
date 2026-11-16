@@ -1,6 +1,7 @@
 import Foundation
 import GRDB
 import Testing
+import UIKit
 @testable import Porchlight
 
 @Suite("Companion persistence")
@@ -39,6 +40,50 @@ struct CompanionPersistenceTests {
         #expect(routines[0].stars == 2)
     }
 
+    @Test("A companion's photo is a row: set, kept as it is, replaced and removed with the draft, and shown by its face")
+    @MainActor
+    func photo() async throws {
+        let home = try home()
+        let picked = UIGraphicsImageRenderer(size: CGSize(width: 1600, height: 1200)).image { context in
+            UIColor.brown.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1600, height: 1200))
+        }.jpegData(compressionQuality: 0.9)
+        let photo = try CompanionPhotos.prepared(try #require(picked))
+        #expect(try #require(UIImage(data: photo)).size == CGSize(width: 800, height: 600), "companion photos are small")
+
+        var draft = CompanionDraft.new(species: .dog)
+        draft.name = "Yo-Yo"
+        draft.photo = photo
+        let id = try home.db.saveCompanion(draft, householdId: home.householdId)
+        draft.companionId = id
+        #expect(try home.db.companionPhoto(id: id) == photo)
+
+        // Saving again as you type leaves the row alone, so it is never sent twice.
+        let rowid = { try home.db.writer.read { try Int.fetchOne($0, sql: "SELECT rowid FROM companionPhoto") } }
+        let before = try rowid()
+        draft.about = "Toy poodle"
+        try home.db.saveCompanion(draft, householdId: home.householdId)
+        #expect(try rowid() == before)
+
+        let store = CompanionStore(database: home.db)
+        let companion = try #require(store.snapshot.companions.first)
+        #expect(store.draft(of: companion).photo == photo, "editing starts from the saved photo")
+        let look = store.snapshot.look(of: companion)
+        #expect(look.photo == .companion(id, byteCount: photo.count))
+        let face = await PhotoImages(database: home.db).image(PhotoRequest(try #require(look.photo)))
+        #expect(face?.size == CGSize(width: 800, height: 600))
+
+        draft.photo = nil
+        try home.db.saveCompanion(draft, householdId: home.householdId)
+        #expect(try home.db.companionPhoto(id: id) == nil)
+        #expect(try await home.db.writer.read(CompanionSnapshot.fetch).photos.isEmpty)
+
+        draft.photo = photo
+        try home.db.saveCompanion(draft, householdId: home.householdId)
+        try home.db.deleteCompanion(id: id)
+        #expect(try await home.db.writer.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM companionPhoto") } == 0, "the photo goes with its companion")
+    }
+
     @Test("Every species has sensible starting routines")
     func presets() {
         for species in Species.allCases {
@@ -62,7 +107,7 @@ struct CompanionPersistenceTests {
         let feed = snapshot.routines(of: id)[1]
         try home.db.logCare(routineId: feed.id, CareLogDraft(people: [home.people[1]], occurredAt: .now.addingTimeInterval(-60)))
 
-        var draft = CompanionDraft(snapshot.companions[0], routines: snapshot.routines(of: id))
+        var draft = CompanionDraft(snapshot.companions[0], routines: snapshot.routines(of: id), photo: nil)
         draft.name = "Yo-Yo Ma"
         draft.routines[0].stars = 3
         draft.routines.remove(at: 1)
@@ -311,7 +356,7 @@ struct CompanionPersistenceTests {
     @Test("Upgrading drops turn rotation and keeps routines and their logs")
     func dropsRotation() throws {
         let queue = try DatabaseQueue(configuration: AppDatabase.configuration)
-        try AppDatabase.migrator.migrate(queue, upTo: "companions v1: companions, routines and care logs")
+        try AppDatabase.migrator(files: nil).migrate(queue, upTo: "companions v1: companions, routines and care logs")
         try queue.write { db in
             try db.execute(sql: "INSERT INTO household (id, name, timeZoneIdentifier, firstWeekday, createdAt) VALUES (1, 'Home', 'UTC', 1, '2026-01-01 00:00:00')")
             try db.execute(sql: "INSERT INTO person (id, householdId, name, color, sortOrder, createdAt) VALUES (1, 1, 'James', 'blue', 0, '2026-01-01 00:00:00')")
@@ -337,7 +382,7 @@ struct CompanionPersistenceTests {
     @Test("Upgrading gives routines chores' repeat rules; every-N-days ones start on their last log")
     func routinesGetRepeatRules() throws {
         let queue = try DatabaseQueue(configuration: AppDatabase.configuration)
-        try AppDatabase.migrator.migrate(queue, upTo: "companions v2: no turn rotation")
+        try AppDatabase.migrator(files: nil).migrate(queue, upTo: "companions v2: no turn rotation")
         try queue.write { db in
             try db.execute(sql: "INSERT INTO household (id, name, timeZoneIdentifier, firstWeekday, createdAt) VALUES (1, 'Home', 'UTC', 1, '2026-01-01 00:00:00')")
             try db.execute(sql: """

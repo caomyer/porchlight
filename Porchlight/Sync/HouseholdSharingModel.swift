@@ -1,0 +1,57 @@
+import Foundation
+import Observation
+
+/// The household's share as the screens show it: who is on it, and the actions on it.
+/// Wraps a `HouseholdSharing`, live or fake, and keeps the last members it read, so a
+/// screen shows them at once and offline.
+@MainActor
+@Observable
+final class HouseholdSharingModel {
+    @ObservationIgnored let service: any HouseholdSharing
+    @ObservationIgnored private let database: AppDatabase
+
+    private(set) var members: HouseholdMembers = .none
+    /// This device's iCloud user record name, once read.
+    private(set) var userName: String?
+
+    init(service: any HouseholdSharing, database: AppDatabase) {
+        self.service = service
+        self.database = database
+    }
+
+    var unavailableReason: String? { service.unavailableReason }
+
+    /// Reads the share again. Keeps what it had when iCloud can't be reached.
+    func refresh(_ household: Household?) async {
+        guard let household else { return }
+        userName = await service.currentUserName() ?? userName
+        guard let members = try? await service.participants(of: household) else { return }
+        self.members = members
+        // Remembered so a removed device can still say who removed it.
+        if !members.isOwner, let owner = members.owner?.name {
+            try? database.rememberOwner(owner, of: household.id)
+        }
+    }
+
+    /// The owner's name as the household says it: their person, through the iCloud user
+    /// their devices carry, else iCloud's name for them.
+    func ownerName(people: [Person], devices: [Device]) -> String? {
+        guard let owner = members.owner else { return nil }
+        // Their own devices only: a shared screen signed in to their iCloud belongs to nobody.
+        if let personId = devices.lazy.filter({ $0.userName != nil && $0.userName == owner.userName }).compactMap(\.owner).first,
+           let person = people.person(personId) {
+            return person.name
+        }
+        return owner.name
+    }
+
+    /// Removes someone's devices from the household: off the share, then their device rows.
+    /// Their person stays, with their color and history (journey A6).
+    func remove(_ participant: HouseholdParticipant, from household: Household) async throws {
+        try await service.remove(participant, from: household)
+        if let userName = participant.userName {
+            try database.removeDevices(ofUser: userName, in: household.id)
+        }
+        members.participants.removeAll { $0.id == participant.id }
+    }
+}

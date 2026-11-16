@@ -251,7 +251,7 @@ struct MealPhotoRow<Trailing: View>: View {
     private struct Reframing: Identifiable {
         let index: Int
         let item: MealPhotoItem
-        var id: String { item.id }
+        var id: MealPhoto.ID { item.id }
     }
 
     private var noteColor: Color { onDark ? Color.white.opacity(0.7) : Theme.muted }
@@ -285,10 +285,8 @@ struct MealPhotoRow<Trailing: View>: View {
         .animation(.easeInOut(duration: 0.2), value: items)
         .wallCover(item: $reframing) { reframing in
             ReframeSheet(item: reframing.item) { crop, thumbnail in
-                if items.indices.contains(reframing.index), items[reframing.index].photoFile == reframing.item.photoFile {
-                    items[reframing.index] = items[reframing.index].reframed(crop, thumbnailFile: thumbnail)
-                } else {
-                    store.discard(files: [thumbnail])
+                if items.indices.contains(reframing.index), items[reframing.index].id == reframing.item.id {
+                    items[reframing.index] = items[reframing.index].reframed(crop, thumbnail: thumbnail)
                 }
                 CompanionCover.instantly { self.reframing = nil }
             } onCancel: {
@@ -318,19 +316,15 @@ struct MealPhotoRow<Trailing: View>: View {
             if !isCover {
                 Button { makeCover(index) } label: { Label("Make cover", systemImage: "star") }
             }
-            Button {
-                CompanionCover.instantly { reframing = Reframing(index: index, item: item) }
-            } label: { Label("Reframe", systemImage: "crop") }
+            // A photo whose whole shot was lost has only its square left to show.
+            if store.image(of: item) != nil {
+                Button {
+                    CompanionCover.instantly { reframing = Reframing(index: index, item: item) }
+                } label: { Label("Reframe", systemImage: "crop") }
+            }
         } label: {
-            Color.clear
+            PhotoView(store.thumbnail(of: item).map { PhotoRequest($0) }) { _ in Theme.surface2 }
                 .frame(width: size, height: size)
-                .overlay {
-                    if let image = MealImages.image(at: store.photoURL(item.thumbnailFile)) {
-                        Image(uiImage: image).resizable().scaledToFill()
-                    } else {
-                        Theme.surface2
-                    }
-                }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -387,14 +381,16 @@ struct MealPhotoRow<Trailing: View>: View {
 // MARK: - Reframing
 
 /// Picks which square of a photo the wall shows: drag the photo in a square window, and
-/// pinch (or use the zoom row) to zoom in. Done writes a thumbnail for the new square and
-/// hands both back.
+/// pinch (or use the zoom row) to zoom in. Done makes a thumbnail for the new square and
+/// hands both back; nothing is saved until the meal is.
 struct ReframeSheet: View {
     let item: MealPhotoItem
-    let onDone: (PhotoCrop, String) -> Void
+    let onDone: (PhotoCrop, Data) -> Void
     let onCancel: () -> Void
 
     @Environment(FoodStore.self) private var store
+    @Environment(PhotoImages.self) private var images
+    @State private var image: UIImage?
     @State private var zoom = 1.0
     @State private var center = CGPoint(x: 0.5, y: 0.5)
     @State private var dragStart: CGPoint?
@@ -406,7 +402,6 @@ struct ReframeSheet: View {
     static let maxZoom = 4.0
 
     var body: some View {
-        let image = MealImages.image(at: store.photoURL(item.photoFile))
         let size = image.map(Self.pixelSize) ?? CGSize(width: 1, height: 1)
         WallSheet(width: Self.side + 52, onClose: onCancel) {
             VStack(alignment: .leading, spacing: 14) {
@@ -431,11 +426,17 @@ struct ReframeSheet: View {
                 }
             }
         }
-        .onAppear {
-            let crop = item.crop ?? .centeredSquare(in: size)
-            zoom = min(max(crop.zoom(in: size), 1), Self.maxZoom)
-            center = crop.center
-        }
+        .task { await load() }
+    }
+
+    /// Decodes the whole shot, then starts from the square the photo shows now.
+    private func load() async {
+        guard image == nil, let source = store.image(of: item), let loaded = await images.image(PhotoRequest(source)) else { return }
+        let size = Self.pixelSize(loaded)
+        let crop = item.crop ?? .centeredSquare(in: size)
+        zoom = min(max(crop.zoom(in: size), 1), Self.maxZoom)
+        center = crop.center
+        image = loaded
     }
 
     private func crop(in size: CGSize) -> PhotoCrop {
@@ -542,8 +543,8 @@ struct ReframeSheet: View {
         defer { isSaving = false }
         let crop = crop(in: Self.pixelSize(image))
         do {
-            let thumbnail = try await store.thumbnail(of: item.photoFile, crop: crop)
-            onDone(crop, thumbnail)
+            guard let source = store.image(of: item), let data = await images.bytes(of: source) else { throw FoodError.photoUnreadable }
+            onDone(crop, try await store.thumbnail(ofImage: data, crop: crop))
         } catch {
             self.error = error.userMessage
         }

@@ -31,7 +31,7 @@ actor AmbientPhotoLibrary {
     }
 
     private static var defaultFolder: URL {
-        AppFiles.folder("Ambient")
+        AppFiles.folder(AppFiles.ambientFolder)
     }
 
     nonisolated func url(for fileName: String) -> URL {
@@ -78,6 +78,15 @@ actor AmbientPhotoLibrary {
     nonisolated static func loadForDisplay(_ url: URL, maxPixelSize: Int) async -> UIImage? {
         await Task.detached(priority: .userInitiated) {
             guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                  let image = downsampled(source, maxPixelSize: maxPixelSize) else { return nil }
+            return UIImage(cgImage: image)
+        }.value
+    }
+
+    /// Loads a household photo's bytes sized for the screen. Runs off the main actor.
+    nonisolated static func loadForDisplay(_ data: Data, maxPixelSize: Int) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) {
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil),
                   let image = downsampled(source, maxPixelSize: maxPixelSize) else { return nil }
             return UIImage(cgImage: image)
         }.value

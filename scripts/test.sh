@@ -10,8 +10,8 @@
 # so it is off by default; try it on an idle, bigger machine.
 #
 # --phone runs on the iOS 17.5 iPhone 15 simulator instead, and its UI run is the
-# phone's own tests (PhoneTests, PhoneTabsTests, PhoneRemindersTests). The iPad
-# run skips them.
+# phone's own tests (PhoneTests, PhoneTabsTests, PhoneHouseholdTests,
+# PhoneRemindersTests). The iPad run skips them.
 #
 # Usage: scripts/test.sh [--tour] [--phone] [--unit-only | --ui-only] [--workers N] [simulator-udid]
 set -euo pipefail
@@ -59,7 +59,7 @@ checkout=$(basename "$PWD")
 derived="$HOME/Library/Developer/Xcode/DerivedData/Porchlight-${checkout}"
 results="${TMPDIR:-/tmp}/porchlight-tests-${checkout}"
 mkdir -p "$results"
-common=(-project Porchlight.xcodeproj -destination "id=$udid" -derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO)
+common=(-project Porchlight.xcodeproj -destination "id=$udid" -derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO -skipMacroValidation)
 
 # Keep only results, failures and the summary from xcodebuild's output.
 summarize() {
@@ -88,9 +88,9 @@ if (( ui )); then
   xcrun simctl bootstatus "$udid" -b >/dev/null
   xcrun simctl privacy "$udid" reset calendar com.porchlight.porchlight
   if (( phone )); then
-    skip=(-only-testing:PorchlightUITests/PhoneTests -only-testing:PorchlightUITests/PhoneTabsTests -only-testing:PorchlightUITests/PhoneRemindersTests)
+    skip=(-only-testing:PorchlightUITests/PhoneTests -only-testing:PorchlightUITests/PhoneTabsTests -only-testing:PorchlightUITests/PhoneHouseholdTests -only-testing:PorchlightUITests/PhoneRemindersTests)
   else
-    skip=(-skip-testing:PorchlightUITests/PhoneTests -skip-testing:PorchlightUITests/PhoneTabsTests -skip-testing:PorchlightUITests/PhoneRemindersTests)
+    skip=(-skip-testing:PorchlightUITests/PhoneTests -skip-testing:PorchlightUITests/PhoneTabsTests -skip-testing:PorchlightUITests/PhoneHouseholdTests -skip-testing:PorchlightUITests/PhoneRemindersTests)
     (( tour )) || skip+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
   fi
   parallel=()

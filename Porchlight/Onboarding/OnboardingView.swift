@@ -1,20 +1,29 @@
 import SwiftUI
 
-/// First-run setup: name the household, then add the people who live here.
+/// First-run setup: name the household, say how this iPad is used, add the people who
+/// live here, and finally say plainly where the household lives (journey A1).
 struct OnboardingView: View {
+    /// "Invite phones now" on the last step: setup ends on Family & devices.
+    var onInvite: () -> Void = {}
+
     @Environment(AppModel.self) private var model
+    @Environment(DeviceSettings.self) private var device
+    @Environment(SyncController.self) private var sync
+    @Environment(\.openURL) private var openURL
 
     private enum Step: Int, CaseIterable {
-        case household, people, calendars, companions, journals, display
+        case household, role, people, calendars, companions, journals, display, iCloud
 
         var title: String {
             switch self {
             case .household: "Your household"
+            case .role: "This iPad"
             case .people: "People"
             case .calendars: "Calendars"
             case .companions: "Companions"
             case .journals: "Journals"
             case .display: "This display"
+            case .iCloud: "iCloud"
             }
         }
     }
@@ -31,11 +40,13 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 22) {
                 switch step {
                 case .household: householdStep
+                case .role: roleStep
                 case .people: peopleStep
                 case .calendars: CalendarOnboardingStep()
                 case .companions: CompanionOnboardingStep()
                 case .journals: FoodOnboardingStep()
                 case .display: displayStep
+                case .iCloud: iCloudStep
                 }
                 Spacer(minLength: 0)
                 footer
@@ -102,6 +113,16 @@ struct OnboardingView: View {
 
     // MARK: Step 2
 
+    private var roleStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            heading("How will this \(device.model) be used?", "You can change this later in Settings.")
+            DeviceRoleChoice(role: Binding(get: { device.role }, set: { device.setRole($0) }), model: device.model)
+                .frame(maxWidth: 620)
+        }
+    }
+
+    // MARK: Step 3
+
     private var peopleStep: some View {
         VStack(alignment: .leading, spacing: 22) {
             heading("Who lives here?", "Everyone gets a color. It marks their calendar, and who walked the dog or cooked dinner.")
@@ -128,7 +149,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: Last step
+    // MARK: Display
 
     private var displayStep: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -143,6 +164,40 @@ struct OnboardingView: View {
                 tip("bolt.batteryblock", "Be kind to the battery", "An older iPad plugged in all day can swell. A smart plug that charges it a few hours a day keeps it healthy.")
             }
             .frame(maxWidth: 620)
+        }
+    }
+
+    // MARK: Last step
+
+    /// Where the household lives, said plainly; without iCloud it never blocks.
+    @ViewBuilder
+    private var iCloudStep: some View {
+        let name = model.household?.name ?? "Your household"
+        if sync.status == .noAccount {
+            heading(
+                "Keep it on this \(device.model) for now?",
+                "This \(device.model) isn't signed in to iCloud, so phones can't join yet and nothing is backed up. Everything works here. Sign in later and Porchlight moves the household into iCloud."
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 22) {
+                heading(
+                    "\(name) lives in your iCloud",
+                    "Everyone you invite uses it through your iCloud, so it is backed up and works on their phones. Photos are most of it: a busy family adds about 300 MB a year. Nobody else, including us, can see it."
+                )
+                HStack(spacing: 14) {
+                    Text("☁️").font(.system(size: 30)).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Uses the iCloud account on this \(device.model)").font(.body(17, weight: 700))
+                        Text("To use a different Apple ID, change it in \(device.model) Settings first.")
+                            .font(.body(14, weight: 600))
+                            .foregroundStyle(Theme.muted)
+                    }
+                }
+                .padding(18)
+                .frame(maxWidth: 620, alignment: .leading)
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.line, lineWidth: 2))
+                .accessibilityElement(children: .combine)
+            }
         }
     }
 
@@ -171,13 +226,37 @@ struct OnboardingView: View {
                     .foregroundStyle(Theme.accent)
             }
             Spacer()
-            if step == .people {
-                Button("Back") { step = .household }
+            if step == .role || step == .people {
+                Button("Back") { step = Step(rawValue: step.rawValue - 1) ?? .household }
                     .buttonStyle(SecondaryButtonStyle())
             }
-            Button(step == .display ? "Start using Porchlight" : "Continue", action: next)
+            if step == .iCloud {
+                lastButtons
+            } else {
+                Button("Continue", action: next)
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(!canContinue)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var lastButtons: some View {
+        if sync.status == .noAccount {
+            Button("Open \(device.model) Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            Button("Keep going on this \(device.model)", action: next)
                 .buttonStyle(PrimaryButtonStyle())
-                .disabled(!canContinue)
+        } else {
+            Button("Invite phones now") {
+                onInvite()
+                next()
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            Button("Finish", action: next)
+                .buttonStyle(PrimaryButtonStyle())
         }
     }
 
@@ -187,7 +266,7 @@ struct OnboardingView: View {
             !householdName.trimmingCharacters(in: .whitespaces).isEmpty
         case .people:
             people.contains { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
-        case .calendars, .companions, .journals, .display:
+        case .role, .calendars, .companions, .journals, .display, .iCloud:
             true
         }
     }
@@ -196,6 +275,8 @@ struct OnboardingView: View {
         guard canContinue else { return }
         switch step {
         case .household:
+            step = .role
+        case .role:
             step = .people
             focusedRow = 0
         case .people:
@@ -209,6 +290,8 @@ struct OnboardingView: View {
         case .journals:
             step = .display
         case .display:
+            step = .iCloud
+        case .iCloud:
             _ = model.finishSetup()
         }
     }

@@ -170,7 +170,10 @@ struct TodayAgenda: View {
 
     @ViewBuilder
     private func timelineRow(_ item: TimelineItem) -> some View {
-        let row = TimelineRow(item: item, isPast: isPast(item), color: model.color(for: item.owner))
+        let row = TimelineRow(
+            item: item, isPast: isPast(item), color: model.color(for: item.owner),
+            tag: model.tag(for: item.origin?.deviceId)
+        )
         if let target = item.target, let onOpen {
             Button { onOpen(target) } label: { row.contentShape(Rectangle()) }
                 .buttonStyle(.plain)
@@ -193,6 +196,16 @@ private struct TimelineRow: View {
     let item: TimelineItem
     let isPast: Bool
     let color: Color
+    /// "from Mia's phone", for a row written on someone's own device.
+    var tag: String?
+
+    @Environment(\.freshRows) private var freshRows
+    /// The glow of a row that just arrived from someone's phone: there once, then fading.
+    @State private var glow = 0.0
+
+    private var isFresh: Bool {
+        item.origin.map { freshRows.contains($0.rowId) } ?? false
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -206,9 +219,18 @@ private struct TimelineRow: View {
                 item.leading
                     .frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title)
-                        .font(.body(16, weight: 700))
-                        .lineLimit(1)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(item.title)
+                            .font(.body(16, weight: 700))
+                            .lineLimit(1)
+                        // A footnote, not a badge: with phones in use most rows have one.
+                        if let tag {
+                            Text(tag)
+                                .font(.body(12, weight: 600))
+                                .foregroundStyle(Theme.muted)
+                                .fixedSize()
+                        }
+                    }
                     if let subtitle = item.subtitle {
                         Text(subtitle)
                             .font(.body(13, weight: 600))
@@ -223,7 +245,19 @@ private struct TimelineRow: View {
             .padding(.horizontal, 12)
             .frame(minHeight: 54)
             .background(background)
-            .opacity(isPast && item.kind == .event ? 0.55 : (item.kind == .log ? 0.75 : 1))
+            .opacity(isPast && item.kind == .event ? 0.55 : (item.kind == .log && glow == 0 ? 0.75 : 1))
+            .overlay {
+                let shape = RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                shape.fill(Theme.accent.opacity(0.12))
+                    .overlay(shape.strokeBorder(Theme.accent, lineWidth: 2))
+                    .opacity(glow)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onChange(of: isFresh, initial: true) { _, fresh in
+            guard fresh else { return }
+            glow = 1
+            withAnimation(.easeOut(duration: 2.5).delay(1.5)) { glow = 0 }
         }
     }
 

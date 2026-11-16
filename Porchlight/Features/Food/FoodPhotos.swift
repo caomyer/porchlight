@@ -1,80 +1,70 @@
 import Foundation
+import ImageIO
 import UIKit
 
-/// Meal photos on disk: Application Support/Porchlight/Photos/meal-<uuid>.jpg plus a
-/// square thumbnail. The database stores only the file names.
-struct FoodPhotoStore: Sendable {
-    let directory: URL
+/// A meal photo ready to be stored: the whole shot and the square thumbnail the wall shows.
+///
+/// It lives in memory until a meal saves it, so a capture that is thrown away leaves nothing
+/// behind. The image never changes once made and the thumbnail is always the image's `crop`,
+/// so two are the same photo exactly when their id and crop are.
+struct NewMealPhoto: Hashable, Identifiable, Sendable {
+    /// The photo's row id once it is attached to a meal.
+    let id: MealPhoto.ID
+    let image: Data
+    var thumbnail: Data
+    /// The square the wall shows; nil is the center square.
+    var crop: PhotoCrop?
 
-    static let filePrefix = "meal-"
-    /// Longest edge of a stored photo, in pixels.
+    static func == (lhs: NewMealPhoto, rhs: NewMealPhoto) -> Bool {
+        lhs.id == rhs.id && lhs.crop == rhs.crop
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(crop)
+    }
+}
+
+/// Making meal photos: the one size that is stored and synced, and its thumbnails.
+enum MealPhotoImaging {
+    /// Longest edge of a stored photo, in pixels. There is no separate original: this is the photo.
     static let maxPixels: CGFloat = 2048
     static let thumbnailPixels: CGFloat = 360
 
-    /// The app's photo folder.
-    static var standard: FoodPhotoStore {
-        FoodPhotoStore(directory: AppFiles.folder("Photos"))
-    }
-
-    struct Stored: Equatable, Hashable, Sendable {
-        var photoFile: String
-        var thumbnailFile: String
-        /// The square the wall shows; nil is the center square.
-        var crop: PhotoCrop?
-    }
-
-    func url(for file: String) -> URL {
-        directory.appendingPathComponent(file)
-    }
-
-    /// Writes the whole shot as a downscaled JPEG, and the square thumbnail of `crop`
-    /// (the center square when nil). Safe to call off the main actor.
-    func save(_ image: UIImage, crop: PhotoCrop? = nil) throws -> Stored {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let name = Self.filePrefix + UUID().uuidString.lowercased()
-        let stored = Stored(photoFile: name + ".jpg", thumbnailFile: name + "-thumb.jpg", crop: crop)
-        let upright = Self.resized(image, maxPixels: Self.maxPixels)
+    /// The whole shot as a JPEG at most `maxPixels` on its long side, with the square
+    /// thumbnail of `crop` (the center square when nil). Safe to call off the main actor.
+    static func prepare(_ image: UIImage, crop: PhotoCrop? = nil) throws -> NewMealPhoto {
+        let upright = resized(image, maxPixels: maxPixels)
         guard let photo = upright.jpegData(compressionQuality: 0.85),
-              let thumbnail = Self.thumbnail(of: upright, crop: crop).jpegData(compressionQuality: 0.8)
+              let thumbnail = thumbnail(of: upright, crop: crop).jpegData(compressionQuality: 0.8)
         else { throw FoodError.photoUnreadable }
-        do {
-            try photo.write(to: url(for: stored.photoFile), options: .atomic)
-            try thumbnail.write(to: url(for: stored.thumbnailFile), options: .atomic)
-        } catch {
-            delete([stored.photoFile, stored.thumbnailFile])
-            throw error
-        }
-        return stored
+        return NewMealPhoto(id: .new(), image: photo, thumbnail: thumbnail, crop: crop)
     }
 
-    /// Writes a new thumbnail of a saved photo for `crop` and returns its file name. The old
-    /// thumbnail stays until whoever replaced it deletes it. Safe to call off the main actor.
-    func thumbnail(of photoFile: String, crop: PhotoCrop?) throws -> String {
-        guard let image = UIImage(contentsOfFile: url(for: photoFile).path),
-              let data = Self.thumbnail(of: image, crop: crop).jpegData(compressionQuality: 0.8)
+    /// A new thumbnail of a stored photo for `crop`. Safe to call off the main actor.
+    static func thumbnail(ofImage data: Data, crop: PhotoCrop?) throws -> Data {
+        guard let image = UIImage(data: data),
+              let thumbnail = thumbnail(of: image, crop: crop).jpegData(compressionQuality: 0.8)
         else { throw FoodError.photoUnreadable }
-        let file = Self.filePrefix + UUID().uuidString.lowercased() + "-thumb.jpg"
-        try data.write(to: url(for: file), options: .atomic)
-        return file
+        return thumbnail
     }
 
-    /// Removes files, ignoring ones that are already gone.
-    func delete(_ files: [String?]) {
-        for file in files.compactMap({ $0 }) where Self.isOwnFile(file) {
-            try? FileManager.default.removeItem(at: url(for: file))
-        }
-    }
-
-    /// Deletes meal photos no entry points to any more (for example after the
-    /// household was deleted, which cascades rows but cannot touch files).
-    func sweep(keeping referenced: Set<String>) {
-        guard let files = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return }
-        delete(files.filter { Self.isOwnFile($0) && !referenced.contains($0) })
-    }
-
-    /// Only our own flat file names, never paths, so a bad row cannot delete anything else.
-    static func isOwnFile(_ name: String) -> Bool {
-        name.hasPrefix(filePrefix) && !name.contains("/") && !name.contains("..")
+    /// An existing JPEG as it should be stored: byte for byte when it is at most `maxPixels`
+    /// on its long side, else re-encoded at that size. Nil when it isn't a readable image.
+    static func fitted(_ data: Data) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int
+        else { return nil }
+        guard CGFloat(max(width, height)) > maxPixels else { return data }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(maxPixels),
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: image).jpegData(compressionQuality: 0.85)
     }
 
     // MARK: Image processing

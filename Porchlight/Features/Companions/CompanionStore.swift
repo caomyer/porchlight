@@ -17,6 +17,8 @@ struct CompanionSnapshot: Equatable, Sendable {
     /// Everyone, removed people included, for naming who did past care.
     var everyone: [Person] = []
     var companions: [Companion] = []
+    /// The size of each companion's photo, for those that have one.
+    var photos: [Companion.ID: Int] = [:]
     /// Ordered by companion, then sort order.
     var routines: [CareRoutine] = []
     /// Every care log with its people, oldest first.
@@ -46,6 +48,13 @@ struct CompanionSnapshot: Equatable, Sendable {
             WHERE companion.householdId = ?
             ORDER BY careLog.occurredAt, careLog.createdAt, careLog.id
             """, arguments: [householdId])
+        // Only the sizes: the photos themselves load when a face shows them.
+        let photoRows = try Row.fetchAll(db, sql: """
+            SELECT companionPhoto.companionId, companionPhoto.byteCount FROM companionPhoto
+            JOIN companion ON companion.id = companionPhoto.companionId
+            WHERE companion.householdId = ?
+            """, arguments: [householdId])
+        let photos = Dictionary(uniqueKeysWithValues: photoRows.map { ($0["companionId"] as Companion.ID, $0["byteCount"] as Int) })
         let order = Dictionary(uniqueKeysWithValues: everyone.enumerated().map { index, person in (person.id, index) })
         var peopleByLog: [CareLog.ID: [Person.ID]] = [:]
         for link in try CareLogPerson.fetchAll(db) {
@@ -57,8 +66,13 @@ struct CompanionSnapshot: Equatable, Sendable {
         }
         return CompanionSnapshot(
             household: household, people: everyone.active, everyone: everyone,
-            companions: companions, routines: routines, entries: entries
+            companions: companions, photos: photos, routines: routines, entries: entries
         )
+    }
+
+    /// How a saved companion looks, with its photo when it has one.
+    func look(of companion: Companion) -> CompanionLook {
+        CompanionLook(companion, photo: photos[companion.id].map { .companion(companion.id, byteCount: $0) })
     }
 
     var calendar: Calendar { household?.calendar ?? .current }
@@ -190,15 +204,17 @@ final class CompanionStore {
 
     // MARK: Edits (errors are surfaced through `lastError`)
 
+    /// A saved companion as a draft to edit, with its routines and photo.
+    func draft(of companion: Companion) -> CompanionDraft {
+        CompanionDraft(companion, routines: snapshot.routines(of: companion.id), photo: try? database.companionPhoto(id: companion.id))
+    }
+
     /// Saves a companion draft. Returns the companion id, or nil when validation failed.
     @discardableResult
-    func save(_ draft: CompanionDraft, previousPhoto: String? = nil) -> Companion.ID? {
+    func save(_ draft: CompanionDraft) -> Companion.ID? {
         guard let householdId = snapshot.household?.id ?? (try? database.snapshot().household?.id) else { return nil }
         do {
             let id = try database.saveCompanion(draft, householdId: householdId)
-            if let previousPhoto, previousPhoto != draft.photoFile {
-                CompanionPhotoStore.shared.delete(previousPhoto)
-            }
             lastError = nil
             return id
         } catch {
@@ -208,11 +224,7 @@ final class CompanionStore {
     }
 
     func delete(companionId: Companion.ID) {
-        perform {
-            if let photo = try database.deleteCompanion(id: companionId) {
-                CompanionPhotoStore.shared.delete(photo)
-            }
-        }
+        perform { try database.deleteCompanion(id: companionId) }
     }
 
     @discardableResult

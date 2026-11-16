@@ -150,7 +150,10 @@ It plans the next 7 days and keeps the nearest 64, iOS's limit.
 
 A care reminder has three actions, as in `c1open`: the log action ("I walked Yo-Yo"), "Remind me in an hour" and "Someone else is on it".
 Logging goes through `AppDatabase.logCare(routineId:slot:on:)`, the same check-before-log write as one tap on Today, so a reminder acted on late never doubles a log; it then posts a short confirmation ("Logged: evening walk", or "Mia walked Yo-Yo at 5:40pm").
-Actions work with the app closed: `ReminderAppDelegate` handles them when iOS launches the app in the background, using the same database instance as the screens (`AppDatabase.sharedOnDisk`).
+Actions work with the app closed: when iOS launches the app in the background, it opens its data the usual way (the restore check, then the sync engine), and `ReminderNotifications` uses that same instance (`AppDatabase.launched`), never a second connection.
+If that launch finds a restored copy and sync waits for someone to decide, the restore check only marks the decision as pending; it never blocks opening.
+So the action still logs on this phone, stamped with this device, and nothing is sent while the decision waits.
+That log shares the restored copy's fate: "Use what is in iCloud" replaces the copy, log included, and keeping the copy without sync keeps it on this phone only.
 
 The Notifications page under You says what reminders are before iOS asks, offers Open Settings when they are turned off, and lists each routine's slots ("Yo-Yo · evening walk") with Off, When it opens or Only if missed, and "Your chores" on or off.
 The choices, snoozes and hand-offs are device-local (`ReminderSettings`, in `UserDefaults`), never synced.
