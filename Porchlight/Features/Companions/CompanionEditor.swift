@@ -508,7 +508,7 @@ struct CompanionEditorForm: View {
             HStack {
                 Toggle(isOn: Binding(
                     get: { draft.birthDate != nil },
-                    set: { draft.birthDate = $0 ? (draft.birthDate ?? Calendar.current.date(byAdding: .year, value: -1, to: .now)) : nil }
+                    set: { draft.birthDate = $0 ? (draft.birthDate ?? model.calendar.date(byAdding: .year, value: -1, to: .now)) : nil }
                 )) {
                     Text("Birthday").font(.body(14, weight: 700))
                 }

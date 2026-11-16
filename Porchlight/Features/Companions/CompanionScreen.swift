@@ -91,6 +91,7 @@ struct CompanionScreen: View {
 // MARK: - Hero
 
 private struct HeroCard: View {
+    @Environment(AppModel.self) private var model
     let report: CompanionReport
 
     var body: some View {
@@ -138,8 +139,8 @@ private struct HeroCard: View {
         let about = report.companion.about
         parts.append(about.isEmpty ? report.companion.species.label : about)
         if let birth = report.companion.birthDate {
-            let years = Calendar.current.dateComponents([.year], from: birth, to: report.now).year ?? 0
-            let months = Calendar.current.dateComponents([.month], from: birth, to: report.now).month ?? 0
+            let years = model.calendar.dateComponents([.year], from: birth, to: report.now).year ?? 0
+            let months = model.calendar.dateComponents([.month], from: birth, to: report.now).month ?? 0
             parts.append(years >= 1 ? "\(years) \(years == 1 ? "yr" : "yrs")" : "\(max(months, 1)) mo")
         }
         return parts.joined(separator: " · ")

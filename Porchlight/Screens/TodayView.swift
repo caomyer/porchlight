@@ -180,7 +180,7 @@ struct TodayAgenda: View {
     }
 
     private func isPast(_ item: TimelineItem) -> Bool {
-        item.kind == .log || (item.kind == .event && item.time < now && !Calendar.current.isDate(item.time, equalTo: now, toGranularity: .minute))
+        item.kind == .log || (item.kind == .event && item.time < now && !model.calendar.isDate(item.time, equalTo: now, toGranularity: .minute))
     }
 
     private var summary: String {
