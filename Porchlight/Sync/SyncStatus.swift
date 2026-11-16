@@ -9,8 +9,25 @@ enum SyncStatus: Equatable, Sendable {
     /// Offline, or still checking the account; changes keep saving on the device meanwhile.
     case waiting(lastSynced: Date?)
     case iCloudFull
-    /// A different iCloud account signed in; nothing syncs until the owner chooses.
-    case needsDecision
+    /// Nothing syncs until the owner chooses what to do.
+    case needsDecision(SyncDecision)
+}
+
+/// Why sync waits for the owner.
+enum SyncDecision: Equatable, Sendable {
+    /// A different iCloud account signed in: the data here belongs to the earlier one.
+    case accountChanged
+    /// The database was replaced underneath the app (a restored backup), so sending it
+    /// could put old data over newer data in iCloud (`DatabaseIdentity`).
+    case restoredCopy
+}
+
+/// What the owner said about a restored copy of the database.
+enum RestoredCopy: String, Sendable {
+    /// Not yet: sync waits.
+    case undecided
+    /// Kept on this device without sync; turning sync on asks again.
+    case keptWithoutSync
 }
 
 extension SyncStatus {
@@ -46,6 +63,8 @@ struct SyncPreferences {
         static let lastSynced = "sync.lastSynced"
         static let accountName = "sync.accountName"
         static let needsDecision = "sync.needsDecision"
+        static let restoredCopy = "sync.restoredCopy"
+        static let databaseTokens = "sync.databaseTokens"
     }
 
     /// The sync switch; nil until it was first decided on this device.
@@ -70,13 +89,26 @@ struct SyncPreferences {
         get { defaults.bool(forKey: Key.needsDecision) }
         nonmutating set { defaults.set(newValue, forKey: Key.needsDecision) }
     }
+
+    /// A restored copy of the database this device found, until the owner chose for good.
+    var restoredCopy: RestoredCopy? {
+        get { defaults.string(forKey: Key.restoredCopy).flatMap(RestoredCopy.init(rawValue:)) }
+        nonmutating set { defaults.set(newValue?.rawValue, forKey: Key.restoredCopy) }
+    }
+
+    /// The tokens that name the database this install last ran with (`DatabaseIdentity`).
+    var databaseTokens: [String] {
+        get { defaults.stringArray(forKey: Key.databaseTokens) ?? [] }
+        nonmutating set { defaults.set(newValue, forKey: Key.databaseTokens) }
+    }
 }
 
 #if DEBUG
 /// `-debugSyncStatus <name>` shows the sync section in one state, with no engine, for
-/// screenshots and UI tests. `lookingForHousehold` (with `-resetData`) holds the first-launch
-/// search screen until "Start fresh instead".
+/// screenshots and UI tests. `needsDecision` is a different account, `restoredCopy` a
+/// restored backup. `lookingForHousehold` (with `-resetData`) holds the first-launch search
+/// screen until "Start fresh instead".
 enum SyncDebugStatus: String, CaseIterable, Sendable {
-    case off, upToDate, syncing, waiting, noAccount, iCloudFull, needsDecision, lookingForHousehold
+    case off, upToDate, syncing, waiting, noAccount, iCloudFull, needsDecision, restoredCopy, lookingForHousehold
 }
 #endif

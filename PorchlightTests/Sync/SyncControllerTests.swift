@@ -202,13 +202,13 @@ struct SyncAccountTests {
         await harness.device.signIn(as: "someone else")
         controller.accountChanged(.switched)
         await controller.settle()
-        #expect(controller.status == .needsDecision)
+        #expect(controller.status == .needsDecision(.accountChanged))
         #expect(!engine.isRunning)
         #expect(try harness.counts() == counts)
 
         // The choice is remembered: the next launch doesn't sync either.
         let relaunched = await harness.controller()
-        #expect(relaunched.status == .needsDecision)
+        #expect(relaunched.status == .needsDecision(.accountChanged))
         #expect(relaunched.engine?.isRunning == false)
     }
 
@@ -217,7 +217,7 @@ struct SyncAccountTests {
         let (harness, _, _) = try await syncingWall()
         await harness.device.signIn(as: "someone else")
         let relaunched = await harness.controller()
-        #expect(relaunched.status == .needsDecision)
+        #expect(relaunched.status == .needsDecision(.accountChanged))
         #expect(relaunched.engine?.isRunning == false)
     }
 
@@ -236,7 +236,7 @@ struct SyncAccountTests {
 
         controller.setEnabled(true)
         await controller.settle()
-        #expect(controller.status == .needsDecision)
+        #expect(controller.status == .needsDecision(.accountChanged))
         #expect(!engine.isRunning)
     }
 
@@ -450,7 +450,7 @@ struct SyncAttentionTests {
         controller.statusChanged(to: .waiting(lastSynced: nil), at: start)
         controller.statusChanged(to: .iCloudFull, at: start.addingTimeInterval(1))
         try await eventually { controller.needsAttention }
-        #expect(SyncStatus.needsDecision.isStuck && SyncStatus.noAccount.isStuck)
+        #expect(SyncStatus.needsDecision(.accountChanged).isStuck && SyncStatus.noAccount.isStuck)
         #expect(!SyncStatus.off(.switchedOff).isStuck && !SyncStatus.syncing.isStuck)
     }
 }

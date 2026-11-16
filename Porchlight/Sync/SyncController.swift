@@ -35,8 +35,14 @@ final class SyncController {
     }
 
     private(set) var isEnabled: Bool
-    private(set) var needsDecision: Bool
+    /// A different account signed in, until the owner chooses.
+    private var accountDecision: Bool
+    /// A restored copy of the database, until the owner chooses (`DatabaseIdentity`).
+    private var restoredCopy: RestoredCopy?
     private(set) var lastSynced: Date?
+    /// The iCloud user's record name, once read: this device's row carries it, so the
+    /// household can match the device to a participant of its share.
+    private(set) var userName: String?
     private var unavailable: SyncOffReason?
     private var startFailure: String?
     /// Nil until the account has been checked.
@@ -103,8 +109,10 @@ final class SyncController {
         #endif
         }
         isEnabled = preferences.isEnabled ?? false
-        needsDecision = preferences.needsDecision
+        accountDecision = preferences.needsDecision
+        restoredCopy = preferences.restoredCopy
         lastSynced = preferences.lastSynced
+        userName = preferences.accountName
         events.controller = self
         #if DEBUG
         if let debugStatus {
@@ -118,7 +126,7 @@ final class SyncController {
         watchActivity()
         watchStatus()
         refresh()
-        if !hasHousehold && isEnabled && !needsDecision {
+        if !hasHousehold && isEnabled && decision == nil {
             lookForHousehold()
         }
     }
@@ -162,9 +170,17 @@ final class SyncController {
         ModelConfiguration(groupContainer: .automatic).cloudKitContainerIdentifier == containerIdentifier
     }
 
+    /// What the owner has to decide before anything syncs. A restored copy comes first: it
+    /// is the one that could send old data over newer data.
+    var decision: SyncDecision? {
+        if restoredCopy == .undecided { return .restoredCopy }
+        if accountDecision { return .accountChanged }
+        return nil
+    }
+
     var status: SyncStatus {
         if let unavailable { return .off(unavailable) }
-        if needsDecision { return .needsDecision }
+        if let decision { return .needsDecision(decision) }
         if !isEnabled { return .off(.switchedOff) }
         if let startFailure { return .off(.failed(startFailure)) }
         switch hasAccount {
@@ -184,6 +200,10 @@ final class SyncController {
     // MARK: Owner actions
 
     func setEnabled(_ isOn: Bool) {
+        // A restored copy kept without sync is asked about again before it could send.
+        if isOn && restoredCopy == .keptWithoutSync {
+            setRestoredCopy(.undecided)
+        }
         preferences.isEnabled = isOn
         isEnabled = isOn
         refresh()
@@ -193,28 +213,56 @@ final class SyncController {
     /// back on asks again while the different account is signed in.
     func keepDataWithoutSync() {
         preferences.needsDecision = false
-        needsDecision = false
+        accountDecision = false
         setEnabled(false)
+    }
+
+    /// Keeps a restored copy on this device, without sync. Turning sync back on asks again,
+    /// since the copy may still be older than iCloud.
+    func keepRestoredCopyWithoutSync() {
+        setRestoredCopy(.keptWithoutSync)
+        setEnabled(false)
+    }
+
+    /// Drops this device's restored copy and brings the household back from iCloud. The
+    /// copy is never sent: the household in iCloud is everyone's latest.
+    func useCopyInICloud() async {
+        guard await clearLocalData() else { return }
+        setRestoredCopy(nil)
+        setEnabled(true)
+        lookForHousehold()
+    }
+
+    private func setRestoredCopy(_ value: RestoredCopy?) {
+        preferences.restoredCopy = value
+        restoredCopy = value
     }
 
     /// Removes the earlier account's household from this device, then syncs with the
     /// account signed in now.
     func removeDataFromDevice() async {
-        guard let engine else { return }
+        guard await clearLocalData() else { return }
+        preferences.accountName = nil
+        userName = nil
+        preferences.lastSynced = nil
+        lastSynced = nil
+        preferences.needsDecision = false
+        accountDecision = false
+        setEnabled(true)
+    }
+
+    /// Clears every synced table and the engine's metadata, and the household's files.
+    private func clearLocalData() async -> Bool {
+        guard let engine else { return false }
         refreshTask?.cancel()
         do {
             try await engine.deleteLocalData()
         } catch {
             startFailure = error.localizedDescription
-            return
+            return false
         }
         removeFiles()
-        preferences.accountName = nil
-        preferences.lastSynced = nil
-        lastSynced = nil
-        preferences.needsDecision = false
-        needsDecision = false
-        setEnabled(true)
+        return true
     }
 
     // MARK: Engine and device events
@@ -237,7 +285,7 @@ final class SyncController {
 
     private func reconcile() async {
         guard let engine, let device else { return }
-        guard isEnabled, !needsDecision else {
+        guard isEnabled, decision == nil else {
             engine.stop()
             return
         }
@@ -256,6 +304,7 @@ final class SyncController {
                 return
             }
             preferences.accountName = name
+            userName = name
         }
         do {
             try await engine.start()
@@ -285,7 +334,7 @@ final class SyncController {
         refreshTask?.cancel()
         engine?.stop()
         preferences.needsDecision = true
-        needsDecision = true
+        accountDecision = true
     }
 
     func quotaChanged(isExceeded: Bool) {
@@ -351,7 +400,8 @@ final class SyncController {
         case .syncing: isSynchronizing = true
         case .waiting: isOnline = false
         case .iCloudFull: isFull = true
-        case .needsDecision: needsDecision = true
+        case .needsDecision: accountDecision = true
+        case .restoredCopy: restoredCopy = .undecided
         case .lookingForHousehold: isLookingForHousehold = true
         }
         if debug == .upToDate || debug == .waiting {
@@ -429,8 +479,8 @@ private final class SyncEvents: SyncEngineDelegate {
     }
 
     nonisolated func syncEngine(_ syncEngine: SyncEngine, quotaExceeded: Bool, scope: CKDatabase.Scope) {
-        // Only the household's own iCloud matters to this device; shared scopes come with M2.
-        guard scope == .private else { return }
+        // The household lives in its owner's iCloud: the private database on the owner's
+        // devices, the shared one on everyone else's. Either full pauses this device's sync.
         Task { await self.forward(quotaExceeded: quotaExceeded) }
     }
 

@@ -139,8 +139,29 @@ Two cases need care, and neither has been tried on a device yet:
 
 - A backup made before the iPad ever synced has no metadata.
   Restored onto an iPad whose switch is on, the engine would meet every table as new and offer every old row as a fresh change, which could overwrite newer values in iCloud.
-  Restore such a backup only with sync off on that iPad, and to sync it again, remove the household from it and let iCloud bring it back.
 - The sync switch, the account name and the last-synced time live in the app's preferences, outside the data folder, so a backup neither saves nor restores them.
+
+### A restored database never syncs on its own
+
+Since M2 the app notices when its database was replaced underneath it, and sync then waits for the owner (`DatabaseIdentity`).
+
+- Every launch puts a fresh random token in the database's device-only `deviceState` table and in UserDefaults.
+  A backup never holds UserDefaults, so a restored backup brings back an older token, or none, and the two disagree at the next launch.
+  The token is rotated so a crash halfway never looks like a restore: UserDefaults first holds the old and the new token, then the database gets the new one, then UserDefaults keeps only the new one.
+- A database token with nothing in UserDefaults means the data folder was copied into a fresh install, which is also a replaced database.
+- The engine's metadata database missing at launch, on an install that has synced before (it knows its iCloud account), is the same hazard: every row would look new.
+  The check runs before the database opens, because opening it creates the metadata database.
+- A database with no household, and the very first launch (no token anywhere), are never taken for a restore.
+
+When it is replaced, sync stays off and Settings shows the "needs a decision" card, with two choices in plain words:
+
+- "Use what is in iCloud" drops this device's copy with the engine's `deleteLocalData()`, then starts sync and looks for the household, which comes back as everyone last left it.
+- "Keep this copy on this iPad, without sync" turns the switch off; turning it on later asks again.
+
+Sending the restored copy up over everyone's data is deliberately not offered.
+The decision is kept in UserDefaults, so it survives relaunches, and it comes before a changed account, since it is the one that could overwrite newer data.
+Sample data never syncs, so sample launches skip the check; `-debugSyncStatus restoredCopy` shows the card.
+The one restore this cannot see is a backup put back before the app ever launched again, which holds the token of the running app: such a backup and its metadata are a consistent pair, which the engine resumes from as described above.
 
 ## Tests
 
