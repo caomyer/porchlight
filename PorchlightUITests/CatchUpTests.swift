@@ -3,6 +3,7 @@ import XCTest
 /// Catching up on care that was never logged: a missed slot shows as a faint mark where its
 /// record would be (the calendar, Paw trail, the diary), and tapping it logs it for that day.
 /// The sample household missed yesterday's dinner and a morning walk 4 days ago.
+@MainActor
 final class CatchUpTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
@@ -46,9 +47,12 @@ final class CatchUpTests: XCTestCase {
         XCTAssertTrue(button(app, beginningWith: "James fed Yo-Yo").exists, "and shows who fed her")
     }
 
-    /// The week grid shows missed slots too, as dashed marks.
+    /// The week grid shows missed slots too, as dashed marks. It opens on yesterday's week:
+    /// on the first day of a week, this week has no past days to have missed anything on.
     func testMissedCareInTheWeek() {
-        let app = launch(["-startScreen", "calendar", "-calendarMode", "week"])
+        let yesterday = Calendar.current.dateComponents([.year, .month, .day], from: Calendar.current.date(byAdding: .day, value: -1, to: .now)!)
+        let day = String(format: "%04d-%02d-%02d", yesterday.year!, yesterday.month!, yesterday.day!)
+        let app = launch(["-startScreen", "calendar", "-calendarMode", "week", "-calendarDate", day])
         let walk = button(app, beginningWith: "James walked Yo-Yo")
         XCTAssertTrue(walk.waitForExistence(timeout: 40))
         let missed = app.buttons.matching(NSPredicate(format: "label ENDSWITH ', Not logged'"))
