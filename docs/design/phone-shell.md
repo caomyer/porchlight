@@ -138,6 +138,28 @@ Today every calendar is read only on the device that has it, so Just me changes 
 Once it exists, shared screens can show calendars set to Household in full and Busy only as "Busy", and never one set to Just me.
 The page itself only says what the choices mean on this phone: Household and Just me show events in full, Busy only shows them as "Busy".
 
+## Reminders (C1) and notification choices (E2)
+
+Reminders are local notifications, planned and scheduled on the phone from the data it already has; there is no server and no push.
+`ReminderPlanner` is pure: from the household's care and chores, "me", this phone's choices and the time, it returns every notification that should be pending, with stable ids (`porchlight.reminder.care.<routine>-<slot>-<day>`, `porchlight.reminder.chores.<day>`).
+`ReminderScheduler` makes iOS's pending list match: it removes what is no longer planned, adds what is new, and leaves the rest, comparing a fingerprint of each reminder's time and words.
+It also takes reminders that already showed off the Lock Screen once their slot is done.
+It runs when the app comes to the front, when care or chores change in the database (a log here now, from another device once sync delivers it), and when a choice changes, coalesced into one run a second after the last change (`keepsRemindersScheduled`).
+Only a personal device reminds: a shared screen never asks for permission and never schedules, and the planner returns nothing for someone removed from the household.
+It plans the next 7 days and keeps the nearest 64, iOS's limit.
+
+A care reminder has three actions, as in `c1open`: the log action ("I walked Yo-Yo"), "Remind me in an hour" and "Someone else is on it".
+Logging goes through `AppDatabase.logCare(routineId:slot:on:)`, the same check-before-log write as one tap on Today, so a reminder acted on late never doubles a log; it then posts a short confirmation ("Logged: evening walk", or "Mia walked Yo-Yo at 5:40pm").
+Actions work with the app closed: `ReminderAppDelegate` handles them when iOS launches the app in the background, using the same database instance as the screens (`AppDatabase.sharedOnDisk`).
+
+The Notifications page under You says what reminders are before iOS asks, offers Open Settings when they are turned off, and lists each routine's slots ("Yo-Yo · evening walk") with Off, When it opens or Only if missed, and "Your chores" on or off.
+The choices, snoozes and hand-offs are device-local (`ReminderSettings`, in `UserDefaults`), never synced.
+
+Delivery itself can't be asserted reliably in the UI suite, so `PhoneRemindersTests.testDeliveryByHand` runs only when asked (see the README).
+It was run on the iOS 17.5 iPhone 15 simulator: with real permission, a reminder scheduled 20 seconds out (`-debugReminderIn`) was delivered with the app closed, a long press showed its three actions, and "I fed Yo-Yo" launched the app in the background, logged dinner and posted "Logged: dinner".
+Not verified: delivery on a real iPhone, "Remind me in an hour" and "Someone else is on it" from a delivered notification (the planner side of both is unit-tested), and timing across a time-zone change or a reboot.
+A DEBUG sample launch marks its reminders, so an action handled with the app launched without arguments reaches the sample data, not the real household.
+
 ## You (E1)
 
 The sheet shows my avatar and name, the household and this phone's role, then four rows: the household (its name and people), this phone (its role), "This iPhone is James", which opens "Which one is you?" to change it, and Calendars.
@@ -156,7 +178,8 @@ Star counts always agree in number ("+1 star", "2 stars") through `StarWords`.
 
 - Unit: `PocketTodayTests` (which slot one tap logs, card order, freshness, catch-up, my chores and the shared ones, stars, the words), `PocketWritesTests` (the already-logged path, joining and its undo, undo of a log, chores that are already done), `DeviceSettingsTests` (role defaults, stored role, "me" per household, forgetting) and `CareLogFieldsTests`.
 - Unit, everyday screens: `PocketTabsTests` (grocery sections, dinners to groceries, Glow for me and who earned a reward, the next 7 days, Pitch in's week, the calendar choices).
-- UI: `PhoneTests` and `PhoneTabsTests`, which run only on an iPhone; `scripts/test.sh --phone --ui-only` runs them on the iOS 17.5 iPhone 15 simulator, and the iPad run skips them.
+- Unit, reminders: `ReminderPlannerTests` (only chosen slots, done slots removed, if missed, snooze and hand-off, archived "me", chores the evening before, the 64 cap, pruning).
+- UI: `PhoneTests`, `PhoneTabsTests` and `PhoneRemindersTests`, which run only on an iPhone; `scripts/test.sh --phone --ui-only` runs them on the iOS 17.5 iPhone 15 simulator, and the iPad run skips them.
   Each test attaches a screenshot of every screen it visits.
 
 ## Judgment calls
@@ -192,6 +215,14 @@ Where the atlas was silent, or didn't fit the code:
 - **What a cash-in spends.** The wall's cash-in records every star of the round, and the round can earn more than the price (21 for a reward of 20, the bar showing "20 of 20"). The phone keeps that rule and says it plainly: the celebration shows the price ("20 stars from you"), and the sheet says when the extra goes with it ("It costs 20 stars, and you earned 21, so the 1 extra star goes with it. Then it starts again from zero.").
 - **The celebration covers the page.** It is opaque paper in both looks, so nothing of Glow is legible behind the title; the tab bar stays.
 - **Toasts wait for sheets.** A toast from a sheet (the care sheet, catch-up, a dinner's needs) is held until the sheet has finished closing (`ToastCenter.showAfterSheet`, flushed by the sheet's `onDismiss`), and the cash-in celebration waits the same way; shown at once, they sat behind the closing sheet and could be gone before anyone saw them.
+- **Which routines are "yours".** Care routines belong to the household, not to a person, so the phone can't tell which are yours; every slot starts Off and you turn on the ones you look after. My own chores start On, since they are mine in the data. ("Mia's this week" in `e2notif` would need a rota, which the data doesn't have.)
+- **When a slot reminds.** "When it opens" fires at the window's start and "Only if missed" at its end, each only if nobody has logged it by then. A slot set to remind after its window has already opened today waits for tomorrow rather than firing late. An all-day slot reminds at 9 am, or at 7 pm if missed.
+- **Chores the evening before, at 7 pm**, one reminder for all of a day's chores, and never for chores that repeat every day: an every-evening buzz is noise (rule 3).
+- **No quiet hours.** The atlas has none; reminders only come at the household's own routine times and 7 pm for chores, so there is nothing to silence.
+- **Snooze and hand-off are per day.** "Remind me in an hour" moves that day's reminder; "Someone else is on it" drops it for that day. Both are kept on the phone and pruned after the day.
+- **No "When someone asks you".** That is C2, later; the page doesn't list it.
+- **The async notification delegate methods aren't used.** UIKit asserts when the async form of `didReceive` completes off the main thread, which it does when iOS launched the app for an action; the completion-handler forms call back on the main actor.
+- **Notification settings link.** Open Settings goes to Porchlight's notification settings (`openNotificationSettingsURLString`).
 - **"Just me" is stored, not yet enforced.** Nothing leaves the phone today, so it can't change what others see; the choice is kept so it's right when calendar mappings sync.
 
 ## Fixed on the wall along the way
@@ -204,6 +235,8 @@ Seeding the sample household used to spend about 4 seconds (6.4 the first time, 
 The traced pages are now cached in Caches (`SampleHandwriting.cachedPage`), keyed by their words, inks and tracing settings, outside the sample sandbox; the same strokes come back, so the wall's Food page looks exactly as before.
 That brought seeding to about 1.8 seconds, of which 1.6 went on drawing, resizing and encoding the six sample meal photos; their stored files are cached the same way (`SamplePhoto.stored`) and copied in.
 Measured on the iPhone 15 simulator with the Mac under load: seeding took 4.1 seconds a launch before (6.7 on the first), and 0.26 seconds after, once the caches are filled by a first launch.
+
+The phone's dinner editor (the wall's `MealEditor`) now tints the chosen emoji in the night look too; the wall, always light, is unchanged.
 
 Sample and reset launches (`-sampleHousehold`, `-resetData`) now start from an empty sandbox folder.
 A simulator is shared by every checkout of the app, and the iPad suite failed almost entirely when another branch's build had migrated the sandbox database to a schema this build doesn't know ("table companion has no column named photoFile").

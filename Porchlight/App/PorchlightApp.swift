@@ -3,6 +3,8 @@ import SwiftUI
 @main
 struct PorchlightApp: App {
     @State private var launch = Launch.start()
+    /// Handles reminder actions, also with the app in the background.
+    @UIApplicationDelegateAdaptor(ReminderAppDelegate.self) private var reminders
 
     var body: some Scene {
         WindowGroup {
@@ -34,7 +36,7 @@ private enum Launch {
             #if DEBUG
             DebugLaunch.clearSandbox(ProcessInfo.processInfo.arguments)
             #endif
-            let database = try AppDatabase.openOnDisk()
+            let database = try AppDatabase.sharedOnDisk()
             #if DEBUG
             try DebugLaunch.apply(ProcessInfo.processInfo.arguments, to: database)
             #endif

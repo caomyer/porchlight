@@ -30,6 +30,7 @@ struct PocketShell: View {
     @State private var tab: PocketTab = .today
     @State private var showsYou = false
     @State private var toasts = ToastCenter()
+    @State private var reminders = ReminderSettings()
 
     init() {
         // The wall has no tab bar, so styling every tab bar styles only this one.
@@ -49,7 +50,7 @@ struct PocketShell: View {
             }
         }
         .tint(Theme.accent)
-        .environment(toasts)
+        .keepsRemindersScheduled()
         .environment(\.openYou, OpenYouAction { showsYou = true })
         .hostsToasts(toasts)
         .sheet(isPresented: $showsYou) {
@@ -58,6 +59,9 @@ struct PocketShell: View {
         #if DEBUG
         .onAppear(perform: applyDebugStart)
         #endif
+        // Last, so the tabs, the You sheet and the reminder keeper all see them.
+        .environment(toasts)
+        .environment(reminders)
     }
 
     @ViewBuilder

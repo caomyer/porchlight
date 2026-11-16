@@ -13,7 +13,7 @@ struct YouSheet: View {
 
     @State private var path: [Page] = []
 
-    private enum Page: Hashable { case whoAreYou, calendars }
+    private enum Page: Hashable { case whoAreYou, calendars, notifications }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -40,6 +40,12 @@ struct YouSheet: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("calendars")
+                        RowDivider()
+                        Button { path.append(.notifications) } label: {
+                            InfoRow(emoji: "🔔", title: "Notifications", detail: "Your routines · chores", chevron: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("notifications")
                     }
                     .padding(.horizontal, 14)
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -67,6 +73,8 @@ struct YouSheet: View {
                     .background(Theme.background)
                 case .calendars:
                     PocketCalendars()
+                case .notifications:
+                    PocketNotifications()
                 }
             }
         }
