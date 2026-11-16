@@ -1,0 +1,253 @@
+import SwiftUI
+
+/// Today on the phone, mine first, then ours: care that is due leads, then my chores,
+/// then what anyone can take, then today's calendar if this phone may already read it.
+/// Everything is read from the live stores, so what the wall logs shows up here as it
+/// lands in the database.
+struct PocketTodayScreen: View {
+    @Environment(AppModel.self) private var model
+    @Environment(CompanionStore.self) private var companions
+    @Environment(HomeStore.self) private var home
+    @Environment(CalendarStore.self) private var calendarStore
+    @Environment(ToastCenter.self) private var toasts
+    @Environment(\.me) private var me
+
+    @State private var careSheet: PocketCareSheet.Request?
+    @State private var catchUp: PocketCatchUpSheet.Request?
+    /// On a shared screen, what is waiting for someone to say who did it.
+    @State private var asking: WhoDidIt?
+    @AppStorage("pocket.dismissedCatchUps") private var dismissedCatchUps = ""
+
+    var body: some View {
+        TimelineView(.everyMinute) { _ in
+            let now = CompanionClock.now()
+            let reports = companions.companions.compactMap { companions.report(for: $0.id, now: now) }
+            let cards = PocketToday.cards(reports, calendar: companions.snapshot.calendar)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    PocketHeader(small: now.formatted(dateStyle), title: me.map { "Hi, \($0.name)" } ?? "Today")
+                    catchUpBanner(reports)
+                    if !cards.isEmpty {
+                        PocketCareSection(cards: cards, handlers: careHandlers)
+                    }
+                    chores
+                    PocketAgendaCard()
+                    if cards.isEmpty && home.activeChores.isEmpty {
+                        Text("Chores and companions show up here once they're set up on your household's shared screen.")
+                            .phoneFont(.body, 13.5, weight: 600)
+                            .foregroundStyle(Theme.muted)
+                            .phoneCard()
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .padding(.bottom, 16)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .background(Theme.background)
+        .paperUnderStatusBar()
+        .sheet(item: $careSheet) { request in
+            PocketCareSheet(request: request, logging: logging)
+        }
+        .sheet(item: $catchUp) { request in
+            PocketCatchUpSheet(request: request, logging: logging)
+        }
+        .confirmationDialog(asking?.question ?? "", isPresented: isAsking, titleVisibility: .visible, presenting: asking) { pending in
+            ForEach(model.people) { person in
+                Button(person.name) { pending.run(person.id) }
+            }
+        }
+        .onAppear(perform: openDebugSheet)
+    }
+
+    private var dateStyle: Date.FormatStyle {
+        var style = Date.FormatStyle.dateTime.weekday(.wide).month(.wide).day()
+        style.timeZone = companions.snapshot.calendar.timeZone
+        return style
+    }
+
+    private var logging: PocketLogging {
+        PocketLogging(companions: companions, home: home, toasts: toasts, me: me?.id)
+    }
+
+    // MARK: Care
+
+    private var careHandlers: PocketCareHandlers {
+        PocketCareHandlers(
+            log: { card, action, alsoWent in
+                credit(question: action.routine.kind.question(name: card.report.name, title: action.routine.title)) { person in
+                    logging.log(action, companion: card.report.name, people: [person] + alsoWent)
+                }
+            },
+            more: { card, routine, alsoWent in
+                careSheet = PocketCareSheet.Request(companionId: card.id, routineId: routine.id, people: (me.map { [$0.id] } ?? []) + alsoWent)
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func catchUpBanner(_ reports: [CompanionReport]) -> some View {
+        let dismissed = Set(dismissedCatchUps.split(separator: "\n").map(String.init))
+        if let found = PocketToday.catchUp(reports, snapshot: companions.snapshot, dismissed: dismissed) {
+            let (report, missed) = found
+            let calendar = companions.snapshot.calendar
+            let slot = CareCatchUp.slotName(missed.slot.window, of: missed.routine)
+            let when = missed.day == report.today ? "" : " " + PocketCareWords.dayWord(missed.day, today: report.today, calendar: calendar)
+            StatusBanner(
+                tone: .warn, emoji: missed.routine.emoji,
+                title: "\(report.name)'s \(slot) wasn't logged\(when)",
+                detail: missed.slot.window.isAllDay ? nil : "Usually \(missed.slot.window.rangeText)",
+                action: ("Log it", { catchUp = PocketCatchUpSheet.Request(companionId: report.id, missed: missed) }),
+                onDismiss: { dismiss(missed) }
+            )
+            .accessibilityIdentifier("catch-up")
+        }
+    }
+
+    /// Leaves a missed slot alone from now on, on this device. Only the latest few are
+    /// kept: older ones have left the catch-up week anyway.
+    private func dismiss(_ missed: MissedCare) {
+        let kept = dismissedCatchUps.split(separator: "\n").map(String.init).suffix(40)
+        dismissedCatchUps = (kept + [missed.id]).joined(separator: "\n")
+    }
+
+    // MARK: Chores
+
+    @ViewBuilder
+    private var chores: some View {
+        if let me {
+            let chores = PocketToday.chores(home.board(people: model.people), me: me.id)
+            YoursTodayCard(tasks: chores.mine, starsToday: PocketToday.stars(home.snapshot.earnings, me: me.id, on: home.today)) { chore in
+                logging.complete(chore, by: me.id)
+            }
+            if !chores.anyone.isEmpty {
+                AnyoneCanTakeCard(tasks: chores.anyone) { chore in logging.complete(chore, by: me.id) }
+            }
+        } else {
+            // A shared screen has nobody's own chores; anyone can take any of them.
+            let anyone = home.board(people: model.people).columns.flatMap(\.tasks)
+            if !anyone.isEmpty {
+                AnyoneCanTakeCard(tasks: anyone) { chore in
+                    if chore.ownerId != nil {
+                        logging.complete(chore, by: nil)
+                    } else {
+                        credit(question: "Who did \(chore.title.lowercased())?") { logging.complete(chore, by: $0) }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Who did it
+
+    /// Credits me on a personal device; a shared screen asks who it was first.
+    private func credit(question: String, then run: @escaping (Person.ID) -> Void) {
+        if let me {
+            run(me.id)
+        } else {
+            asking = WhoDidIt(question: question, run: run)
+        }
+    }
+
+    private var isAsking: Binding<Bool> {
+        Binding(get: { asking != nil }, set: { if !$0 { asking = nil } })
+    }
+
+    struct WhoDidIt {
+        let question: String
+        let run: (Person.ID) -> Void
+    }
+
+    // MARK: Debug
+
+    /// `-debugCompanionSheet log|catchUp` opens the care sheet or the catch-up sheet,
+    /// for screenshots.
+    private func openDebugSheet() {
+        #if DEBUG
+        let mode = UserDefaults.standard.string(forKey: "debugCompanionSheet")
+        guard let first = companions.companions.first, let report = companions.report(for: first.id) else { return }
+        switch mode {
+        case "log":
+            if let routine = report.primaryRoutine {
+                careSheet = PocketCareSheet.Request(companionId: first.id, routineId: routine.id, people: me.map { [$0.id] } ?? [])
+            }
+        case "catchUp":
+            let reports = companions.companions.compactMap { companions.report(for: $0.id) }
+            if let found = PocketToday.catchUp(reports, snapshot: companions.snapshot, dismissed: []) {
+                catchUp = PocketCatchUpSheet.Request(companionId: found.report.id, missed: found.missed)
+            }
+        default: break
+        }
+        #endif
+    }
+}
+
+extension PocketCareWords {
+    /// "yesterday", "on Saturday": when something missed was due.
+    static func dayWord(_ day: DayKey, today: DayKey, calendar: Calendar) -> String {
+        if day == today.adding(days: -1, calendar: calendar) { return "yesterday" }
+        return "on " + day.formatted(.dateTime.weekday(.wide), calendar: calendar)
+    }
+}
+
+/// Today's calendar, when this phone can already read its calendars. It never asks for
+/// access itself; with no access the card isn't there.
+private struct PocketAgendaCard: View {
+    @Environment(AppModel.self) private var model
+    @Environment(CalendarStore.self) private var calendarStore
+
+    var body: some View {
+        if calendarStore.access == .granted {
+            let today = calendarStore.today
+            let allDay = calendarStore.allDayItems(for: today)
+            let timed = calendarStore.timelineItems(for: today)
+            VStack(alignment: .leading, spacing: 4) {
+                PhoneCardHeader(title: "At home today", meta: timed.count + allDay.count == 1 ? "1 event" : "\(timed.count + allDay.count) events")
+                if allDay.isEmpty && timed.isEmpty {
+                    Text("Nothing on the calendars today.")
+                        .phoneFont(.body, 13.5, weight: 600)
+                        .foregroundStyle(Theme.muted)
+                        .padding(.vertical, 7)
+                }
+                VStack(spacing: 0) {
+                    ForEach(Array(allDay.enumerated()), id: \.element.id) { index, item in
+                        if index > 0 { RowDivider() }
+                        row(time: "All day", title: item.title, subtitle: nil, owner: item.owner)
+                    }
+                    ForEach(Array(timed.enumerated()), id: \.element.id) { index, item in
+                        if index > 0 || !allDay.isEmpty { RowDivider() }
+                        row(time: ClockFormat.time(item.time, calendar: calendarStore.calendar), title: item.title, subtitle: item.subtitle, owner: item.owner)
+                    }
+                }
+            }
+            .phoneCard()
+        }
+    }
+
+    private func row(time: String, title: String, subtitle: String?, owner: Owner) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text(time)
+                .phoneFont(.body, 12, weight: 700, relativeTo: .caption)
+                .monospacedDigit()
+                .foregroundStyle(Theme.muted)
+                .frame(minWidth: 46, alignment: .leading)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                if let subtitle {
+                    Text(subtitle)
+                        .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                        .foregroundStyle(Theme.muted)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if case let .person(id) = owner {
+                PersonAvatar(model.person(id), size: .small)
+            }
+        }
+        .padding(.vertical, 7)
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
+    }
+}

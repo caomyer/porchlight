@@ -6,6 +6,7 @@ import GRDB
 ///   -resetData          start from an empty database (shows onboarding)
 ///   -sampleHousehold    start with a sample two-person household
 ///   -samplePhotos N     with -sampleHousehold, also put N painted photos in the photo frame
+///   -me NAME            on a phone, belong to the person called NAME (skips "Which one is you?")
 enum DebugLaunch {
     /// `-onboardingStep calendars|companions|journals|display` shows that onboarding
     /// step over a sample household, for screenshots.
@@ -20,6 +21,8 @@ enum DebugLaunch {
             _ = try database.writer.write { db in
                 try Household.deleteAll(db)
             }
+            // A new household gets new people, so who this device was is gone too.
+            DeviceSettings.forgetMe()
         }
         if arguments.contains("-sampleHousehold") {
             let household = try database.createHousehold(
@@ -36,6 +39,12 @@ enum DebugLaunch {
             let photoCount = UserDefaults.standard.integer(forKey: "samplePhotos")
             if photoCount > 0 {
                 try HomeSamples.seedPhotos(photoCount, database: database, householdId: seeded.id)
+            }
+        }
+        if let name = UserDefaults.standard.string(forKey: "me") {
+            let snapshot = try database.snapshot()
+            if let household = snapshot.household, let person = snapshot.people.first(where: { $0.name == name }) {
+                DeviceSettings.store(me: person.id, in: household.id)
             }
         }
     }

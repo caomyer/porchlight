@@ -19,7 +19,7 @@ struct ThemeTests {
     func lightWash() {
         // 30% of the accent (D9653B) over paper surface (FFFCF6).
         #expect(hex(Theme.accent.wash(0.3)) == 0xF4CFBE)
-        #expect(hex(PersonColor.blue.color.wash(0.15)) == 0xE4E9EC)
+        #expect(hex(PersonColor.blue.color.wash(0.2)) == 0xDBE2E8)
     }
 
     @Test("A dark wash mixes the night values")
