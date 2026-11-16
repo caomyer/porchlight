@@ -11,38 +11,6 @@ enum FoodStyle {
     static let rotations: [Double] = [-2.5, 1.8, -1.2, 2.2, -1.8, 1.2, -2]
 }
 
-// MARK: - Photos
-
-/// Loads and caches meal photos from disk (thumbnails are tiny; full photos are downscaled JPEGs).
-@MainActor
-enum MealImages {
-    private static let cache: NSCache<NSURL, UIImage> = {
-        let cache = NSCache<NSURL, UIImage>()
-        cache.countLimit = 120
-        return cache
-    }()
-
-    static func image(at url: URL?) -> UIImage? {
-        guard let url else { return nil }
-        if let hit = cache.object(forKey: url as NSURL) { return hit }
-        guard let image = UIImage(contentsOfFile: url.path) else { return nil }
-        cache.setObject(image, forKey: url as NSURL)
-        return image
-    }
-
-    /// The part of a full photo the wall shows. Without a crop, square views fill with the
-    /// center, which is the same square.
-    static func image(at url: URL?, crop: PhotoCrop?) -> UIImage? {
-        guard let crop, let url else { return image(at: url) }
-        let key = url.appendingPathComponent("crop-\(crop.x)-\(crop.y)-\(crop.width)-\(crop.height)") as NSURL
-        if let hit = cache.object(forKey: key) { return hit }
-        guard let full = image(at: url) else { return nil }
-        let part = FoodPhotoStore.cropped(full, to: crop)
-        cache.setObject(part, forKey: key)
-        return part
-    }
-}
-
 // MARK: - Illustration
 
 /// A meal's picture: one of its photos (the cover unless `photoIndex` says otherwise),
@@ -61,16 +29,24 @@ struct MealIllustration: View {
     var body: some View {
         let photos = store.photos(of: entry)
         let photo = photos.isEmpty ? nil : photos[min(max(photoIndex, 0), photos.count - 1)]
-        let image = preferFullPhoto
-            ? MealImages.image(at: store.photoURL(photo?.photoFile), crop: photo?.crop)
-            : MealImages.image(at: store.photoURL(photo?.thumbnailFile))
-        if let image {
-            Color.clear
-                .overlay { Image(uiImage: image).resizable().scaledToFill() }
-                .clipped()
-        } else {
-            PlateArt(emoji: entry.emoji ?? DishIllustration.fallbackEmoji, tint: Color(hex: UInt32(entry.tint ?? 0xF5EFE4)), plate: plate, emojiSize: emojiSize)
+        let tint = Color(hex: UInt32(entry.tint ?? 0xF5EFE4))
+        PhotoView(photo.flatMap(request)) { isMissing in
+            if isMissing {
+                PlateArt(emoji: entry.emoji ?? DishIllustration.fallbackEmoji, tint: tint, plate: plate, emojiSize: emojiSize)
+            } else {
+                // Still loading: the tablecloth, so the plate never flashes up before the photo.
+                tint
+            }
         }
+    }
+
+    /// The square the wall shows: the thumbnail, or where one photo fills the view the
+    /// whole shot's crop (the thumbnail is all a photo without its whole shot has).
+    private func request(for photo: MealPhoto) -> PhotoRequest? {
+        if preferFullPhoto, let image = store.image(of: photo) {
+            return PhotoRequest(image, crop: photo.crop)
+        }
+        return store.thumbnail(of: photo).map { PhotoRequest($0) }
     }
 }
 

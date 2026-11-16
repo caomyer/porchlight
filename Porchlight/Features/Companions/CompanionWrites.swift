@@ -70,7 +70,8 @@ struct CompanionDraft: Equatable, Sendable {
     var name: String = ""
     var species: Species = .dog
     var coat: CoatPreset = .honey
-    var photoFile: String?
+    /// The photo's JPEG, as saved or as just picked; nil shows the drawn face or emoji.
+    var photo: Data?
     var about: String = ""
     var birthDate: Date?
     var tone: CompanionTone = .cheeky
@@ -81,23 +82,23 @@ struct CompanionDraft: Equatable, Sendable {
     }
 
     init(companionId: Companion.ID? = nil, name: String = "", species: Species = .dog, coat: CoatPreset = .honey,
-         photoFile: String? = nil, about: String = "", birthDate: Date? = nil, tone: CompanionTone = .cheeky,
+         photo: Data? = nil, about: String = "", birthDate: Date? = nil, tone: CompanionTone = .cheeky,
          routines: [CareRoutineDraft] = []) {
         self.companionId = companionId
         self.name = name
         self.species = species
         self.coat = coat
-        self.photoFile = photoFile
+        self.photo = photo
         self.about = about
         self.birthDate = birthDate
         self.tone = tone
         self.routines = routines
     }
 
-    init(_ companion: Companion, routines: [CareRoutine]) {
+    init(_ companion: Companion, routines: [CareRoutine], photo: Data?) {
         self.init(
             companionId: companion.id, name: companion.name, species: companion.species, coat: companion.coat,
-            photoFile: companion.photoFile, about: companion.about, birthDate: companion.birthDate,
+            photo: photo, about: companion.about, birthDate: companion.birthDate,
             tone: companion.captionTone, routines: routines.map(CareRoutineDraft.init)
         )
     }
@@ -230,8 +231,8 @@ enum CareRules {
 // MARK: - Writes
 
 extension AppDatabase {
-    /// Creates or updates a companion and replaces its routines with the draft's.
-    /// Routines missing from the draft are deleted along with their logs.
+    /// Creates or updates a companion with its photo, and replaces its routines with the
+    /// draft's. Routines missing from the draft are deleted along with their logs.
     @discardableResult
     func saveCompanion(_ draft: CompanionDraft, householdId: Household.ID, now: Date = .now) throws -> Companion.ID {
         let name = try Names.validated(draft.name)
@@ -253,12 +254,12 @@ extension AppDatabase {
             companion.name = name
             companion.species = draft.species
             companion.coat = draft.coat
-            companion.photoFile = draft.photoFile
             companion.about = about
             companion.birthDate = draft.birthDate
             companion.captionTone = draft.tone
             try companion.save(db)
             let companionId = companion.id
+            try Self.writePhoto(draft.photo, companionId: companionId, db: db)
             let calendar = try Household.fetchOne(db, id: householdId)?.calendar ?? .current
             let today = DayKey(now, calendar: calendar)
 
@@ -282,11 +283,30 @@ extension AppDatabase {
         }
     }
 
-    /// Removes a companion with its routines and logs. Returns its photo file, if any, to clean up.
-    @discardableResult
-    func deleteCompanion(id: Companion.ID) throws -> String? {
+    /// Sets a companion's photo, or removes it for nil. The same photo again writes nothing,
+    /// so saving as you type never sends it to iCloud twice.
+    private static func writePhoto(_ photo: Data?, companionId: Companion.ID, db: Database) throws {
+        guard let photo else {
+            _ = try CompanionPhoto.deleteOne(db, key: companionId)
+            return
+        }
+        let saved = try Data.fetchOne(db, sql: "SELECT image FROM companionPhoto WHERE companionId = ?", arguments: [companionId])
+        if saved != photo {
+            try CompanionPhoto(companionId: companionId, image: photo).upsert(db)
+        }
+    }
+
+    /// A companion's photo, nil when it has none.
+    func companionPhoto(id: Companion.ID) throws -> Data? {
+        try writer.read { db in
+            try Data.fetchOne(db, sql: "SELECT image FROM companionPhoto WHERE companionId = ?", arguments: [id])
+        }
+    }
+
+    /// Removes a companion with its photo, routines and logs.
+    func deleteCompanion(id: Companion.ID) throws {
         try writer.write { db in
-            guard let companion = try Companion.fetchOne(db, id: id) else { return nil }
+            guard let companion = try Companion.fetchOne(db, id: id) else { return }
             _ = try Companion.deleteOne(db, id: id)
             let rest = try Companion
                 .filter(Column("householdId") == companion.householdId)
@@ -296,7 +316,6 @@ extension AppDatabase {
                 other.sortOrder = index
                 try other.update(db)
             }
-            return companion.photoFile
         }
     }
 
@@ -358,22 +377,15 @@ extension AppDatabase {
 
 // MARK: - Photos
 
-/// Companion photos live as JPEG files in Application Support; the database keeps the file name.
-struct CompanionPhotoStore: Sendable {
-    let folder: URL
+/// Companion photos are small: a face in a circle never needs more.
+enum CompanionPhotos {
+    static let maxPoints: CGFloat = 800
 
-    static let shared: CompanionPhotoStore = {
-        CompanionPhotoStore(folder: AppFiles.folder("CompanionPhotos"))
-    }()
-
-    func url(for fileName: String) -> URL {
-        folder.appendingPathComponent(fileName)
-    }
-
-    /// Saves picked image data as a square-ish JPEG no larger than 800 pt. Returns the file name.
-    func save(imageData: Data) throws -> String {
-        guard let image = UIImage(data: imageData) else { throw CocoaError(.fileReadCorruptFile) }
-        let scale = min(1, 800 / max(image.size.width, image.size.height))
+    /// Picked image data as a JPEG no larger than `maxPoints` on its long side.
+    /// Safe to call off the main actor.
+    static func prepared(_ data: Data) throws -> Data {
+        guard let image = UIImage(data: data) else { throw CocoaError(.fileReadCorruptFile) }
+        let scale = min(1, maxPoints / max(image.size.width, image.size.height))
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
@@ -381,17 +393,6 @@ struct CompanionPhotoStore: Sendable {
             image.draw(in: CGRect(origin: .zero, size: size))
         }
         guard let jpeg = resized.jpegData(compressionQuality: 0.85) else { throw CocoaError(.fileWriteUnknown) }
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let name = UUID().uuidString + ".jpg"
-        try jpeg.write(to: url(for: name), options: .atomic)
-        return name
-    }
-
-    func image(named fileName: String) -> UIImage? {
-        UIImage(contentsOfFile: url(for: fileName).path)
-    }
-
-    func delete(_ fileName: String) {
-        try? FileManager.default.removeItem(at: url(for: fileName))
+        return jpeg
     }
 }

@@ -49,6 +49,35 @@ struct SyncEngineTests {
         #expect(try harness.knownRows() == counts.values.reduce(0, +))
     }
 
+    @Test("Rows a data migration writes once sync has been on are recorded for upload")
+    func dataMigrationsAreRecorded() async throws {
+        let harness = try SyncHarness()
+        try harness.fill()
+        harness.preferences.isEnabled = true
+        let controller = await harness.controller()
+        let engine = try #require(controller.engine)
+        try await engine.syncChanges()
+        #expect(try harness.unsynced() == [])
+
+        // Paused, so the change waits in the engine's queue where the test can see it.
+        controller.setEnabled(false)
+        await controller.settle()
+        var migrator = DatabaseMigrator()
+        migrator.registerMigration("test: rename the household") { db in
+            try db.execute(sql: "UPDATE household SET name = 'Lake House'")
+        }
+        try harness.database.migrateData(migrator)
+        let queued = try await harness.database.writer.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM sqlitedata_icloud_pendingRecordZoneChanges")
+        }
+        #expect(queued == 1, "the engine recorded the migration's write")
+
+        controller.setEnabled(true)
+        await controller.settle()
+        try await engine.syncChanges()
+        #expect(try harness.unsynced() == [])
+    }
+
     @Test("The household can be shared")
     func sharesHousehold() async throws {
         let harness = try SyncHarness()

@@ -13,7 +13,7 @@ struct SyncMigrationTests {
         let before = try queue.read { try SyncFixture.contents($0, columns: columns) }
         #expect(before.values.allSatisfy { !$0.isEmpty }, "the fixture fills every table")
 
-        _ = try AppDatabase(queue)
+        try SyncFixture.migrateToSyncV1(queue)
         let after = try queue.read { try SyncFixture.contents($0, columns: columns) }
         for table in SyncSchema.tables.map(\.name) {
             #expect(after[table] == before[table], "\(table)")
@@ -24,7 +24,7 @@ struct SyncMigrationTests {
     func ids() throws {
         let queue = try SyncFixture.oldDatabase()
         try queue.write(SyncFixture.fill)
-        _ = try AppDatabase(queue)
+        try SyncFixture.migrateToSyncV1(queue)
         try queue.read { db in
             var seen = Set<String>()
             for table in SyncSchema.tables.map(\.name) {
@@ -64,7 +64,7 @@ struct SyncMigrationTests {
         func householdId() throws -> String {
             let queue = try SyncFixture.oldDatabase()
             try queue.write(SyncFixture.fill)
-            _ = try AppDatabase(queue)
+            try SyncFixture.migrateToSyncV1(queue)
             return try queue.read { try String.fetchOne($0, sql: "SELECT id FROM household WHERE name = 'Lake House'") } ?? ""
         }
         #expect(try householdId() != householdId())
@@ -131,18 +131,19 @@ struct SyncMigrationTests {
         }
 
         let queue = try DatabaseQueue(path: copy.path, configuration: AppDatabase.configuration)
-        let applied = try queue.read { try AppDatabase.migrator.appliedIdentifiers($0) }
+        let applied = try queue.read { try AppDatabase.migrator(files: nil).appliedIdentifiers($0) }
         #expect(!applied.contains(AppDatabase.syncMigration), "the copy is from before sync v1")
         // Bring an older copy up to the last old migration first, so both sides have every table.
-        try AppDatabase.migrator.migrate(queue, upTo: SyncFixture.lastOldMigration)
+        try AppDatabase.migrator(files: nil).migrate(queue, upTo: SyncFixture.lastOldMigration)
         let columns = try queue.read(SyncFixture.columns)
         let before = try queue.read { SyncFixture.checksums(try SyncFixture.contents($0, columns: columns)) }
 
-        _ = try AppDatabase(queue)
+        try SyncFixture.migrateToSyncV1(queue)
         let after = try queue.read { SyncFixture.checksums(try SyncFixture.contents($0, columns: columns)) }
         for table in SyncSchema.tables.map(\.name) {
             #expect(after[table] == before[table], "\(table)")
         }
+        _ = try AppDatabase(queue)
         let household = try queue.read { try Household.current($0) }
         #expect(household != nil)
     }
@@ -150,7 +151,8 @@ struct SyncMigrationTests {
 
 @Suite("Sync schema rules")
 struct SyncSchemaRulesTests {
-    /// The tree from docs/design/sync-foundation.md: each synced table and its one parent.
+    /// The tree from docs/design/sync-foundation.md, with the photo tables from
+    /// docs/design/sync-icloud.md: each synced table and its one parent.
     private static let tree: [String: String?] = [
         "household": nil,
         "person": "household",
@@ -162,12 +164,19 @@ struct SyncSchemaRulesTests {
         "reward": "household", "rewardRedemption": "reward",
         "homeList": "household", "listItem": "homeList",
         "mealPlan": "household",
+        "companionPhoto": "companion",
+        "journalEntryPhotoThumb": "journalEntryPhoto", "journalEntryPhotoImage": "journalEntryPhoto",
+    ]
+
+    /// Tables keyed by their parent's id, one row per parent, instead of an id of their own.
+    private static let keyedByParent = [
+        "companionPhoto": "companionId", "journalEntryPhotoThumb": "photoId", "journalEntryPhotoImage": "photoId",
     ]
 
     /// Tables that stay on the device and never sync.
     private static let deviceLocal: Set<String> = ["calendarSource", "ambientPhoto"]
 
-    @Test("Every synced table has a text UUID id, no unique index and one cascading parent in the tree")
+    @Test("Every synced table has a text UUID key, no unique index and one cascading parent in the tree")
     func rules() throws {
         let database = try AppDatabase.inMemory()
         try database.writer.read { db in
@@ -178,21 +187,27 @@ struct SyncSchemaRulesTests {
             for table in tables {
                 let sql = try String.fetchOne(db, sql: "SELECT sql FROM sqlite_master WHERE name = ?", arguments: [table]) ?? ""
                 #expect(sql.hasSuffix("STRICT"), "\(table) is STRICT")
+                let key = Self.keyedByParent[table] ?? "id"
                 let primaryKey = try db.primaryKey(table)
-                #expect(primaryKey.columns == ["id"], "\(table) has one primary key, id")
-                let id = try #require(try db.columns(in: table).first { $0.name == "id" })
-                #expect(id.type == "TEXT", "\(table).id is text, not an integer")
-                #expect(id.defaultValueSQL == "uuid()", "\(table).id defaults to uuid()")
+                #expect(primaryKey.columns == [key], "\(table) has one primary key, \(key)")
+                let column = try #require(try db.columns(in: table).first { $0.name == key })
+                #expect(column.type == "TEXT", "\(table).\(key) is text, not an integer")
+                if key == "id" {
+                    #expect(column.defaultValueSQL == "uuid()", "\(table).id defaults to uuid()")
+                }
                 guard !Self.deviceLocal.contains(table) else { continue }
 
                 let unique = try Row.fetchAll(db, sql: "SELECT name, origin FROM pragma_index_list(?) WHERE \"unique\" = 1", arguments: [table])
                 #expect(unique.allSatisfy { $0["origin"] as String == "pk" }, "\(table) has no unique constraint but its id")
-                let keys = try Row.fetchAll(db, sql: "SELECT \"table\", on_delete FROM pragma_foreign_key_list(?)", arguments: [table])
+                let keys = try Row.fetchAll(db, sql: "SELECT \"table\", \"from\", on_delete FROM pragma_foreign_key_list(?)", arguments: [table])
                 let parent = Self.tree[table] ?? nil
                 #expect(keys.count == (parent == nil ? 0 : 1), "\(table) has exactly one foreign key, to its parent")
-                for key in keys {
-                    #expect(key["table"] as String == parent, "\(table) hangs off \(parent ?? "nothing")")
-                    #expect(key["on_delete"] as String == "CASCADE", "\(table)'s parent key cascades")
+                for foreignKey in keys {
+                    #expect(foreignKey["table"] as String == parent, "\(table) hangs off \(parent ?? "nothing")")
+                    #expect(foreignKey["on_delete"] as String == "CASCADE", "\(table)'s parent key cascades")
+                    if key != "id" {
+                        #expect(foreignKey["from"] as String == key, "\(table)'s key is its parent's id")
+                    }
                 }
             }
         }
@@ -200,7 +215,8 @@ struct SyncSchemaRulesTests {
 
     @Test("The migration's table list matches the tree")
     func schemaListMatchesTree() {
-        for table in SyncSchema.tables where table.synced {
+        #expect(Set(SyncSchema.synced.map(\.name)) == Set(Self.tree.keys))
+        for table in SyncSchema.synced {
             #expect(Self.tree[table.name] == .some(table.parent), "\(table.name)")
         }
         #expect(Set(SyncSchema.tables.filter { !$0.synced }.map(\.name)) == Self.deviceLocal)
@@ -401,7 +417,7 @@ struct SafetyCopyTests {
         let url = folder.appendingPathComponent("porchlight.sqlite")
         do {
             let pool = try DatabasePool(path: url.path, configuration: AppDatabase.configuration)
-            try AppDatabase.migrator.migrate(pool, upTo: SyncFixture.lastOldMigration)
+            try AppDatabase.migrator(files: nil).migrate(pool, upTo: SyncFixture.lastOldMigration)
             try pool.write(SyncFixture.fill)
         }
 
@@ -409,7 +425,7 @@ struct SafetyCopyTests {
         let copy = AppDatabase.copyBeforeSyncURL(next: url)
         let saved = try DatabaseQueue(path: copy.path)
         let (applied, householdId) = try saved.read { db in
-            (try AppDatabase.migrator.appliedIdentifiers(db), try Int.fetchOne(db, sql: "SELECT id FROM household WHERE name = 'Lake House'"))
+            (try AppDatabase.migrator(files: nil).appliedIdentifiers(db), try Int.fetchOne(db, sql: "SELECT id FROM household WHERE name = 'Lake House'"))
         }
         #expect(!applied.contains(AppDatabase.syncMigration))
         #expect(householdId == 7, "the copy holds the old integer ids")

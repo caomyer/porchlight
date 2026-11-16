@@ -16,6 +16,7 @@ struct PorchlightApp: App {
                     .environment(stores.home)
                     .environment(stores.weather)
                     .environment(stores.sync)
+                    .environment(stores.photos)
             case let .failed(message):
                 StartupErrorView(message: message)
             }
@@ -37,6 +38,8 @@ private enum Launch {
             #endif
             // Before any store: the engine records every write from the moment it exists.
             let sync = SyncController.live(database: database)
+            // Rows written by migrations once sync has been on must be recorded by the engine.
+            try database.migrateData()
             return .ready(Stores(database: database, sync: sync))
         } catch {
             return .failed(error.localizedDescription)
@@ -54,6 +57,7 @@ private struct Stores {
     let home: HomeStore
     let weather: WeatherStore
     let sync: SyncController
+    let photos: PhotoImages
 
     init(database: AppDatabase, sync: SyncController) {
         app = AppModel(database: database)
@@ -63,6 +67,7 @@ private struct Stores {
         home = HomeStore(database: database)
         weather = WeatherStore()
         self.sync = sync
+        photos = PhotoImages(database: database)
     }
 }
 

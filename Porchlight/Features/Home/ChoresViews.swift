@@ -65,7 +65,7 @@ struct ChoresScreen: View {
         #if DEBUG
         .task { openDebugSheet() }
         .fullScreenCover(isPresented: $debugAmbient) {
-            AmbientView(extraPhotoURLs: debugPhotos, onWake: { debugAmbient = false }, glance: debugGlance)
+            AmbientView(extraPhotos: debugPhotos.map(FramePhoto.file), onWake: { debugAmbient = false }, glance: debugGlance)
         }
         #endif
     }

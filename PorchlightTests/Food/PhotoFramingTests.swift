@@ -8,13 +8,11 @@ import UIKit
 @Suite("Food: photo framing")
 struct PhotoFramingTests {
     let db: AppDatabase
-    let photos: FoodPhotoStore
     let people: [Person]
     let journal: Journal
 
     init() throws {
         db = try AppDatabase.inMemory()
-        photos = FoodPhotoStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("framing-tests-\(UUID().uuidString)", isDirectory: true))
         let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "James", color: .blue)])
         people = try db.snapshot().people
         journal = try db.ensureFoodJournal(householdId: household.id)
@@ -35,9 +33,9 @@ struct PhotoFramingTests {
         }
     }
 
-    /// The color at the middle of a saved thumbnail.
-    private func centerColor(of file: String) throws -> (red: CGFloat, green: CGFloat, blue: CGFloat) {
-        let image = try #require(UIImage(contentsOfFile: photos.url(for: file).path)?.cgImage)
+    /// The color at the middle of a thumbnail.
+    private func centerColor(of thumbnail: Data) throws -> (red: CGFloat, green: CGFloat, blue: CGFloat) {
+        let image = try #require(UIImage(data: thumbnail)?.cgImage)
         var pixel = [UInt8](repeating: 0, count: 4)
         let context = try #require(CGContext(data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
                                              space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
@@ -77,57 +75,51 @@ struct PhotoFramingTests {
     @Test("A thumbnail shows the crop, and the middle when there is none")
     func thumbnailsFollowTheCrop() throws {
         let image = wideImage()
-        let middle = try photos.save(image)
-        #expect(try centerColor(of: middle.thumbnailFile).green > 0.8, "no crop is the middle square")
-        let left = try photos.save(image, crop: .square(in: image.size, position: 0))
-        #expect(try centerColor(of: left.thumbnailFile).red > 0.8)
-        let right = try photos.thumbnail(of: left.photoFile, crop: .square(in: image.size, position: 1))
+        let middle = try MealPhotoImaging.prepare(image)
+        #expect(try centerColor(of: middle.thumbnail).green > 0.8, "no crop is the middle square")
+        let left = try MealPhotoImaging.prepare(image, crop: .square(in: image.size, position: 0))
+        #expect(try centerColor(of: left.thumbnail).red > 0.8)
+        let right = try MealPhotoImaging.thumbnail(ofImage: left.image, crop: .square(in: image.size, position: 1))
         #expect(try centerColor(of: right).blue > 0.8, "reframing makes a thumbnail of the new square")
-        #expect(FoodPhotoStore.isOwnFile(right))
-        let full = try #require(UIImage(contentsOfFile: photos.url(for: left.photoFile).path))
+        let full = try #require(UIImage(data: left.image))
         #expect(full.size.width > full.size.height, "the whole shot is kept")
     }
 
-    @Test("A crop is saved with the meal and changed by an edit, which drops the old thumbnail")
+    @Test("A crop is saved with the meal and changed by an edit, which replaces the thumbnail")
     func cropsPersist() throws {
         let image = wideImage()
-        let stored = try photos.save(image, crop: .square(in: image.size, position: 0))
-        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [stored])
+        let new = try MealPhotoImaging.prepare(image, crop: .square(in: image.size, position: 0))
+        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [new])
         let saved = try #require(try db.foodSnapshot().photos[entry.id]?.first)
-        #expect(saved.crop == stored.crop)
+        #expect(saved.crop == new.crop)
 
         let crop = PhotoCrop.square(in: image.size, position: 1)
-        let thumbnail = try photos.thumbnail(of: saved.photoFile, crop: crop)
-        try db.updateMeal(id: entry.id, draft(), photos: [MealPhotoItem.kept(saved).reframed(crop, thumbnailFile: thumbnail)], files: photos)
+        let thumbnail = try MealPhotoImaging.thumbnail(ofImage: new.image, crop: crop)
+        try db.updateMeal(id: entry.id, draft(), photos: [MealPhotoItem.kept(saved).reframed(crop, thumbnail: thumbnail)])
 
         let after = try #require(try db.foodSnapshot().photos[entry.id]?.first)
         #expect(after.crop == crop)
-        #expect(after.thumbnailFile == thumbnail)
-        #expect(after.photoFile == saved.photoFile, "reframing keeps the whole shot")
-        let files = try FileManager.default.contentsOfDirectory(atPath: photos.directory.path)
-        #expect(!files.contains(saved.thumbnailFile), "the old thumbnail goes once saved")
-        #expect(files.contains(thumbnail) && files.contains(saved.photoFile))
+        let sizes = try #require(try db.foodSnapshot().photoSizes[saved.id])
+        #expect(try db.bytes(of: .mealThumbnail(saved.id, byteCount: sizes.thumbnail ?? 0)) == thumbnail)
+        #expect(try db.bytes(of: .mealImage(saved.id, byteCount: sizes.image ?? 0)) == new.image, "reframing keeps the whole shot")
     }
 
     @Test("Photos saved before framing show the middle square")
     func existingPhotosKeepTheirLook() throws {
-        let stored = try photos.save(wideImage())
-        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [stored])
+        let new = try MealPhotoImaging.prepare(wideImage())
+        let entry = try db.addMeal(draft(), journalId: journal.id, photos: [new])
         #expect(try db.foodSnapshot().photos[entry.id]?.first?.crop == nil)
     }
 
-    @Test("Only files nobody uses are cleaned up while photos are edited")
-    func unusedFiles() {
-        let a = FoodPhotoStore.Stored(photoFile: "meal-a.jpg", thumbnailFile: "meal-a-thumb.jpg")
-        let b = FoodPhotoStore.Stored(photoFile: "meal-b.jpg", thumbnailFile: "meal-b-thumb.jpg")
-        let kept = MealPhoto(id: 1, entryId: 1, photoFile: "meal-k.jpg", thumbnailFile: "meal-k-thumb.jpg", sortOrder: 0, createdAt: .now)
-        let crop = PhotoCrop(x: 0, y: 0, width: 0.75, height: 1)
-
-        // A new photo taken out loses both files; a saved one is left to the save.
-        #expect(MealPhotoItem.unusedFiles(from: [.added(a), .added(b), .kept(kept)], to: [.added(b)]) == ["meal-a.jpg", "meal-a-thumb.jpg"])
-        // Reframing a new photo drops only its old thumbnail.
-        let reframed = MealPhotoItem.added(a).reframed(crop, thumbnailFile: "meal-a2-thumb.jpg")
-        #expect(MealPhotoItem.unusedFiles(from: [.added(a)], to: [reframed]) == ["meal-a-thumb.jpg"])
-        #expect(MealPhotoItem.unusedFiles(from: [.added(a)], to: [.added(a)]).isEmpty)
+    @Test("An edit's photos are the same exactly when their photo and square are")
+    func itemIdentity() throws {
+        let new = try MealPhotoImaging.prepare(wideImage())
+        let crop = PhotoCrop(x: 0, y: 0, width: 1.0 / 3, height: 1)
+        let reframed = MealPhotoItem.added(new).reframed(crop, thumbnail: Data([1]))
+        #expect(reframed != .added(new))
+        #expect(reframed.id == new.id && reframed.crop == crop)
+        let kept = MealPhoto(entryId: 1, sortOrder: 0, createdAt: .now)
+        #expect(MealPhotoItem.kept(kept) == .kept(kept))
+        #expect(MealPhotoItem.kept(kept).reframed(crop, thumbnail: Data([2])) != .kept(kept))
     }
 }

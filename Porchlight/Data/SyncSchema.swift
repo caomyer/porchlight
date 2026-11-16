@@ -1,7 +1,10 @@
 /// The table definitions "sync v1" builds, parents before children
-/// (see docs/design/sync-foundation.md, "Table definitions").
+/// (see docs/design/sync-foundation.md, "Table definitions"), and the photo tables
+/// "sync v2" adds.
 ///
 /// Later migrations may add nullable or defaulted columns, never rename or remove one.
+/// "sync v2" removed the photo file names from `companion` and `journalEntryPhoto`, the
+/// last removal allowed: sync had never been on anywhere then.
 enum SyncSchema {
     struct Table {
         var name: String
@@ -118,6 +121,26 @@ enum SyncSchema {
             "createdAt" TEXT NOT NULL
             """),
     ]
+
+    /// Photo bytes, one table per kind of picture (docs/design/sync-icloud.md, "Photos").
+    ///
+    /// Each row is keyed by the id of the row it belongs to, which is also its one foreign
+    /// key. `byteCount` comes before `image`, so reading it never walks the image's pages.
+    static let photoTables: [Table] = [
+        ("companionPhoto", "companionId", "companion"),
+        ("journalEntryPhotoThumb", "photoId", "journalEntryPhoto"),
+        ("journalEntryPhotoImage", "photoId", "journalEntryPhoto"),
+    ].map { (name: String, key: String, parent: String) in
+        Table(name: name, parent: parent, columns: """
+            "\(key)" TEXT PRIMARY KEY NOT NULL REFERENCES "\(parent)"("id") ON DELETE CASCADE,
+            "byteCount" INTEGER NOT NULL, "image" BLOB NOT NULL
+            """)
+    }
+
+    /// Every synced table, parents before children, in the order the sync engine is given them.
+    static var synced: [Table] {
+        (tables + photoTables).filter(\.synced)
+    }
 
     /// The indexes the old schema had, minus the ones that only backed a unique constraint.
     static let indexes: [String] = [

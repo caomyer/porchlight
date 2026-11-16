@@ -15,20 +15,22 @@ enum FaceExpression: Sendable {
 struct CompanionLook: Equatable {
     var species: Species
     var coat: CoatPreset
-    var photoFile: String?
+    var photo: PhotoSource?
 
-    init(species: Species, coat: CoatPreset, photoFile: String? = nil) {
+    init(species: Species, coat: CoatPreset, photo: PhotoSource? = nil) {
         self.species = species
         self.coat = coat
-        self.photoFile = photoFile
+        self.photo = photo
     }
 
-    init(_ companion: Companion) {
-        self.init(species: companion.species, coat: companion.coat, photoFile: companion.photoFile)
+    /// A saved companion, with its saved photo.
+    init(_ companion: Companion, photo: PhotoSource?) {
+        self.init(species: companion.species, coat: companion.coat, photo: photo)
     }
 
+    /// A companion as it is being edited, photo included.
     init(_ draft: CompanionDraft) {
-        self.init(species: draft.species, coat: draft.coat, photoFile: draft.photoFile)
+        self.init(species: draft.species, coat: draft.coat, photo: draft.photo.map(PhotoSource.unsaved))
     }
 
     var tint: Color { coat.tint }
@@ -44,26 +46,42 @@ struct CompanionFace: View {
 
     var body: some View {
         Group {
-            if let file = look.photoFile, let image = CompanionPhotoStore.shared.image(named: file) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: size, height: size)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Theme.surface, lineWidth: max(1, size * 0.03)))
-            } else if look.species.hasDrawnFace {
-                DrawnFace(species: look.species, coat: look.coat, expression: expression)
-                    .frame(width: size, height: size)
+            if let photo = look.photo {
+                PhotoView(request: PhotoRequest(photo)) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Theme.surface, lineWidth: max(1, size * 0.03)))
+                } placeholder: { isMissing in
+                    if isMissing {
+                        drawn
+                    } else {
+                        // Still loading: the coat's color, so the drawn face never flashes up first.
+                        Circle().fill(look.tint.wash(0.32)).frame(width: size, height: size)
+                    }
+                }
             } else {
-                Text(look.species.emoji)
-                    .font(.system(size: size * 0.52))
-                    .frame(width: size * 0.86, height: size * 0.86)
-                    .background(look.tint.wash(0.32), in: Circle())
-                    .frame(width: size, height: size)
+                drawn
             }
         }
         .modifier(Bob(isOn: bobs, size: size))
         .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var drawn: some View {
+        if look.species.hasDrawnFace {
+            DrawnFace(species: look.species, coat: look.coat, expression: expression)
+                .frame(width: size, height: size)
+        } else {
+            Text(look.species.emoji)
+                .font(.system(size: size * 0.52))
+                .frame(width: size * 0.86, height: size * 0.86)
+                .background(look.tint.wash(0.32), in: Circle())
+                .frame(width: size, height: size)
+        }
     }
 }
 

@@ -9,7 +9,7 @@ enum CompanionTimeline {
         for companion in snapshot.companions {
             let companionId = companion.id
             let routines = snapshot.routines(of: companionId)
-            let look = CompanionLook(companion)
+            let look = snapshot.look(of: companion)
             let expression = expression(for: routines.first, snapshot: snapshot, now: now)
             let face = AnyView(CompanionFace(look: look, expression: expression, size: 30))
             for (index, routine) in routines.enumerated() {
@@ -145,7 +145,7 @@ enum CompanionLanes {
             let companionId = companion.id
             let routines = snapshot.routines(of: companionId).filter(\.isWalkLike)
             guard !routines.isEmpty else { return nil }
-            let look = CompanionLook(companion)
+            let look = snapshot.look(of: companion)
             return CalendarLane(
                 id: "companion-\(companionId)",
                 styles: [.month],

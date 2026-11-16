@@ -14,7 +14,6 @@ struct CompanionOnboardingEditor: View {
 
     @State private var draft = CompanionDraft.new(species: .dog)
     @State private var routinesEdited = false
-    @State private var savedPhoto: String?
     @State private var saveTask: Task<Void, Never>?
     @State private var didStart = false
 
@@ -50,7 +49,7 @@ struct CompanionOnboardingEditor: View {
             ForEach(store.snapshot.companions.filter { $0.id != draft.companionId }) { companion in
                 Button { edit(companion) } label: {
                     HStack(spacing: 8) {
-                        CompanionFace(look: CompanionLook(companion), size: 26)
+                        CompanionFace(look: store.snapshot.look(of: companion), size: 26)
                         Text(companion.name).font(.body(14, weight: 700))
                         Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.good)
                     }
@@ -70,9 +69,8 @@ struct CompanionOnboardingEditor: View {
         didStart = true
         // Resume the first companion if setup was interrupted, else start a fresh dog.
         if let first = store.snapshot.companions.first {
-            draft = CompanionDraft(first, routines: store.snapshot.routines(of: first.id))
+            draft = store.draft(of: first)
             routinesEdited = true
-            savedPhoto = first.photoFile
         } else {
             draft = .new(species: .dog)
         }
@@ -90,8 +88,7 @@ struct CompanionOnboardingEditor: View {
     private func saveNow() {
         saveTask?.cancel()
         guard !draft.name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        if let id = store.save(draft, previousPhoto: savedPhoto) {
-            savedPhoto = draft.photoFile
+        if let id = store.save(draft) {
             if draft.companionId == nil {
                 // Keep routine ids in sync so later saves update rather than duplicate.
                 draft.companionId = id
@@ -104,15 +101,12 @@ struct CompanionOnboardingEditor: View {
         saveNow()
         draft = .new(species: .dog)
         routinesEdited = false
-        savedPhoto = nil
     }
 
     private func edit(_ companion: Companion) {
         saveNow()
-        let id = companion.id
-        draft = CompanionDraft(companion, routines: store.snapshot.routines(of: id))
+        draft = store.draft(of: companion)
         routinesEdited = true
-        savedPhoto = companion.photoFile
     }
 }
 
@@ -175,7 +169,7 @@ struct CompanionSettingsList: View {
         #if DEBUG
         .onAppear {
             if ["editor", "routine"].contains(UserDefaults.standard.string(forKey: "debugCompanionSheet")), let first = store.snapshot.companions.first {
-                CompanionCover.instantly { editing = EditingCompanion(draft: CompanionDraft(first, routines: store.snapshot.routines(of: first.id))) }
+                CompanionCover.instantly { editing = EditingCompanion(draft: store.draft(of: first)) }
             }
         }
         #endif
@@ -184,7 +178,7 @@ struct CompanionSettingsList: View {
     private func row(_ companion: Companion) -> some View {
         let routines = store.snapshot.routines(of: companion.id)
         return HStack(spacing: 14) {
-            CompanionFace(look: CompanionLook(companion), size: 48)
+            CompanionFace(look: store.snapshot.look(of: companion), size: 48)
             VStack(alignment: .leading, spacing: 2) {
                 Text(companion.name).font(.body(17, weight: 700))
                 Text(([companion.about.isEmpty ? companion.species.label : companion.about]
@@ -196,7 +190,7 @@ struct CompanionSettingsList: View {
             Spacer(minLength: 8)
             Button("Edit") {
                 CompanionCover.instantly {
-                    editing = EditingCompanion(draft: CompanionDraft(companion, routines: routines))
+                    editing = EditingCompanion(draft: store.draft(of: companion))
                 }
             }
             .buttonStyle(SecondaryButtonStyle())
@@ -259,13 +253,11 @@ private struct CompanionEditSheet: View {
     }
 
     private func save() {
-        guard store.save(draft, previousPhoto: initial.photoFile) != nil else { return }
+        guard store.save(draft) != nil else { return }
         close()
     }
 
     private func cancel() {
-        // A photo picked but never saved is an orphan file.
-        if let photo = draft.photoFile, photo != initial.photoFile { CompanionPhotoStore.shared.delete(photo) }
         store.lastError = nil
         close()
     }
@@ -378,8 +370,8 @@ struct CompanionEditorForm: View {
             guard let item else { return }
             Task {
                 if let data = try? await item.loadTransferable(type: Data.self),
-                   let file = try? CompanionPhotoStore.shared.save(imageData: data) {
-                    draft.photoFile = file
+                   let photo = try? await Task.detached(priority: .userInitiated, operation: { try CompanionPhotos.prepared(data) }).value {
+                    draft.photo = photo
                 }
                 photoItem = nil
             }
@@ -435,10 +427,10 @@ struct CompanionEditorForm: View {
     private var lookPicker: some View {
         HStack(spacing: 8) {
             ForEach(CoatPreset.allCases, id: \.self) { coat in
-                let isSelected = draft.photoFile == nil && draft.coat == coat
+                let isSelected = draft.photo == nil && draft.coat == coat
                 Button {
                     draft.coat = coat
-                    draft.photoFile = nil
+                    draft.photo = nil
                 } label: {
                     Circle()
                         .fill(coat.main)
@@ -451,7 +443,7 @@ struct CompanionEditorForm: View {
                 .accessibilityLabel(coat.label)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
-            let hasPhoto = draft.photoFile != nil
+            let hasPhoto = draft.photo != nil
             PhotosPicker(selection: $photoItem, matching: .images) {
                 HStack(spacing: 5) {
                     Image(systemName: hasPhoto ? "checkmark.circle.fill" : "camera")

@@ -2,6 +2,7 @@ import CloudKit
 import Foundation
 import GRDB
 import Testing
+import UIKit
 @testable import Porchlight
 
 /// A database on disk with its own sync metadata, the device's own preferences, and a
@@ -60,6 +61,7 @@ final class SyncHarness {
 
         var yoyo = CompanionDraft.new(species: .dog)
         yoyo.name = "Yo-Yo"
+        yoyo.photo = try CompanionPhotos.prepared(try #require(Self.image().jpegData(compressionQuality: 0.8)))
         let companionId = try database.saveCompanion(yoyo, householdId: household.id)
         let walk = try #require(try database.writer.read { db in
             try CareRoutine.filter(Column("companionId") == companionId).fetchOne(db)
@@ -84,17 +86,24 @@ final class SyncHarness {
             day: today, slot: MealSlot.defaultNames[2], source: .dineOut, title: "Sushi", emoji: "🍣",
             eaterIds: people, eatenAt: .now, place: PlaceDraft(name: "Sakura Sushi Bar")
         )
-        let photo = FoodPhotoStore.Stored(photoFile: "sushi.jpg", thumbnailFile: "sushi-thumb.jpg", crop: nil)
-        _ = try database.addMeal(dinner, journalId: journal.id, photos: [photo])
+        _ = try database.addMeal(dinner, journalId: journal.id, photos: [try MealPhotoImaging.prepare(Self.image())])
         let page = SampleHandwriting.page(lines: [("Sushi night", PageInk.defaultInk(for: .blue))])
         try database.savePage(journalId: journal.id, day: today, drawing: page.dataRepresentation())
+    }
+
+    /// A small painted photo.
+    private static func image() -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 64, height: 48)).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 64, height: 48))
+        }
     }
 
     /// Row counts of every synced table.
     func counts() throws -> [String: Int] {
         try database.writer.read { db in
             var counts: [String: Int] = [:]
-            for table in SyncSchema.tables where table.synced {
+            for table in SyncSchema.synced {
                 counts[table.name] = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \"\(table.name)\"")
             }
             return counts
@@ -106,12 +115,13 @@ final class SyncHarness {
     func unsynced() throws -> [String] {
         try database.writer.read { db in
             var missing: [String] = []
-            for table in SyncSchema.tables where table.synced {
+            for table in SyncSchema.synced {
+                let key = try db.primaryKey(table.name).columns[0]
                 let sent = try Set(String.fetchAll(db, sql: """
                     SELECT recordPrimaryKey FROM sqlitedata_icloud_metadata
                     WHERE recordType = ? AND lastKnownServerRecord IS NOT NULL
                     """, arguments: [table.name]))
-                for id in try String.fetchAll(db, sql: "SELECT id FROM \"\(table.name)\"") where !sent.contains(id) {
+                for id in try String.fetchAll(db, sql: "SELECT \"\(key)\" FROM \"\(table.name)\"") where !sent.contains(id) {
                     missing.append("\(table.name) \(id)")
                 }
             }

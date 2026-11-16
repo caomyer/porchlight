@@ -1,7 +1,7 @@
 import Foundation
 
-/// The single root folder for everything Porchlight stores on the device
-/// (database, meal photos, companion photos, ambient photos).
+/// The single root folder for everything Porchlight stores on the device: the database
+/// (meal and companion photos are rows in it) and the photo frame's own library.
 ///
 /// DEBUG launches with `-sampleHousehold` or `-resetData` use a separate sandbox
 /// folder, so screenshots and UI tests on a real device never touch real data.
@@ -22,18 +22,16 @@ enum AppFiles {
         #endif
     }
 
-    /// A subfolder of the root, e.g. "Photos".
+    /// A subfolder of the root, e.g. "Ambient".
     static func folder(_ name: String) -> URL {
         root.appendingPathComponent(name, isDirectory: true)
     }
 
-    /// The folders that hold the household's photos, next to its rows in the database.
-    static let householdFolders = ["Photos", "CompanionPhotos", "Ambient"]
+    /// The photo frame's library, the only household files kept outside the database.
+    static let ambientFolder = "Ambient"
 
-    /// Removes the household's photos, after its rows were removed from this device.
+    /// Removes the household's files, after its rows were removed from this device.
     static func removeHouseholdFiles() {
-        for name in householdFolders {
-            try? FileManager.default.removeItem(at: folder(name))
-        }
+        try? FileManager.default.removeItem(at: folder(ambientFolder))
     }
 }

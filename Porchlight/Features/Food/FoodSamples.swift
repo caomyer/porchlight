@@ -77,7 +77,6 @@ enum FoodSamples {
         let calendar = household.calendar
         let journal = try database.ensureFoodJournal(householdId: householdId)
         let journalId = journal.id
-        let photos = FoodPhotoStore.standard
         let today = DayKey(.now, calendar: calendar)
         let slots = MealSlot.defaultNames
         let times = [8 * 60 + 40, 12 * 60 + 30, 19 * 60]
@@ -96,8 +95,8 @@ enum FoodSamples {
         /// Gives a sample meal generated photos, so covers, counts and paging show without a camera.
         func photograph(_ entry: JournalEntry, count: Int, palette: Int) throws {
             let id = entry.id
-            let stored = try (0..<count).map { try photos.save(SamplePhoto.image(palette: palette + $0, emoji: entry.emoji ?? "🍽️")) }
-            try database.addMealPhotos(entryId: id, stored, now: entry.eatenAt)
+            let photos = try (0..<count).map { try MealPhotoImaging.prepare(SamplePhoto.image(palette: palette + $0, emoji: entry.emoji ?? "🍽️")) }
+            try database.addMealPhotos(entryId: id, photos, now: entry.eatenAt)
         }
 
         for (index, meals) in history.enumerated() {

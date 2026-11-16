@@ -13,6 +13,7 @@ struct SyncMirrorTests {
         SyncMirror.JournalEntryEater.self, SyncMirror.JournalEntryPhoto.self, SyncMirror.JournalPage.self,
         SyncMirror.Chore.self, SyncMirror.ChoreCompletion.self, SyncMirror.Reward.self, SyncMirror.RewardRedemption.self,
         SyncMirror.HomeList.self, SyncMirror.ListItem.self, SyncMirror.MealPlan.self,
+        SyncMirror.CompanionPhoto.self, SyncMirror.JournalEntryPhotoThumb.self, SyncMirror.JournalEntryPhotoImage.self,
     ]
 
     /// The SQLite column each plain Swift type stands for, and whether it may be NULL.
@@ -28,7 +29,7 @@ struct SyncMirrorTests {
 
     @Test("There is one mirror per synced table, and none for device-only tables")
     func oneMirrorPerSyncedTable() {
-        let synced = SyncSchema.tables.filter(\.synced).map(\.name)
+        let synced = SyncSchema.synced.map(\.name)
         #expect(Self.mirrors.map { $0.tableName } == synced)
     }
 

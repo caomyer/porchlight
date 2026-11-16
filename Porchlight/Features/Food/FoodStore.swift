@@ -8,7 +8,6 @@ import SwiftUI
 @Observable
 final class FoodStore {
     let database: AppDatabase
-    let photos: FoodPhotoStore
 
     private(set) var snapshot: FoodSnapshot = .empty
     var lastError: String?
@@ -32,10 +31,8 @@ final class FoodStore {
 
     init(database: AppDatabase) {
         self.database = database
-        self.photos = .standard
         if let first = try? database.foodSnapshot() { snapshot = first }
         observe()
-        sweepPhotos()
     }
 
     private func observe() {
@@ -48,12 +45,6 @@ final class FoodStore {
                 self?.lastError = error.userMessage
             }
         }
-    }
-
-    private func sweepPhotos() {
-        let photos = photos
-        guard let referenced = try? database.referencedPhotoFiles() else { return }
-        Task.detached(priority: .background) { photos.sweep(keeping: referenced) }
     }
 
     // MARK: Integration surface
@@ -101,11 +92,11 @@ final class FoodStore {
 
     /// Recent meal photos for Ambient mode, newest meals first. At most
     /// `ambientPhotosPerMeal` come from one meal, so a six-angle dinner doesn't take over.
-    func recentPhotoURLs(limit: Int) -> [URL] {
+    /// Only whole shots: a thumbnail would look blurry full screen.
+    func recentPhotos(limit: Int) -> [PhotoSource] {
         guard isEnabled, limit > 0 else { return [] }
         let meals = snapshot.entries.sorted { $0.eatenAt > $1.eatenAt }
-        return Array(meals.lazy.flatMap { self.photos(of: $0).prefix(Self.ambientPhotosPerMeal) }.prefix(limit))
-            .map { self.photos.url(for: $0.photoFile) }
+        return Array(meals.lazy.flatMap { self.photos(of: $0).compactMap(self.image(of:)).prefix(Self.ambientPhotosPerMeal) }.prefix(limit))
     }
 
     static let ambientPhotosPerMeal = 3
@@ -153,7 +144,31 @@ final class FoodStore {
         return snapshot.places.first { $0.id == id }
     }
 
-    func photoURL(_ file: String?) -> URL? { file.map(photos.url(for:)) }
+    /// A photo's thumbnail, the square the wall shows; nil until it has one.
+    func thumbnail(of photo: MealPhoto) -> PhotoSource? {
+        snapshot.photoSizes[photo.id]?.thumbnail.map { .mealThumbnail(photo.id, byteCount: $0) }
+    }
+
+    /// A photo's whole shot; nil when it has none (only its thumbnail survived from a file).
+    func image(of photo: MealPhoto) -> PhotoSource? {
+        snapshot.photoSizes[photo.id]?.image.map { .mealImage(photo.id, byteCount: $0) }
+    }
+
+    /// The thumbnail of a photo in an edit, which may not be saved yet.
+    func thumbnail(of item: MealPhotoItem) -> PhotoSource? {
+        switch item {
+        case let .kept(photo, reframed): reframed.map(PhotoSource.unsaved) ?? thumbnail(of: photo)
+        case let .added(new): .unsaved(new.thumbnail)
+        }
+    }
+
+    /// The whole shot of a photo in an edit, which may not be saved yet.
+    func image(of item: MealPhotoItem) -> PhotoSource? {
+        switch item {
+        case let .kept(photo, _): image(of: photo)
+        case let .added(new): .unsaved(new.image)
+        }
+    }
 
     /// A meal's photos, cover first.
     func photos(of entry: JournalEntry) -> [MealPhoto] {
@@ -213,34 +228,22 @@ final class FoodStore {
 
     // MARK: Edits
 
-    /// Writes a photo and its thumbnail to disk off the main actor. Not attached to any
-    /// meal yet: pass it to `addMeal`, `addPhotos` or an edit, or `discard` it.
-    func savePhoto(_ image: UIImage) async throws -> FoodPhotoStore.Stored {
-        let photos = photos
-        return try await Task.detached(priority: .userInitiated) { try photos.save(image) }.value
+    /// Makes a photo and its thumbnail off the main actor. It is held in memory, attached to
+    /// nothing, until it goes to `addMeal`, `addPhotos` or an edit.
+    func preparePhoto(_ image: UIImage) async throws -> NewMealPhoto {
+        try await Task.detached(priority: .userInitiated) { try MealPhotoImaging.prepare(image) }.value
     }
 
-    /// Deletes saved photos that were never attached, e.g. when a capture is discarded.
-    func discard(_ stored: [FoodPhotoStore.Stored]) {
-        discard(files: stored.flatMap { [$0.photoFile, $0.thumbnailFile] })
+    /// A new thumbnail of a photo's whole shot for `crop`, made off the main actor.
+    func thumbnail(ofImage data: Data, crop: PhotoCrop) async throws -> Data {
+        try await Task.detached(priority: .userInitiated) { try MealPhotoImaging.thumbnail(ofImage: data, crop: crop) }.value
     }
 
-    /// Deletes photo files nothing uses.
-    func discard(files: [String]) {
-        photos.delete(files)
-    }
-
-    /// A new thumbnail of a saved photo for `crop`, written off the main actor.
-    func thumbnail(of photoFile: String, crop: PhotoCrop) async throws -> String {
-        let photos = photos
-        return try await Task.detached(priority: .userInitiated) { try photos.thumbnail(of: photoFile, crop: crop) }.value
-    }
-
-    /// Logs a meal with its saved photos, cover first. If it throws, the caller still owns
-    /// the photos (keep them for another try, or `discard` them).
-    func addMeal(_ draft: MealDraft, photos stored: [FoodPhotoStore.Stored] = []) throws -> JournalEntry {
+    /// Logs a meal with its photos, cover first. If it throws, nothing is saved and the
+    /// caller still holds the photos for another try.
+    func addMeal(_ draft: MealDraft, photos: [NewMealPhoto] = []) throws -> JournalEntry {
         guard let journalId = journal?.id else { throw FoodError.noJournal }
-        return try database.addMeal(draft, journalId: journalId, photos: stored)
+        return try database.addMeal(draft, journalId: journalId, photos: photos)
     }
 
     /// Adds photos to a meal that is already saved. Returns false, with `lastError` set,
@@ -249,14 +252,13 @@ final class FoodStore {
     func addPhotos(_ images: [UIImage], to entry: JournalEntry) async -> Bool {
         guard !images.isEmpty else { return false }
         let id = entry.id
-        var stored: [FoodPhotoStore.Stored] = []
         do {
-            for image in images { stored.append(try await savePhoto(image)) }
-            try database.addMealPhotos(entryId: id, stored)
+            var photos: [NewMealPhoto] = []
+            for image in images { photos.append(try await preparePhoto(image)) }
+            try database.addMealPhotos(entryId: id, photos)
             lastError = nil
             return true
         } catch {
-            discard(stored)
             lastError = error.userMessage
             return false
         }
@@ -267,12 +269,12 @@ final class FoodStore {
     @discardableResult
     func updateMeal(_ entry: JournalEntry, _ draft: MealDraft, photos items: [MealPhotoItem]? = nil) -> Bool {
         let id = entry.id
-        return perform { try database.updateMeal(id: id, draft, photos: items, files: photos) }
+        return perform { try database.updateMeal(id: id, draft, photos: items) }
     }
 
     func deleteMeal(_ entry: JournalEntry) {
         let id = entry.id
-        perform { try database.deleteMeal(id: id, files: photos) }
+        perform { try database.deleteMeal(id: id) }
     }
 
     /// Turns the diary on or off, creating it the first time.

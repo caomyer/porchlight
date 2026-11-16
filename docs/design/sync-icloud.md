@@ -106,6 +106,42 @@ If a household arrives, it opens it.
 If none arrives, it shows the usual welcome.
 This is also what makes the M1 gate, "a wiped device gets the whole household back", a real user journey.
 
+## Data changes after sync is on
+
+SQLiteData records a write only while its engine exists on the connection: the engine installs temporary triggers when it is created, and they are gone when the app quits.
+A write made before the engine exists is never recorded, and once a table is known to the engine nothing looks for unrecorded rows, so the write never uploads.
+
+The rule: any migration that inserts or rewrites rows of synced tables, once sync has been on anywhere, must run after the engine is created.
+
+The app opens the database and runs every migration before it creates the engine, so ordinary migrations do not satisfy the rule.
+Schema migrations stay there, since the engine needs the final schema to start, and they must not write synced rows from now on.
+Row changes go into a second migrator, `AppDatabase.dataMigrator()` in `DataMigration.swift`, which the app runs right after creating the engine (`migrateData()` in `PorchlightApp`).
+It shares `grdb_migrations` with the schema migrations and has no migrations yet.
+A unit test checks that a data migration run after the engine exists is recorded and uploaded.
+
+"sync v2" (photos as rows) is a schema migration that writes rows, and that is safe only because sync had never been on anywhere: on the engine's first start every table is new to it, so it uploads every row.
+
+## Backups and restore
+
+`scripts/backup-ipad.sh` copies the whole data folder, `Library/Application Support/Porchlight`.
+SQLiteData keeps its metadata in a database beside the app's own: `attachMetadatabase(containerIdentifier:)` names it after the database and the container, so it is `.porchlight.metadata-iCloud.com.porchlight.porchlight.sqlite` (a hidden file, with its own `-wal` and `-shm`), in the same folder.
+It holds what the engine knows about every row (the last record iCloud confirmed, and when each field last changed), the engine's change tokens, the changes still waiting to be sent, and the tables it has seen.
+So a backup carries an older pair: the data and the metadata that describes it.
+Each file is consistent on its own; with the database in WAL mode, SQLite does not keep two attached databases in step, so the pair is as consistent as a crash would leave it, which the library has to recover from anyway.
+`scripts/restore-ipad.sh` folds the app database's write-ahead log into it and copies the rest of the folder, metadata included, as it is.
+
+After a restore the engine resumes from the older change token and fetches everything changed in iCloud since, including deletions, and resends the changes it had not sent at the time of the backup.
+Conflicts are settled field by field by the time of the edit, so the newer values in iCloud win.
+A restore therefore repairs one device, which iCloud then brings forward again; it does not roll the household back for everyone.
+To roll the household back, the data would have to change in iCloud itself.
+
+Two cases need care, and neither has been tried on a device yet:
+
+- A backup made before the iPad ever synced has no metadata.
+  Restored onto an iPad whose switch is on, the engine would meet every table as new and offer every old row as a fresh change, which could overwrite newer values in iCloud.
+  Restore such a backup only with sync off on that iPad, and to sync it again, remove the household from it and let iCloud bring it back.
+- The sync switch, the account name and the last-synced time live in the app's preferences, outside the data folder, so a backup neither saves nor restores them.
+
 ## Tests
 
 - Mirror types match their tables.
@@ -125,11 +161,11 @@ This is also what makes the M1 gate, "a wiped device gets the whole household ba
 ## Implementation notes
 
 Choices made while building M1, where the design above left room or did not fit the library.
-Photos and "a fresh install looks for a household first" come in a later step.
+"A fresh install looks for a household first" comes in a later step.
 
 ### The engine
 
-- The mirrors are `SyncMirror.Household`, `SyncMirror.Person` and so on, and `SyncMirror.engine(for:delegate:)` hands all nineteen to `SyncEngine`.
+- The mirrors are `SyncMirror.Household`, `SyncMirror.Person` and so on, and `SyncMirror.engine(for:delegate:)` hands all twenty-two to `SyncEngine`, in `SyncSchema.synced` order.
 - The engine is created on every launch that can sync, even with the switch off, and is only started when the switch is on.
   Its triggers are temporary: they record writes only while an engine exists, so a write made while no engine existed would never be uploaded once the tables are known to it.
   It is created right after migrations and the DEBUG launch arguments, before any store, so no write slips past it.
@@ -165,7 +201,43 @@ Photos and "a fresh install looks for a household first" come in a later step.
 - `aps-environment` is `development` in both: cable installs are development-signed, and an App Store or TestFlight export rewrites it to production.
 - Command-line builds need `-skipMacroValidation` for SQLiteData's macros; the scripts pass it.
 
+### Photos
+
+- `companionPhoto`, `journalEntryPhotoThumb` and `journalEntryPhotoImage` are keyed by their parent's id, which is their one foreign key (`ON DELETE CASCADE`), as SQLiteData's guide does for cover images.
+  Their columns are the key, `byteCount` and `image`, in that order, so reading the byte count never walks the image's overflow pages.
+- The migration is "sync v2: photos become rows", registered after "sync v1".
+  It creates the tables, reads every file a row names, and drops `journalEntryPhoto.photoFile`, `journalEntryPhoto.thumbnailFile` and `companion.photoFile` with `ALTER TABLE ... DROP COLUMN`, the last removal of a synced column.
+  It needs the data folder, so `AppDatabase.migrator(files:)` and `AppDatabase(_:files:)` take it; in-memory databases pass none and import nothing.
+- Files are removed by `PhotoFileCleanup` after the migration's transaction has committed.
+  The migration lists each imported file, with the SHA-256 of the bytes it stored, in a device-only table, `photoFileImport`, in the same transaction.
+  The cleanup runs each time the database on disk opens: it removes a file only when its row reads back with that digest, then drops the table and any emptied folder.
+  A crash in between leaves both the files and the rows, and the next launch finishes the job.
+  The table exists only while files wait, so an upgraded wall ends with the schema of a new one.
+- The odd cases on real walls: a missing file never fails the migration.
+  A photo whose whole shot is gone keeps its thumbnail as its only picture; it shows on the wall, can't be reframed, and isn't offered to the photo frame.
+  A photo whose thumbnail is gone gets one made again from the whole shot and its crop; so does one whose thumbnail file was its whole shot, which "food v4" did for single photos.
+  A photo with neither file keeps its row without pictures, and shows its plate as before.
+  A file that isn't a readable image is stored byte for byte.
+  A file no row names, or one whose row doesn't read back the same, stays in its folder and is never removed automatically: nothing reads it, and a photo is worth more than its space.
+- Whole shots larger than 2048 pixels on their long side are re-encoded at 2048 on import, with ImageIO; smaller ones keep their bytes.
+  Capture already stored 2048 pixels, so in practice every file is imported byte for byte.
+  Companion photos keep their 800-pixel size.
+- New photos never touch the disk: a shot is made into a `NewMealPhoto` (whole shot and thumbnail, in memory) and written as rows when the meal saves.
+  Discarding a capture, removing a photo before saving, and reframing in an edit that is cancelled leave nothing behind, so the old file sweeps and "unused file" bookkeeping are gone.
+  A reframe keeps its new thumbnail in the edit and writes it on Save.
+- A companion draft carries its photo's bytes.
+  Saving writes the photo row only when the bytes differ from the saved ones, so onboarding's save-as-you-type never rewrites (or re-uploads) it.
+- `PhotoImages` replaces the file stores and `MealImages`.
+  Views name a picture by `PhotoSource` (the row, with its byte count) and an optional crop; it reads the row and decodes off the main thread, once per request however many views ask, into an `NSCache` limited to 96 MB of decoded pixels.
+  The byte count is the version: a reframed thumbnail, a new companion photo or a picture that arrives by sync has a new count, so a cached image is never shown for a picture that changed.
+  Snapshots read only the byte counts, never the bytes.
+- `PhotoView` draws a cached image in the first frame; otherwise it shows a quiet placeholder (the tablecloth tint, or the coat's color) while loading, so the plate or drawn face never flashes up before a photo, and falls back to them only when there is no picture.
+- Grids and lists load thumbnails only; the whole shot loads where one photo fills the view (the saved polaroid, the whole-photo view, reframing) and in the photo frame, which downsamples it for the screen and never puts it in the cache.
+- `AppFiles` only knows the photo frame's `Ambient` folder now, and "Remove it from this iPad" removes only that: the photo rows go with the household.
+
 ### Tests
 
 - SQLiteData's stand-in for iCloud refuses more than 200 records in one request, where the real `CKSyncEngine` splits them into batches itself, so the sync tests fill each table with a few rows rather than the sample household.
 - Account events are given to `SyncController` directly, as the engine's delegate would, since the stand-in's controls are internal to its package.
+- The "sync v1" comparisons migrate only up to "sync v1", since "sync v2" removes columns they compare.
+- `PORCHLIGHT_REAL_DATA_DIR`, like `PORCHLIGHT_REAL_DB`, runs a test on a copy of the wall's data folder: it migrates a further copy and checks that every photo file a row named is in a row with its bytes.

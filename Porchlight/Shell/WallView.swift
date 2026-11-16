@@ -98,7 +98,7 @@ struct WallView: View {
         .ignoresSafeArea(.container, edges: .vertical)
         .overlay {
             if showAmbient {
-                AmbientView(extraPhotoURLs: food.recentPhotoURLs(limit: 40), onWake: { wake() }, glance: AnyView(AmbientGlance()))
+                AmbientView(extraPhotos: food.recentPhotos(limit: 40).map(FramePhoto.stored), onWake: { wake() }, glance: AnyView(AmbientGlance()))
                     .transition(.opacity)
                     .ignoresSafeArea()
             }

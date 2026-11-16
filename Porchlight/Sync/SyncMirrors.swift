@@ -34,7 +34,6 @@ enum SyncMirror {
         var name: String
         var species: String
         var coat: String
-        var photoFile: String?
         var about: String
         var birthDate: Date?
         var captionTone: String
@@ -126,8 +125,6 @@ enum SyncMirror {
     @Table("journalEntryPhoto") struct JournalEntryPhoto {
         let id: UUID
         var entryId: UUID
-        var photoFile: String
-        var thumbnailFile: String
         var sortOrder: Int
         var createdAt: Date
         var cropX: Double?
@@ -219,10 +216,32 @@ enum SyncMirror {
         var title: String
         var emoji: String?
     }
+
+    // Photo bytes, each keyed by the row it belongs to. The engine sends every BLOB as an
+    // iCloud asset.
+
+    @Table("companionPhoto") struct CompanionPhoto {
+        @Column(primaryKey: true) let companionId: UUID
+        var byteCount: Int
+        var image: Data
+    }
+
+    @Table("journalEntryPhotoThumb") struct JournalEntryPhotoThumb {
+        @Column(primaryKey: true) let photoId: UUID
+        var byteCount: Int
+        var image: Data
+    }
+
+    @Table("journalEntryPhotoImage") struct JournalEntryPhotoImage {
+        @Column(primaryKey: true) let photoId: UUID
+        var byteCount: Int
+        var image: Data
+    }
 }
 
 extension SyncMirror {
-    /// A sync engine for every mirror, created stopped: `SyncController` decides when it runs.
+    /// A sync engine for every mirror, in `SyncSchema.synced` order, created stopped:
+    /// `SyncController` decides when it runs.
     ///
     /// Creating it validates the schema and installs the triggers that record every write,
     /// so it is created right after migrations, before anything else writes.
@@ -235,6 +254,7 @@ extension SyncMirror {
             JournalPage.self,
             Chore.self, ChoreCompletion.self, Reward.self, RewardRedemption.self,
             HomeList.self, ListItem.self, MealPlan.self,
+            CompanionPhoto.self, JournalEntryPhotoThumb.self, JournalEntryPhotoImage.self,
             containerIdentifier: SyncController.containerIdentifier,
             startImmediately: false,
             delegate: delegate

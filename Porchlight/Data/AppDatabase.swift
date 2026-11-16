@@ -8,9 +8,18 @@ import GRDB
 struct AppDatabase: Sendable {
     let writer: any DatabaseWriter
 
-    init(_ writer: any DatabaseWriter) throws {
+    /// Opens the database and brings it up to date.
+    ///
+    /// - Parameter files: The data folder next to the database, which held photos as files
+    ///   before they became rows; nil for a database that never had files (in memory).
+    init(_ writer: any DatabaseWriter, files: URL? = nil) throws {
         self.writer = writer
-        try Self.migrator.migrate(writer)
+        try Self.migrator(files: files).migrate(writer)
+        if let files {
+            // Only once the migration that read them has committed. A cleanup that fails
+            // leaves the files for the next launch, and the wall works the same.
+            try? PhotoFileCleanup.run(writer, files: files)
+        }
     }
 
     /// The on-device database in Application Support.
@@ -24,7 +33,7 @@ struct AppDatabase: Sendable {
         if exists {
             try keepCopyBeforeSync(pool, at: url, fileManager: fileManager)
         }
-        return try AppDatabase(pool)
+        return try AppDatabase(pool, files: folder)
     }
 
     /// An empty in-memory database, for tests and previews. It never syncs, so it has no
@@ -50,7 +59,7 @@ struct AppDatabase: Sendable {
     /// Copies an existing database that hasn't run "sync v1" yet, before it does.
     /// The WAL is checkpointed into the main file first, so the one file is complete.
     private static func keepCopyBeforeSync(_ pool: DatabasePool, at url: URL, fileManager: FileManager) throws {
-        let applied = try pool.read { try migrator.appliedIdentifiers($0) }
+        let applied = try pool.read { try migrator(files: nil).appliedIdentifiers($0) }
         guard !applied.isEmpty, !applied.contains(syncMigration) else { return }
         try pool.writeWithoutTransaction { _ = try $0.checkpoint(.truncate) }
         let copy = copyBeforeSyncURL(next: url)
@@ -61,7 +70,8 @@ struct AppDatabase: Sendable {
         try fileManager.copyItem(at: url, to: copy)
     }
 
-    static var migrator: DatabaseMigrator {
+    /// Every migration, in order. `files` is the data folder the photo import reads from.
+    static func migrator(files: URL?) -> DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1: household and people") { db in
             try db.create(table: "household") { t in
@@ -94,6 +104,7 @@ struct AppDatabase: Sendable {
         registerHomeMigrations(&migrator)
         // Always last among the schemas above: it rebuilds every one of their tables.
         registerSyncMigrations(&migrator)
+        registerPhotoMigrations(&migrator, files: files)
         return migrator
     }
 }
