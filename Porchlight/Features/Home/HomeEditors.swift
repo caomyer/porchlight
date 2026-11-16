@@ -251,6 +251,7 @@ struct RewardEditor: View {
 struct MealEditor: View {
     @Environment(HomeStore.self) private var store
     @Environment(\.closeWallSheet) private var close
+    @Environment(\.colorScheme) private var scheme
     let day: DayKey
 
     @State private var title = ""
@@ -290,7 +291,7 @@ struct MealEditor: View {
                             Text(option)
                                 .font(.system(size: 26))
                                 .frame(width: 48, height: 48)
-                                .background(emoji == option ? Theme.accent.wash(0.16) : Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .background(emoji == option ? Theme.accent.wash(0.16, in: scheme) : Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                                         .strokeBorder(emoji == option ? Theme.accent : .clear, lineWidth: 2)
