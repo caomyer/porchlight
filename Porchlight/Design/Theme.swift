@@ -2,18 +2,34 @@ import SwiftUI
 import UIKit
 
 /// "Sunday Paper" design tokens. Every color, font and radius in the app comes from here.
+///
+/// Colors have a night value too, the warm dark palette the phone shows when the system
+/// is in dark mode. The wall forces the light look, so it only ever sees the first value.
 enum Theme {
     // MARK: Colors
-    static let background = Color(hex: 0xF5EFE4)
-    static let surface = Color(hex: 0xFFFCF6)
-    static let surface2 = Color(hex: 0xF0E8DA)
-    static let rail = Color(hex: 0xEDE4D4)
-    static let ink = Color(hex: 0x2A2420)
-    static let muted = Color(hex: 0x867A6E)
-    static let line = Color(hex: 0xE6DCCB)
-    static let accent = Color(hex: 0xD9653B)
+    static let background = Color(light: 0xF5EFE4, dark: 0x1E1A17)
+    static let surface = Color(light: 0xFFFCF6, dark: 0x2A2420)
+    static let surface2 = Color(light: 0xF0E8DA, dark: 0x352E29)
+    static let rail = Color(light: 0xEDE4D4, dark: 0x24201C)
+    static let ink = Color(light: 0x2A2420, dark: 0xF2EAE0)
+    static let muted = Color(light: 0x867A6E, dark: 0xA89A8C)
+    static let line = Color(light: 0xE6DCCB, dark: 0x3B332D)
+    static let accent = Color(light: 0xD9653B, dark: 0xE67A50)
     static let accentInk = Color.white
     static let good = Color(hex: 0x5B9F72)
+    /// A selected pill or a claimed row: the accent laid softly on paper.
+    static let accentSoft = Color(light: 0xFDF1EA, dark: 0x4A2E22)
+    /// Done things: a filled care slot, an all-clear banner.
+    static let goodSoft = Color(light: 0xE3EFE2, dark: 0x263A2D)
+    static let goodInk = Color(light: 0x2F6343, dark: 0xA9D6B6)
+    /// Something that needs a look, like care that was never logged.
+    static let warnSoft = Color(light: 0xF6E7C8, dark: 0x3D3122)
+    static let warnInk = Color(light: 0x7A5214, dark: 0xE8C27E)
+    /// The undo toast floats above both looks, so it stays dark in both.
+    static let toast = Color(light: 0x2A2420, dark: 0x3B332D)
+    static let toastInk = Color(hex: 0xFFFCF6)
+    static let toastMuted = Color(hex: 0xD8CDBF)
+    static let toastAction = Color(hex: 0xF2B59A)
 
     // MARK: Shape
     static let radius: CGFloat = 20
@@ -53,6 +69,24 @@ extension Color {
             red: Double((hex >> 16) & 0xFF) / 255,
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255
+        )
+    }
+
+    /// A color that follows the light or dark look it is drawn in.
+    init(light: UInt32, dark: UInt32) {
+        self.init(uiColor: UIColor { traits in
+            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+}
+
+extension UIColor {
+    convenience init(hex: UInt32) {
+        self.init(
+            red: CGFloat((hex >> 16) & 0xFF) / 255,
+            green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255,
+            alpha: 1
         )
     }
 }
