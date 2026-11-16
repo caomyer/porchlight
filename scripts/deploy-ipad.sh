@@ -14,19 +14,22 @@
 #
 # The wall's data is copied to this Mac first (scripts/backup-ipad.sh), and the
 # install does not go ahead if that copy fails. --no-backup skips it, for the
-# very first install, when the app has no data yet.
+# very first install, when the app has no data yet. --no-launch installs without
+# opening the app, so a backup can be restored into it first.
 #
-#   scripts/deploy-ipad.sh [--debug] [--no-backup]
+#   scripts/deploy-ipad.sh [--debug] [--no-backup] [--no-launch]
 #
 # Optional: PORCHLIGHT_DEVICE=<device identifier from `xcrun devicectl list devices`>
 set -euo pipefail
 
 configuration=Release
 backup=1
+launch=1
 for argument in "$@"; do
   case "$argument" in
     --debug) configuration=Debug ;;
     --no-backup) backup=0 ;;
+    --no-launch) launch=0 ;;
     *) echo "Unknown option: $argument" >&2; exit 1 ;;
   esac
 done
@@ -61,5 +64,8 @@ if (( backup )); then
   "$root/scripts/backup-ipad.sh"
 fi
 xcrun devicectl device install app --device "$device" "$app"
-xcrun devicectl device process launch --device "$device" com.porchlight.porchlight || true
+if (( launch )); then
+  # Opening the app fails while the iPad is locked; the install itself is done.
+  xcrun devicectl device process launch --device "$device" com.porchlight.porchlight || true
+fi
 echo "Installed a $configuration build of Porchlight on $device"
