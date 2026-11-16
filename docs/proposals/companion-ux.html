@@ -1,0 +1,1074 @@
+<title>Porchlight Companion Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Caveat:wght@600&display=swap">
+<style>
+/* Layout: a screen atlas. Intro and model, then six workstreams; each journey is a left-to-right storyboard of phone and wall frames with its states and "done when". Ends with the work breakdown. Single light look matching the app's Sunday Paper theme; the phone's night look is shown inside one frame. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --rail: #EDE4D4;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --accent-soft: #F8DDD0;
+  --good: #5B9F72;
+  --good-soft: #E3EFE2;
+  --warn: #B7791F;
+  --warn-soft: #F6E7C8;
+  --blue: #4C7BB0;
+  --coral: #DD7558;
+  --ochre: #C2933A;
+  --sage: #6E9E7E;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+}
+.page { max-width: 1180px; margin: 0 auto; padding-block: 44px 90px; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(32px, 5.4vw, 50px); line-height: 1.08; text-wrap: balance; }
+h2 { font: 600 27px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 20px/1.25 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 5px; }
+a { color: var(--accent); }
+.eyebrow { font: 800 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 18px; max-width: 70ch; }
+.note { font-size: 14.5px; color: var(--muted); max-width: 72ch; }
+button { font-family: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Intro blocks */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.tile b { font: 600 17px/1.3 var(--display); }
+.tile p { font-size: 14.5px; color: var(--muted); }
+.tile .k { font: 800 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+/* Model diagram */
+.model { background: var(--surface); border-radius: 22px; padding: 20px; display: grid; gap: 14px; overflow-x: auto; }
+.mrow { display: grid; grid-template-columns: 130px 1fr; gap: 14px; align-items: center; min-width: 640px; }
+.mrow > span { font: 800 11.5px/1.2 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.mrow .items { display: flex; gap: 10px; flex-wrap: wrap; }
+.node { border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 12px; background: var(--paper); font: 700 14px/1.25 var(--body); display: flex; gap: 8px; align-items: center; }
+.node small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); }
+.node.root { border-color: var(--accent); background: #FDF1EA; }
+.node.dash { border-style: dashed; }
+
+/* Nav maps */
+.maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.map { background: var(--surface); border-radius: 20px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; }
+.map ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+.map ol ul { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.new { font: 800 10.5px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 3px 7px; vertical-align: 2px; margin-left: 4px; }
+
+/* Rules */
+.rules { display: grid; gap: 8px; background: var(--surface); border-radius: 18px; padding: 16px 20px; }
+.rules div { display: grid; grid-template-columns: 28px 1fr; gap: 8px; font-size: 15px; }
+.rules div span:first-child { font: 600 17px/1.4 var(--display); color: var(--accent); }
+
+/* Filter + index */
+.filters { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--paper); padding-block: 10px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--paper); }
+.chipbtn { flex: none; white-space: nowrap; border: 0; background: var(--surface2); color: var(--muted); border-radius: 999px; padding: 8px 13px; font: 800 13px/1 var(--body); }
+.chipbtn[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.index { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.idx { background: var(--surface); border-radius: 16px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.idx b { font: 600 16px/1.25 var(--display); }
+.idx a { font: 600 13.5px/1.35 var(--body); text-decoration: none; color: var(--ink); display: flex; gap: 8px; }
+.idx a span { color: var(--muted); font-weight: 800; width: 26px; flex: none; }
+.idx a:hover { color: var(--accent); }
+
+/* Workstream + journey */
+.ws { display: grid; gap: 22px; }
+.wshead { display: grid; gap: 6px; border-top: 2px solid var(--ink); padding-top: 16px; }
+.journey { background: var(--surface); border-radius: 24px; padding: 20px; display: grid; gap: 16px; min-width: 0; scroll-margin-top: 70px; }
+.jhead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.jid { font: 800 13px/1 var(--body); color: var(--surface); background: var(--ink); border-radius: 8px; padding: 5px 7px; }
+.ph-tag { font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 4px 8px; background: var(--good-soft); color: #3F7A55; }
+.ph-tag.p0 { background: var(--surface2); color: var(--muted); }
+.ph-tag.p2 { background: var(--warn-soft); color: var(--warn); }
+.goal { font-size: 15.5px; max-width: 80ch; }
+.board { display: flex; gap: 18px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; }
+.fr { flex: none; display: grid; gap: 10px; align-content: start; scroll-snap-align: start; }
+.fr .cap { font-size: 13.5px; line-height: 1.4; color: var(--ink); }
+.fr .cap b { display: block; font: 700 13.5px/1.3 var(--body); }
+.fr .cap span { color: var(--muted); }
+.fr.p .cap { width: 286px; }
+.fr.w .cap { width: 600px; max-width: 80vw; }
+.arrow { flex: none; align-self: center; font: 600 24px/1 var(--display); color: var(--line); margin-top: -40px; }
+.specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.spec { background: var(--paper); border-radius: 16px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.spec h4 { margin: 0; font: 800 11.5px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.spec ul { font-size: 14px; }
+
+/* ============ Phone frame (designed at 375 pt, scaled with zoom) ============ */
+.ph { width: 397px; height: 834px; zoom: .72; background: #1d1a18; border-radius: 56px; padding: 11px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.sc { --surface2: #F0E8DA; width: 375px; height: 812px; border-radius: 46px; background: var(--paper); color: var(--ink); overflow: hidden; position: relative; display: flex; flex-direction: column; font-family: var(--body); }
+.sc.dark { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; }
+.notch { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; background: #1d1a18; border-radius: 20px; z-index: 9; }
+.status { height: 54px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 8px 34px 0; font: 700 15px/1 var(--body); }
+.status i { font-style: normal; letter-spacing: 1px; font-size: 11px; }
+.pb { flex: 1; overflow: hidden; padding: 4px 16px 16px; display: grid; gap: 12px; align-content: start; }
+.tabbar { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 10px 28px; background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar span { display: grid; justify-items: center; gap: 3px; font: 700 10.5px/1 var(--body); color: var(--muted); }
+.tabbar span i { font-style: normal; font-size: 20px; line-height: 1; filter: grayscale(1); opacity: .65; }
+.tabbar span.on { color: var(--accent); }
+.tabbar span.on i { filter: none; opacity: 1; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phead small { display: block; font: 700 12.5px/1.2 var(--body); color: var(--muted); }
+.phead b { font: 600 28px/1.15 var(--display); }
+.hh { display: inline-flex; gap: 4px; align-items: center; font: 700 12.5px/1.2 var(--body); color: var(--muted); }
+.back { font: 700 15px/1 var(--body); color: var(--accent); }
+.av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); }
+.av.J { background: var(--blue); } .av.M { background: var(--coral); } .av.A { background: var(--ochre); } .av.R { background: var(--sage); } .av.N { background: #8B6FA8; }
+.av.sm { width: 24px; height: 24px; font-size: 11px; }
+.av.lg { width: 52px; height: 52px; font-size: 20px; }
+.card { background: var(--surface); border-radius: 20px; padding: 14px; display: grid; gap: 10px; box-shadow: 0 1px 2px rgba(60,40,20,.06); }
+.card.warm { background: linear-gradient(160deg, #FBE9DC, var(--surface) 60%); }
+.sc.dark .card.warm { background: linear-gradient(160deg, #3A2A20, var(--surface) 60%); }
+.ch { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ch b { font: 600 17px/1.2 var(--display); }
+.ch span { font: 700 12px/1.2 var(--body); color: var(--muted); }
+.pet { display: flex; gap: 10px; align-items: center; }
+.face { width: 46px; height: 46px; border-radius: 50%; background: #F3D9BE; display: grid; place-items: center; font-size: 26px; flex: none; }
+.face.sm { width: 34px; height: 34px; font-size: 19px; }
+.face.plant { background: #DCEBD8; }
+.face.cat { background: #E6E0F0; }
+.pet b { font: 600 20px/1.1 var(--display); display: block; }
+.pet small { font: 600 12.5px/1.3 var(--body); color: var(--muted); }
+.slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.slot { border-radius: 14px; padding: 8px 10px; font: 700 12.5px/1.25 var(--body); border: 2px dashed var(--line); display: flex; gap: 8px; align-items: center; }
+.slot small { display: block; color: var(--muted); font-weight: 600; }
+.slot.done { border: 0; background: var(--good-soft); }
+.slot.due { border-color: var(--accent); }
+.btn { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 16px/1 var(--body); padding: 14px 16px; width: 100%; text-align: center; display: block; }
+.btn.good { background: var(--good); }
+.btn.ghost { background: var(--surface2); color: var(--ink); }
+.btn.line { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.btn.sm { font-size: 13.5px; padding: 10px 12px; }
+.btn.off { opacity: .45; }
+.withrow { display: flex; gap: 6px; align-items: center; font: 600 12.5px/1.2 var(--body); color: var(--muted); flex-wrap: wrap; }
+.pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px 4px 4px; display: inline-flex; gap: 5px; align-items: center; font: 700 12.5px/1 var(--body); color: var(--ink); }
+.pill.np { padding: 7px 11px; }
+.pill.on { border-color: var(--accent); background: #FDF1EA; }
+.sc.dark .pill.on { background: var(--accent-soft); }
+.pill.dark { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.row { display: flex; gap: 10px; align-items: center; padding: 7px 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.box { width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--accent); flex: none; display: grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); }
+.box.on { background: var(--good); border-color: var(--good); }
+.tx { flex: 1; min-width: 0; font: 700 14px/1.25 var(--body); }
+.tx small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); }
+.row.done .tx b { text-decoration: line-through; color: var(--muted); }
+.star { font: 800 11.5px/1 var(--body); background: var(--surface2); border-radius: 999px; padding: 5px 8px; color: var(--muted); }
+.take { border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 6px 10px; font: 800 12px/1 var(--body); white-space: nowrap; }
+.take.mine { background: var(--accent-soft); border-color: transparent; }
+.time { width: 46px; font: 700 12px/1.2 var(--body); color: var(--muted); flex: none; }
+.chev { color: var(--muted); font: 700 16px/1 var(--body); }
+.seg { display: grid; grid-auto-flow: column; background: var(--surface2); border-radius: 12px; padding: 3px; }
+.seg span { text-align: center; font: 700 13px/1 var(--body); padding: 8px 4px; border-radius: 9px; color: var(--muted); }
+.seg span.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.field { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 11px 12px; font: 600 15px/1.2 var(--body); color: var(--ink); }
+.field.ph-t { color: var(--muted); }
+.label { font: 800 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.list { background: var(--surface); border-radius: 16px; padding: 2px 14px; }
+.list .row { padding: 11px 0; }
+.thumb { width: 34px; height: 34px; border-radius: 6px; flex: none; box-shadow: 0 1px 3px rgba(0,0,0,.18); border: 3px solid #fff; }
+.toast { position: absolute; left: 14px; right: 14px; top: 60px; background: #2A2420; color: #FFFCF6; border-radius: 16px; padding: 12px 14px; font: 700 13.5px/1.3 var(--body); z-index: 8; display: flex; gap: 10px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.toast small { display: block; color: #D8CDBF; font-weight: 600; font-size: 12px; }
+.toast em { margin-left: auto; font-style: normal; color: #F2B59A; font: 800 13px/1 var(--body); }
+.banner { border-radius: 14px; padding: 10px 12px; font: 700 13px/1.35 var(--body); display: flex; gap: 10px; align-items: center; }
+.banner small { display: block; font-weight: 600; font-size: 12px; opacity: .85; }
+.banner.warn { background: var(--warn-soft); color: #7A5214; }
+.banner.info { background: var(--surface2); color: var(--ink); }
+.banner.good { background: var(--good-soft); color: #2F6343; }
+.banner em { margin-left: auto; font-style: normal; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.scrim { position: absolute; inset: 0; background: rgba(30,24,20,.38); z-index: 6; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 26px 26px 0 0; padding: 10px 18px 34px; display: grid; gap: 12px; z-index: 7; box-shadow: 0 -10px 30px rgba(0,0,0,.18); }
+.sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; display: block; }
+.sheet h4 { margin: 0; font: 600 22px/1.2 var(--display); }
+.sheet p { font-size: 14px; color: var(--muted); }
+.center { display: grid; gap: 12px; justify-items: center; text-align: center; }
+.center h4 { margin: 0; font: 600 26px/1.2 var(--display); }
+.center p { font-size: 14.5px; color: var(--muted); max-width: 30ch; }
+.big-emoji { font-size: 46px; line-height: 1; }
+.dots { display: flex; gap: 6px; justify-content: center; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.dots i.on { background: var(--accent); }
+.choice { display: flex; gap: 12px; align-items: center; border: 2px solid var(--line); background: var(--surface); border-radius: 18px; padding: 12px 14px; font: 700 15.5px/1.2 var(--body); text-align: left; }
+.choice small { display: block; font-size: 12.5px; color: var(--muted); font-weight: 600; margin-top: 3px; }
+.choice.on { border-color: var(--accent); background: #FDF1EA; }
+.choice.dim { opacity: .55; }
+.choice .chev { margin-left: auto; }
+.prog { height: 8px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.prog.o i { background: var(--ochre); }
+.grid7 { display: grid; grid-template-columns: 38px repeat(7, 1fr); gap: 4px; align-items: center; font: 700 10.5px/1 var(--body); color: var(--muted); text-align: center; }
+.mini { aspect-ratio: 1; border-radius: 3px; background: #fff; padding: 2px; box-shadow: 0 1px 3px rgba(60,40,20,.15); }
+.mini i { display: block; width: 100%; height: 100%; }
+.mini.empty { background: transparent; box-shadow: none; border: 1.5px dashed var(--line); }
+.pol { background: #fff; padding: 10px 10px 40px; box-shadow: 0 6px 18px rgba(60,40,20,.16); border-radius: 3px; position: relative; }
+.pol .shot { aspect-ratio: 1; }
+.pol .capt { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font: 600 24px/1 var(--hand); color: #5b4c40; }
+.shutter { width: 66px; height: 66px; border-radius: 50%; border: 4px solid var(--ink); display: grid; place-items: center; margin: 0 auto; }
+.shutter i { width: 50px; height: 50px; border-radius: 50%; background: var(--accent); display: block; }
+.food1 { background: radial-gradient(circle at 48% 50%, #F2D49B 0 20%, #D99A57 21% 30%, #7E5434 31% 34%, #F1E7D7 35% 62%, #CDB99B 63%); }
+.food2 { background: radial-gradient(circle at 50% 50%, #E9C77B 0 26%, #B5763D 27% 34%, #F3ECE0 35% 62%, #9FB7C4 63%); }
+.food3 { background: radial-gradient(circle at 50% 50%, #9DBE7C 0 20%, #E06C4A 21% 27%, #F3ECE0 28% 60%, #E8D8B8 61%); }
+.food4 { background: radial-gradient(circle at 50% 50%, #F0B66A 0 24%, #fff 25% 60%, #C9A27E 61%); }
+.ring { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 800 9.5px/1 var(--body); color: #fff; margin: 0 auto; }
+.ring.e { border: 1.5px dashed var(--line); }
+.lamp { width: 112px; height: 112px; border-radius: 50%; background: radial-gradient(circle, #FFE3A6 0 24%, rgba(255,210,140,.55) 25% 45%, rgba(255,210,140,0) 70%); display: grid; place-items: center; font-size: 32px; justify-self: center; }
+.bignum { font: 600 42px/1 var(--display); text-align: center; }
+.fam { display: grid; gap: 8px; }
+.fam div { display: flex; gap: 8px; align-items: center; font: 700 13.5px/1 var(--body); }
+.fam div .prog { flex: 1; }
+.kb { position: absolute; left: 0; right: 0; bottom: 0; height: 250px; background: #D7D2CB; z-index: 7; display: grid; grid-template-rows: repeat(4, 1fr); gap: 8px; padding: 10px 4px 34px; }
+.kb div { display: flex; gap: 5px; justify-content: center; }
+.kb i { background: #fff; border-radius: 5px; width: 32px; box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pad span { background: var(--surface2); border-radius: 12px; padding: 11px 0; text-align: center; font: 700 18px/1 var(--body); }
+.sugg { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Lock and home screens */
+.lock { flex: 1; background: linear-gradient(170deg, #3B4A63, #7D6B83 55%, #D69A7B); color: #fff; display: grid; align-content: start; gap: 10px; padding: 56px 14px 20px; position: relative; }
+.lock .clock { text-align: center; font: 600 76px/1 var(--display); letter-spacing: -0.02em; }
+.lock .date { text-align: center; font: 700 15px/1 var(--body); opacity: .9; }
+.lws { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+.lw { background: rgba(255,255,255,.18); border-radius: 16px; padding: 8px 10px; font: 700 11.5px/1.3 var(--body); min-width: 104px; }
+.lw b { display: block; font-size: 13.5px; }
+.lw.round { min-width: 0; width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; text-align: center; padding: 0; font-size: 10px; }
+.notif { background: rgba(255,252,246,.94); color: #2A2420; border-radius: 20px; padding: 12px 14px; display: grid; gap: 8px; }
+.notif .top { display: flex; gap: 8px; align-items: center; font: 700 12px/1 var(--body); color: #867A6E; }
+.notif .top i { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; font-style: normal; font-size: 12px; color: #fff; }
+.notif .top span { margin-left: auto; }
+.notif b { font: 700 14.5px/1.3 var(--body); }
+.notif p { font-size: 13.5px; line-height: 1.35; }
+.nacts { display: grid; gap: 6px; }
+.nacts span { background: rgba(255,252,246,.94); color: #2A2420; border-radius: 14px; padding: 12px; font: 700 14px/1 var(--body); text-align: center; }
+.nacts span.p { color: var(--accent); }
+.hs { flex: 1; background: linear-gradient(165deg, #C9B39A, #9C8A9E 60%, #6E7C93); padding: 60px 18px 20px; display: grid; gap: 18px; align-content: start; position: relative; }
+.wid { background: #FFFCF6; color: #2A2420; border-radius: 22px; padding: 12px; display: grid; gap: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.wid b { font: 600 15px/1.1 var(--display); }
+.wid small { font: 600 11.5px/1.3 var(--body); color: #867A6E; }
+.wid .btn { font-size: 13px; padding: 9px; }
+.icons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 12px; }
+.icons span { aspect-ratio: 1; border-radius: 15px; background: rgba(255,255,255,.35); display: grid; place-items: center; font-size: 26px; }
+.icons span.app { background: var(--accent); }
+.island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); background: #000; border-radius: 22px; z-index: 10; color: #fff; display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 36px; font: 700 13px/1 var(--body); }
+.siri { position: absolute; left: 12px; right: 12px; bottom: 30px; background: rgba(30,26,24,.88); color: #fff; border-radius: 28px; padding: 14px 16px; display: grid; gap: 8px; z-index: 6; }
+.siri .orb { width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(#E46F9C, #7C7BEA, #49C6E5, #E5A649, #E46F9C); }
+.msgs { flex: 1; display: grid; align-content: end; gap: 8px; padding: 0 12px 16px; }
+.bub { max-width: 78%; border-radius: 18px; padding: 9px 12px; font: 500 14.5px/1.3 var(--body); }
+.bub.in { background: #E9E5DF; justify-self: start; }
+.bub.out { background: #3E86F7; color: #fff; justify-self: end; }
+.linkcard { justify-self: start; width: 240px; border-radius: 18px; overflow: hidden; background: #E9E5DF; }
+.linkcard .img { height: 110px; background: linear-gradient(160deg, #FBE9DC, #F5EFE4); display: grid; place-items: center; font-size: 40px; }
+.linkcard div:last-child { padding: 8px 12px; font: 700 13.5px/1.3 var(--body); }
+.linkcard small { display: block; color: #867A6E; font-weight: 600; font-size: 12px; }
+
+/* ============ Wall frame (1112 x 834, sized with container units) ============ */
+.wl { width: 600px; max-width: 80vw; aspect-ratio: 1112 / 834; background: #2b2724; border-radius: 30px; padding: 10px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.ws-sc { width: 100%; height: 100%; border-radius: 22px; background: var(--paper); overflow: hidden; display: grid; grid-template-columns: 7% 1fr; position: relative; container-type: inline-size; color: var(--ink); }
+.wrail { background: var(--rail); display: grid; align-content: start; justify-items: center; gap: 1.5cqw; padding-top: 1.6cqw; }
+.wrail i { width: 3.4cqw; height: 3.4cqw; border-radius: 1cqw; background: var(--surface2); display: block; font-style: normal; font-size: 1.8cqw; text-align: center; line-height: 3.4cqw; }
+.wrail i.home { background: var(--accent); }
+.wrail i.on { background: var(--surface); box-shadow: 0 0 0 .2cqw var(--line); }
+.wmain { padding: 2cqw 2.2cqw; display: grid; grid-template-rows: auto 1fr; gap: 1.6cqw; min-width: 0; min-height: 0; }
+.whead { display: flex; align-items: baseline; gap: 2cqw; }
+.whead b { font: 600 6cqw/1 var(--display); letter-spacing: -0.02em; }
+.whead b.t { font-size: 4cqw; }
+.whead span { font: 600 2cqw/1.2 var(--display); }
+.whead span small { display: block; font: 600 1.4cqw/1.3 var(--body); color: var(--muted); }
+.whead .ppl { margin-left: auto; display: flex; }
+.whead .ppl .av { width: 3.6cqw; height: 3.6cqw; font-size: 1.5cqw; border: .25cqw solid var(--paper); }
+.whead .ppl .av + .av { margin-left: -.8cqw; }
+.wgrid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 1.6cqw; min-height: 0; }
+.wcard { background: var(--surface); border-radius: 1.8cqw; padding: 1.6cqw 1.8cqw; display: grid; gap: 1cqw; align-content: start; min-height: 0; overflow: hidden; }
+.wcard .ch b { font-size: 2.1cqw; }
+.wcard .ch span { font-size: 1.2cqw; }
+.wrow { display: grid; grid-template-columns: 5cqw 1fr auto; gap: 1cqw; align-items: center; background: var(--paper); border-radius: 1.2cqw; padding: .8cqw 1cqw; font: 700 1.45cqw/1.25 var(--body); }
+.wrow.two { grid-template-columns: 1fr auto; }
+.wrow small { display: block; font-weight: 600; font-size: 1.15cqw; color: var(--muted); }
+.wrow .tm { font: 700 1.3cqw/1 var(--body); color: var(--muted); }
+.wrow .av { width: 2.6cqw; height: 2.6cqw; font-size: 1.1cqw; }
+.wrow.new { background: #FCEBDD; box-shadow: inset 0 0 0 .2cqw var(--accent); }
+.via { display: inline-flex; font: 700 1.05cqw/1 var(--body); color: var(--accent); background: var(--surface); border-radius: 999px; padding: .3cqw .7cqw; margin-left: .5cqw; vertical-align: .1cqw; }
+.nowl { display: flex; align-items: center; gap: 1cqw; font: 800 1.15cqw/1 var(--body); color: var(--accent); }
+.nowl i { flex: 1; height: .2cqw; background: var(--accent); }
+.wpet { display: flex; gap: 1.2cqw; align-items: center; }
+.wpet .face { width: 6cqw; height: 6cqw; font-size: 3.4cqw; }
+.wpet b { font: 600 2.8cqw/1 var(--display); display: block; }
+.wpet small { font: 600 1.4cqw/1.4 var(--body); color: var(--muted); }
+.wslots { display: grid; grid-template-columns: 1fr 1fr; gap: 1cqw; }
+.wslot { border: .2cqw dashed var(--line); border-radius: 1.2cqw; padding: .9cqw 1.1cqw; font: 700 1.4cqw/1.3 var(--body); display: flex; gap: .8cqw; align-items: center; }
+.wslot small { display: block; color: var(--muted); font-weight: 600; font-size: 1.15cqw; }
+.wslot.done { background: var(--good-soft); border-color: transparent; }
+.wslot.fresh { box-shadow: 0 0 0 .3cqw rgba(217,101,59,.35); }
+.wslot .av { width: 2.4cqw; height: 2.4cqw; font-size: 1cqw; }
+.wbtn { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 1.6cqw/1 var(--body); padding: 1.2cqw 2cqw; justify-self: start; display: inline-block; }
+.wbtn.ghost { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 .15cqw var(--line); }
+.wbtn.red { background: #B54A3A; }
+.wtoast { position: absolute; top: 1.6cqw; left: 50%; transform: translateX(-50%); background: #2A2420; color: #FFFCF6; border-radius: 999px; padding: 1cqw 1.8cqw; font: 700 1.5cqw/1 var(--body); display: flex; gap: 1cqw; align-items: center; white-space: nowrap; z-index: 4; }
+.wtoast .av { width: 2.6cqw; height: 2.6cqw; font-size: 1.1cqw; }
+.wscrim { position: absolute; inset: 0; background: rgba(42,36,32,.32); display: grid; place-items: center; z-index: 5; }
+.wsheet { width: 50cqw; background: var(--surface); border-radius: 2.4cqw; padding: 2.4cqw; display: grid; gap: 1.5cqw; box-shadow: 0 2cqw 5cqw rgba(40,25,10,.25); }
+.wsheet h4 { margin: 0; font: 600 2.8cqw/1.15 var(--display); }
+.wsheet .lab { font: 800 1.1cqw/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.wsheet p { font-size: 1.45cqw; line-height: 1.4; color: var(--muted); }
+.wsheet .btns { display: flex; gap: 1cqw; flex-wrap: wrap; }
+.wopt { border: .2cqw solid var(--line); border-radius: 1.6cqw; padding: 1.4cqw 1.6cqw; display: grid; gap: .5cqw; font: 700 1.7cqw/1.2 var(--body); }
+.wopt small { display: block; font: 600 1.3cqw/1.35 var(--body); color: var(--muted); }
+.wopt.on { border-color: var(--accent); background: #FDF1EA; }
+.wonb { grid-column: 1 / -1; display: grid; place-items: center; padding: 3cqw; }
+.wonb .in { width: 62cqw; display: grid; gap: 1.8cqw; }
+.wonb h4 { margin: 0; font: 600 3.6cqw/1.15 var(--display); }
+.wonb p { font-size: 1.6cqw; line-height: 1.45; color: var(--muted); }
+.settingsgrid { display: grid; grid-template-columns: 1fr 22cqw; gap: 2cqw; align-items: start; }
+.prow { display: grid; grid-template-columns: 3.6cqw 1fr auto; gap: 1.2cqw; align-items: center; padding: 1cqw 0; border-top: 1px solid var(--line); font: 700 1.55cqw/1.25 var(--body); }
+.prow:first-of-type { border-top: 0; }
+.prow small { display: block; font: 600 1.2cqw/1.3 var(--body); color: var(--muted); }
+.prow .av { width: 3.6cqw; height: 3.6cqw; font-size: 1.4cqw; }
+.stat { font: 800 1.15cqw/1 var(--body); border-radius: 999px; padding: .6cqw 1cqw; background: var(--good-soft); color: #3F7A55; white-space: nowrap; }
+.stat.wait { background: var(--accent-soft); color: var(--accent); }
+.stat.wall { background: var(--surface2); color: var(--muted); }
+.qr { background: #fff; border-radius: 1.6cqw; padding: 1.4cqw; display: grid; gap: 1cqw; justify-items: center; text-align: center; box-shadow: 0 .4cqw 1.4cqw rgba(60,40,20,.1); }
+.qr canvas { width: 15cqw; height: 15cqw; image-rendering: pixelated; }
+.qr b { font: 600 1.7cqw/1.2 var(--display); }
+.qr small { font: 600 1.15cqw/1.35 var(--body); color: var(--muted); }
+.wmeter { display: flex; height: 1.1cqw; border-radius: .6cqw; overflow: hidden; background: var(--rail); }
+.wmeter i { display: block; height: 100%; }
+.confetti { position: absolute; inset: 0; pointer-events: none; z-index: 3; background:
+  radial-gradient(circle at 12% 18%, var(--accent) 0 .5cqw, transparent .55cqw), radial-gradient(circle at 28% 9%, var(--ochre) 0 .45cqw, transparent .5cqw),
+  radial-gradient(circle at 70% 12%, var(--blue) 0 .5cqw, transparent .55cqw), radial-gradient(circle at 86% 22%, var(--coral) 0 .45cqw, transparent .5cqw),
+  radial-gradient(circle at 52% 6%, var(--sage) 0 .45cqw, transparent .5cqw), radial-gradient(circle at 92% 8%, var(--ochre) 0 .4cqw, transparent .45cqw); }
+
+/* Breakdown */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+th { font: 800 11.5px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 800; }
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .flow { grid-template-columns: minmax(0, 1fr); } }
+.step { background: var(--surface); border-radius: 18px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; border-top: 4px solid var(--line); }
+.step.s0 { border-top-color: var(--muted); } .step.s1 { border-top-color: var(--accent); } .step.s2 { border-top-color: var(--good); } .step.s3 { border-top-color: var(--ochre); }
+.step b { font: 600 17px/1.25 var(--display); }
+.step p, .step ul { font-size: 14px; color: var(--muted); }
+.rec { color: var(--good); font-weight: 800; }
+</style>
+
+<div class="page">
+
+<header style="display:grid;gap:14px">
+  <div class="eyebrow">Porchlight · Companion UX atlas · Nov 15, 2026 · for review</div>
+  <h1>Every screen of the phone companion, journey by journey</h1>
+  <p class="lede">This is the full experience for the iPhone companion and the wall changes that come with it, laid out so the work can be split.
+  Each journey has an id, a workstream and a milestone, a storyboard you read left to right, the states it has to handle, and what "done" means.</p>
+  <p class="note">It builds on the companion proposal (roles, iCloud sync, storage) and stays generic: nothing assumes a wall iPad, our family or a dog.
+  Frames scroll sideways inside each journey. Sample people are James and Mia (parents with iPhones), Ava (a kid without a phone) and Yo-Yo the toy poodle, in a household called The Lake House.</p>
+</header>
+
+<!-- ======================= MODEL ======================= -->
+<section>
+  <div class="eyebrow">The model</div>
+  <h2>Five words carry the whole experience</h2>
+  <div class="tiles">
+    <div class="tile"><span class="k">Household</span><b>What gets shared</b><p>One family's walks, meals, chores, lists and stars. Lives in the creator's iCloud. Someone can be in more than one.</p></div>
+    <div class="tile"><span class="k">Person</span><b>Someone in the household</b><p>Has a name and a color, and is credited for what they do. Kids and grandparents can be people without ever installing the app.</p></div>
+    <div class="tile"><span class="k">Member</span><b>A person who joined from their own Apple ID</b><p>Links an iCloud account to a person. Members can log from their phones, get reminders and be reminded.</p></div>
+    <div class="tile"><span class="k">Device role</span><b>Shared screen or personal</b><p>A shared screen asks "who did it?". A personal device credits its member. A setting, never inferred from iPad versus iPhone.</p></div>
+    <div class="tile"><span class="k">Owner</span><b>The member whose iCloud holds it</b><p>Usually whoever created it. Shown, never assumed by the data, so a future handoff needs no schema change.</p></div>
+  </div>
+  <div class="model" aria-label="How households, people, members and devices relate">
+    <div class="mrow"><span>Household</span><div class="items"><div class="node root">🏡 The Lake House<small>stored in James's iCloud · owner James</small></div></div></div>
+    <div class="mrow"><span>People</span><div class="items">
+      <div class="node"><span class="av sm J">J</span>James<small>member</small></div>
+      <div class="node"><span class="av sm M">M</span>Mia<small>member</small></div>
+      <div class="node dash"><span class="av sm A">A</span>Ava<small>person only, uses the wall</small></div>
+      <div class="node dash"><span class="av sm R">R</span>Grandma Rosa<small>invited, not joined yet</small></div>
+    </div></div>
+    <div class="mrow"><span>Devices</span><div class="items">
+      <div class="node">📱 James's iPhone<small>personal · credits James</small></div>
+      <div class="node">📱 Mia's iPhone<small>personal · credits Mia</small></div>
+      <div class="node">🖼️ Hallway iPad<small>shared screen · asks who</small></div>
+    </div></div>
+    <div class="mrow"><span>Also</span><div class="items">
+      <div class="node">🐶 Yo-Yo · companions</div><div class="node">☑️ Chores · rewards · stars</div><div class="node">🍜 Meals · photos</div><div class="node">📝 Lists · meal plan</div><div class="node dash">📅 Calendars stay per device, mapped to people</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ======================= NAV ======================= -->
+<section>
+  <div class="eyebrow">Navigation</div>
+  <h2>Four tabs in the pocket, the same rail on the wall</h2>
+  <div class="maps">
+    <div class="map">
+      <h3>iPhone, personal</h3>
+      <ol>
+        <li><b>Today</b> - care due now, your chores, what anyone can take, today's agenda.
+          <ul><li>Companion week, Pitch in (full list), Next 7 days</li></ul></li>
+        <li><b>Food</b> - snap a meal, this week's plates, an entry's page.</li>
+        <li><b>Lists</b> - groceries and other lists, this week's dinners.</li>
+        <li><b>Glow</b> - your stars, the family goal, cash in.</li>
+        <li><b>You</b> (avatar, top right on every tab) - who you are, households, invite, notifications, calendars, storage, household setup, leave.</li>
+      </ol>
+    </div>
+    <div class="map">
+      <h3>iPad, shared screen (the wall)</h3>
+      <ol>
+        <li>Today, Calendar, each companion, Food, Pitch in, Glow, Lists, Photos: as today.</li>
+        <li>Settings, which gains:
+          <ul><li><b>Family &amp; devices</b> <span class="new">new</span>: members, invite QR, this device's role</li>
+          <li><b>iCloud storage</b> <span class="new">new</span>: meter and guidance</li></ul></li>
+        <li>New behavior on existing screens: "from Mia's phone" tags, Remind someone, cash-in celebrations.</li>
+      </ol>
+    </div>
+    <div class="map">
+      <h3>iPad, personal</h3>
+      <ol>
+        <li>The wall layout and rail, but credited to its member like a phone, with no "who did it?" step.</li>
+        <li>No kiosk, night or ambient mode by default.</li>
+        <li>Gets the same You menu as the phone, under Settings.</li>
+      </ol>
+      <p class="note">This falls out of "role is a setting" and needs no screens of its own.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= RULES ======================= -->
+<section>
+  <div class="eyebrow">Experience rules</div>
+  <h2>What every screen follows</h2>
+  <div class="rules">
+    <div><span>1</span><span><b>A personal device never asks who did it.</b> It credits its member and offers "also went" for anyone who joined in.</span></div>
+    <div><span>2</span><span><b>One tap, then undo.</b> Logging is a single tap with a short undo toast, never a confirmation dialog. Details are optional and come after.</span></div>
+    <div><span>3</span><span><b>Buzz only on purpose.</b> Notifications come only for your own routines and for someone asking you. Never for someone else's activity, never as a badge count.</span></div>
+    <div><span>4</span><span><b>Everything works offline.</b> Nothing shows a spinner for sync. Sync shows up only when it has been stuck long enough to matter, in plain words with one fix.</span></div>
+    <div><span>5</span><span><b>Same words, same pieces, everywhere.</b> A walk is called a walk on the wall, the phone, the notification, the widget and Siri. The phone reuses the wall's components (the time pill and number pad, polaroids, repeat picker) at phone size.</span></div>
+    <div><span>6</span><span><b>Any device can set things up.</b> People, companions, chores, rewards and lists can be edited from any member's device, with the same editors as sheets. A phone-only family must lack nothing.</span></div>
+    <div><span>7</span><span><b>Kids stay simple.</b> No PINs, no approval queues. Kids pitch in on a shared screen, and a kid with their own phone joins as a member like anyone else.</span></div>
+    <div><span>8</span><span><b>Accessible by default.</b> Dynamic Type to the largest accessibility size without truncating actions, VoiceOver labels that read the result ("Log Yo-Yo's evening walk"), 44 pt targets, and a night look that follows the system.</span></div>
+    <div><span>9</span><span><b>The household keeps one clock.</b> Days, routine windows and streaks follow the household's home time zone, so a parent who is traveling still sees home's Tuesday and two devices never disagree about which day a walk belongs to.</span></div>
+    <div><span>10</span><span><b>Never confidently out of date.</b> A notification, widget or Siri action checks the latest state before it logs. If someone already did it, it says so ("Mia walked Yo-Yo at 5:40") and offers "I went too" instead of adding a second walk.</span></div>
+  </div>
+</section>
+
+<!-- ======================= JOURNEYS ======================= -->
+<section>
+  <div class="eyebrow">Journeys</div>
+  <h2>Six workstreams, thirty journeys</h2>
+  <p class="note">Each journey is tagged with the milestone it ships in, <span class="ph-tag">M1</span> to <span class="ph-tag">M5</span>, or <span class="ph-tag p2">Later</span>. The delivery plan at the end says what each milestone has to prove.</p>
+  <div class="index" id="index"></div>
+  <div class="filters" id="filters" role="group" aria-label="Show workstream"></div>
+  <div id="journeys" style="display:grid;gap:44px"></div>
+</section>
+
+<!-- ======================= BREAKDOWN ======================= -->
+<section>
+  <div class="eyebrow">Divide and conquer</div>
+  <h2>Delivery plan: six milestones, each proven at home before the next</h2>
+  <p class="note">Sync is the risk and the screens are not, so the plan gets two real devices syncing as early as possible and widens from there. Every milestone ships to our own household and has to pass its gate before the next one starts. Each journey above carries its milestone tag.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th style="width:17%">Milestone</th><th style="width:27%">What ships</th><th style="width:16%">Journeys</th><th>Gate to pass</th></tr></thead>
+    <tbody>
+      <tr><td><b>M0 · Sync-ready data</b><br>Wall only, nothing visible</td><td>UUID ids under one household, the home time zone, photos and Pencil pages in their own tables, the database moved to where widgets can reach it. iCloud stays off.</td><td>None</td><td>The migration is run on a copy of the wall's real data and every row and link is compared. All tests pass. The wall's idle CPU is unchanged. A backup of the wall is on the Mac before it installs.</td></tr>
+      <tr><td><b>M1 · iCloud on</b><br>Wall only</td><td>The household syncs to its owner's iCloud, with a switch to turn sync off. Device role, sync status and the paused state.</td><td>A1, D3</td><td>A wiped device signed in to the same Apple ID gets the whole household back. Three days on the wall with no sync error.</td></tr>
+      <tr><td><b>M2 · First phones</b><br>The core loop</td><td>The iPhone shell and phone kit, invite and join, Today, one-tap care logging, the "from a phone" tags, the You menu and failure banners.</td><td>A3, A4, B1, B2, D1, D2, E1, E5</td><td>Two parents use it for a week. A phone log shows on the wall within 5 seconds on Wi-Fi. Nothing lost or doubled, including logs made offline.</td></tr>
+      <tr><td><b>M3 · Every day</b></td><td>The other tabs and reminders: companion week, Pitch in, Food, Lists, Glow, the agenda, routine reminders and their settings.</td><td>B3 to B8, C1, E2, E3</td><td>A second week of family use. Reminders arrive only for your own routines. Phone screens are covered by UI tests.</td></tr>
+      <tr><td><b>M4 · Beyond the app, setup anywhere</b></td><td>Widgets, Siri and Shortcuts, household setup from a phone, starting a household on an iPhone, storage, leaving and removing.</td><td>C3, C4, F1, F2, A2, A6, E4</td><td>A household is created and fully set up on an iPhone alone. A widget log reaches the wall without opening the app.</td></tr>
+      <tr><td><b>M5 · Any household</b></td><td>Belonging to several households, and everything a release outside our family needs.</td><td>A5</td><td>A second test household under different Apple IDs never mixes with ours. The release checklist is complete.</td></tr>
+      <tr><td><b>Later</b></td><td>Ask someone from the wall, the walk timer, a Control Center control, photos sent to the frame.</td><td>C2, D4, C5</td><td>Decided after living with M5.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Proven before the design depends on it</h3>
+  <p class="note">Five small experiments run during M0 and M1. Each answers a question the journeys take for granted, and each has a fallback.</p>
+  <div class="rules">
+    <div><span>S1</span><span><b>A widget or Siri log reaches iCloud without opening the app.</b> Widgets run in their own process. If sync can't run there, the log is saved at once and sent when the app next wakes, and the widget says so.</span></div>
+    <div><span>S2</span><span><b>Invites and removal.</b> Whether a QR code can be a link that works only while the invite screen is open, and that removing someone really ends their access. If not, invites go to named people only.</span></div>
+    <div><span>S3</span><span><b>The new Xcode still serves the wall.</b> It must build for iPadOS 17 and install on the 2017 iPad Pro. If not, the sync library is pinned to the release this Xcode supports.</span></div>
+    <div><span>S4</span><span><b>Cable installs and TestFlight installs share one iCloud.</b> Apple keeps development and production data apart, so the wall and the phones must be on the same side.</span></div>
+    <div><span>S5</span><span><b>One Apple ID, two roles.</b> The owner's phone and a shared wall signed in to the same Apple ID must behave as one member with two devices.</span></div>
+  </div>
+  <h3>Keeping the wall safe while we build</h3>
+  <div class="rules">
+    <div><span>1</span><span><b>Back up before every install.</b> The deploy script copies the wall's data to the Mac first, and the M0 migration keeps the old database on the iPad until M1 passes.</span></div>
+    <div><span>2</span><span><b>Sync has an off switch.</b> M0 changes the data with iCloud off, and M1 turns it on behind a setting, so a sync problem never takes the wall down.</span></div>
+    <div><span>3</span><span><b>The wall never waits on a phone.</b> Every milestone leaves the wall fully working on its own.</span></div>
+  </div>
+  <h3>Who builds what</h3>
+  <p class="note">Each workstream owns its screens and is built in its own branch. Within a milestone, workstreams that don't share files run in parallel.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th style="width:17%">Workstream</th><th style="width:22%">Journeys</th><th style="width:25%">Builds</th><th style="width:20%">Depends on</th><th>Reuses from the wall</th></tr></thead>
+    <tbody>
+      <tr><td><b>Phone kit</b> (foundation)</td><td>All</td><td>PersonAvatar, CareButton and slots, ChoreRow, Polaroid, StatusBanner, UndoToast, phone sheet container, night palette tokens</td><td>Theme.swift</td><td>Theme, fonts, avatar colors, polaroid frame, time pill and number pad, repeat picker</td></tr>
+      <tr><td><b>A · Households &amp; joining</b></td><td>A1 to A6</td><td>Create flow (iPad step, iPhone flow), invite sheet and QR, join flow, first-sync progress, household switcher, leave and remove</td><td>M1 sync, member model</td><td>Onboarding steps, people editor</td></tr>
+      <tr><td><b>B · Phone every day</b></td><td>B1 to B8</td><td>Today, care sheet and catch-up, companion week, Pitch in, Food capture and week, Lists, Glow and cash in, agenda</td><td>Phone kit, A4 (a joined phone)</td><td>CompanionStore, HomeStore, FoodStore, CareLogSheet logic, FoodCapture, Recurrence</td></tr>
+      <tr><td><b>C · Beyond the app</b></td><td>C1 to C5</td><td>Local routine reminders, notification actions, widgets, App Intents for Siri and Shortcuts, Live Activity and remote "remind" (both later)</td><td>B2 logging intents</td><td>CompanionLogic windows and slots</td></tr>
+      <tr><td><b>D · The wall</b></td><td>D1 to D4</td><td>"from a phone" tags and toast, Family &amp; devices settings, Remind someone sheet, cash-in celebration</td><td>A3 (invites), member model</td><td>WallView, TodayView, SettingsView, GlowViews</td></tr>
+      <tr><td><b>E · Settings, sync &amp; trust</b></td><td>E1 to E5</td><td>You menu, notification preferences, calendar mapping, storage meter, sync and failure states on both devices</td><td>M1 sync status</td><td>CalendarSourcesPanel, SettingsView sections</td></tr>
+      <tr><td><b>F · Setup on any device</b></td><td>F1 to F2</td><td>Household setup hub on the phone; existing editors presented as phone sheets</td><td>Phone kit</td><td>HomeEditors, CompanionEditor, HomeSettingsViews</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Decisions this atlas changes or adds</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th style="width:24%">Question</th><th style="width:40%">Recommendation</th><th>Was</th></tr></thead>
+    <tbody>
+      <tr><td>Where can the household be set up?</td><td><span class="rec">On any member's device</span>, with the wall's editors shown as sheets. A phone-only family needs it, and one set of editors is simpler than two.</td><td>Setup stays on the wall in v1.</td></tr>
+      <tr><td>Where can a reward be cashed in?</td><td><span class="rec">Anywhere.</span> Shared screens in the household celebrate it, so it still feels like a family moment.</td><td>Wall only.</td></tr>
+      <tr><td>Phone in the dark?</td><td><span class="rec">Follow the system night look</span> with a warm dark palette. The wall keeps its single look and its own night mode.</td><td>Not decided.</td></tr>
+      <tr><td>How does a phone learn who you are?</td><td><span class="rec">Pick yourself once when joining</span>, with people who haven't joined listed first and "I'm new here" to add yourself.</td><td>Same, plus the new-person path.</td></tr>
+      <tr><td>Walk timer on the phone?</td><td><span class="rec">Later.</span> A Live Activity that times the walk and logs the duration on end. A natural phone-only feature.</td><td>Not in the proposal.</td></tr>
+      <tr><td>What time zone is a "day"?</td><td><span class="rec">The household's home time zone</span>, set when it is created and changeable in Settings (rule 9).</td><td>Each device's own time zone.</td></tr>
+      <tr><td>A reminder that is out of date?</td><td><span class="rec">Check first, then say what happened</span> (rule 10). iOS can't always withdraw a reminder in time, so the action itself has to be safe.</td><td>Withdrawn on next sync only.</td></tr>
+      <tr><td>In what order does it ship?</td><td><span class="rec">Six milestones with gates</span>, core loop on two real phones first.</td><td>Three phases, most journeys in Phase 1.</td></tr>
+      <tr><td>Siri and Shortcuts?</td><td><span class="rec">With widgets, in M4</span>, since the App Intents behind the widget and notification actions give Siri for free.</td><td>Not in the proposal.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+</div>
+
+<script>
+(() => {
+  /* ---------- Phone building blocks ---------- */
+  const av = (p, c = '') => `<span class="av ${p} ${c}">${p}</span>`;
+  const status = (t = '6:12') => `<div class="notch"></div><div class="status"><span>${t}</span><i>●●●● ▮▮</i></div>`;
+  const tabs = on => `<div class="tabbar">${[['today','🏠','Today'],['food','🍜','Food'],['lists','📝','Lists'],['glow','✨','Glow']].map(([k,i,l]) => `<span class="${k===on?'on':''}"><i>${i}</i>${l}</span>`).join('')}</div>`;
+  const head = (small, title, right = av('J')) => `<div class="phead"><div><small>${small}</small><b>${title}</b></div>${right}</div>`;
+  const P = (body, o = {}) => `<div class="ph"><div class="sc ${o.dark ? 'dark' : ''}">${status(o.t)}<div class="pb">${body}</div>${o.tab ? tabs(o.tab) : ''}${o.over || ''}</div></div>`;
+  const RAW = (inner, o = {}) => `<div class="ph"><div class="sc ${o.dark ? 'dark' : ''}">${inner}</div></div>`;
+  const sheet = html => `<div class="scrim"></div><div class="sheet"><i class="grab"></i>${html}</div>`;
+  const toast = (icon, t, s, act = 'Undo') => `<div class="toast"><span style="font-size:20px">${icon}</span><span>${t}<small>${s}</small></span><em>${act}</em></div>`;
+  const dots = (n, on) => `<div class="dots">${Array.from({length:n}, (_, i) => `<i class="${i===on?'on':''}"></i>`).join('')}</div>`;
+  const row = (left, title, sub, right = '', cls = '') => `<div class="row ${cls}">${left}<div class="tx"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</div>${right}</div>`;
+  const box = on => `<span class="box ${on?'on':''}">${on?'✓':''}</span>`;
+  const listRow = (title, sub, right = '<span class="chev">›</span>', left = '') => row(left, title, sub, right);
+  const petCard = (o = {}) => `<div class="card warm">
+      <div class="pet"><div class="face">🐶</div><div><b>Yo-Yo</b><small>${o.walked ? 'Walked just now by you' : 'Walked 9h ago by Mia'}</small></div><span class="star" style="margin-left:auto">🔥 3-day streak</span></div>
+      <div class="slots"><div class="slot done">${av('M','sm')}<span>Morning<small>8:40 am</small></span></div>${o.walked ? `<div class="slot done">${av('J','sm')}<span>Evening<small>6:12 pm, just now</small></span></div>` : `<div class="slot due"><span>🐾</span><span>Evening<small>5 to 8 pm · open now</small></span></div>`}</div>
+      ${o.walked ? `<span class="btn good">✓ Logged · +1 star</span>` : `<span class="btn">🐾 I walked Yo-Yo</span>`}
+      ${o.walked ? '' : `<div class="withrow">Also went: <span class="pill">${av('M','sm')}Mia</span><span class="pill">${av('A','sm')}Ava</span><span style="margin-left:auto;color:var(--accent);font-weight:800">More…</span></div>`}
+    </div>`;
+  const yours = (o = {}) => `<div class="card"><div class="ch"><b>Yours today</b><span>${o.done ? '2 of 2 done' : '1 of 2 done'}</span></div><div>
+      ${row(box(true), 'Take out recycling', 'Done 7:05 am', '<span class="star">+2</span>', 'done')}
+      ${row(box(o.done), 'Fix the leaky faucet', o.done ? 'Done just now' : 'this weekend', '<span class="star">+3</span>', o.done ? 'done' : '')}
+    </div></div>`;
+  const anyone = (o = {}) => `<div class="card"><div class="ch"><b>Anyone can take</b><span>2 open</span></div><div>
+      ${row('', 'Vacuum the living room', o.took ? 'Yours now · on the wall under your name' : 'this weekend', `<span class="take ${o.took?'mine':''}">${o.took ? 'Yours' : "I'll do it"}</span>`)}
+      ${row('', 'Change the sheets', 'this week', '<span class="take">I\'ll do it</span>')}
+    </div></div>`;
+  const agenda = `<div class="card"><div class="ch"><b>At home today</b><span>Next 7 days ›</span></div><div>
+      ${row('<span class="time">All day</span>', 'Aunt Rosa visiting', 'Sat to Mon')}
+      ${row('<span class="time">10:00</span>', 'Climbing gym', 'James', av('J','sm'))}
+      ${row('<span class="time">7:00</span>', 'Dinner with Rosa', 'Family')}
+    </div></div>`;
+
+  /* ---------- Wall building blocks ---------- */
+  const railIcons = ['🏠','📅','🐶','🍴','☑️','✨','📝','🖼️'];
+  const rail = on => `<div class="wrail"><i class="home"></i>${railIcons.map((x, i) => `<i class="${on===i?'on':''}">${x}</i>`).join('')}<i class="${on==='s'?'on':''}" style="margin-top:2cqw">⚙️</i></div>`;
+  const W = inner => `<div class="wl"><div class="ws-sc">${inner}</div></div>`;
+  const whead = () => `<div class="whead"><b>6:12</b><span>Sunday<small>November 15</small></span><div class="ppl">${av('J')}${av('M')}${av('A')}</div></div>`;
+  const wallToday = (o = {}) => `${rail(0)}<div class="wmain">${whead()}<div class="wgrid">
+      <div class="wcard"><div class="ch"><b>Today</b><span>4 events</span></div>
+        <div class="wrow"><span class="tm">8:40</span><span>Breakfast · Avocado toast<small>Home-cooked · 2 photos</small></span>${av('M')}</div>
+        <div class="wrow"><span class="tm">10:00</span><span>Climbing gym<small>James</small></span>${av('J')}</div>
+        <div class="wrow"><span class="tm">12:30</span><span>Lunch · Pho${o.food ? '<span class="via">from Mia\'s phone</span>' : ''}<small>Delivery · 1 photo</small></span>${av('M')}</div>
+        <div class="nowl">NOW<i></i></div>
+        ${o.walked ? `<div class="wrow new"><span class="tm">6:12</span><span>Evening walk<span class="via">from James's phone</span><small>James and Mia · +1 star</small></span>${av('J')}</div>` : `<div class="wrow" style="background:transparent;box-shadow:inset 0 0 0 .2cqw var(--line)"><span class="tm">~6:30</span><span>Evening walk<small>Usually 5 to 8 pm</small></span><span>🐾</span></div>`}
+        <div class="wrow"><span class="tm">7:00</span><span>Dinner with Rosa<small>Family</small></span><span></span></div>
+      </div>
+      <div style="display:grid;gap:1.6cqw;align-content:start;min-height:0">
+        <div class="wcard" style="background:linear-gradient(160deg,#FBE9DC,var(--surface) 60%)">
+          <div class="wpet"><div class="face">🐶</div><div><b>Yo-Yo</b><small>${o.walked ? 'Walked just now by James' : 'Walked 9h ago'}</small></div></div>
+          <div class="wslots"><div class="wslot done">${av('M')}<span>Morning<small>8:40 am</small></span></div>${o.walked ? `<div class="wslot done fresh">${av('J')}<span>Evening<small>6:12 pm · from a phone</small></span></div>` : `<div class="wslot" style="border-color:var(--accent)"><span>🐾</span><span>Evening<small>5 to 8 pm</small></span></div>`}</div>
+          <div style="display:flex;gap:1cqw;flex-wrap:wrap">${o.walked ? '<span class="wbtn ghost">See the week</span>' : '<span class="wbtn">🐾 I walked Yo-Yo</span><span class="wbtn ghost">Remind someone</span>'}</div>
+        </div>
+        <div class="wcard"><div class="ch"><b>Pitch in</b><span>3 of 5 done</span></div>
+          <div class="wrow two"><span>Fix the leaky faucet<small>${o.walked ? 'Done · from James\'s phone' : 'this weekend'}</small></span>${av('J')}</div>
+          <div class="wrow two"><span>Vacuum the living room<small>${o.walked ? 'James took it · from a phone' : 'Anyone'}</small></span>${o.walked ? av('J') : '<span>♡</span>'}</div>
+        </div>
+      </div>
+    </div></div>`;
+  const settingsShell = (title, sub, body) => `${rail('s')}<div class="wmain"><div class="whead"><b class="t">Settings</b><span>${title}<small>${sub}</small></span></div>${body}</div>`;
+
+  /* ---------- Frames ---------- */
+  const F = {
+    /* A1 */
+    a1role: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 2 of 6</div><h4>How will this iPad be used?</h4><p>You can change this later in Settings.</p></div>
+      <div class="wopt on">🖼️ A shared screen<small>On a wall or a counter. Anyone in the family can tap, so it asks who did something.</small></div>
+      <div class="wopt">🙋 Just me<small>Your own iPad. What you log is credited to you, like on your phone.</small></div>
+      <span class="wbtn">Continue</span></div></div>`),
+    a1cloud: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 6 of 6</div><h4>The Lake House lives in your iCloud</h4>
+      <p>Everyone you invite uses it through your iCloud, so it is backed up and works on their phones. Photos are most of it: a busy family adds about 300 MB a year. Nobody else, including us, can see it.</p></div>
+      <div class="wopt" style="grid-template-columns:auto 1fr;align-items:center;gap:1.4cqw"><span style="font-size:3cqw">☁️</span><span>Signed in as James<small>Use a different Apple ID by changing it in iPad Settings first.</small></span></div>
+      <div style="display:flex;gap:1cqw"><span class="wbtn">Finish</span><span class="wbtn ghost">Invite phones now</span></div></div></div>`),
+    a1signedout: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 6 of 6</div><h4>Keep it on this iPad for now?</h4>
+      <p>This iPad isn't signed in to iCloud, so phones can't join yet and nothing is backed up. Everything works here. Sign in later and Porchlight moves the household into iCloud.</p></div>
+      <div style="display:flex;gap:1cqw"><span class="wbtn">Keep going on this iPad</span><span class="wbtn ghost">Open iPad Settings</span></div></div></div>`),
+    /* A2 */
+    a2welcome: P(`<div class="center" style="padding-top:110px"><div class="big-emoji">🏡</div><h4>Porchlight</h4><p>Your family's day in one place: who walked the dog, what's for dinner, who pitched in.</p></div>
+      <div style="display:grid;gap:10px;margin-top:150px"><span class="btn">Start a household</span><span class="btn ghost">Join one</span><p class="note" style="text-align:center;font-size:12.5px">To join, open the invite someone sent you or scan the code on your family's screen.</p></div>`, {t:'9:41'}),
+    a2you: P(`${dots(4,0)}<div class="center" style="padding-top:8px"><h4>Let's start with you</h4></div>
+      <div class="label">Household name</div><div class="field">The Lake House</div>
+      <div class="label">Your name</div><div class="field">James</div>
+      <div class="label">Your color</div><div style="display:flex;gap:10px">${['var(--blue)','var(--coral)','var(--sage)','var(--ochre)','#8B6FA8','#3E8A8A'].map((c,i)=>`<span style="width:34px;height:34px;border-radius:50%;background:${c};${i===0?'box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)':''}"></span>`).join('')}</div>
+      <div style="margin-top:auto"></div><span class="btn" style="margin-top:150px">Continue</span>`, {t:'9:41'}),
+    a2people: P(`${dots(4,1)}<div class="center" style="padding-top:8px"><h4>Who else lives here?</h4><p>Anyone you'll credit for walks, chores or meals. They don't need the app.</p></div>
+      <div class="list">${listRow('Mia', 'Has an iPhone · invite after setup', `<span class="star">📱</span>`, av('M'))}${listRow('Ava', 'No phone needed · uses a shared screen', '', av('A'))}${row('<span class="av" style="background:var(--surface2);color:var(--accent)">+</span>', 'Add someone', '')}</div>
+      <span class="btn" style="margin-top:170px">Continue</span>`, {t:'9:41'}),
+    a2companion: P(`${dots(4,2)}<div class="center" style="padding-top:8px"><h4>Anyone to look after?</h4><p>Pets, plants, a baby's feeds. Each gets its own routines and reminders.</p></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${[['🐶','Dog',true],['🐱','Cat'],['🪴','Plant'],['🍼','Baby'],['🐠','Fish'],['🐰','Other']].map(([e,l,on])=>`<div class="choice ${on?'on':''}" style="padding:12px"><span style="font-size:24px">${e}</span>${l}</div>`).join('')}</div>
+      <div class="field">Yo-Yo</div>
+      <p class="note" style="font-size:12.5px">Suggested routines: walk twice a day, feed twice a day. Change them any time.</p>
+      <div style="display:grid;gap:8px;margin-top:40px"><span class="btn">Continue</span><span class="btn ghost">Skip for now</span></div>`, {t:'9:41'}),
+    a2done: P(`${dots(4,3)}<div class="center" style="padding-top:40px"><div class="big-emoji">✨</div><h4>The Lake House is ready</h4><p>It's stored in your iCloud. Invite Mia so her phone shows the same day.</p></div>
+      <div class="card"><div class="ch"><b>Invite</b><span>1 person has a phone</span></div>${row(av('M'), 'Mia', 'Send an invite by Messages or AirDrop', '<span class="take">Invite</span>')}</div>
+      <div class="card" style="gap:6px"><div class="ch"><b>Got a spare iPad?</b><span></span></div><p class="note" style="font-size:13px">Open Porchlight on it, choose "Join one", and pick "A shared screen" to put the whole family's day on the wall.</p></div>
+      <span class="btn" style="margin-top:40px">Go to Today</span>`, {t:'9:41'}),
+    /* A3 */
+    a3wall: W(settingsShell('Family & devices', 'The Lake House · stored in James\'s iCloud', `<div class="settingsgrid"><div class="wcard">
+        <div class="ch"><b>Who has the app</b><span>3 people · 2 members</span></div>
+        <div class="prow">${av('J')}<span>James<small>Owner · iPhone 16 · synced just now</small></span><span class="stat">Joined</span></div>
+        <div class="prow">${av('M')}<span>Mia<small>Invited 2 days ago</small></span><span class="stat wait">Invited</span></div>
+        <div class="prow">${av('A')}<span>Ava<small>Pitches in on this screen</small></span><span class="stat wall">No phone</span></div>
+        <div class="prow"><span class="av" style="background:var(--surface2);color:var(--muted)">⌂</span><span>This iPad<small>Shared screen · asks who did it</small></span><span class="stat wall">Change</span></div>
+      </div><div class="qr"><canvas class="qrc" width="25" height="25"></canvas><b>Scan to join</b><small>Point an iPhone camera here. Anyone who scans joins The Lake House, so show it only to family.</small></div></div>`)),
+    a3pick: P(`<div class="phead"><span class="back">‹ You</span>${av('J')}</div>${head('The Lake House', 'Invite someone', '')}
+      <p class="note" style="font-size:13.5px">They join with their own Apple ID and use your iCloud for the household. It uses almost none of their storage.</p>
+      <div class="list">${listRow('Mia', 'Hasn\'t joined yet', '<span class="take">Invite</span>', av('M'))}${listRow('Ava', 'No phone yet', '<span class="take">Invite</span>', av('A'))}${listRow('Someone new', 'Add them, then invite', '<span class="chev">›</span>', '<span class="av" style="background:var(--surface2);color:var(--accent)">+</span>')}</div>
+      <div class="card" style="gap:6px"><div class="ch"><b>Show a code instead</b><span>›</span></div><p class="note" style="font-size:13px">For someone standing next to you. Same as the code on a shared screen.</p></div>`, {tab:'today'}),
+    a3share: P(`<div class="phead"><span class="back">‹ You</span>${av('J')}</div>${head('The Lake House', 'Invite someone', '')}<div class="list">${listRow('Mia', 'Sending…', '', av('M'))}</div>`, {over: sheet(`<div style="display:flex;gap:10px;align-items:center"><div class="face sm">🏡</div><div class="tx"><b>Join The Lake House on Porchlight</b><small>Invite link · works once Mia installs the app</small></div></div>
+      <div style="display:flex;gap:16px;justify-content:space-around;padding:6px 0">${[['💬','Messages'],['📡','AirDrop'],['✉️','Mail'],['🔗','Copy link']].map(([e,l])=>`<div style="display:grid;gap:6px;justify-items:center;font:600 11.5px/1 var(--body);color:var(--muted)"><span style="width:56px;height:56px;border-radius:14px;background:var(--surface2);display:grid;place-items:center;font-size:26px">${e}</span>${l}</div>`).join('')}</div>
+      <p style="font-size:12.5px">The link only works for people you send it to. You can see who joined and remove anyone in You › Household.</p>`)}),
+    /* A4 */
+    a4msg: RAW(`${status('6:05')}<div style="padding:6px 16px 10px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line)"><span style="color:#3E86F7;font:600 15px/1 var(--body)">‹</span>${av('J','sm')}<b style="font:700 14px/1 var(--body)">James</b></div>
+      <div class="msgs"><div class="bub in">Here's the porch thing for Yo-Yo's walks</div><div class="linkcard"><div class="img">🏡</div><div>Join The Lake House<small>Porchlight · from James</small></div></div><div class="bub out">ok!</div></div>`),
+    a4preview: P(`<div class="center" style="padding-top:60px"><div class="face" style="width:84px;height:84px;font-size:44px">🏡</div><h4>Join The Lake House?</h4><p>James invited you. You'll share walks, meals, chores and lists with the household.</p>
+      <div style="display:flex">${av('J')}${av('A')}</div></div>
+      <div class="card" style="gap:8px">${row('<span style="font-size:20px">☁️</span>', 'Stored in James\'s iCloud', 'Uses almost none of your storage')}${row('<span style="font-size:20px">🔒</span>', 'Private to the household', 'No account to create. Porchlight can\'t see it.')}</div>
+      <span class="btn" style="margin-top:60px">Join</span><span class="btn ghost">Not now</span>`, {t:'6:05'}),
+    a4who: P(`${dots(3,0)}<div class="center"><h4>Which one is you?</h4><p>What you log from this phone is credited to you.</p></div>
+      <div style="display:grid;gap:8px"><div class="choice on">${av('M')}<span>Mia<small>Hasn't joined yet</small></span></div><div class="choice dim">${av('J')}<span>James<small>On James's iPhone</small></span></div><div class="choice">${av('A')}<span>Ava<small>Uses the shared screen</small></span></div><div class="choice"><span class="av" style="background:var(--surface2);color:var(--accent)">+</span><span>I'm new here<small>Add yourself with a name and color</small></span></div></div>
+      <span class="btn" style="margin-top:70px">Continue as Mia</span>`, {t:'6:05'}),
+    a4remind: P(`${dots(3,1)}<div class="center" style="padding-top:40px"><div class="big-emoji">🔔</div><h4>Remind you about your routines?</h4><p>Only yours, like Yo-Yo's evening walk between 5 and 8. Nothing when others log. Change it any time.</p></div>
+      <div class="card" style="gap:4px">${row(box(true), 'Yo-Yo\'s walks', 'Morning 7 to 9 · Evening 5 to 8')}${row(box(true), 'Your chores', 'The evening before they\'re due')}${row(box(false), 'When someone asks you', 'Coming later', '', '')}</div>
+      <span class="btn" style="margin-top:80px">Allow reminders</span><span class="btn ghost">Not now</span>`, {t:'6:05'}),
+    a4sync: P(`${dots(3,2)}<div class="center" style="padding-top:40px"><div class="big-emoji">📦</div><h4>Bringing everything in</h4><p>You can start now. Photos fill in as they arrive.</p></div>
+      <div class="card" style="gap:12px">
+        <div><div class="ch"><b style="font-size:15px">People, chores, routines</b><span>✓ Done</span></div></div>
+        <div><div class="ch"><b style="font-size:15px">Two years of walks and meals</b><span>✓ Done</span></div></div>
+        <div style="display:grid;gap:6px"><div class="ch"><b style="font-size:15px">Meal photos</b><span>120 of 412</span></div><div class="prog"><i style="width:29%"></i></div></div>
+      </div>
+      <p class="note" style="font-size:12.5px;text-align:center">Thumbnails come first; full-size photos load when you open one.</p>
+      <span class="btn" style="margin-top:110px">Go to Today</span>`, {t:'6:06'}),
+    /* A5 */
+    a5switch: P(`${head('You', 'Mia', av('M'))}`, {tab:'today', over: sheet(`<h4>Your households</h4>
+      <div class="list">${listRow('The Lake House', 'You are Mia · 3 people', '<span style="color:var(--accent);font-weight:800">✓</span>', '<div class="face sm">🏡</div>')}${listRow('Grandma Rosa\'s', 'You are Mia · 2 people', '', '<div class="face sm plant">🪴</div>')}</div>
+      <span class="btn ghost">Join or start another</span>
+      <p>Today, Food, Lists and Glow show one household at a time. Reminders come from both, each named.</p>`)}),
+    a5today: P(`${head('Sunday · <span class="hh">Grandma Rosa\'s ▾</span>', 'Hi, Mia', av('M'))}
+      <div class="card warm"><div class="pet"><div class="face plant">🪴</div><div><b>Tomatoes</b><small>Watered Thursday by Rosa</small></div></div><div class="slots"><div class="slot due"><span>💧</span><span>Water<small>every 3 days · due today</small></span></div><div class="slot"><span>🌱</span><span>Feed<small>Sunday</small></span></div></div><span class="btn">💧 I watered the tomatoes</span></div>
+      <div class="card"><div class="ch"><b>Yours today</b><span>0 of 1</span></div>${row(box(false), 'Call Rosa about Thanksgiving', 'today', '<span class="star">+1</span>')}</div>`, {tab:'today', t:'4:02'}),
+    a5notif: RAW(`<div class="notch"></div><div class="lock"><div class="date">Sunday, November 15</div><div class="clock">4:02</div>
+      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT · GRANDMA ROSA'S<span>now</span></div><b>Water the tomatoes</b><p>Due today. Rosa watered them Thursday.</p></div>
+      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT · THE LAKE HOUSE<span>1h ago</span></div><b>Yo-Yo's evening walk</b><p>Opens at 5. You're on evenings this week.</p></div></div>`),
+    /* A6 */
+    a6wall: W(settingsShell('Family & devices', 'The Lake House · stored in James\'s iCloud', `<div class="wcard"><div class="prow">${av('J')}<span>James<small>Owner</small></span><span class="stat">Joined</span></div><div class="prow">${av('M')}<span>Mia<small>iPhone 15</small></span><span class="stat">Joined</span></div></div>`) + `<div class="wscrim"><div class="wsheet"><div class="lab">Mia · iPhone 15</div><h4>Remove Mia's iPhone?</h4><p>It stops seeing The Lake House. Mia stays in the household, keeps her color and her history, and can still pitch in on this screen. You can invite her again any time.</p><div class="btns"><span class="wbtn red">Remove</span><span class="wbtn ghost">Cancel</span></div></div></div>`),
+    a6removed: P(`<div class="center" style="padding-top:150px"><div class="big-emoji">🚪</div><h4>You're no longer in The Lake House</h4><p>James removed this iPhone from the household, or stopped sharing it. What you logged stays with the household.</p></div>
+      <div style="display:grid;gap:8px;margin-top:160px"><span class="btn">OK</span><span class="btn ghost">Start a household</span></div>`),
+    a6leave: P(`${head('You', 'Mia', av('M'))}`, {over: sheet(`<h4>Leave The Lake House?</h4><p>It disappears from this iPhone and your reminders for it stop. Everything you logged stays with the household, and James can invite you back.</p><span class="btn" style="background:#B54A3A">Leave</span><span class="btn ghost">Cancel</span>`)}),
+    a6owner: P(`${head('You', 'James')}`, {over: sheet(`<h4>You own The Lake House</h4><p>It's stored in your iCloud, so leaving would delete it for Mia and everyone else. To stop sharing with one person, remove them in Household.</p><span class="btn ghost">Manage members</span><span class="btn line">Delete The Lake House for everyone…</span>`)}),
+    /* B1 */
+    b1due: P(`${head('Sunday, November 15', 'Hi, James')}${petCard()}${yours()}${anyone()}`, {tab:'today'}),
+    b1clear: P(`${head('Sunday, November 15', 'Hi, James')}
+      <div class="card warm"><div class="pet"><div class="face">🐶</div><div><b>Yo-Yo is all set</b><small>Walked at 6:12 by you · fed at 5:30 by Mia</small></div></div></div>
+      <div class="banner good"><span style="font-size:20px">🌙</span><span>Nothing else for you today<small>Faucet and recycling done. +5 stars today.</small></span></div>
+      ${anyone()}${agenda}`, {tab:'today', t:'8:40'}),
+    b1many: P(`${head('Saturday, November 14', 'Hi, James')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="card warm" style="gap:6px"><div class="face sm">🐶</div><b style="font:600 16px/1.1 var(--display)">Yo-Yo</b><small style="font:600 12px/1.3 var(--body);color:var(--muted)">Evening walk due</small><span class="btn sm">🐾 Walked</span></div>
+        <div class="card" style="gap:6px"><div class="face sm cat">🐱</div><b style="font:600 16px/1.1 var(--display)">Miso</b><small style="font:600 12px/1.3 var(--body);color:var(--muted)">Fed at 7 by Mia</small><span class="btn sm good">✓ All set</span></div>
+        <div class="card" style="gap:6px"><div class="face sm plant">🪴</div><b style="font:600 16px/1.1 var(--display)">Fiddle fig</b><small style="font:600 12px/1.3 var(--body);color:var(--muted)">Water due today</small><span class="btn sm">💧 Watered</span></div>
+        <div class="card" style="gap:6px;place-content:center;text-align:center"><small style="font:600 12px/1.3 var(--body);color:var(--muted)">Due ones come first; tap a card for its week</small></div>
+      </div>${yours()}`, {tab:'today', t:'5:48'}),
+    b1dark: P(`${head('Sunday, November 15', 'Hi, James')}${petCard()}${yours()}`, {tab:'today', dark:true, t:'9:12'}),
+    /* B2 */
+    b2tap: P(`${head('Sunday, November 15', 'Hi, James')}${petCard({walked:true})}${yours()}`, {tab:'today', over: toast('🐾','Evening walk logged','With Mia · the wall shows it now')}),
+    b2sheet: P(`${head('Sunday, November 15', 'Hi, James')}${petCard()}`, {tab:'today', over: sheet(`<div class="label">Yo-Yo · evening walk</div><h4>Log a walk</h4>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">When</b><span class="pill np on">Now · 6:12 pm ▾</span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">How long</b><span class="sugg">${['10','15','20','30'].map((m,i)=>`<span class="pill np ${i===1?'on':''}">${m} min</span>`).join('')}</span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Who went</b><span class="sugg"><span class="pill on">${av('J','sm')}You</span><span class="pill on">${av('M','sm')}Mia</span><span class="pill">${av('A','sm')}Ava</span></span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Business</b><span class="sugg"><span class="pill np on">💧</span><span class="pill np">💩</span></span></div>
+      <div class="field ph-t">A note for the walk diary</div>
+      <span class="btn">Log walk · +1 star</span>`)}),
+    b2catch: P(`${head('Sunday, November 15', 'Hi, James')}<div class="banner warn"><span>🍽️</span><span>Yo-Yo's dinner wasn't logged<small>Usually 5 to 7 pm</small></span><em>Log it</em></div>${petCard()}`, {tab:'today', t:'9:30', over: sheet(`<div class="label">Yo-Yo · dinner</div><h4>When did Yo-Yo eat?</h4>
+      <div class="sugg"><span class="pill np on">6:00 pm</span><span class="pill np">6:30 pm</span><span class="pill np">7:00 pm</span><span class="pill np">Usual · 5:30</span></div>
+      <div class="pad">${['1','2','3','4','5','6','7','8','9','am/pm','0','⌫'].map(k=>`<span>${k}</span>`).join('')}</div>
+      <span class="btn">Log dinner at 6:00 pm</span>`)}),
+    /* B3 */
+    b3week: P(`<div class="phead"><span class="back">‹ Today</span>${av('J')}</div>
+      <div class="card warm" style="grid-template-columns:auto 1fr;align-items:center"><div class="face" style="width:64px;height:64px;font-size:36px">🐶</div><div><b style="font:600 24px/1.1 var(--display)">Yo-Yo's week</b><small style="display:block;font:600 12.5px/1.3 var(--body);color:var(--muted)">12 walks · 5h 50m outside · 24 stars</small><small style="display:block;font:700 12.5px/1.3 var(--body)">🙂 Content, mildly smug</small></div></div>
+      <div class="card"><div class="ch"><b>Paw trail</b><span>who walked, each slot</span></div>
+        <div class="grid7"><span></span>${['M','T','W','T','F','S','S'].map(d=>`<span>${d}</span>`).join('')}
+        <span>AM</span>${['J','M','e','M','J','M','J'].map(p=>p==='e'?'<span class="ring e"></span>':`<span class="ring" style="background:var(--${p==='J'?'blue':'coral'})">${p}</span>`).join('')}
+        <span>PM</span>${['M','M','M','J','M','J','d'].map(p=>p==='d'?'<span class="ring e" style="border-color:var(--accent)">🐾</span>':`<span class="ring" style="background:var(--${p==='J'?'blue':'coral'})">${p}</span>`).join('')}</div></div>
+      <div class="card"><div class="ch"><b>Walk diary</b><span>captions: cheeky</span></div>
+        ${row(av('J','sm'), 'James · 12 min 💧', 'A brisk 12 minutes. Yo-Yo expected the extended edition.')}
+        ${row(av('M','sm'), 'Mia · 40 min 💧💩', 'Soggy walk. Yo-Yo is filing a complaint with the sky.')}
+      </div>`),
+    /* B4 */
+    b4list: P(`<div class="phead"><span class="back">‹ Today</span>${av('J')}</div>${head('This week · 4 of 9 done', 'Pitch in', '')}
+      <div class="seg"><span class="on">Yours</span><span>Open</span><span>Everyone</span></div>
+      <div class="card">${row(box(true), 'Take out recycling', 'Done 7:05 am', '<span class="star">+2</span>', 'done')}${row(box(false), 'Fix the leaky faucet', 'this weekend', '<span class="star">+3</span>')}${row(box(false), 'Vacuum the living room', 'took it Friday', '<span class="star">+2</span>')}</div>
+      <div class="card"><div class="ch"><b>Done this week</b><span>+12 stars</span></div>${row(box(true), 'Make breakfast', 'Sat · with Ava', '<span class="star">+1</span>', 'done')}${row(box(true), 'Water the plants', 'Fri', '<span class="star">+1</span>', 'done')}</div>
+      <span class="btn line">+ Add a chore</span>`, {tab:'today'}),
+    b4add: P(`${head('This week', 'Pitch in', '')}`, {tab:'today', over: sheet(`<h4>New chore</h4>
+      <div class="field">Clean out the fridge</div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Repeats</b><span class="pill np on">Every other Sunday ▾</span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Starting</b><span class="pill np">Today ▾</span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Who</b><span class="sugg"><span class="pill np on">Anyone</span><span class="pill">${av('J','sm')}</span><span class="pill">${av('M','sm')}</span><span class="pill">${av('A','sm')}</span></span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Stars</b><span class="sugg"><span class="pill np">−</span><span class="pill np on">★ 2</span><span class="pill np">+</span></span></div>
+      <span class="btn">Add chore</span>`)}),
+    /* B5 */
+    b5week: P(`${head('Nov 9 to 15 · 20 meals', 'What we ate')}
+      <div class="card"><div class="grid7"><span></span>${['M','T','W','T','F','S','S'].map(d=>`<span>${d}</span>`).join('')}
+        ${['B','L','D'].map((m,r)=>`<span>${['Bkfst','Lunch','Dinner'][r]}</span>${Array.from({length:7},(_,i)=>{const e=(r===0&&i===5)||(r===1&&i===1)||(r===1&&i===6)||(r===2&&i===6);return e?'<span class="mini empty"></span>':`<span class="mini"><i class="food${(i+r)%4+1}"></i></span>`;}).join('')}`).join('')}</div></div>
+      <div class="card" style="grid-template-columns:auto 1fr;align-items:center"><span class="pol" style="width:80px;padding:5px 5px 18px;transform:rotate(-2deg)"><span class="shot food2" style="display:block"></span></span><div><b style="font:600 16px/1.2 var(--display)">On this day</b><p class="note" style="font-size:13px">A year ago you had practice turkey. Verdict: 😬</p></div></div>
+      <span class="btn">📷 Snap a meal</span>`, {tab:'food'}),
+    b5cam: RAW(`${status()}<div class="pb" style="gap:14px">${head('Dinner · guessed from the time', 'Snap a meal')}<div class="pol" style="width:270px;justify-self:center;transform:rotate(-1deg)"><div class="shot food1"></div><div class="capt">Sunday dinner</div></div><span class="shutter"><i></i></span><div class="sugg" style="justify-content:center"><span class="pill np">🖼️ From Photos</span><span class="pill np">✍️ No photo</span></div></div>`),
+    b5details: P(`<div class="pol" style="width:200px;justify-self:center;transform:rotate(-1.5deg);padding:8px 8px 30px"><div class="shot food2"></div><div class="capt" style="font-size:20px">Pho</div></div>`, {over: sheet(`<div class="label">Dinner · Sunday 6:40 pm</div>
+      <div class="field">Pho</div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Where</b><span></span></div><div class="sugg"><span class="pill np">🏠 Home</span><span class="pill np">🛵 Delivery</span><span class="pill np dark">Pho Huynh · 40 ft</span><span class="pill np">Souvla</span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Who ate</b><span class="sugg"><span class="pill on">${av('J','sm')}You</span><span class="pill on">${av('M','sm')}Mia</span><span class="pill">${av('A','sm')}Ava</span></span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Verdict</b><span class="sugg"><span class="pill np">😬</span><span class="pill np">🙂</span><span class="pill np on">😋</span><span class="pill np">🤩</span></span></div>
+      <span class="btn">Save to Sunday dinner</span>`)}),
+    b5saved: P(`${head('Nov 9 to 15 · 21 meals', 'What we ate')}<div class="card"><div class="grid7"><span></span>${['M','T','W','T','F','S','S'].map(d=>`<span>${d}</span>`).join('')}
+        ${['B','L','D'].map((m,r)=>`<span>${['Bkfst','Lunch','Dinner'][r]}</span>${Array.from({length:7},(_,i)=>{const e=(r===0&&i===5)||(r===1&&i===1)||(r===1&&i===6);const fresh=r===2&&i===6;return e?'<span class="mini empty"></span>':`<span class="mini" ${fresh?'style="box-shadow:0 0 0 3px var(--accent)"':''}><i class="food${fresh?2:(i+r)%4+1}"></i></span>`;}).join('')}`).join('')}</div></div>`, {tab:'food', over: toast('🍜','Saved to Sunday dinner','Pho Huynh · you and Mia', 'Open')}),
+    b5entry: P(`<div class="phead"><span class="back">‹ Food</span>${av('J')}</div><div class="pol" style="transform:rotate(-1deg)"><div class="shot food2"></div><div class="capt">Pho</div></div>
+      <div class="card" style="gap:6px">${row('<span style="font-size:20px">📍</span>', 'Pho Huynh', 'Dined out · Sunday dinner · 6:40 pm')}${row('<span style="font-size:20px">😋</span>', 'Would eat again', `You and Mia · added by you`)}</div>
+      <div class="sugg"><span class="pill np">✏️ Edit</span><span class="pill np">➕ Add photo</span><span class="pill np">🗑️ Remove</span></div>`),
+    /* B6 */
+    b6list: P(`${head('Lists', 'Groceries')}
+      <div class="sugg"><span class="pill np dark">Groceries · 8</span><span class="pill np">House · 4</span><span class="pill np">Costco · 6</span></div>
+      <div class="field ph-t">Add to groceries</div>
+      <div class="card" style="gap:2px"><div class="label">Produce</div>${row(box(false),'Avocados ×3','',av('M','sm'))}${row(box(true),'Basil','',av('J','sm'),'done')}${row(box(false),'Scallions','',av('J','sm'))}<div class="label" style="margin-top:6px">Dairy</div>${row(box(false),'Oat milk','Mia · 2 min ago',av('M','sm'))}${row(box(false),'Greek yogurt','',av('M','sm'))}</div>
+      <p class="note" style="font-size:12.5px">Checked items stay until someone taps "Clear checked", so the list is right while two people shop.</p>`, {tab:'lists'}),
+    b6meals: P(`${head('This week', 'Dinners')}
+      <div class="card" style="gap:2px">${[['Sun','🥞','Pancake brunch'],['Mon','🍝','Pesto pasta'],['Tue','🌮','Taco Tuesday'],['Wed','🍣','Miso salmon'],['Thu','🎂','Grandma\'s dinner'],['Fri','🍱','Sushi night'],['Sat','🍜','Dan dan noodles']].map(([d,e,n],i)=>row(`<span class="time">${d}</span>`, `${e} ${n}`, i===2?'Needs: tortillas, limes · add to groceries':'', i===0?'<span class="star">today</span>':'<span class="chev">›</span>')).join('')}</div>
+      <span class="btn line">+ Plan a dinner</span>`, {tab:'lists'}),
+    /* B7 */
+    b7glow: P(`${head('This week', 'Glow')}<div class="card warm" style="justify-items:center;gap:4px"><div class="lamp">💡</div><div class="bignum">24</div><span class="note" style="font-size:13px">stars from you this week · 312 all time</span></div>
+      <div class="card"><div class="ch"><b>Saving for</b><span>family reward</span></div><b style="font:700 14px/1.3 var(--body)">🍕 Pizza night · 80 of 80</b><div class="prog o"><i style="width:100%"></i></div><span class="btn">Cash in 🎉</span></div>
+      <div class="card"><div class="ch"><b>Everyone</b><span>this week</span></div><div class="fam">${[['J','You',24,'blue'],['M','Mia',19,'coral'],['A','Ava',16,'ochre']].map(([p,n,s,c])=>`<div>${av(p,'sm')}<span style="width:36px">${n}</span><div class="prog"><i style="width:${s*3.5}%;background:var(--${c})"></i></div><span>${s}</span></div>`).join('')}</div></div>`, {tab:'glow'}),
+    b7cash: P(`${head('This week', 'Glow')}<div class="card warm" style="justify-items:center"><div class="lamp">💡</div></div>`, {tab:'glow', over: sheet(`<div class="center"><div class="big-emoji">🍕</div><h4>Cash in Pizza night?</h4><p>80 stars from James, Mia and Ava. The shared screen celebrates it with everyone, and Glow starts saving for the next reward.</p></div><span class="btn">Cash in</span><span class="btn ghost">Not yet</span>`)}),
+    b7wall: W(`${rail(5)}<div class="wmain"><div class="whead"><b class="t">Glow</b><span>This week<small>59 stars from the family</small></span></div><div class="wcard" style="justify-items:center;text-align:center;align-content:center;gap:1.6cqw;position:relative">
+      <div style="font-size:9cqw;line-height:1">🍕</div><div style="font:600 4.4cqw/1.1 var(--display)">Pizza night!</div><div style="font:600 1.7cqw/1.4 var(--body);color:var(--muted)">80 stars from James, Mia and Ava · cashed in by James from his phone</div>
+      <div style="display:flex;gap:1cqw">${av('J')}${av('M')}${av('A')}</div><span class="wbtn ghost">Next: Zoo trip · 0 of 120</span></div></div><div class="confetti"></div>`),
+    /* B8 */
+    b8week: P(`<div class="phead"><span class="back">‹ Today</span>${av('J')}</div>${head('From the calendars on this iPhone', 'Next 7 days', '')}
+      <div class="card" style="gap:2px"><div class="label">Today</div>${row('<span class="time">All day</span>','Aunt Rosa visiting','')}${row('<span class="time">7:00</span>','Dinner with Rosa','Family')}
+      <div class="label" style="margin-top:8px">Monday</div>${row('<span class="time">10:00</span>','Brunch with Rosa','Family')}${row('<span class="time">1:00</span>','Farmers market','')}
+      <div class="label" style="margin-top:8px">Tuesday</div>${row('<span class="time">9:00</span>','Busy','Mia · shared as busy only',av('M','sm'))}${row('<span class="time">6:00</span>','Yoga','Mia',av('M','sm'))}</div>
+      <p class="note" style="font-size:12.5px">Tap an event to open it in Calendar. Events are created there, not here.</p>`, {tab:'today'}),
+    /* C1 */
+    c1open: RAW(`<div class="notch"></div><div class="lock"><div class="date">Sunday, November 15</div><div class="clock">6:12</div><div class="lws"><div class="lw">🐶 Yo-Yo<b>Walked 9h ago</b></div><div class="lw">✨ Glow<b>23 this week</b></div></div>
+      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT<span>now</span></div><b>Yo-Yo's evening walk</b><p>The window opened at 5. Nobody has gone yet.</p></div>
+      <div class="nacts"><span class="p">🐾 I walked Yo-Yo</span><span>Remind me in an hour</span><span>Someone else is on it</span></div><p style="text-align:center;font:600 11.5px/1.3 var(--body);opacity:.85">Long-press shows the actions</p></div>`),
+    c1done: RAW(`<div class="notch"></div><div class="lock"><div class="date">Sunday, November 15</div><div class="clock">6:13</div><div class="lws"><div class="lw">🐶 Yo-Yo<b>Walked just now</b></div><div class="lw">✨ Glow<b>24 this week</b></div></div>
+      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT<span>now</span></div><b>Logged: evening walk</b><p>Credited to you at 6:12 pm. The wall and Mia's phone show it.</p></div>
+      <p style="text-align:center;font:600 12px/1.4 var(--body);opacity:.9;margin-top:10px">If Mia logs the walk first, this reminder<br>disappears from your phone on its own.</p></div>`),
+    /* C2 */
+    c2wall: W(wallToday() + `<div class="wscrim"><div class="wsheet"><div class="lab">Yo-Yo · Evening walk · 5 to 8 pm</div><h4>Ask someone to walk Yo-Yo?</h4><p>Their phone buzzes once with the walk button on it. It clears itself when anyone logs the walk. People without the app aren't listed.</p><div class="btns"><span class="wbtn" style="background:var(--coral)">Ask Mia</span><span class="wbtn" style="background:var(--blue)">Ask James</span></div><div class="btns"><span class="wbtn ghost">Cancel</span></div></div></div>`),
+    c2phone: RAW(`<div class="notch"></div><div class="lock"><div class="date">Sunday, November 15</div><div class="clock">6:20</div>
+      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT<span>now</span></div><b>Can you walk Yo-Yo?</b><p>Asked from the hallway screen. Evening walk, 5 to 8 pm.</p></div>
+      <div class="nacts"><span class="p">🐾 I walked Yo-Yo</span><span>On my way</span><span>Can't right now</span></div></div>`),
+    /* C3 */
+    c3home: RAW(`<div class="notch"></div><div class="hs">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="wid"><b>Yo-Yo</b><small>Evening · 5 to 8 pm</small><span class="btn">🐾 Walked</span></div>
+        <div class="wid"><b>Groceries</b><small>8 items · Oat milk, Avocados, Scallions…</small><span class="btn ghost">+ Add</span></div>
+      </div>
+      <div class="wid"><div class="ch"><b>Today at home</b><small>James</small></div>
+        <div style="display:grid;gap:6px;font:700 13px/1.3 var(--body)"><div style="display:flex;gap:8px;align-items:center">${box(false)}Fix the leaky faucet<span class="star" style="margin-left:auto">+3</span></div><div style="display:flex;gap:8px;align-items:center">🐾 Evening walk open<span style="margin-left:auto;color:var(--accent)">Log</span></div><div style="display:flex;gap:8px;align-items:center">📅 Dinner with Rosa · 7:00</div></div></div>
+      <div class="icons">${['🧭','📷','🗓️','<b style="color:#fff;font:600 22px/1 var(--display)">P</b>','💬','🎵','🗺️','⚙️'].map((e,i)=>`<span class="${i===3?'app':''}">${e}</span>`).join('')}</div></div>`),
+    c3lock: RAW(`<div class="notch"></div><div class="lock"><div class="date">Sunday, November 15</div><div class="clock">6:12</div>
+      <div class="lws"><div class="lw round">🐶<br>9h</div><div class="lw">✨ Glow<b>23 · Pizza 72/80</b></div><div class="lw round">☑️<br>1 left</div></div>
+      <p style="text-align:center;font:600 12.5px/1.45 var(--body);opacity:.9">Lock Screen widgets: time since the last walk,<br>stars toward the family goal, chores left today.</p></div>`),
+    /* C4 */
+    c4siri: RAW(`<div class="notch"></div><div class="hs"><div class="icons" style="opacity:.6">${['🧭','📷','🗓️','💬','🎵','🗺️','⚙️','🌤️'].map(e=>`<span>${e}</span>`).join('')}</div>
+      <div class="siri"><div style="display:flex;gap:10px;align-items:center"><span class="orb"></span><span style="font:600 15px/1.3 var(--body)">"I walked Yo-Yo"</span></div>
+      <div class="wid" style="box-shadow:none"><b>Logged Yo-Yo's evening walk</b><small>For James at 6:12 pm · +1 star</small><div class="sugg"><span class="pill np">Add details</span><span class="pill np">Undo</span></div></div></div></div>`),
+    c4shortcut: P(`${head('Shortcuts', 'Porchlight actions', '')}
+      <div class="list">${listRow('Log a care routine', '"I walked Yo-Yo", "I fed Miso"', '', '<span style="font-size:20px">🐾</span>')}${listRow('Check off a chore', '"Done with recycling"', '', '<span style="font-size:20px">☑️</span>')}${listRow('Add to a list', '"Add oat milk to groceries"', '', '<span style="font-size:20px">📝</span>')}${listRow('Snap a meal', 'Opens the camera on the right meal', '', '<span style="font-size:20px">📷</span>')}${listRow('What\'s next', '"What\'s on at home today?"', '', '<span style="font-size:20px">📅</span>')}</div>
+      <div class="card" style="gap:6px"><div class="ch"><b>Control Center</b><span>iOS 18 and later</span></div><p class="note" style="font-size:13px">The same "Walked Yo-Yo" action as a control, and on the Action button. Coming later.</p></div>`, {t:'6:12'}),
+    /* C5 */
+    c5start: P(`${head('Sunday, November 15', 'Hi, James')}${petCard()}`, {tab:'today', over: sheet(`<h4>Heading out with Yo-Yo?</h4><p>Porchlight times the walk on your Lock Screen and logs it when you're back.</p><span class="btn">▶ Start walk</span><span class="btn ghost">Just log it, I'm back</span>`)}),
+    c5live: RAW(`<div class="island"><span>🐾</span><span>12:04</span></div><div class="lock"><div class="date">Sunday, November 15</div><div class="clock">6:24</div>
+      <div class="notif" style="grid-template-columns:auto 1fr auto;align-items:center"><div class="face sm">🐶</div><div><b>Walking Yo-Yo</b><p style="font-size:13px">With Mia · started 6:12</p></div><div style="font:600 30px/1 var(--display);font-variant-numeric:tabular-nums">12:04</div>
+      <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><span class="btn sm ghost">💧</span><span class="btn sm ghost">💩</span><span class="btn sm">End walk</span></div></div>
+      <p style="text-align:center;font:600 12px/1.4 var(--body);opacity:.9">A Live Activity on the Lock Screen and in<br>the Dynamic Island. Ending logs a 12 min walk.</p></div>`),
+    /* D1 */
+    d1arrive: W(wallToday({walked:true}) + `<div class="wtoast">${av('J')}James walked Yo-Yo · from his phone</div>`),
+    d1meal: W(wallToday({food:true})),
+    /* D2 covered by a3wall; storage */
+    d2storage: W(settingsShell('iCloud storage', 'The Lake House is stored in James\'s iCloud', `<div class="wcard" style="gap:1.4cqw"><div style="font:600 2.6cqw/1.2 var(--display)">This household uses 412 MB of James's iCloud</div>
+      <div class="wmeter"><i style="width:78%;background:var(--coral)"></i><i style="width:15%;background:var(--ochre)"></i><i style="width:7%;background:var(--blue)"></i></div>
+      <div style="font:600 1.3cqw/1.4 var(--body);color:var(--muted)">Photos 322 MB · Pencil pages 61 MB · Everything else 29 MB · growing about 30 MB a month</div>
+      <div class="prow" style="grid-template-columns:1fr auto"><span>Shrink photos older than a year<small>Saves about 180 MB. Thumbnails stay sharp.</small></span><span class="stat wall">Review</span></div>
+      <div class="prow" style="grid-template-columns:1fr auto"><span>Sync status<small>Up to date · last change 2 min ago from Mia's phone</small></span><span class="stat">Synced</span></div></div>`)),
+    /* D3 */
+    d3pause: W(settingsShell('iCloud storage', 'The Lake House is stored in James\'s iCloud', `<div class="wcard" style="gap:1.4cqw"><div class="banner warn" style="font-size:1.5cqw;border-radius:1.2cqw;padding:1.2cqw 1.4cqw"><span>⏸️</span><span>Sync is paused: James's iCloud is full<small style="font-size:1.2cqw">Everything still works on this iPad. Changes send as soon as there's room.</small></span></div>
+      <div style="font:600 1.4cqw/1.45 var(--body);color:var(--muted)">James can free space from his phone (You › iCloud storage) or upgrade his iCloud plan. Nothing is lost while it's paused.</div></div>`)),
+    /* E1 */
+    e1you: P(`<div class="phead"><div></div><span class="back">Done</span></div><div class="center" style="gap:6px">${av('J','lg')}<b style="font:600 24px/1.1 var(--display)">James</b><small style="font:600 13px/1 var(--body);color:var(--muted)">The Lake House · owner · this iPhone credits you</small></div>
+      <div class="list">${listRow('Household', 'People, companions, chores, rewards', '', '<span style="font-size:20px">🏡</span>')}${listRow('Invite someone', 'Mia hasn\'t joined yet', '', '<span style="font-size:20px">✉️</span>')}${listRow('Switch household', '2 households', '', '<span style="font-size:20px">🔁</span>')}</div>
+      <div class="list">${listRow('Notifications', 'Your routines · chores', '', '<span style="font-size:20px">🔔</span>')}${listRow('Calendars', '2 shown on Today', '', '<span style="font-size:20px">📅</span>')}${listRow('iCloud storage', '412 MB of your iCloud', '', '<span style="font-size:20px">☁️</span>')}${listRow('This iPhone is me', 'Change who you are here', '', '<span style="font-size:20px">🙋</span>')}</div>
+      <div class="list">${listRow('<span style="color:#B54A3A">Leave The Lake House</span>', '', '')}</div>`),
+    e2notif: P(`<div class="phead"><span class="back">‹ You</span></div>${head('The Lake House', 'Notifications', '')}
+      <div class="card" style="gap:2px"><div class="label">Your routines</div>${row('<span style="font-size:18px">🐾</span>','Yo-Yo · evening walk','5 to 8 pm · when it opens','<span class="pill np on">On</span>')}${row('<span style="font-size:18px">🐾</span>','Yo-Yo · morning walk','Mia\'s this week','<span class="pill np">Off</span>')}${row('<span style="font-size:18px">🍽️</span>','Yo-Yo · dinner','Only if missed by 7','<span class="pill np on">On</span>')}</div>
+      <div class="card" style="gap:2px"><div class="label">Chores</div>${row('<span style="font-size:18px">☑️</span>','Your chores','The evening before · 7 pm','<span class="pill np on">On</span>')}${row('<span style="font-size:18px">🙋</span>','When someone asks you','From a shared screen','<span class="pill np on">On</span>')}</div>
+      <p class="note" style="font-size:12.5px">Porchlight never notifies you about what others did.</p>`),
+    e3cal: P(`<div class="phead"><span class="back">‹ You</span></div>${head('On this iPhone', 'Calendars', '')}
+      <p class="note" style="font-size:13.5px">Pick which of your calendars belong on Today. Shared screens in the household show them too once you turn on "share with the household".</p>
+      <div class="card" style="gap:2px">${row(box(true),'Family','iCloud · shared with Mia','<span class="pill np on">Household</span>')}${row(box(true),'James','Google','<span class="pill np">Busy only</span>')}${row(box(false),'Work','Google','<span class="pill np">Just me</span>')}</div>
+      <p class="note" style="font-size:12.5px">Calendar events never leave your devices through Porchlight unless you share them, and "Busy only" hides titles.</p>`),
+    e4storage: P(`<div class="phead"><span class="back">‹ You</span></div>${head('The Lake House', 'iCloud storage', '')}
+      <div class="card"><b style="font:600 20px/1.2 var(--display)">Stored in James's iCloud</b><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface2)"><i style="width:78%;background:var(--coral)"></i><i style="width:15%;background:var(--ochre)"></i><i style="width:7%;background:var(--blue)"></i></div><small style="font:600 12.5px/1.4 var(--body);color:var(--muted)">412 MB · Photos 322 · Pencil 61 · Other 29</small><p class="note" style="font-size:13px">The household uses almost none of your own iCloud.</p></div>
+      <div class="list">${listRow('Your photos here', '96 MB · the ones you added', '', '<span style="font-size:20px">🖼️</span>')}${listRow('Keep originals on this iPhone', 'Synced copies are 2048 px', '<span class="pill np on">On</span>', '<span style="font-size:20px">📐</span>')}</div>`),
+    e5states: P(`${head('Sunday, November 15', 'Hi, Mia', av('M'))}
+      <div class="banner info"><span>📴</span><span>Offline since 2:10<small>Everything you log saves here and sends later.</small></span></div>
+      <div class="banner warn"><span>⏸️</span><span>Sync paused: James's iCloud is full<small>Your changes are safe on this iPhone.</small></span></div>
+      <div class="banner warn"><span>👤</span><span>You're signed out of iCloud<small>The Lake House stays on this iPhone but can't sync.</small></span><em>Settings</em></div>
+      <div class="banner info"><span>⬆️</span><span>James's iPad has a newer Porchlight<small>Update to see everything it adds.</small></span><em>Update</em></div>
+      <p class="note" style="font-size:12.5px">One banner at a time, most urgent first, at the top of Today only. Offline shows only after an hour without sync.</p>`, {tab:'today'}),
+    /* F */
+    f1hub: P(`<div class="phead"><span class="back">‹ You</span></div>${head('The Lake House', 'Household', '')}
+      <div class="list">${listRow('Name', 'The Lake House', '', '<span style="font-size:20px">🏡</span>')}</div>
+      <div class="card" style="gap:2px"><div class="ch"><b>People</b><span>+ Add</span></div>${row(av('J','sm'),'James','Owner · member')}${row(av('M','sm'),'Mia','Member')}${row(av('A','sm'),'Ava','No phone')}</div>
+      <div class="list">${listRow('Companions', 'Yo-Yo', '', '<span style="font-size:20px">🐶</span>')}${listRow('Chores', '9 chores', '', '<span style="font-size:20px">☑️</span>')}${listRow('Rewards', 'Pizza night · Zoo trip', '', '<span style="font-size:20px">🎁</span>')}${listRow('Lists', 'Groceries · House · Costco', '', '<span style="font-size:20px">📝</span>')}</div>
+      <p class="note" style="font-size:12.5px">Same editors as the wall, as sheets. Changes show everywhere.</p>`),
+    f2person: P(`${head('Household', 'People', '')}`, {over: sheet(`<h4>Ava</h4><div class="field">Ava</div>
+      <div style="display:flex;gap:10px">${['var(--blue)','var(--coral)','var(--sage)','var(--ochre)','#8B6FA8','#3E8A8A'].map((c,i)=>`<span style="width:34px;height:34px;border-radius:50%;background:${c};${i===3?'box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--ink)':''}"></span>`).join('')}</div>
+      <div class="list" style="background:var(--paper)">${listRow('Own phone', 'Not yet · invite when Ava gets one', '<span class="take">Invite</span>')}${listRow('Archive Ava', 'Keeps her history, hides her from new things', '')}</div>
+      <span class="btn">Save</span>`)}),
+    f2companion: P(`${head('Household', 'Companions', '')}`, {over: sheet(`<div class="pet"><div class="face">🐶</div><div><b>Yo-Yo</b><small>Toy poodle · 4 yrs</small></div></div>
+      <div class="card" style="background:var(--paper);gap:2px"><div class="label">Routines</div>${row('<span style="font-size:18px">🐾</span>','Walk','Twice a day · 7 to 9 am, 5 to 8 pm')}${row('<span style="font-size:18px">🍽️</span>','Feed','Twice a day · 7 am, 5:30 pm')}${row('<span style="font-size:18px">💊</span>','Heartworm pill','Monthly on the 1st · starting Dec 1')}</div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Captions</b><span class="sugg"><span class="pill np">Plain</span><span class="pill np on">Cheeky</span></span></div>
+      <span class="btn">Save</span>`)})
+  };
+
+  /* ---------- Journeys ---------- */
+  const WS = [
+    { k:'A', name:'Households & joining', blurb:'Start a household on any device, invite people, join, belong to more than one, leave. The first thing everyone touches, and the only place iCloud shows its face.' },
+    { k:'B', name:'Phone, every day', blurb:'The four tabs. Logging care and chores, snapping meals, shopping lists and stars, all credited to you without asking.' },
+    { k:'C', name:'Beyond the app', blurb:'Most phone use happens outside the app: notifications with actions, widgets, Siri and Shortcuts, and later a walk timer.' },
+    { k:'D', name:'The wall', blurb:'The shared screen keeps its layout. It learns where things came from, can ask someone for help, and celebrates rewards cashed in anywhere.' },
+    { k:'E', name:'Settings, sync & trust', blurb:'The You menu, notification and calendar choices, storage, and a calm designed state for every way sync can go wrong.' },
+    { k:'F', name:'Setup on any device', blurb:'People, companions, chores, rewards and lists, edited from any member\'s device with the wall\'s own editors.' }
+  ];
+  const J = [
+    { id:'A1', ws:'A', ph:1, t:'Start a household on an iPad', goal:'The current iPad onboarding gains two steps: choosing the device role, and saying plainly where the data lives.', frames:[
+      ['w','a1role','New step: device role','A shared screen asks who did things; "Just me" credits its member. Defaults to shared on iPad.'],
+      ['w','a1cloud','New last step: where it lives','Names the iCloud account and sets storage expectations. "Invite phones now" jumps to A3.'],
+      ['w','a1signedout','Variant: no iCloud','Never blocks. The household is created locally and moved into iCloud when the person signs in.']],
+      states:['Signed out of iCloud: local-only household, banner in Settings (E5)','iCloud restricted by Screen Time: same as signed out, different wording','Existing household on upgrade: skip both steps; role defaults to shared, the household is moved into iCloud in the background'],
+      done:['Role stored per device, never synced','Household record created as the share root','Works offline end to end'] },
+    { id:'A2', ws:'A', ph:1, t:'Start a household on an iPhone', goal:'A phone-only family gets the same household as a wall family, set up in four short steps.', frames:[
+      ['p','a2welcome','Welcome','Two doors: start or join. iPhone defaults to the personal role, with no question.'],
+      ['p','a2you','You and the household','The creator is the first person and the owner.'],
+      ['p','a2people','Who else lives here','People are added freely. Phones are invited after setup, so nobody waits on anyone.'],
+      ['p','a2companion','Anyone to look after','Optional. Presets fill sensible routines that the editor (F) can change.'],
+      ['p','a2done','Ready, invite','Invite is the natural next step. Mentions a spare iPad as a shared screen.']],
+      states:['Skips everything: the household still works with just its creator','Same name as an existing household: allowed; households are known by id','No iCloud: works locally like A1'],
+      done:['Under a minute for a family of three','Uses the same people and companion editors as the wall'] },
+    { id:'A3', ws:'A', ph:1, t:'Invite someone', goal:'Invite from where you are: a QR code on a shared screen for someone standing there, or a link by Messages for someone who isn\'t.', frames:[
+      ['w','a3wall','Wall: Family & devices','Everyone, their state, this device\'s role, and a QR code that joins the household.'],
+      ['p','a3pick','Phone: pick who to invite','People who haven\'t joined come first. "Someone new" adds a person first.'],
+      ['p','a3share','Phone: send the link','The system share sheet with a rich link preview.']],
+      states:['Invitee never installs the app: stays "Invited" with resend and cancel','QR seen by a visitor: the code is the household key, so Settings is behind the existing parent-only gesture','More than one pending invite: each is listed'],
+      done:['Joining works from a link and from the QR code','Invite state is visible on every device'] },
+    { id:'A4', ws:'A', ph:1, t:'Join a household', goal:'From tapping a link to seeing Today in under thirty seconds, with no account to create.', frames:[
+      ['p','a4msg','The invite arrives','A normal Messages link with a preview.'],
+      ['p','a4preview','Join?','Who invited you, who\'s in it, and whose iCloud it uses.'],
+      ['p','a4who','Which one is you','People who haven\'t joined come first; people with a phone are dimmed; "I\'m new here" adds you.'],
+      ['p','a4remind','Reminders, only yours','Notification permission is asked last, with exactly what you\'ll get.'],
+      ['p','a4sync','First sync','Usable immediately; photos stream in, thumbnails first.']],
+      states:['App not installed: the link opens the App Store, then resumes the join','Already a member on another device: skip "which one is you" and use the same person','Two phones pick the same person: allowed (one person, two devices)','Join fails offline: retry banner, nothing half-joined'],
+      done:['Member row links the iCloud user to the person','First Today renders before photos finish'] },
+    { id:'A5', ws:'A', ph:1, t:'Belong to two households', goal:'Co-parents, grandparents and neighbors\' pets: one app, several households, never mixed up.', frames:[
+      ['p','a5switch','Switch from You','A short list, one tap to switch. The tabs show one household at a time.'],
+      ['p','a5today','Header names the household','A tappable household name appears only when you\'re in more than one.'],
+      ['p','a5notif','Notifications say which','Reminders come from every household, each prefixed with its name.']],
+      states:['Different person in each household: "You are Mia" per household','A widget shows the household it was set up for'],
+      done:['No screen ever mixes two households','Switching keeps your place in each tab'] },
+    { id:'A6', ws:'A', ph:1, t:'Leave or remove someone', goal:'Removing a phone never removes a person or their history. Owners are protected from deleting everyone\'s data by accident.', frames:[
+      ['w','a6wall','Remove a phone from the wall','Says exactly what changes and what stays.'],
+      ['p','a6removed','The removed phone','One calm screen, then the household is gone from that device.'],
+      ['p','a6leave','Leave, as a member','Your history stays with the household.'],
+      ['p','a6owner','Leave, as the owner','Explains why leaving deletes it for everyone. A future handoff fits here without schema changes.']],
+      states:['Owner deletes the household: every member sees A6 removed','Removed while offline: applies on next sync'],
+      done:['Removing a member revokes their share participation','People are archived, never deleted'] },
+
+    { id:'B1', ws:'B', ph:1, t:'Today', goal:'Mine first, then ours: what is due for me now, what I can take, and what is happening at home.', frames:[
+      ['p','b1due','Something is due','The open care window leads, then your chores, then shared ones.'],
+      ['p','b1clear','All clear','A quiet "nothing else for you" instead of an empty list.'],
+      ['p','b1many','Several companions','Cards go to a grid of two, due ones first.'],
+      ['p','b1dark','Night look','Follows the system; the warm palette carries over.']],
+      states:['No companions: Today opens with chores','New household with nothing: one card per empty section with its first action','Dynamic Type at the largest sizes: cards stack, buttons stay full width'],
+      done:['Today never asks who you are','Every count matches the wall within a sync'] },
+    { id:'B2', ws:'B', ph:1, t:'Log care', goal:'One tap logs it for you. Details, other people and late logging are there when needed and never in the way.', frames:[
+      ['p','b2tap','One tap, undo toast','Credited to you; "also went" adds Mia. Undo reverses it everywhere.'],
+      ['p','b2sheet','More… opens the care sheet','The same fields as the wall\'s care sheet: time pill, duration, who, business, note.'],
+      ['p','b2catch','Catch up','A missed routine shows once on Today. The time pill opens suggestions and the number pad, like the wall.']],
+      states:['Two people log the same slot at once: both entries kept, the slot shows both avatars','Logged on the wall seconds earlier: the button already reads done when you open the app','Undo after the wall shows it: the wall row disappears too'],
+      done:['Same care rules as the wall (CompanionLogic)','Stars granted once per log'] },
+    { id:'B3', ws:'B', ph:1, t:'A companion\'s week', goal:'The wall\'s companion page, condensed for a phone: the paw trail, the diary and the mood.', frames:[
+      ['p','b3week','Yo-Yo\'s week','Tapping a companion card on Today opens it. Milestones and walker of the week sit further down.']],
+      states:['A plant or a baby: same page, its own routines and wording','First week: an empty trail with dashed rings, never zeros'],
+      done:['Reuses the wall\'s week computations'] },
+    { id:'B4', ws:'B', ph:1, t:'Pitch in', goal:'Your chores, open ones you can take, and adding a chore in a few taps.', frames:[
+      ['p','b4list','The full list','Yours, open and everyone, from "See all" on Today.'],
+      ['p','b4add','Add a chore','The same repeat picker and start day as the wall, as a sheet.']],
+      states:['Two people take the same chore: last one wins, the other sees "Mia took it"','Kids\' chores: visible under Everyone, checked off on the wall'],
+      done:['Same Recurrence model as care routines','Claims show on the wall immediately (D1)'] },
+    { id:'B5', ws:'B', ph:1, t:'Food', goal:'The better camera is in your pocket, and so is the restaurant you\'re sitting in.', frames:[
+      ['p','b5week','This week','The wall\'s grid at phone size, with empty slots to fill.'],
+      ['p','b5cam','Snap','The polaroid viewfinder; the meal is guessed from the time.'],
+      ['p','b5details','Details','Nearby restaurants first when you\'re out; who ate defaults to you.'],
+      ['p','b5saved','Saved','The new photo lands in its slot.'],
+      ['p','b5entry','An entry','Edit, add a photo, remove.']],
+      states:['Location denied: Home, Delivery and recent places only','Photo still uploading: shows locally at once, a small cloud mark until synced','The Pencil food month stays on iPad'],
+      done:['Same framing as the wall, so the polaroid matches','2048 px copies sync; originals stay on the phone'] },
+    { id:'B6', ws:'B', ph:1, t:'Lists and dinners', goal:'A grocery list that is right while two people are in the store.', frames:[
+      ['p','b6list','Groceries','Sections, who added what, check and add.'],
+      ['p','b6meals','This week\'s dinners','The wall\'s meal plan as a list; missing ingredients go to groceries.']],
+      states:['Same item added twice: shown twice; a later version may merge them','Offline in the store: everything works, sends later'],
+      done:['Items appear on the wall within seconds when online'] },
+    { id:'B7', ws:'B', ph:1, t:'Glow and cashing in', goal:'Your stars and the family\'s goal; cashing in from anywhere still becomes a family moment.', frames:[
+      ['p','b7glow','Glow','Your week, the goal, everyone\'s bars.'],
+      ['p','b7cash','Cash in','A confirmation that names everyone who earned it.'],
+      ['w','b7wall','The wall celebrates','One celebration on shared screens, then it settles. No looping motion.']],
+      states:['Two devices cash in at once: one redemption (derived id per reward and cycle)','No shared screen: the phone shows the celebration'],
+      done:['One star ledger for chores and care'] },
+    { id:'B8', ws:'B', ph:1, t:'What\'s coming up', goal:'A read-only look at the household\'s next week from the phone\'s own calendars.', frames:[
+      ['p','b8week','Next 7 days','Grouped by day with person colors. Tapping opens Calendar.']],
+      states:['No calendars chosen: a single row linking to E3','Busy-only calendars: "Busy" with no title'],
+      done:['Uses the phone\'s EventKit; no event data synced'] },
+
+    { id:'C1', ws:'C', ph:1, t:'Your routine reminder', goal:'A reminder arrives only for your own routine, with the action on the notification, and disappears if someone else did it.', frames:[
+      ['p','c1open','The window opens','Three actions: log, snooze an hour, someone else is on it.'],
+      ['p','c1done','Logged from the Lock Screen','Confirms, and the Lock Screen widgets update.']],
+      states:['Logged elsewhere first: the pending reminder is withdrawn on next sync','Offline: reminders are local, so they still fire','Two households: prefixed (A5)'],
+      done:['Scheduled on the device from synced routines; no server'] },
+    { id:'C2', ws:'C', ph:2, t:'Ask someone from the wall', goal:'The only time a phone buzzes because of someone else: when they ask for help.', frames:[
+      ['w','c2wall','Ask from the wall','Lists members with the app. Kids without phones aren\'t shown.'],
+      ['p','c2phone','On their phone','Answer with the action itself, "on my way" or "can\'t".']],
+      states:['Delivery can lag by minutes (CloudKit push): the wall says "sent" not "delivered"','"Can\'t right now" shows on the wall so the asker can ask someone else'],
+      done:['Clears for everyone when anyone logs it'] },
+    { id:'C3', ws:'C', ph:1, t:'Widgets', goal:'Log without opening the app; glance without unlocking.', frames:[
+      ['p','c3home','Home Screen','Small: one companion with a button. Medium: today for you. Groceries with add.'],
+      ['p','c3lock','Lock Screen','Time since the last walk, the family goal, chores left.']],
+      states:['Several companions: a widget is configured for one','Two households: configured per widget'],
+      done:['Interactive via App Intents on iOS 17'] },
+    { id:'C4', ws:'C', ph:1, t:'Siri and Shortcuts', goal:'The same intents as the widget and notifications, available to Siri, Shortcuts and later Control Center.', frames:[
+      ['p','c4siri','"I walked Yo-Yo"','Logs for you with undo, without opening the app.'],
+      ['p','c4shortcut','Actions in Shortcuts','Log care, check a chore, add to a list, snap a meal, what\'s next.']],
+      states:['Ambiguous name ("I fed the cat" with two cats): Siri asks which','Not a member yet: Siri offers to open the app'],
+      done:['One set of App Intents shared by widgets, notifications, Siri and Shortcuts'] },
+    { id:'C5', ws:'C', ph:2, t:'Walk timer', goal:'Start a walk when you head out; the Lock Screen keeps time; ending logs the duration.', frames:[
+      ['p','c5start','Start or just log','Offered from "More…" when a walk is due.'],
+      ['p','c5live','Live Activity','Business toggles on the way; End logs a walk with the timed duration.']],
+      states:['Forgot to end: auto-ends at the routine\'s usual length plus an hour, and asks to confirm','Someone else logs the slot meanwhile: both kept'],
+      done:['ActivityKit, no background location'] },
+
+    { id:'D1', ws:'D', ph:1, t:'Activity arriving from phones', goal:'When someone logs from their phone, the wall shows it right away and says where it came from.', frames:[
+      ['w','d1arrive','A walk from James\'s phone','The row and the slot glow once, a short toast names who.'],
+      ['w','d1meal','A meal from Mia\'s phone','The same small tag on any row that came from a personal device.']],
+      states:['Burst of changes after being offline: one toast summarizing, not ten','Undone on the phone: the row leaves quietly'],
+      done:['No looping animation; respects the wall\'s rest mode'] },
+    { id:'D2', ws:'D', ph:1, t:'Family & devices, storage and sync', goal:'One Settings page answers who has the app, how to add someone, and whether everything is in sync.', frames:[
+      ['w','a3wall','Family & devices','Shared with A3.'],
+      ['w','d2storage','iCloud storage and sync','The owner\'s meter, guidance, and a plain sync line.']],
+      states:['This device is personal: the page shows You instead of a role switch','Owner looking: actions to free space are live; members see them read-only'],
+      done:['Same numbers as E4 on the phone'] },
+    { id:'D3', ws:'D', ph:1, t:'When sync stops on the wall', goal:'The wall keeps working and says so in one place, without alarming a hallway full of visitors.', frames:[
+      ['w','d3pause','Paused: owner\'s iCloud full','Explains in Settings only; Today shows a small dot on the gear.']],
+      states:['Offline: nothing until an hour passes, then the gear dot','Signed out on the owner\'s wall: Settings explains how to sign back in'],
+      done:['No sync errors ever appear on Today'] },
+    { id:'D4', ws:'D', ph:2, t:'Ask someone from the wall', goal:'See C2: the wall half of the remind journey.', frames:[
+      ['w','c2wall','Ask sheet','Shared with C2.']],
+      states:['No members with phones: the button is hidden'], done:['Ships with C2'] },
+
+    { id:'E1', ws:'E', ph:1, t:'The You menu', goal:'Everything about you and the household, one tap from any tab.', frames:[
+      ['p','e1you','You','Household, invite, switch, notifications, calendars, storage, who you are, leave.']],
+      states:['Member (not owner): no delete; storage shows the owner\'s name'], done:['Reachable from the avatar on every tab'] },
+    { id:'E2', ws:'E', ph:1, t:'Notification choices', goal:'Per-routine control in plain words, with a promise about what never notifies.', frames:[
+      ['p','e2notif','Notifications','Each routine and chore type, on or off, with when it fires.']],
+      states:['Notifications denied in iOS: one row linking to iOS Settings'], done:['Stored per device'] },
+    { id:'E3', ws:'E', ph:1, t:'Calendars on this iPhone', goal:'Choose which of your calendars appear, and whether shared screens may show them.', frames:[
+      ['p','e3cal','Calendars','Household, busy only, or just me, per calendar.']],
+      states:['Calendar access denied: explain and link to iOS Settings'], done:['Calendar ids stay on the device; only the mapping syncs'] },
+    { id:'E4', ws:'E', ph:1, t:'Storage on the phone', goal:'Members see whose iCloud it uses and what they added. Owners get the full meter from D2.', frames:[
+      ['p','e4storage','Member view','Your photos, and keeping originals on the phone.']],
+      states:['Owner view: same as the wall\'s meter, with the shrink action'], done:['Sizes summed locally from the data tables'] },
+    { id:'E5', ws:'E', ph:1, t:'Every failure, designed', goal:'One banner at a time at the top of Today, in plain words with one fix.', frames:[
+      ['p','e5states','The banners','Offline, paused by a full iCloud, signed out, newer version elsewhere. Shown stacked here; only one appears at a time.']],
+      states:['Removed from a household: A6','Concurrent edits: merged by field, never a banner'], done:['Each banner has a test that triggers it with the iCloud stand-in'] },
+
+    { id:'F1', ws:'F', ph:1, t:'Household setup from the phone', goal:'Everything the wall can set up, reachable from You › Household.', frames:[
+      ['p','f1hub','Household','People, companions, chores, rewards and lists.']],
+      states:['Two people edit the same chore: last edit wins per field'], done:['No feature is wall-only except the Pencil food month'] },
+    { id:'F2', ws:'F', ph:1, t:'The wall\'s editors, as sheets', goal:'Reuse the existing editors at phone size instead of writing new ones.', frames:[
+      ['p','f2person','A person','Name, color, invite, archive.'],
+      ['p','f2companion','A companion','Routines with the shared repeat picker, captions.']],
+      states:['Archive instead of delete, so history keeps its names'], done:['One editor implementation per thing, adapting to size'] }
+  ];
+
+  /* ---------- Render ---------- */
+  const MS = {"A1": "M1", "D3": "M1", "A3": "M2", "A4": "M2", "B1": "M2", "B2": "M2", "D1": "M2", "D2": "M2", "E1": "M2", "E5": "M2", "B3": "M3", "B4": "M3", "B5": "M3", "B6": "M3", "B7": "M3", "B8": "M3", "C1": "M3", "E2": "M3", "E3": "M3", "C3": "M4", "C4": "M4", "F1": "M4", "F2": "M4", "A2": "M4", "A6": "M4", "E4": "M4", "A5": "M5", "C2": "Later", "D4": "Later", "C5": "Later"};
+  const phaseTag = j => `<span class="ph-tag ${MS[j.id]==='Later'?'p2':''}">${MS[j.id]}</span>`;
+  const jhtml = j => `<article class="journey" id="${j.id.toLowerCase()}" data-ws="${j.ws}">
+      <div class="jhead"><span class="jid">${j.id}</span><h3>${j.t}</h3>${phaseTag(j)}</div>
+      <p class="goal">${j.goal}</p>
+      <div class="board">${j.frames.map(([d, key, h, c], i) => `${i ? '<span class="arrow" aria-hidden="true">›</span>' : ''}<figure class="fr ${d}" style="margin:0">${F[key]}<figcaption class="cap"><b>${h}</b><span>${c}</span></figcaption></figure>`).join('')}</div>
+      <div class="specs"><div class="spec"><h4>States and edge cases</h4><ul>${j.states.map(s => `<li>${s}</li>`).join('')}</ul></div><div class="spec"><h4>Done when</h4><ul>${j.done.map(s => `<li>${s}</li>`).join('')}</ul></div></div>
+    </article>`;
+  document.getElementById('journeys').innerHTML = WS.map(w => `<div class="ws" data-ws="${w.k}"><div class="wshead"><div class="eyebrow">Workstream ${w.k}</div><h2>${w.name}</h2><p class="note">${w.blurb}</p></div>${J.filter(j => j.ws === w.k).map(jhtml).join('')}</div>`).join('');
+  document.getElementById('index').innerHTML = WS.map(w => `<div class="idx"><b>${w.k} · ${w.name}</b>${J.filter(j => j.ws === w.k).map(j => `<a href="#${j.id.toLowerCase()}"><span>${j.id}</span>${j.t}</a>`).join('')}</div>`).join('');
+  const filters = document.getElementById('filters');
+  filters.innerHTML = [['all','All workstreams'], ...WS.map(w => [w.k, `${w.k} · ${w.name}`])].map(([k, l]) => `<button class="chipbtn" data-f="${k}" aria-pressed="${k==='all'}">${l}</button>`).join('');
+  filters.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    filters.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    document.querySelectorAll('#journeys .ws').forEach(s => { s.hidden = !(b.dataset.f === 'all' || s.dataset.ws === b.dataset.f); });
+  });
+
+  /* QR codes (decorative pattern with finder squares) */
+  document.querySelectorAll('canvas.qrc').forEach(c => {
+    const x = c.getContext('2d'), n = 25; x.fillStyle = '#fff'; x.fillRect(0, 0, n, n); x.fillStyle = '#2A2420';
+    let s = 7; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (rnd() > .52) x.fillRect(i, j, 1, 1);
+    [[0,0],[n-7,0],[0,n-7]].forEach(([a,b]) => { x.fillStyle = '#fff'; x.fillRect(a-1 < 0 ? 0 : a-1, b-1 < 0 ? 0 : b-1, 9, 9); x.fillStyle = '#2A2420'; x.fillRect(a, b, 7, 7); x.fillStyle = '#fff'; x.fillRect(a+1, b+1, 5, 5); x.fillStyle = '#2A2420'; x.fillRect(a+2, b+2, 3, 3); });
+  });
+})();
+</script>

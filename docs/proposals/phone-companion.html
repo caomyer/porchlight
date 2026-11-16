@@ -1,0 +1,833 @@
+<title>Porchlight in Your Pocket</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Caveat:wght@600&display=swap">
+<style>
+/* Layout: thesis, what the market does, the split of jobs, a live phone mock, a live wall mock, what it takes, decisions. Single light look matching the app's Sunday Paper theme. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --rail: #EDE4D4;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --accent-soft: #F8DDD0;
+  --good: #5B9F72;
+  --good-soft: #E3EFE2;
+  --blue: #4C7BB0;
+  --coral: #DD7558;
+  --ochre: #C2933A;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 80px;
+}
+.page { max-width: 1080px; margin: 0 auto; display: grid; gap: 48px; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(32px, 5.4vw, 50px); line-height: 1.08; text-wrap: balance; }
+h2 { font: 600 26px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 19px/1.25 var(--display); margin: 0; }
+p { margin: 0; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+a { color: var(--blue); }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 18px; max-width: 68ch; }
+.note { font-size: 14.5px; color: var(--muted); max-width: 72ch; }
+section { display: grid; gap: 16px; min-width: 0; }
+button { font-family: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.thesis { background: var(--ink); color: var(--surface); border-radius: 22px; padding: 22px 26px; display: grid; gap: 8px; max-width: 820px; }
+.thesis b { font: 600 25px/1.28 var(--display); }
+.thesis span { color: #D8CDBF; font-size: 15px; }
+
+/* Market */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 700; }
+td.us { background: #FBF1E8; }
+.lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.lesson { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.lesson b { font: 600 17px/1.3 var(--display); }
+.lesson p { font-size: 14.5px; color: var(--muted); }
+.src { font-size: 13px; color: var(--muted); }
+
+/* Roles */
+.roles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 720px) { .roles { grid-template-columns: 1fr; } }
+.role { background: var(--surface); border-radius: 22px; padding: 20px 22px; display: grid; gap: 10px; align-content: start; }
+.role .who { display: flex; align-items: center; gap: 10px; }
+.role .who i { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-style: normal; font-size: 18px; background: var(--surface2); }
+.role h3 { font-size: 22px; }
+.role .tag { font: 700 13px/1.3 var(--body); color: var(--accent); }
+.role ul { font-size: 15px; }
+.rules { display: grid; gap: 8px; background: var(--surface); border-radius: 18px; padding: 16px 20px; max-width: 820px; }
+.rules div { display: grid; grid-template-columns: 28px 1fr; gap: 8px; font-size: 15px; }
+.store { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.store-card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+.store-card .cap { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.store-card .big { font: 600 22px/1.2 var(--display); }
+.store-card .sub { font-size: 14px; color: var(--muted); }
+.meter { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--rail); }
+.meter i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; background: var(--c); vertical-align: 0; }
+.store-card .act { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 14.5px; }
+.store-card .act b { font-weight: 600; }
+.store-card .act button { border: 0; border-radius: 999px; padding: 6px 14px; background: var(--paper); color: var(--accent); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.rules div span:first-child { font: 600 17px/1.4 var(--display); color: var(--accent); }
+
+/* Stage */
+.stage { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.chipbtn { border: 0; background: var(--surface2); color: var(--muted); border-radius: 999px; padding: 8px 13px; font: 800 13px/1 var(--body); }
+.chipbtn[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.explain { display: grid; gap: 10px; background: var(--surface); border-radius: 20px; padding: 18px 20px; }
+.explain h3 { font-size: 21px; }
+.explain ul { font-size: 15px; }
+.explain .why { font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+
+/* Phone frame */
+.phone { width: 100%; max-width: 380px; aspect-ratio: 390 / 812; background: #1d1a18; border-radius: 54px; padding: 11px; margin: 0 auto; box-shadow: 0 30px 60px rgba(40,25,10,.18); }
+.screen { width: 100%; height: 100%; border-radius: 44px; background: var(--paper); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 110px; height: 32px; background: #1d1a18; border-radius: 20px; z-index: 6; }
+.status { height: 50px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0; font: 700 14px/1 var(--body); }
+.pbody { flex: 1; overflow-y: auto; padding: 4px 16px 16px; display: grid; gap: 12px; align-content: start; scrollbar-width: none; }
+.pbody::-webkit-scrollbar { display: none; }
+.tabbar { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 10px 26px; background: rgba(255,252,246,.94); border-top: 1px solid var(--line); }
+.tabbar button { border: 0; background: transparent; display: grid; justify-items: center; gap: 3px; font: 700 10.5px/1 var(--body); color: var(--muted); padding: 4px 0; }
+.tabbar button span { font-size: 19px; line-height: 1; filter: grayscale(1); opacity: .7; }
+.tabbar button[aria-pressed="true"] { color: var(--accent); }
+.tabbar button[aria-pressed="true"] span { filter: none; opacity: 1; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phead .t small { display: block; font: 700 12px/1.2 var(--body); color: var(--muted); }
+.phead .t b { font: 600 27px/1.15 var(--display); }
+.av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); border: 0; padding: 0; }
+.av.J { background: var(--blue); } .av.M { background: var(--coral); } .av.A { background: var(--ochre); }
+.av.sm { width: 24px; height: 24px; font-size: 11px; }
+.pcard { background: var(--surface); border-radius: 20px; padding: 14px; display: grid; gap: 10px; box-shadow: 0 1px 2px rgba(60,40,20,.06); }
+.pcard.warm { background: linear-gradient(160deg, #FBE9DC, var(--surface) 60%); }
+.ch { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ch b { font: 600 17px/1.2 var(--display); }
+.ch span { font: 700 12px/1.2 var(--body); color: var(--muted); }
+.pet { display: flex; gap: 10px; align-items: center; }
+.pet .face { width: 46px; height: 46px; border-radius: 50%; background: #F3D9BE; display: grid; place-items: center; font-size: 26px; flex: none; }
+.pet b { font: 600 20px/1.1 var(--display); display: block; }
+.pet small { font: 600 12.5px/1.3 var(--body); color: var(--muted); }
+.slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.slot { border-radius: 14px; padding: 8px 10px; font: 700 12.5px/1.25 var(--body); border: 2px dashed var(--line); display: flex; gap: 8px; align-items: center; }
+.slot small { display: block; color: var(--muted); font-weight: 600; }
+.slot.done { border: 0; background: var(--good-soft); }
+.slot.due { border-color: var(--accent); }
+.bigbtn { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 16px/1 var(--body); padding: 14px 16px; width: 100%; }
+.bigbtn.done { background: var(--good); }
+.withrow { display: flex; gap: 6px; align-items: center; font: 600 12.5px/1.2 var(--body); color: var(--muted); flex-wrap: wrap; }
+.withrow button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 9px 4px 4px; display: flex; gap: 5px; align-items: center; font: 700 12px/1 var(--body); color: var(--ink); }
+.withrow button[aria-pressed="true"] { border-color: var(--coral); background: #FBE6DF; }
+.row { display: flex; gap: 10px; align-items: center; padding: 6px 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.box { width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--accent); background: transparent; flex: none; padding: 0; display: grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); }
+.box.on { background: var(--good); border-color: var(--good); }
+.row .tx { flex: 1; min-width: 0; font: 700 14px/1.25 var(--body); }
+.row .tx small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); }
+.row.done .tx b { text-decoration: line-through; color: var(--muted); }
+.star { font: 800 11.5px/1 var(--body); background: var(--surface2); border-radius: 999px; padding: 5px 8px; color: var(--muted); }
+.take { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: 6px 10px; font: 800 12px/1 var(--body); }
+.take.mine { background: var(--accent-soft); border-color: transparent; }
+.agenda .row .time { width: 44px; font: 700 12px/1.2 var(--body); color: var(--muted); flex: none; }
+.thumb { width: 34px; height: 34px; border-radius: 6px; flex: none; box-shadow: 0 1px 3px rgba(0,0,0,.18); border: 3px solid #fff; }
+.toast { position: absolute; left: 14px; right: 14px; top: 58px; background: var(--ink); color: var(--surface); border-radius: 16px; padding: 11px 14px; font: 700 13.5px/1.3 var(--body); z-index: 7; display: flex; gap: 10px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.toast small { display: block; color: #D8CDBF; font-weight: 600; font-size: 12px; }
+.toast button { margin-left: auto; border: 0; background: transparent; color: #F2B59A; font: 800 12.5px/1 var(--body); }
+
+/* Food */
+.viewfinder { aspect-ratio: 1; border-radius: 4px; background: #fff; padding: 10px 10px 34px; box-shadow: 0 6px 18px rgba(60,40,20,.16); transform: rotate(-1.2deg); position: relative; }
+.viewfinder .shot { width: 100%; height: 100%; background: radial-gradient(circle at 45% 52%, #F5D9A8 0 22%, #E8B66E 23% 30%, #8B5E3C 31% 34%, #EFE6D6 35% 60%, #C9B79C 61%); display: grid; place-items: end start; padding: 8px; }
+.viewfinder .shot span { background: rgba(0,0,0,.45); color: #fff; font: 700 11px/1 var(--body); border-radius: 999px; padding: 5px 8px; }
+.viewfinder .cap { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font: 600 20px/1 var(--hand); color: #5b4c40; }
+.shutter { width: 64px; height: 64px; border-radius: 50%; border: 4px solid var(--ink); background: var(--surface); margin: 0 auto; display: grid; place-items: center; padding: 0; }
+.shutter i { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); display: block; }
+.near { display: flex; gap: 6px; flex-wrap: wrap; }
+.near button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 11px; font: 700 12.5px/1 var(--body); color: var(--ink); }
+.near button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pol { background: #fff; padding: 4px 4px 14px; box-shadow: 0 2px 6px rgba(60,40,20,.14); border-radius: 2px; }
+.pol div { aspect-ratio: 1; }
+.pol:nth-child(odd) { transform: rotate(-2deg); } .pol:nth-child(even) { transform: rotate(1.5deg); }
+
+/* Lists */
+.addrow { display: flex; gap: 8px; }
+.addrow input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font: 600 14px/1.2 var(--body); background: var(--surface); color: var(--ink); }
+.addrow button { border: 0; background: var(--accent); color: #fff; border-radius: 12px; padding: 0 14px; font: 800 14px/1 var(--body); }
+.who { font: 600 11.5px/1.2 var(--body); color: var(--muted); }
+
+/* Glow */
+.glowhero { display: grid; justify-items: center; gap: 4px; padding: 10px 0 4px; }
+.lamp { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #FFE3A6 0 24%, rgba(255,210,140,.55) 25% 45%, rgba(255,210,140,0) 70%); display: grid; place-items: center; font-size: 34px; position: relative; }
+.glowhero b { font: 600 40px/1 var(--display); }
+.bar { height: 10px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--ochre); border-radius: 999px; }
+.fam { display: grid; gap: 8px; }
+.fam div { display: flex; gap: 8px; align-items: center; font: 700 13.5px/1 var(--body); }
+.fam div .bar { flex: 1; }
+
+/* Join */
+.joinstep { display: grid; gap: 12px; text-align: center; justify-items: center; padding-top: 18px; }
+.joinstep h4 { font: 600 25px/1.2 var(--display); margin: 0; }
+.joinstep p { font-size: 14px; color: var(--muted); max-width: 30ch; }
+.pick { display: grid; gap: 8px; width: 100%; }
+.pick button { display: flex; gap: 12px; align-items: center; border: 2px solid var(--line); background: var(--surface); border-radius: 18px; padding: 12px 14px; font: 700 16px/1 var(--body); color: var(--ink); text-align: left; }
+.pick button small { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 4px; }
+.pick button[aria-pressed="true"] { border-color: var(--accent); background: #FDF3EC; }
+.pick button:disabled { opacity: .55; cursor: default; }
+.dots { display: flex; gap: 6px; justify-content: center; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.dots i.on { background: var(--accent); }
+
+/* Lock screen */
+.lock { flex: 1; background: linear-gradient(170deg, #3B4A63, #7D6B83 55%, #D69A7B); color: #fff; display: grid; align-content: start; gap: 10px; padding: 52px 14px 20px; }
+.lock .clock { text-align: center; font: 600 72px/1 var(--display); letter-spacing: -0.02em; }
+.lock .date { text-align: center; font: 700 15px/1 var(--body); opacity: .9; }
+.widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.lw { background: rgba(255,255,255,.18); backdrop-filter: blur(8px); border-radius: 18px; padding: 9px 11px; font: 700 12px/1.3 var(--body); }
+.lw b { display: block; font-size: 14px; }
+.notif { background: rgba(255,252,246,.92); color: var(--ink); border-radius: 20px; padding: 12px 14px; display: grid; gap: 8px; }
+.notif .top { display: flex; gap: 8px; align-items: center; font: 700 12px/1 var(--body); color: var(--muted); }
+.notif .top i { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; font-style: normal; font-size: 12px; color: #fff; }
+.notif .top span { margin-left: auto; }
+.notif b { font: 700 14.5px/1.3 var(--body); }
+.notif p { font-size: 13.5px; line-height: 1.35; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.actions button { border: 0; border-radius: 12px; padding: 10px; font: 800 13px/1 var(--body); background: var(--surface2); color: var(--ink); }
+.actions button.p { background: var(--accent); color: #fff; }
+.homewidget { background: var(--surface); color: var(--ink); border-radius: 22px; padding: 12px; display: grid; gap: 8px; width: 170px; }
+.homewidget b { font: 600 15px/1.1 var(--display); }
+
+/* Wall */
+.wall { width: 100%; aspect-ratio: 1112 / 834; background: #2b2724; border-radius: 34px; padding: 12px; box-shadow: 0 30px 60px rgba(40,25,10,.18); }
+.wscreen { width: 100%; height: 100%; border-radius: 24px; background: var(--paper); overflow: hidden; display: grid; grid-template-columns: 7% 1fr; position: relative; container-type: inline-size; }
+.wrail { background: var(--rail); display: grid; align-content: start; justify-items: center; gap: 1.6cqw; padding-top: 1.6cqw; }
+.wrail i { width: 3.4cqw; height: 3.4cqw; border-radius: 1cqw; background: var(--surface2); display: block; font-style: normal; font-size: 1.8cqw; text-align: center; line-height: 3.4cqw; }
+.wrail i.home { background: var(--accent); }
+.wrail i.on { background: var(--surface); }
+.wmain { padding: 2cqw 2.2cqw; display: grid; grid-template-rows: auto 1fr; gap: 1.6cqw; min-width: 0; min-height: 0; }
+.whead { display: flex; align-items: baseline; gap: 2cqw; }
+.whead b { font: 600 6cqw/1 var(--display); letter-spacing: -0.02em; }
+.whead span { font: 600 2cqw/1.2 var(--display); }
+.whead span small { display: block; font: 600 1.4cqw/1.3 var(--body); color: var(--muted); }
+.whead .ppl { margin-left: auto; display: flex; }
+.whead .ppl .av { width: 3.6cqw; height: 3.6cqw; font-size: 1.5cqw; border: .25cqw solid var(--paper); position: relative; }
+.whead .ppl .av + .av { margin-left: -.8cqw; }
+.wgrid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 1.6cqw; min-height: 0; }
+.wcard { background: var(--surface); border-radius: 1.8cqw; padding: 1.6cqw 1.8cqw; display: grid; gap: 1cqw; align-content: start; min-height: 0; overflow: hidden; }
+.wcard .ch b { font-size: 2.1cqw; }
+.wcard .ch span { font-size: 1.2cqw; }
+.wrow { display: grid; grid-template-columns: 5cqw 1fr auto; gap: 1cqw; align-items: center; background: var(--paper); border-radius: 1.2cqw; padding: .8cqw 1cqw; font: 700 1.45cqw/1.25 var(--body); }
+.wrow small { display: block; font-weight: 600; font-size: 1.15cqw; color: var(--muted); }
+.wrow .tm { font: 700 1.3cqw/1 var(--body); color: var(--muted); }
+.wrow .av { width: 2.6cqw; height: 2.6cqw; font-size: 1.1cqw; }
+.wrow.new { background: #FCEBDD; box-shadow: inset 0 0 0 .2cqw var(--accent); }
+.via { display: inline-flex; gap: .4cqw; align-items: center; font: 700 1.05cqw/1 var(--body); color: var(--accent); background: var(--surface); border-radius: 999px; padding: .3cqw .7cqw; margin-left: .5cqw; vertical-align: .1cqw; }
+.nowl { display: flex; align-items: center; gap: 1cqw; font: 800 1.15cqw/1 var(--body); color: var(--accent); }
+.nowl i { flex: 1; height: .2cqw; background: var(--accent); }
+.wpet { display: flex; gap: 1.2cqw; align-items: center; }
+.wpet .face { width: 6cqw; height: 6cqw; border-radius: 50%; background: #F3D9BE; display: grid; place-items: center; font-size: 3.4cqw; }
+.wpet b { font: 600 2.8cqw/1 var(--display); display: block; }
+.wpet small { font: 600 1.4cqw/1.4 var(--body); color: var(--muted); }
+.wslots { display: grid; grid-template-columns: 1fr 1fr; gap: 1cqw; }
+.wslot { border: .2cqw dashed var(--line); border-radius: 1.2cqw; padding: .9cqw 1.1cqw; font: 700 1.4cqw/1.3 var(--body); display: flex; gap: .8cqw; align-items: center; }
+.wslot small { display: block; color: var(--muted); font-weight: 600; font-size: 1.15cqw; }
+.wslot.done { background: var(--good-soft); border-color: transparent; }
+.wslot.fresh { box-shadow: 0 0 0 .3cqw rgba(217,101,59,.35); }
+.wslot .av { width: 2.4cqw; height: 2.4cqw; font-size: 1cqw; }
+.wbtn { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 1.6cqw/1 var(--body); padding: 1.2cqw 2cqw; justify-self: start; }
+.wbtn.ghost { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 .15cqw var(--line); }
+.wtoast { position: absolute; top: 1.6cqw; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); border-radius: 999px; padding: 1cqw 1.8cqw; font: 700 1.5cqw/1 var(--body); display: flex; gap: 1cqw; align-items: center; white-space: nowrap; z-index: 4; }
+.wtoast .av { width: 2.6cqw; height: 2.6cqw; font-size: 1.1cqw; }
+.wscrim { position: absolute; inset: 0; background: rgba(42,36,32,.32); display: grid; place-items: center; z-index: 5; }
+.wsheet { width: 46cqw; background: var(--surface); border-radius: 2.4cqw; padding: 2.4cqw; display: grid; gap: 1.6cqw; box-shadow: 0 2cqw 5cqw rgba(40,25,10,.25); }
+.wsheet h4 { margin: 0; font: 600 2.8cqw/1.15 var(--display); }
+.wsheet .lab { font: 800 1.1cqw/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.wsheet p { font-size: 1.45cqw; color: var(--muted); }
+.wsheet .btns { display: flex; gap: 1cqw; flex-wrap: wrap; }
+.wsheet .sent { font: 700 1.45cqw/1.3 var(--body); color: var(--good); }
+.settingsgrid { display: grid; grid-template-columns: 1fr 22cqw; gap: 2cqw; align-items: start; }
+.phoneRow { display: grid; grid-template-columns: 3.6cqw 1fr auto; gap: 1.2cqw; align-items: center; padding: 1.1cqw 0; border-top: 1px solid var(--line); font: 700 1.6cqw/1.25 var(--body); }
+.phoneRow:first-of-type { border-top: 0; }
+.phoneRow small { display: block; font: 600 1.2cqw/1.3 var(--body); color: var(--muted); }
+.phoneRow .av { width: 3.6cqw; height: 3.6cqw; font-size: 1.4cqw; }
+.stat { font: 800 1.15cqw/1 var(--body); border-radius: 999px; padding: .6cqw 1cqw; background: var(--good-soft); color: #3F7A55; }
+.stat.wait { background: var(--accent-soft); color: var(--accent); }
+.stat.wall { background: var(--surface2); color: var(--muted); }
+.qr { background: #fff; border-radius: 1.6cqw; padding: 1.4cqw; display: grid; gap: 1cqw; justify-items: center; text-align: center; box-shadow: 0 .4cqw 1.4cqw rgba(60,40,20,.1); }
+.qr canvas { width: 16cqw; height: 16cqw; image-rendering: pixelated; }
+.qr b { font: 600 1.7cqw/1.2 var(--display); }
+.qr small { font: 600 1.15cqw/1.35 var(--body); color: var(--muted); }
+
+/* Build */
+.phases { display: grid; gap: 12px; }
+.phase { background: var(--surface); border-radius: 20px; padding: 18px 20px; display: grid; grid-template-columns: 150px 1fr; gap: 16px; }
+@media (max-width: 640px) { .phase { grid-template-columns: 1fr; } }
+.phase .tag b { font: 600 20px/1.2 var(--display); display: block; }
+.phase .tag span { font: 700 12.5px/1.3 var(--body); color: var(--muted); }
+.phase ul { font-size: 15px; }
+.size { display: inline-block; font: 800 11.5px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 5px 9px; margin-top: 8px; background: var(--accent-soft); color: var(--accent); }
+.size.m { background: var(--surface2); color: var(--muted); }
+.risks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.risk { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; border-top: 4px solid var(--ochre); }
+.risk b { font: 600 16.5px/1.3 var(--display); }
+.risk p { font-size: 14.5px; color: var(--muted); }
+.rec { color: var(--good); font-weight: 800; }
+@media (prefers-reduced-motion: no-preference) {
+  .pop { animation: pop .5s ease-out; }
+  @keyframes pop { 0% { transform: scale(.94); opacity: .4; } 60% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1); } }
+}
+</style>
+
+<div class="page">
+
+<header style="display:grid;gap:14px">
+  <div class="eyebrow">Porchlight proposal · Nov 15, 2026 · for review</div>
+  <h1>Porchlight in your pocket</h1>
+  <p class="lede">What a phone companion is for, what the rest of the market does with theirs, how the wall changes once phones join, and what it takes to build.
+  The mocks below are live: tap the buttons on the phone and the wall.</p>
+</header>
+
+<div class="thesis">
+  <b>The wall shows us. The phone shows me, and lets me pitch in from anywhere.</b>
+  <span>The wall stays the family's shared page, and the place kids use. Each grown-up's phone already knows who they are, so it can drop the "who did it" step, carry the reminders that are theirs, and log the walk or the meal where it happens. Everything still works on the wall alone; phones add to it and never replace it.</span>
+</div>
+
+<!-- ======================= MARKET ======================= -->
+<section>
+  <div class="eyebrow">1 · What the market does</div>
+  <h2>Every family display treats the phone as the remote control</h2>
+  <p class="note">The display companies (Skylight, Hearth, Cozyla) use the phone to set things up and the screen to glance and tap. Phone-first apps (Cozi, TimeTree, FamilyWall) have no shared screen at all. The closest match to Porchlight's care logging is a small pet app, Fed?, built on iCloud with no account.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Product</th><th>What the phone does</th><th>Kids</th><th>Glance and reminders</th><th>Sync and price</th></tr></thead>
+    <tbody>
+      <tr><td><b>Skylight</b><br>Calendar, Cal Max</td><td>The full setup tool: calendars, chores, routines, lists, rewards; with Plus, meal plans and Magic Import. The display is where people tap things done.</td><td>Profiles on the display, no account, no phone. Sells a separate $140 kid tablet (Buddy).</td><td>Home screen widgets for events, lists, tasks. Reviews call reminders weak. No Watch or Live Activity.</td><td>Skylight's own cloud, no offline mode. Plus $79/yr gates rewards, meals, photos.</td></tr>
+      <tr><td><b>Hearth Display</b></td><td>"Everything the display has and more." Routines can only be created on the phone.</td><td>Profiles with emoji cues for pre-readers; teens with phones run their own to-dos.</td><td>Not found.</td><td>Own cloud. $9/mo or $86/yr after a trial; only the basic calendar is free.</td></tr>
+      <tr><td><b>Cozyla</b></td><td>Daily view of schedule and chores, and adding family profiles.</td><td>Up to 8 profiles on the display.</td><td>Not found.</td><td>No subscription required; hardware $350 to $900.</td></tr>
+      <tr><td><b>Cozi</b></td><td>Phone-first, no display. One shared family login on every device.</td><td>Share the family login.</td><td>Richer reminders and the month view on phones are paid.</td><td>Own cloud. Gold $39/yr, Max $79/yr.</td></tr>
+      <tr><td><b>TimeTree</b>, <b>FamilyWall</b></td><td>Phone-first shared calendars; an account per person.</td><td>Need their own account.</td><td>TimeTree has a Watch app; widgets in Premium.</td><td>Own cloud. $45/yr each.</td></tr>
+      <tr><td><b>Joon</b>, <b>Greenlight</b>, <b>BusyKid</b></td><td>A parent app that approves chores, plus a kid app.</td><td>Kids need their own phone.</td><td>Approval pings are the top complaint: "its own management burden".</td><td>$4 to $13/mo.</td></tr>
+      <tr><td><b>Fed?</b> (pet feeding)</td><td>Log a feed from an interactive widget, Lock Screen, Control Center, Action Button or Siri. Warns before a double feed.</td><td>Join the family; no sign-up.</td><td>"Overdue" and "family fed" alerts.</td><td>iCloud, no account. $15/yr Pro.</td></tr>
+      <tr><td class="us"><b>Porchlight</b> (proposed)</td><td class="us">Log care, chores and meals where they happen; see what is yours today; add to lists. Setup works from any member's device.</td><td class="us">Stay wall profiles; a teen with an iPhone can join as themselves.</td><td class="us">Interactive widget, actionable reminders for your own routines, no approval pings.</td><td class="us">iCloud sharing, no server, no account to create, no subscription.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="lessons">
+    <div class="lesson"><b>Kids don't need phones</b><p>Every display product keeps kids as tap-on-the-wall profiles. Skylight even sells a separate kid tablet instead of a kid app. The wall stays the kids' device.</p></div>
+    <div class="lesson"><b>Logging wins on the lock screen</b><p>The best-reviewed care app logs from widgets and the Lock Screen without opening the app. A one-tap "I walked Yo-Yo" belongs there.</p></div>
+    <div class="lesson"><b>Approval queues backfire</b><p>Chore apps that ping a parent to approve each task create the notification overload people complain about most. We trust the tap, and the wall keeps undo.</p></div>
+    <div class="lesson"><b>Paywalls and outages hurt</b><p>The most common complaints are paying to use basic features, no offline mode, and a hub that silently goes stale. Local-first iCloud sync avoids all three.</p></div>
+  </div>
+  <p class="src">Sources:
+    <a href="https://apps.apple.com/us/app/skylight-app/id1438779037">Skylight app</a> ·
+    <a href="https://skylight.zendesk.com/hc/en-us/articles/46260591900443-Mobile-App-Widgets">Skylight widgets</a> ·
+    <a href="https://theeverymom.com/skylight-buddy-review/">Skylight Buddy</a> ·
+    <a href="https://hearthdisplay.com/blogs/hearth-at-home/our-mobile-app-is-here">Hearth app</a> ·
+    <a href="https://hearth.zendesk.com/hc/en-us/articles/34947668035859-What-s-included-in-the-Hearth-Family-Membership">Hearth membership</a> ·
+    <a href="https://apps.apple.com/us/app/cozyla/id6504553395">Cozyla app</a> ·
+    <a href="https://www.cozi.com/compare-plans/">Cozi plans</a> ·
+    <a href="https://support.timetreeapp.com/hc/en-us/articles/360000290802-How-much-does-TimeTree-cost">TimeTree</a> ·
+    <a href="https://www.choosingtherapy.com/joon-app-review/">Joon review</a> ·
+    <a href="https://apps.apple.com/us/app/id6760776848">Fed?</a>.
+    Hearth and Cozyla widget and reminder support could not be confirmed.</p>
+</section>
+
+<!-- ======================= ROLES ======================= -->
+<section>
+  <div class="eyebrow">2 · Two roles</div>
+  <h2>The wall is the family's page. The phone is yours.</h2>
+  <div class="roles">
+    <div class="role">
+      <div class="who"><i>🏠</i><div><h3>The wall iPad</h3><div class="tag">Shared, anonymous, always on</div></div></div>
+      <ul>
+        <li>The whole family's day at a glance: clock, calendar, care, plates, chores, Glow.</li>
+        <li>Anyone can tap; "who did it" is asked because the wall doesn't know who is standing there.</li>
+        <li>Where kids check off chores and see their stars.</li>
+        <li>The big canvas for setup and the Pencil food month. Setup also works from any member's phone.</li>
+        <li>New: invites phones with a QR code, and shows what came from whose phone.</li>
+      </ul>
+    </div>
+    <div class="role">
+      <div class="who"><i>📱</i><div><h3>Your phone</h3><div class="tag">Personal, signed in as you, in your pocket</div></div></div>
+      <ul>
+        <li>Log a walk, a feed or a chore wherever you are, credited to you without asking.</li>
+        <li>Snap a meal with the better camera; when you are dining out, it suggests the restaurant you are sitting in.</li>
+        <li>See what is yours today and what anyone can take.</li>
+        <li>A grocery list that is up to date in the store.</li>
+        <li>Reminders for your own routines, with the action right on the notification.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rules">
+    <div><span>1</span><span><b>The wall works alone.</b> No feature moves off the wall; a household without phones loses nothing.</span></div>
+    <div><span>2</span><span><b>The phone knows who you are.</b> Every log, check and photo from a phone is credited to its owner; the "who did it" step disappears.</span></div>
+    <div><span>3</span><span><b>One source of truth.</b> The wall and phones edit the same rows; a walk logged anywhere shows everywhere within seconds when online.</span></div>
+    <div><span>4</span><span><b>Buzz only on purpose.</b> A phone buzzes for your own routines or when someone taps "Remind" for you. Never for someone else's activity.</span></div>
+  </div>
+</section>
+
+<!-- ======================= PHONE MOCK ======================= -->
+<section>
+  <div class="eyebrow">3 · The phone</div>
+  <h2>Four tabs and the lock screen</h2>
+  <div class="picker" id="phonePicker" role="group" aria-label="Phone scene">
+    <button class="chipbtn" data-scene="join" aria-pressed="false">Joining</button>
+    <button class="chipbtn" data-scene="today" aria-pressed="true">Today</button>
+    <button class="chipbtn" data-scene="food" aria-pressed="false">Food</button>
+    <button class="chipbtn" data-scene="lists" aria-pressed="false">Lists</button>
+    <button class="chipbtn" data-scene="glow" aria-pressed="false">Glow</button>
+    <button class="chipbtn" data-scene="lock" aria-pressed="false">Lock screen</button>
+  </div>
+  <div class="stage">
+    <div class="phone"><div class="screen" id="phoneScreen"></div></div>
+    <div class="explain" id="phoneExplain"></div>
+  </div>
+</section>
+
+<!-- ======================= WALL MOCK ======================= -->
+<section>
+  <div class="eyebrow">4 · The wall, reimagined</div>
+  <h2>Three changes on the iPad</h2>
+  <p class="note">The wall keeps its layout. It gains a way to welcome phones, it shows where a log came from, and it can ask someone's phone for help.</p>
+  <div class="picker" id="wallPicker" role="group" aria-label="Wall scene">
+    <button class="chipbtn" data-scene="arrive" aria-pressed="true">A walk arrives from a phone</button>
+    <button class="chipbtn" data-scene="remind" aria-pressed="false">Remind someone</button>
+    <button class="chipbtn" data-scene="phones" aria-pressed="false">Settings: Family phones</button>
+  </div>
+  <div class="wall"><div class="wscreen" id="wallScreen"></div></div>
+  <div class="explain" id="wallExplain"></div>
+</section>
+
+<!-- ======================= BUILD ======================= -->
+<section>
+  <div class="eyebrow">5 · What it takes</div>
+  <h2>Mostly a data-layer project; the phone screens are the easy part</h2>
+  <p class="note">Today every row lives in one SQLite file on the iPad with auto-increment ids, and the app is signed with a free Apple ID that expires every 7 days. Sync needs both to change. The phone itself reuses the existing stores, components and theme. The build order, with a gate for each step, is the delivery plan in the <a href="https://claude.ai/artifact/A2de2Mmc4UmXkvuhC59nyV">UX atlas</a>; the phases below are the outline.</p>
+  <div class="phases">
+    <div class="phase">
+      <div class="tag"><b>0 · Foundation</b><span>Wall only, no visible change</span><br><span class="size">Largest</span></div>
+      <ul>
+        <li><b>Apple Developer Program: done (Nov 15).</b> CloudKit, push and TestFlight are unlocked, and the wall's install now lasts a year instead of 7 days.</li>
+        <li><b>Move the data to sync-ready ids.</b> All 21 tables switch from auto-increment row ids to UUIDs in one migration, under a single Household root.</li>
+        <li><b>Adopt SQLiteData (Point-Free).</b> It is built on GRDB, which the app already uses, and syncs to CloudKit with sharing. Its rules fit our schema after small changes: every table hangs off one parent chain, so references like "which person" (in careLogPerson, journalEntryEater, choreCompletion) become plain id columns rather than foreign keys.</li>
+        <li><b>Photos become iCloud assets.</b> Meal photos sync as their own rows. The photo frame's library can stay local at first.</li>
+        <li><b>Free bonus:</b> the household is backed up to iCloud. A dead or replaced iPad no longer loses years of walks and meals.</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="tag"><b>1 · Phone v1</b><span>What the mock shows</span><br><span class="size m">Medium</span></div>
+      <ul>
+        <li><b>Same app, two shells.</b> One universal target: iPad opens the wall, iPhone opens the pocket shell with four tabs. Features keep one store each and gain phone-sized views.</li>
+        <li><b>Join by QR.</b> The wall shows an iCloud share link as a QR code. The phone accepts it, picks who you are, and remembers that on the device only.</li>
+        <li><b>Today, Food, Lists, Glow</b> as mocked. The calendar on the phone shows today's household events from the phone's own calendars. Events are still created in Apple or Google Calendar.</li>
+        <li><b>Reminders computed on the phone.</b> Each phone schedules local notifications for its owner's routine windows and cancels them when anyone logs. No server needed, and they arrive offline.</li>
+        <li><b>One interactive widget</b> (WidgetKit + App Intents, iOS 17): "I walked Yo-Yo" without opening the app.</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="tag"><b>2 · Later</b><span>After living with v1</span><br><span class="size m">Small each</span></div>
+      <ul>
+        <li><b>Remind someone</b> from the wall (needs a push between devices; see the risk below).</li>
+        <li><b>Send photos to the frame</b> from the Photos share sheet.</li>
+        <li>Lock Screen and Control Center logging; Apple Watch for walks.</li>
+        <li>A walk timer on the Lock Screen.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="risks">
+    <div class="risk"><b>Everyone needs an iPhone</b><p>CloudKit sharing is Apple-only. An Android phone in the household would need our own server or a web page, which is a different project.</p></div>
+    <div class="risk"><b>"Remind Mia" is best-effort</b><p>Without a server, a nudge travels as a CloudKit change notification. iOS may delay these silent pushes by minutes. Fine for "can you walk Yo-Yo tonight", not for urgent alerts.</p></div>
+    <div class="risk"><b>The owner's iCloud holds the data</b><p>Shared data counts against the owner's iCloud storage. Meal photos are the bulk; we should keep them compressed (about 300 KB each).</p></div>
+    <div class="risk"><b>Calendars differ per device</b><p>Calendar ids are local to each device, so the "this calendar is James's" mapping has to match on calendar name and account instead.</p></div>
+    <div class="risk"><b>Sync is hard to test</b><p>End-to-end tests need two simulators signed into two iCloud test accounts. We should add a fake sync engine for unit tests and keep a short manual checklist on real devices.</p></div>
+  </div>
+</section>
+
+<!-- ======================= SYNC DESIGN ======================= -->
+<section>
+  <div class="eyebrow">6 · iCloud sync, designed for any household</div>
+  <h2>Nothing in the sync knows about our family, our wall, or our dog</h2>
+  <p class="note">Sync is built for every household that installs Porchlight: phone-only families, two homes sharing kids, grandparents who join from afar. Our wall iPad is just one way to use it.</p>
+  <div class="lessons">
+    <div class="lesson"><b>A household is what gets shared</b><p>One household record owns everything else. Sharing it with iCloud invites someone in with read and write access. A person can belong to several households (co-parents in two homes, grandparents), and the app switches between them.</p></div>
+    <div class="lesson"><b>Any device can start one</b><p>Whoever creates the household owns it, on any device. For us that is the wall iPad; for a phone-only family it is a parent's iPhone. Invites go out as a link by QR code, Messages or AirDrop.</p></div>
+    <div class="lesson"><b>Device role is a setting</b><p>"Shared screen" means anyone can tap, so it asks who did it. "Personal" means it credits its owner. iPads ask during setup; iPhones default to personal. Nothing branches on iPad versus iPhone.</p></div>
+    <div class="lesson"><b>Your data, your iCloud</b><p>Data lives only in the families' own iCloud. We run no server and create no accounts, and we can't read anyone's data. The App Store privacy label can say "Data Not Collected".</p></div>
+  </div>
+  <h3 style="margin-top:6px">Rules every table follows, checked by tests</h3>
+  <div class="rules" style="max-width:none">
+    <div><span>1</span><span><b>UUID ids.</b> Two phones can create rows offline without colliding.</span></div>
+    <div><span>2</span><span><b>One parent per row.</b> Each table hangs off the household by a single chain (household, companion, routine, log), which is what iCloud sharing can follow. References across the tree, like "who did it" or "which restaurant", are plain ids that the app resolves and that degrade gracefully if missing.</span></div>
+    <div><span>3</span><span><b>No unique constraints; derived ids instead.</b> "The food page for Tuesday" or "the chore done on Tuesday" get an id computed from their parent and day. Two devices writing the same day land on the same row and merge, instead of creating duplicates.</span></div>
+    <div><span>4</span><span><b>Actions are new rows.</b> Walks, chore checks and cash-ins append to a log rather than flipping a field, so two people acting at once never overwrite each other. Edits to the same field merge as "last edit wins", field by field.</span></div>
+    <div><span>5</span><span><b>People and places are archived, never deleted.</b> A year of history keeps its names even after someone moves out.</span></div>
+    <div><span>6</span><span><b>Big data in its own tables.</b> Photos, thumbnails and Pencil pages sync as iCloud files, so lists and timelines stay fast. A phone fetches full-size photos only when you open one.</span></div>
+    <div><span>7</span><span><b>Some things stay on the device.</b> Calendar ids (which differ per device), kiosk and night settings, "who am I", and the photo frame's own library never sync. Calendars are shared as "this account's Family calendar belongs to Mia" and matched on each device.</span></div>
+    <div><span>8</span><span><b>The schema only grows.</b> We add tables and optional columns, and never rename or remove, so an iPad that hasn't updated keeps working with a phone that has. A test compares the schema with the last shipped one and fails on anything else.</span></div>
+    <div><span>9</span><span><b>Nothing assumes who the owner is.</b> The household is known by its own id, never by the iCloud account or share that holds it. People link to members, not to iCloud users, and "who am I" points at a person. The owner is only a fact we read from the share, so moving a household to another member later means copying it and re-inviting, with no schema change. A test copies a household into a fresh iCloud stand-in and checks that every row and link survives.</span></div>
+  </div>
+  <h3 style="margin-top:6px">Every failure has a designed state</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th style="width:28%">What happens</th><th>What people see</th></tr></thead>
+    <tbody>
+      <tr><td>Offline, or iCloud is down</td><td>Everything works; changes queue and send later. A quiet "Last synced 2 h ago" appears only after a long gap, never a spinner.</td></tr>
+      <tr><td>Signed out of iCloud</td><td>The household keeps working on this device only, with a one-line notice in Settings explaining how to turn sync back on.</td></tr>
+      <tr><td>The owner's iCloud is full</td><td>Changes keep saving on each device. The owner sees the storage card below with "iCloud is full" and the ways to free space; everyone else sees "Paused: James's iCloud is full", and sync resumes on its own once there is room.</td></tr>
+      <tr><td>Removed from a household, or the owner stops sharing</td><td>The household disappears from that device after one notice. A future option can save a copy first.</td></tr>
+      <tr><td>Two edits at once</td><td>Each field keeps its latest edit; logs and checks never collide, by rule 4.</td></tr>
+      <tr><td>Different app versions</td><td>Unknown new data is kept and shown once the app updates, by rule 8.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3 style="margin-top:6px">Storage, in plain view</h3>
+  <p class="note">Everything the household shares counts against the owner's iCloud, and only theirs. Members use almost none of their own, so a free 5 GB account is enough to join. Apple doesn't let apps read how much iCloud space is left, so the meter shows what the household itself uses and how fast it grows, and the app learns the account is full when iCloud says so.</p>
+  <div class="store">
+    <div class="store-card">
+      <div class="cap">Settings · iCloud storage · owner</div>
+      <div class="big">This household uses 412 MB of your iCloud</div>
+      <div class="meter"><i style="width:78%;background:var(--coral)"></i><i style="width:15%;background:var(--ochre)"></i><i style="width:7%;background:var(--blue)"></i></div>
+      <div class="legend"><span style="--c:var(--coral)">Photos 322 MB</span><span style="--c:var(--ochre)">Pencil pages 61 MB</span><span style="--c:var(--blue)">Everything else 29 MB</span></div>
+      <div class="sub">Growing about 30 MB a month, mostly food photos.</div>
+      <div class="act"><span><b>Shrink photos older than a year</b><br><span class="sub">Saves about 180 MB. Thumbnails stay sharp.</span></span><button>Review</button></div>
+      <div class="act"><span><b>Check your iCloud plan</b><br><span class="sub">Opens iCloud settings on this device.</span></span><button>Open</button></div>
+    </div>
+    <div class="store-card">
+      <div class="cap">Settings · iCloud storage · member</div>
+      <div class="big">Stored in James's iCloud</div>
+      <div class="meter"><i style="width:78%;background:var(--coral)"></i><i style="width:15%;background:var(--ochre)"></i><i style="width:7%;background:var(--blue)"></i></div>
+      <div class="legend"><span style="--c:var(--coral)">Photos 322 MB</span><span style="--c:var(--ochre)">Pencil pages 61 MB</span><span style="--c:var(--blue)">Everything else 29 MB</span></div>
+      <div class="sub">The household uses 412 MB of James's iCloud and almost none of yours.</div>
+      <div class="act"><span><b>Your photos here: 96 MB</b><br><span class="sub">The ones you added from this phone.</span></span><button>See them</button></div>
+    </div>
+  </div>
+  <div class="rules" style="max-width:none">
+    <div><span>·</span><span><b>Guidance at setup.</b> Creating a household says plainly that it is stored in your iCloud and grows mainly with photos, so the person with the most iCloud room should create it.</span></div>
+    <div><span>·</span><span><b>Photos sync at a sensible size.</b> A 2048-pixel copy (a few hundred KB) syncs; the full original stays on the device that took it. That keeps a busy year of food photos well under 1 GB.</span></div>
+    <div><span>·</span><span><b>A heads-up before it bites.</b> When growth would fill a typical plan within a few months, or iCloud first reports it's full, the owner gets one notice with the card above. No repeat nagging.</span></div>
+    <div><span>·</span><span><b>Counted locally.</b> Each data table records its file size, so the meter is a quick sum on any device with no extra iCloud calls.</span></div>
+  </div>
+  <h3 style="margin-top:6px">What changes in today's tables</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th style="width:26%">Tables</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td>All 21</td><td>Integer ids become UUIDs, keeping every existing row and link, in one tested migration.</td></tr>
+      <tr><td>careLogPerson, journalEntryEater, chore, choreCompletion, reward, rewardRedemption, listItem, journalEntry</td><td>The person and restaurant links become plain ids (rule 2). The join tables get their own id.</td></tr>
+      <tr><td>journalPage, choreCompletion, mealPlan</td><td>Unique "one per day" constraints become derived ids (rule 3).</td></tr>
+      <tr><td>journalEntryPhoto, journalPage</td><td>Photo files and Pencil drawings move into their own data tables (rule 6), each recording its size for the storage meter.</td></tr>
+      <tr><td>calendarSource</td><td>Splits into a shared "calendar belongs to person" table and a device-only table of this device's calendar ids (rule 7).</td></tr>
+      <tr><td>ambientPhoto</td><td>Stays on the device for now. A shared "send to the frame" album comes in Phase 2.</td></tr>
+      <tr><td>New: member</td><td>Who joined from which device, linked to their person, so the wall can show "James · connected" and "Remind" knows where to go.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">Built on SQLiteData, Point-Free's iCloud sync for GRDB. It merges field by field, handles iCloud rate limits and full storage, and ships an in-memory stand-in for iCloud, so the sync and sharing paths are tested in unit tests rather than only by hand. Its current release needs Swift 6.4 (Xcode 27); this Mac has Xcode 26.6.</p>
+</section>
+
+<!-- ======================= DECISIONS ======================= -->
+<section>
+  <div class="eyebrow">7 · Decisions for you</div>
+  <h2>What I recommend</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th style="width:22%">Question</th><th style="width:38%">Recommendation</th><th>Alternative</th></tr></thead>
+    <tbody>
+      <tr><td>Are all the household's phones iPhones?</td><td><span class="rec">Confirmed: all iPhones (Nov 15).</span> iCloud sharing covers everyone, no server needed.</td><td>Revisit only if an Android phone joins: that would need a small server plus a web companion.</td></tr>
+      <tr><td>How do devices sync?</td><td><span class="rec">iCloud sharing via SQLiteData.</span> No server, no accounts, works offline, free backup.</td><td>Our own backend: opens Android and the web, but adds hosting, auth and a privacy story.</td></tr>
+      <tr><td>One app or two?</td><td><span class="rec">One universal app</span> with a wall shell and a pocket shell, sharing stores and theme.</td><td>A separate iPhone app: duplicates the data layer and drifts.</td></tr>
+      <tr><td>Who owns the data?</td><td><span class="rec">Whoever creates the household</span>, on any device. It lives in that person's iCloud and follows their Apple ID across devices. Ours is created on the wall, under the Apple ID signed in there.</td><td>A separate account just for the household: one more login to keep alive.</td></tr>
+      <tr><td>How does a phone know who you are?</td><td><span class="rec">Pick yourself once when joining.</span> Kept on the phone only; switchable in its settings.</td><td>Match the iCloud identity to a person: more magic, more edge cases.</td></tr>
+      <tr><td>Kids?</td><td><span class="rec">Stay on the wall.</span> A teen with an iPhone joins as their own person. No PINs, no approval queue.</td><td>Kid mode on phones: what Joon does, and what parents complain about.</td></tr>
+      <tr><td>What can the phone create?</td><td><span class="rec">Everything except the Pencil food month.</span> Setup uses the wall's own editors as sheets, so there is one editor per thing.</td><td>Setup only on the wall: a phone-only family could not use the app.</td></tr>
+      <tr><td>Calendar on the phone?</td><td><span class="rec">Read-only household agenda on Today.</span> Your calendar app already creates events well.</td><td>A full week and month view on the phone: duplicates Calendar.</td></tr>
+      <tr><td>Upgrade this Mac to Xcode 27?</td><td><span class="rec">Yes, before Phase 0.</span> The SQLiteData release with the conflict and full-storage fixes needs it. The wall's iPadOS 17 stays supported.</td><td>Pin SQLiteData 1.11 on Xcode 26.6 and miss those fixes.</td></tr>
+      <tr><td>What size do photos sync at?</td><td><span class="rec">A 2048-pixel copy;</span> the original stays on the device that took it. Sharp on every screen, and the owner's iCloud lasts years.</td><td>Sync originals: every device gets full resolution, at roughly ten times the storage.</td></tr>
+      <tr><td>Hand the household to another member?</td><td><span class="rec">Not now, but nothing blocks it (rule 9).</span> It would be copy-and-reinvite, since iCloud can't transfer a share.</td><td>Build it in v1: little value until a family actually needs it.</td></tr>
+      <tr><td>Notifications?</td><td><span class="rec">Only your own routine windows, plus "Remind" from the wall.</span> Each is one tap to turn off.</td><td>"Mia walked Yo-Yo" alerts for everyone: the overload pattern.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+</div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const state = { walked: false, withMia: false, chores: { faucet: false, recycle: true }, taken: { vacuum: false }, place: 'Home', list: [
+      { t: 'Oat milk', who: 'Mia added · 2 min ago', on: false },
+      { t: 'Dog treats', who: 'You added · yesterday', on: false },
+      { t: 'Eggs', who: 'Mia added · this morning', on: true },
+      { t: 'Lemons', who: 'You added · Fri', on: false }],
+    joinStep: 0, me: null, notif: 'open', remindSent: false, phoneTab: 'today' };
+
+  /* ---------- Phone ---------- */
+  const status = () => `<div class="notch"></div><div class="status"><span>6:12</span><span>●●● ▮</span></div>`;
+  const tabs = (on) => `<div class="tabbar" role="group" aria-label="Phone tabs">${[['today','🏠','Today'],['food','🍜','Food'],['lists','📝','Lists'],['glow','✨','Glow']].map(([k,i,l]) => `<button data-tab="${k}" aria-pressed="${k===on}"><span>${i}</span>${l}</button>`).join('')}</div>`;
+  const polColors = ['#E9B872','#C98B5B','#9FB58A','#E3C9A0','#D9845A','#B9A27E','#E6D3A8','#A7C0C9'];
+
+  const phoneScenes = {
+    join() {
+      const s = state.joinStep;
+      let inner;
+      if (s === 0) inner = `<div class="joinstep"><div style="font-size:44px">🏡</div><h4>Join the household's porch</h4><p>You scanned the code on the wall. Your phone will share the household's walks, chores, meals and lists through iCloud.</p><button class="bigbtn" data-join="1">Join</button><p style="font-size:12.5px">No account to create. Uses the iCloud you're signed in with.</p></div>`;
+      else if (s === 1) inner = `<div class="joinstep"><h4>Which one is you?</h4><p>What you log from this phone is credited to you.</p><div class="pick">
+          <button data-me="J" aria-pressed="${state.me==='J'}"><span class="av J">J</span><span>James<small>Blue</small></span></button>
+          <button data-me="M" aria-pressed="${state.me==='M'}"><span class="av M">M</span><span>Mia<small>Already on Mia's iPhone</small></span></button>
+          <button disabled><span class="av A">A</span><span>Ava<small>Uses the wall</small></span></button>
+        </div><button class="bigbtn" data-join="2" ${state.me ? '' : 'disabled style="opacity:.5"'}>Continue</button></div>`;
+      else inner = `<div class="joinstep"><div style="font-size:40px">🔔</div><h4>Remind you about your routines?</h4><p>Only yours: Yo-Yo's evening walk, 5 to 8 pm. Nothing when others log. Change it any time.</p><button class="bigbtn" data-join="3">Allow reminders</button><button class="take" data-join="3" style="justify-self:center">Not now</button></div>`;
+      return `${status()}<div class="pbody">${inner}<div class="dots">${[0,1,2].map(i => `<i class="${i===s?'on':''}"></i>`).join('')}</div></div>`;
+    },
+    today() {
+      const w = state.walked;
+      const evening = w ? `<div class="slot done"><span class="av sm J">J</span><span>Evening${state.withMia ? ' · with Mia' : ''}<small>6:12 pm, just now</small></span></div>` : `<div class="slot due"><span>🐾</span><span>Evening<small>5 to 8 pm · open now</small></span></div>`;
+      return `${status()}<div class="pbody">
+        <div class="phead"><div class="t"><small>Sunday, November 15</small><b>Hi, James</b></div><span class="av J">J</span></div>
+        <div class="pcard warm">
+          <div class="pet"><div class="face">🐶</div><div><b>Yo-Yo</b><small>${w ? 'Walked just now by you' : 'Walked 9h ago by Mia'}</small></div></div>
+          <div class="slots"><div class="slot done"><span class="av sm M">M</span><span>Morning<small>8:40 am</small></span></div>${evening}</div>
+          ${w ? `<button class="bigbtn done" data-act="undoWalk">Logged · +1 star · Undo</button>` : `<button class="bigbtn" data-act="walk">🐾 I walked Yo-Yo</button>`}
+          ${w ? '' : `<div class="withrow">Also went: <button data-act="withMia" aria-pressed="${state.withMia}"><span class="av sm M">M</span>Mia</button><button><span class="av sm A">A</span>Ava</button></div>`}
+        </div>
+        <div class="pcard">
+          <div class="ch"><b>Yours today</b><span>${1 + (state.chores.faucet?1:0)} of 2 done</span></div>
+          <div>
+            <div class="row ${state.chores.recycle?'done':''}"><button class="box ${state.chores.recycle?'on':''}" data-chore="recycle" aria-label="Take out recycling">${state.chores.recycle?'✓':''}</button><div class="tx"><b>Take out recycling</b><small>${state.chores.recycle?'Done 7:05 am':'today'}</small></div><span class="star">+2</span></div>
+            <div class="row ${state.chores.faucet?'done':''}"><button class="box ${state.chores.faucet?'on':''}" data-chore="faucet" aria-label="Fix the leaky faucet">${state.chores.faucet?'✓':''}</button><div class="tx"><b>Fix the leaky faucet</b><small>this weekend</small></div><span class="star">+3</span></div>
+          </div>
+        </div>
+        <div class="pcard">
+          <div class="ch"><b>Anyone can take</b><span>2 open</span></div>
+          <div>
+            <div class="row"><div class="tx"><b>Vacuum the living room</b><small>${state.taken.vacuum ? 'Yours now · shows under your name on the wall' : 'this weekend'}</small></div><button class="take ${state.taken.vacuum?'mine':''}" data-act="take">${state.taken.vacuum ? 'Yours' : "I'll do it"}</button></div>
+            <div class="row"><div class="tx"><b>Change the sheets</b><small>this week</small></div><button class="take">I'll do it</button></div>
+          </div>
+        </div>
+        <div class="pcard agenda">
+          <div class="ch"><b>At home today</b><span>from your calendars</span></div>
+          <div>
+            <div class="row"><span class="time">All day</span><div class="tx"><b>Aunt Rosa visiting</b><small>Sat to Mon</small></div></div>
+            <div class="row"><span class="time">8:40</span><span class="thumb" style="background:#E9B872"></span><div class="tx"><b>Avocado toast</b><small>Mia · home-cooked</small></div></div>
+            <div class="row"><span class="time">10:00</span><div class="tx"><b>Climbing gym</b><small>James</small></div><span class="av sm J">J</span></div>
+            <div class="row"><span class="time">7:00</span><div class="tx"><b>Dinner with Rosa</b><small>Family</small></div></div>
+          </div>
+        </div>
+      </div>${tabs('today')}${w ? `<div class="toast pop"><span style="font-size:20px">🐾</span><span>Evening walk logged<small>The wall shows it now. +1 star for you</small></span></div>` : ''}`;
+    },
+    food() {
+      const out = state.place !== 'Home';
+      return `${status()}<div class="pbody">
+        <div class="phead"><div class="t"><small>Dinner · guessed from the time</small><b>Snap a meal</b></div><span class="av J">J</span></div>
+        <div class="viewfinder"><div class="shot"><span>Square, like the polaroid</span></div><div class="cap">${out ? state.place : 'Sunday dinner'}</div></div>
+        <button class="shutter" aria-label="Take photo"><i></i></button>
+        <div class="pcard">
+          <div class="ch"><b>Where</b><span>${out ? 'Dining out · from your location' : 'Home-cooked'}</span></div>
+          <div class="near">${['Home','Delivery','Nopa · 40 ft away','Souvla'].map(p => `<button data-place="${p.split(' ·')[0]}" aria-pressed="${state.place===p.split(' ·')[0]}">${p}</button>`).join('')}</div>
+          <div class="withrow">Who ate: <button aria-pressed="true"><span class="av sm J">J</span>You</button><button><span class="av sm M">M</span>Mia</button><button><span class="av sm A">A</span>Ava</button></div>
+        </div>
+        <div class="pcard">
+          <div class="ch"><b>This week</b><span>12 meals</span></div>
+          <div class="strip">${polColors.map(c => `<div class="pol"><div style="background:${c}"></div></div>`).join('')}</div>
+        </div>
+      </div>${tabs('food')}`;
+    },
+    lists() {
+      return `${status()}<div class="pbody">
+        <div class="phead"><div class="t"><small>Lists</small><b>Groceries</b></div><span class="av J">J</span></div>
+        <form class="addrow" id="addForm"><label for="addItem" style="position:absolute;left:-9999px">Add an item</label><input id="addItem" placeholder="Add an item" autocomplete="off"><button>Add</button></form>
+        <div class="pcard"><div>${state.list.map((it, i) => `<div class="row ${it.on?'done':''}"><button class="box ${it.on?'on':''}" data-item="${i}" aria-label="${it.t}">${it.on?'✓':''}</button><div class="tx"><b>${it.t}</b><small class="who">${it.who}</small></div></div>`).join('')}</div></div>
+        <div class="pcard"><div class="ch"><b>Other lists</b><span></span></div><div>
+          <div class="row"><div class="tx"><b>Costco run</b><small>6 items</small></div></div>
+          <div class="row"><div class="tx"><b>Before Rosa leaves</b><small>3 items</small></div></div>
+        </div></div>
+        <p class="note" style="font-size:12.5px">Checked items fade from the wall's Lists page as you shop.</p>
+      </div>${tabs('lists')}`;
+    },
+    glow() {
+      const mine = 23 + (state.walked?1:0) + (state.chores.faucet?3:0);
+      return `${status()}<div class="pbody">
+        <div class="phead"><div class="t"><small>This week</small><b>Glow</b></div><span class="av J">J</span></div>
+        <div class="pcard warm glowhero"><div class="lamp">💡</div><b>${mine}</b><span class="note" style="font-size:13px">stars from you this week</span></div>
+        <div class="pcard"><div class="ch"><b>Saving for</b><span>family reward</span></div>
+          <div class="tx" style="font:700 14px/1.3 var(--body)">🍕 Pizza night · ${58 + mine - 23} of 80</div>
+          <div class="bar"><i style="width:${Math.round((58+mine-23)/80*100)}%"></i></div>
+        </div>
+        <div class="pcard"><div class="ch"><b>Everyone</b><span>this week</span></div>
+          <div class="fam">
+            <div><span class="av sm J">J</span><span style="width:40px">You</span><div class="bar"><i style="width:${mine*3}%;background:var(--blue)"></i></div><span>${mine}</span></div>
+            <div><span class="av sm M">M</span><span style="width:40px">Mia</span><div class="bar"><i style="width:57%;background:var(--coral)"></i></div><span>19</span></div>
+            <div><span class="av sm A">A</span><span style="width:40px">Ava</span><div class="bar"><i style="width:48%;background:var(--ochre)"></i></div><span>16</span></div>
+          </div>
+        </div>
+        <p class="note" style="font-size:12.5px">Cashing in a reward stays on the wall, where the whole family sees it.</p>
+      </div>${tabs('glow')}`;
+    },
+    lock() {
+      const n = state.notif;
+      const card = n === 'open' ? `<div class="notif pop"><div class="top"><i>🏠</i>PORCHLIGHT<span>now</span></div><b>Yo-Yo's evening walk</b><p>The window opened at 5. Nobody has gone yet.</p><div class="actions"><button class="p" data-notif="walked">I walked Yo-Yo</button><button data-notif="later">In an hour</button></div></div>`
+        : n === 'walked' ? `<div class="notif pop"><div class="top"><i>🏠</i>PORCHLIGHT<span>now</span></div><b>Logged: evening walk</b><p>Credited to you at 6:12 pm. The wall and Mia's phone show it. <a href="#" data-notif="reset" style="color:var(--accent)">Undo</a></p></div>`
+        : `<div class="notif pop"><div class="top"><i>🏠</i>PORCHLIGHT<span>now</span></div><b>Okay, again at 7:12</b><p>If someone else walks Yo-Yo first, this reminder disappears. <a href="#" data-notif="reset" style="color:var(--accent)">Show again</a></p></div>`;
+      return `<div class="notch"></div><div class="lock"><div class="date">Sunday, November 15</div><div class="clock">6:12</div>
+        <div class="widgets"><div class="lw">🐶 Yo-Yo<b>${n==='walked' ? 'Walked just now' : 'Walked 9h ago'}</b></div><div class="lw">✨ Glow<b>${n==='walked' ? 24 : 23} stars this week</b></div></div>
+        ${card}
+        <div style="margin-top:14px;display:grid;justify-items:center;gap:6px"><div class="homewidget"><b>Yo-Yo</b><span class="note" style="font-size:11.5px">Evening · 5 to 8 pm</span><button class="bigbtn ${n==='walked'?'done':''}" style="font-size:13px;padding:10px" data-notif="${n==='walked'?'reset':'walked'}">${n==='walked'?'✓ Walked':'🐾 Walked'}</button></div><span style="font:700 11px/1 var(--body);opacity:.85">Home screen widget</span></div>
+      </div>`;
+    }
+  };
+
+  const phoneText = {
+    join: ['Joining takes ten seconds', ['Scan the QR code on the wall\'s Settings page with the camera. It opens an iCloud share for the household.', 'Pick who you are. Kids who use the wall are shown but can\'t be picked without their own phone.', 'Reminders are asked for last and only cover your own routines.'], 'No account and no password: iCloud is the identity, and the wall\'s owner can remove a phone any time.'],
+    today: ['Today: mine first, then ours', ['The big button logs the open routine and credits you. Tap Mia under it if you walked together.', '"Yours today" lists the chores assigned to you. "Anyone can take" lets you claim a shared chore; the wall moves it under your name.', '"At home today" is a read-only agenda from your phone\'s own calendars, plus meals logged today.'], 'Try it: tap I walked Yo-Yo, check off the faucet, or claim the vacuuming. Glow and the lock screen follow.'],
+    food: ['Food: the phone\'s camera, where you are', ['Same square polaroid viewfinder as the wall, so the photo lands exactly as framed.', 'The meal slot is guessed from the time. When you are out, the closest restaurants from Maps appear first.', 'Who ate defaults to you. The Pencil-written food month stays on the wall.'], 'Dining out was the hardest case on the wall (you are not home). On the phone it becomes one tap.'],
+    lists: ['Lists: up to date in the store', ['Add or check items; each shows who added it.', 'Changes reach the wall and other phones within seconds when online, and queue up when offline.'], 'This is the most-used phone feature in every competitor we looked at.'],
+    glow: ['Glow: your stars, the family\'s goal', ['Your stars this week, the reward the family is saving for, and everyone\'s bars.', 'Cashing in stays on the wall, so a reward is a family moment and not a solo tap.'], 'Kids see Glow on the wall, which is where it matters most.'],
+    lock: ['The lock screen does most of the work', ['A reminder arrives only for your own routine window, with the action on the notification itself.', '"In an hour" snoozes it. If anyone logs the walk first, the phone cancels it.', 'The home screen widget logs the walk without opening the app. The lock screen widgets show the last walk and your stars.'], 'Reminders are scheduled on the phone from the synced routines, so they need no server and still arrive offline.']
+  };
+
+  function renderPhone(scene) {
+    state.phoneTab = scene;
+    $('#phoneScreen').innerHTML = phoneScenes[scene]();
+    const [h, items, why] = phoneText[scene];
+    $('#phoneExplain').innerHTML = `<h3>${h}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul><p class="why">${why}</p>`;
+    document.querySelectorAll('#phonePicker button').forEach(b => b.setAttribute('aria-pressed', b.dataset.scene === scene));
+    const f = $('#addForm');
+    if (f) f.addEventListener('submit', e => { e.preventDefault(); const v = $('#addItem').value.trim(); if (v) { state.list.unshift({ t: v, who: 'You added · just now', on: false }); renderPhone('lists'); } });
+  }
+
+  $('#phonePicker').addEventListener('click', e => { const b = e.target.closest('button'); if (b) renderPhone(b.dataset.scene); });
+  $('#phoneScreen').addEventListener('click', e => {
+    const b = e.target.closest('[data-tab],[data-act],[data-chore],[data-item],[data-place],[data-join],[data-me],[data-notif]');
+    if (!b) return;
+    const d = b.dataset;
+    if (d.notif) e.preventDefault();
+    if (d.tab) return renderPhone(d.tab);
+    if (d.act === 'walk') { state.walked = true; state.notif = 'walked'; renderWall('arrive'); }
+    if (d.act === 'undoWalk') { state.walked = false; state.notif = 'open'; renderWall(wallScene); }
+    if (d.act === 'withMia') state.withMia = !state.withMia;
+    if (d.act === 'take') state.taken.vacuum = !state.taken.vacuum;
+    if (d.chore) state.chores[d.chore] = !state.chores[d.chore];
+    if (d.item) state.list[+d.item].on = !state.list[+d.item].on;
+    if (d.place) state.place = d.place;
+    if (d.me) state.me = d.me;
+    if (d.join) { state.joinStep = +d.join; if (state.joinStep > 2) { state.joinStep = 0; return renderPhone('today'); } }
+    if (d.notif) { if (d.notif === 'walked') { state.walked = true; state.notif = 'walked'; } else if (d.notif === 'reset') { state.walked = false; state.notif = 'open'; } else state.notif = d.notif; renderWall(wallScene); }
+    renderPhone(state.phoneTab);
+    if (d.chore || d.act === 'take') renderWall(wallScene === 'remind' ? 'arrive' : wallScene);
+  });
+
+  /* ---------- Wall ---------- */
+  let wallScene = 'arrive';
+  const rail = (on) => `<div class="wrail"><i class="home"></i>${['🏠','📅','🐶','🍴','☑️','✨','📝','🖼️'].map((x,i) => `<i class="${(on==='today'&&i===0)||(on==='settings'&&i===99)?'on':''}">${x}</i>`).join('')}</div>`;
+  const head = () => `<div class="whead"><b>6:12</b><span>Sunday<small>November 15</small></span><div class="ppl"><span class="av J">J</span><span class="av M">M</span><span class="av A">A</span></div></div>`;
+
+  function todayWall(opts = {}) {
+    const w = state.walked;
+    const via = w ? `<span class="via">from James's phone</span>` : '';
+    return `${rail('today')}<div class="wmain">${head()}<div class="wgrid">
+      <div class="wcard"><div class="ch"><b>Today</b><span>4 events</span></div>
+        <div class="wrow"><span class="tm">8:40</span><span>Breakfast · Avocado toast<small>Home-cooked · 2 photos</small></span><span class="av M">M</span></div>
+        <div class="wrow"><span class="tm">10:00</span><span>Climbing gym<small>James</small></span><span class="av J">J</span></div>
+        <div class="wrow"><span class="tm">12:30</span><span>Lunch · Pho<small>Delivery · 1 photo</small></span><span class="av J">J</span></div>
+        <div class="nowl">NOW<i></i></div>
+        ${w ? `<div class="wrow new pop"><span class="tm">6:12</span><span>Evening walk ${via}<small>James${state.withMia ? ' and Mia' : ''} · +1 star</small></span><span class="av J">J</span></div>` : `<div class="wrow" style="background:transparent;box-shadow:inset 0 0 0 .2cqw var(--line)"><span class="tm">~6:30</span><span>Evening walk<small>Usually 5 to 8 pm</small></span><span>🐾</span></div>`}
+        <div class="wrow"><span class="tm">7:00</span><span>Dinner with Rosa<small>Family</small></span><span></span></div>
+        <div style="border-top:1px solid var(--line);padding-top:1cqw;font:700 1.2cqw/1.4 var(--body);color:var(--muted)">TOMORROW &nbsp; Brunch with Rosa · 10:00 AM &nbsp; Farmers market · 1:00 PM</div>
+      </div>
+      <div style="display:grid;gap:1.6cqw;align-content:start;min-height:0">
+      <div class="wcard" style="background:linear-gradient(160deg,#FBE9DC,var(--surface) 60%)">
+        <div class="wpet"><div class="face">🐶</div><div><b>Yo-Yo</b><small>${w ? 'Walked just now by James' : 'Walked 9h ago'}</small></div></div>
+        <div class="wslots"><div class="wslot done"><span class="av M">M</span><span>Morning<small>8:40 am</small></span></div>
+        ${w ? `<div class="wslot done fresh pop"><span class="av J">J</span><span>Evening<small>6:12 pm · from a phone</small></span></div>` : `<div class="wslot" style="border-color:var(--accent)"><span>🐾</span><span>Evening<small>5 to 8 pm</small></span></div>`}</div>
+        <div style="display:flex;gap:1cqw;flex-wrap:wrap">${w ? `<button class="wbtn ghost">See the week</button>` : `<button class="wbtn">🐾 I walked Yo-Yo</button><button class="wbtn ghost" data-wall="remindOpen">Remind someone</button>`}</div>
+      </div>
+      <div class="wcard"><div class="ch"><b>Pitch in</b><span>${2 + (state.chores.faucet?1:0)} of 5 done</span></div>
+        <div class="wrow" style="grid-template-columns:1fr auto"><span>Fix the leaky faucet<small>${state.chores.faucet ? 'Done · from James\'s phone' : 'this weekend'}</small></span><span class="av J">J</span></div>
+        <div class="wrow" style="grid-template-columns:1fr auto"><span>Run the dishwasher<small>after dinner</small></span><span class="av M">M</span></div>
+        <div class="wrow" style="grid-template-columns:1fr auto"><span>Vacuum the living room<small>${state.taken.vacuum ? 'James took it · from a phone' : 'Anyone'}</small></span>${state.taken.vacuum ? '<span class="av J">J</span>' : '<span>♡</span>'}</div>
+      </div>
+      </div>
+    </div></div>${w && opts.toast !== false ? `<div class="wtoast pop"><span class="av J">J</span>James walked Yo-Yo · from the phone</div>` : ''}`;
+  }
+
+  const wallScenes = {
+    arrive: () => todayWall(),
+    remind: () => {
+      const sent = state.remindSent;
+      return todayWall({ toast: false }) + `<div class="wscrim"><div class="wsheet pop">
+        <div class="lab">Yo-Yo · Evening walk · 5 to 8 pm</div>
+        <h4>Ask someone to walk Yo-Yo?</h4>
+        <p>Their phone buzzes once with the walk button on the notification. People without the app aren't listed.</p>
+        <div class="btns">${sent ? `<span class="sent">✓ Sent to Mia's phone. It clears when anyone logs the walk.</span>` : `<button class="wbtn" data-wall="remind" style="background:var(--coral)">Remind Mia</button><button class="wbtn" data-wall="remind" style="background:var(--blue)">Remind James</button>`}</div>
+        <div class="btns"><button class="wbtn ghost" data-wall="closeRemind">${sent ? 'Done' : 'Cancel'}</button></div>
+      </div></div>`;
+    },
+    phones: () => `<div class="wrail"><i class="home"></i>${['🏠','📅','🐶','🍴','☑️','✨','📝','🖼️'].map(x => `<i>${x}</i>`).join('')}<i class="on" style="margin-top:3cqw">⚙️</i></div>
+      <div class="wmain" style="grid-template-rows:auto 1fr"><div class="whead"><b style="font-size:4cqw">Settings</b><span>Family phones<small>The household syncs through this iPad's iCloud</small></span></div>
+      <div class="settingsgrid"><div class="wcard">
+        <div class="ch"><b>Who has the app</b><span>iCloud · 1.2 GB used</span></div>
+        <div class="phoneRow"><span class="av J">J</span><span>James<small>iPhone 16 · synced just now · reminders on</small></span><span class="stat">Connected</span></div>
+        <div class="phoneRow"><span class="av M">M</span><span>Mia<small>Invited 2 days ago</small></span><span class="stat wait">Not joined yet</span></div>
+        <div class="phoneRow"><span class="av A">A</span><span>Ava<small>Checks off chores on the wall</small></span><span class="stat wall">Wall only</span></div>
+        <p style="font:600 1.25cqw/1.4 var(--body);color:var(--muted)">Remove a phone any time. Its owner keeps nothing; logs it made stay with the household.</p>
+      </div>
+      <div class="qr"><canvas id="qrc" width="25" height="25"></canvas><b>Scan with your iPhone camera</b><small>Opens Porchlight and joins this household. Works for anyone who lives here.</small></div></div></div>`
+  };
+
+  const wallText = {
+    arrive: ['A walk logged on a phone shows up on the wall', ['The new row and Yo-Yo\'s evening slot glow once (no looping motion) and carry a small "from James\'s phone" tag, so nobody wonders who tapped the wall.', 'A short banner names who logged it, then fades. Undo on the phone removes it here too.', 'Tap "I walked Yo-Yo" on the phone mock above to see both update.'], 'The top-right avatars stay as they are. We don\'t show location or who is home: this is a wall in the hallway that visitors see too.'],
+    remind: ['Remind someone, from the wall', ['Any open routine or chore gets a "Remind someone" button. One tap sends that person\'s phone a single notification with the action on it.', 'It clears itself when anyone logs it, so nobody gets a stale nag.', 'This is the only way a phone buzzes because of someone else.'], 'Phase 2: without a server it rides on CloudKit change notifications, which iOS can delay by minutes.'],
+    phones: ['Settings › Family phones', ['A QR code invites phones. Scanning it opens the app and joins the household\'s iCloud share; no codes to type on the wall.', 'Each person shows whether they are connected, invited, or wall-only.', 'Removing a phone revokes its access to the share.'], 'The wall\'s iCloud account owns the household, so photos count against its storage. The page shows how much is used.']
+  };
+
+  function drawQR() {
+    const c = $('#qrc'); if (!c) return;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0,0,25,25); g.fillStyle = '#2A2420';
+    let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    for (let y = 0; y < 25; y++) for (let x = 0; x < 25; x++) if (rnd() > .52) g.fillRect(x, y, 1, 1);
+    const finder = (x, y) => { g.fillStyle = '#2A2420'; g.fillRect(x,y,7,7); g.fillStyle = '#fff'; g.fillRect(x+1,y+1,5,5); g.fillStyle = '#2A2420'; g.fillRect(x+2,y+2,3,3); g.fillStyle = '#fff'; g.fillRect(x-1<0?x:x-1, y+7>24?y-1:y+7, 8, 1); };
+    finder(0,0); finder(18,0); finder(0,18);
+    g.fillStyle = '#D9653B'; g.fillRect(10,10,5,5); g.fillStyle = '#fff'; g.fillRect(11,11,3,3);
+  }
+
+  function renderWall(scene) {
+    wallScene = scene;
+    $('#wallScreen').innerHTML = wallScenes[scene]();
+    const [h, items, why] = wallText[scene];
+    $('#wallExplain').innerHTML = `<h3>${h}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul><p class="why">${why}</p>`;
+    document.querySelectorAll('#wallPicker button').forEach(b => b.setAttribute('aria-pressed', b.dataset.scene === scene));
+    drawQR();
+  }
+  $('#wallPicker').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.scene === 'remind') { state.remindSent = false; state.walked = false; state.notif = 'open'; renderPhone(state.phoneTab); } renderWall(b.dataset.scene); });
+  $('#wallScreen').addEventListener('click', e => {
+    const b = e.target.closest('[data-wall]'); if (!b) return;
+    const a = b.dataset.wall;
+    if (a === 'walk') { state.walked = true; state.notif = 'walked'; renderPhone(state.phoneTab); return renderWall('arrive'); }
+    if (a === 'remindOpen') { state.remindSent = false; return renderWall('remind'); }
+    if (a === 'remind') { state.remindSent = true; return renderWall('remind'); }
+    if (a === 'closeRemind') return renderWall('arrive');
+  });
+
+  renderPhone('today');
+  renderWall('arrive');
+})();
+</script>
