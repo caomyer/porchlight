@@ -6,6 +6,8 @@ struct YoursTodayCard: View {
     let tasks: [ChoreBoard.Task]
     /// Stars I earned today, chores and care.
     let starsToday: Int
+    /// Opens Pitch in, the full list.
+    let onSeeAll: () -> Void
     let onCheck: (Chore) -> Void
 
     @Environment(HomeStore.self) private var home
@@ -13,10 +15,27 @@ struct YoursTodayCard: View {
     var body: some View {
         let done = tasks.filter(\.isDone)
         if tasks.allSatisfy(\.isDone) {
-            StatusBanner(tone: .good, emoji: "🌙", title: tasks.isEmpty ? "Nothing for you today" : "Nothing else for you today", detail: detail(done: done))
+            StatusBanner(
+                tone: .good, emoji: "🌙", title: tasks.isEmpty ? "Nothing for you today" : "Nothing else for you today", detail: detail(done: done),
+                action: ("See all", onSeeAll)
+            )
+            .accessibilityIdentifier("see-all")
         } else {
             VStack(alignment: .leading, spacing: 4) {
-                PhoneCardHeader(title: "Yours today", meta: "\(done.count) of \(tasks.count) done")
+                HStack(alignment: .firstTextBaseline) {
+                    PhoneCardHeader(title: "Yours today", meta: "\(done.count) of \(tasks.count) done")
+                    Button(action: onSeeAll) {
+                        Text("See all")
+                            .phoneFont(.body, 12, weight: 800, relativeTo: .caption)
+                            .foregroundStyle(Theme.accent)
+                            .padding(.leading, 6)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("See all chores")
+                    .accessibilityIdentifier("see-all")
+                }
                 VStack(spacing: 0) {
                     ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
                         if index > 0 { RowDivider() }

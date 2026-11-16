@@ -8,6 +8,8 @@ struct PhoneChoreRow: View {
         case mine
         /// Anyone's: the capsule on the right takes it.
         case anyone
+        /// Someone else's, to see: their chore is theirs to check off.
+        case theirs
     }
 
     let kind: Kind
@@ -35,8 +37,8 @@ struct PhoneChoreRow: View {
                     .accessibilityLabel("Check off \(title)")
                     .accessibilityValue(subtitle ?? "")
                     .accessibilityAddTraits(.isButton)
-            case .anyone:
-                row
+            case .anyone, .theirs:
+                row.accessibilityElement(children: kind == .theirs ? .combine : .contain)
             }
         }
     }
@@ -71,7 +73,7 @@ struct PhoneChoreRow: View {
     @ViewBuilder
     private var trailing: some View {
         switch kind {
-        case .mine:
+        case .mine, .theirs:
             PhoneTag(text: "+\(stars)")
                 .accessibilityLabel("\(stars) \(stars == 1 ? "star" : "stars")")
         case .anyone:

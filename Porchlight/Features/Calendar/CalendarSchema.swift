@@ -25,6 +25,17 @@ extension AppDatabase {
     }
 }
 
+extension AppDatabase {
+    /// Calendar changes made after "sync v1" rebuilt the table. Append new ones.
+    static func registerCalendarMigrationsAfterSync(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("calendar v2: just me") { db in
+            // A phone's own calendar can be kept to that phone ("Just me"). The table is
+            // STRICT, so the flag is an INTEGER.
+            try db.execute(sql: #"ALTER TABLE calendarSource ADD COLUMN "isPersonal" INTEGER NOT NULL DEFAULT 0"#)
+        }
+    }
+}
+
 // MARK: - Records
 
 /// How much of a calendar's events the wall reveals.
@@ -60,8 +71,39 @@ struct CalendarSource: Codable, Equatable, Identifiable, Sendable {
     var visibility: CalendarVisibility
     var isShown: Bool
     var createdAt: Date
+    /// Kept to this device ("Just me"), never shown to the household. Calendars are only
+    /// read on the device that has them today, so this matters once mappings sync.
+    var isPersonal = false
 
     var owner: Owner { ownerId.map(Owner.person) ?? .everyone }
+
+    /// How the phone's Calendars page describes the calendar's sharing.
+    var sharing: CalendarSharing {
+        if isPersonal { return .justMe }
+        return visibility == .busy ? .busyOnly : .household
+    }
+}
+
+/// What someone chooses for one of their calendars on the phone: shared with the
+/// household in full, shared as busy only, or kept to this device.
+enum CalendarSharing: String, CaseIterable, Identifiable, Sendable {
+    case household, busyOnly, justMe
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .household: "Household"
+        case .busyOnly: "Busy only"
+        case .justMe: "Just me"
+        }
+    }
+
+    /// The source's settings for this choice.
+    func apply(to source: inout CalendarSource) {
+        source.isPersonal = self == .justMe
+        source.visibility = self == .busyOnly ? .busy : .full
+    }
 }
 
 extension CalendarSource: FetchableRecord, PersistableRecord {
@@ -141,6 +183,10 @@ extension AppDatabase {
 
     func setCalendarSourceVisibility(id: CalendarSource.ID, visibility: CalendarVisibility) throws {
         try updateCalendarSource(id: id) { $0.visibility = visibility }
+    }
+
+    func setCalendarSourceSharing(id: CalendarSource.ID, sharing: CalendarSharing) throws {
+        try updateCalendarSource(id: id) { sharing.apply(to: &$0) }
     }
 
     func setCalendarSourceShown(id: CalendarSource.ID, isShown: Bool) throws {

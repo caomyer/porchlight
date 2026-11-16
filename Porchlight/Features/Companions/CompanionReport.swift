@@ -199,3 +199,23 @@ struct CompanionReport {
         return formatter.string(from: date)
     }
 }
+
+extension CompanionReport {
+    /// "13 walks · 5h 50m outside · 4 squirrels pursued, 0 caught": the week in a line,
+    /// under the title of the wall's companion page and the phone's.
+    var weekSummary: String {
+        let stats = weekStats
+        var parts = ["\(stats.count) \(stats.count == 1 ? noun : noun + "s")"]
+        if stats.totalMinutes > 0 {
+            let time = stats.totalMinutes >= 60 ? "\(stats.totalMinutes / 60)h \(stats.totalMinutes % 60)m" : "\(stats.totalMinutes) min"
+            parts.append(primaryRoutine?.kind == .walk ? "\(time) outside" : time)
+        }
+        let squirrels = diary.filter { $0.entry.log.vibe == .squirrel }.count
+        if squirrels > 0 {
+            parts.append("\(squirrels) \(squirrels == 1 ? "squirrel" : "squirrels") pursued, 0 caught")
+        } else if stats.stars > 0 {
+            parts.append("\(stats.stars) stars earned")
+        }
+        return parts.joined(separator: " · ")
+    }
+}

@@ -1,17 +1,19 @@
 import SwiftUI
 
 /// "You", from the avatar on every tab: who you are (and a way to change it), the
-/// household, and what this device does. Only what works today is here; inviting,
-/// notifications, calendars, storage and leaving arrive with their own milestones.
+/// household, what this device does, and which of its calendars show. Only what works
+/// today is here; inviting, notifications, storage and leaving arrive with their own
+/// milestones.
 struct YouSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(DeviceSettings.self) private var device
+    @Environment(CalendarStore.self) private var calendars
     @Environment(\.me) private var me
     @Environment(\.dismiss) private var dismiss
 
     @State private var path: [Page] = []
 
-    private enum Page: Hashable { case whoAreYou }
+    private enum Page: Hashable { case whoAreYou, calendars }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -32,6 +34,12 @@ struct YouSheet: View {
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("change-me")
                         }
+                        RowDivider()
+                        Button { path.append(.calendars) } label: {
+                            InfoRow(emoji: "📅", title: "Calendars", detail: calendarsLine, chevron: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("calendars")
                     }
                     .padding(.horizontal, 14)
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -49,12 +57,17 @@ struct YouSheet: View {
                 }
             }
             .toolbarBackground(Theme.background, for: .navigationBar)
-            .navigationDestination(for: Page.self) { _ in
-                WhoAreYouView(current: me?.id) { picked in
-                    if let household = model.household { device.setMe(picked, in: household.id) }
-                    path.removeAll()
+            .navigationDestination(for: Page.self) { page in
+                switch page {
+                case .whoAreYou:
+                    WhoAreYouView(current: me?.id) { picked in
+                        if let household = model.household { device.setMe(picked, in: household.id) }
+                        path.removeAll()
+                    }
+                    .background(Theme.background)
+                case .calendars:
+                    PocketCalendars()
                 }
-                .background(Theme.background)
             }
         }
         .tint(Theme.accent)
@@ -81,6 +94,17 @@ struct YouSheet: View {
     private var peopleLine: String {
         let names = model.people.map(\.name)
         return names.count == 1 ? "Just \(names[0])" : "\(names.count) people · " + ListFormatter.localizedString(byJoining: names)
+    }
+
+    /// "2 shown on Today", or why there are none.
+    private var calendarsLine: String {
+        switch calendars.access {
+        case .notDetermined: return "Choose which show on Today"
+        case .denied: return "Access is off"
+        case .granted:
+            let shown = calendars.mappings.filter(\.source.isShown).count
+            return shown == 0 ? "None shown on Today" : "\(shown) shown on Today"
+        }
     }
 
     private var roleLine: String {

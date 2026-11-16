@@ -64,7 +64,9 @@ struct PocketShell: View {
     private func screen(_ tab: PocketTab) -> some View {
         switch tab {
         case .today: PocketTodayScreen()
-        case .food, .lists, .glow: ComingSoonScreen(title: tab.title)
+        case .lists: PocketListsScreen()
+        case .glow: PocketGlowScreen()
+        case .food: ComingSoonScreen(title: tab.title)
         }
     }
 
@@ -86,9 +88,6 @@ struct PocketHeader: View {
     var small: String?
     let title: String
 
-    @Environment(\.me) private var me
-    @Environment(\.openYou) private var openYou
-
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 0) {
@@ -102,25 +101,35 @@ struct PocketHeader: View {
                     .accessibilityAddTraits(.isHeader)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button { openYou?() } label: {
-                Group {
-                    if let me {
-                        PersonAvatar(me)
-                    } else {
-                        Image(systemName: "person.crop.circle")
-                            .font(.system(size: 30))
-                            .foregroundStyle(Theme.muted)
-                    }
-                }
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("You")
-            .accessibilityValue(me?.name ?? "")
-            .accessibilityHint("Who you are, your household and this \(DeviceWords.this)")
-            .accessibilityIdentifier("you")
+            PocketYouButton()
         }
+    }
+}
+
+/// "You": my avatar, at the top right of every tab and every page under it.
+struct PocketYouButton: View {
+    @Environment(\.me) private var me
+    @Environment(\.openYou) private var openYou
+
+    var body: some View {
+        Button { openYou?() } label: {
+            Group {
+                if let me {
+                    PersonAvatar(me)
+                } else {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 30))
+                        .foregroundStyle(Theme.muted)
+                }
+            }
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("You")
+        .accessibilityValue(me?.name ?? "")
+        .accessibilityHint("Who you are, your household and this \(DeviceWords.this)")
+        .accessibilityIdentifier("you")
     }
 }
 

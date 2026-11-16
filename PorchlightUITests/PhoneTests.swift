@@ -189,15 +189,16 @@ final class PhoneTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Hi, Mia"].waitForExistence(timeout: 5))
     }
 
-    func testOtherTabsAreCalm() {
+    func testFoodIsCalm() {
         let app = launch()
         XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
+        app.tabBars.buttons["Food"].tap()
+        XCTAssertTrue(app.staticTexts["Coming to the phone soon"].waitForExistence(timeout: 5), "Food comes next")
+        snapshot("phone-70-coming-soon")
         for tab in ["Food", "Lists", "Glow"] {
             app.tabBars.buttons[tab].tap()
-            XCTAssertTrue(app.staticTexts["Coming to the phone soon"].waitForExistence(timeout: 5), tab)
-            XCTAssertTrue(app.buttons["you"].exists, "You is on every tab")
+            XCTAssertTrue(app.buttons["you"].waitForExistence(timeout: 5), "You is on every tab: \(tab)")
         }
-        snapshot("phone-70-coming-soon")
     }
 
     // MARK: Looks

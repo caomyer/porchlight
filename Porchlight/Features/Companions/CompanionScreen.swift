@@ -50,7 +50,7 @@ struct CompanionScreen: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .layoutPriority(1)
-            Text(summary(report))
+            Text(report.weekSummary)
                 .font(.body(15))
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
@@ -68,23 +68,6 @@ struct CompanionScreen: View {
             }
         }
         .frame(minHeight: 56, alignment: .bottom)
-    }
-
-    /// "13 walks · 5h 50m outside · 4 squirrels pursued, 0 caught".
-    private func summary(_ report: CompanionReport) -> String {
-        let stats = report.weekStats
-        var parts = ["\(stats.count) \(stats.count == 1 ? report.noun : report.noun + "s")"]
-        if stats.totalMinutes > 0 {
-            let time = stats.totalMinutes >= 60 ? "\(stats.totalMinutes / 60)h \(stats.totalMinutes % 60)m" : "\(stats.totalMinutes) min"
-            parts.append(report.primaryRoutine?.kind == .walk ? "\(time) outside" : time)
-        }
-        let squirrels = report.diary.filter { $0.entry.log.vibe == .squirrel }.count
-        if squirrels > 0 {
-            parts.append("\(squirrels) \(squirrels == 1 ? "squirrel" : "squirrels") pursued, 0 caught")
-        } else if stats.stars > 0 {
-            parts.append("\(stats.stars) stars earned")
-        }
-        return parts.joined(separator: " · ")
     }
 }
 

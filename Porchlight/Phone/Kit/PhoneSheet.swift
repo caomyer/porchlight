@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The phone's bottom sheet: an eyebrow saying what it is about ("Yo-Yo · evening
 /// walk"), a serif title, the content, and one main button at the bottom. It is as
@@ -10,6 +11,8 @@ struct PhoneSheet<Content: View, Footer: View>: View {
     @ViewBuilder var footer: () -> Footer
 
     @State private var height: CGFloat = 320
+    /// Grows to full height while the keyboard is up, so it never covers the button.
+    @State private var detent: PresentationDetent = .large
 
     var body: some View {
         ScrollView {
@@ -35,7 +38,34 @@ struct PhoneSheet<Content: View, Footer: View>: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         }
         .scrollBounceBehavior(.basedOnSize)
-        .presentationDetents([.height(height)])
+        .presentationDetents([.height(height), .large], selection: $detent)
+        .onAppear { detent = .height(height) }
+        .onChange(of: height) { _, new in if detent != .large { detent = .height(new) } }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in detent = .large }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in detent = .height(height) }
+        .presentationDragIndicator(.visible)
+        .presentationCornerRadius(26)
+        .presentationBackground(Theme.surface)
+    }
+}
+
+/// One of the wall's editors (a chore, a dinner) in a phone sheet. The editor brings its
+/// own title and buttons and lays itself out for a compact width; closing it closes the
+/// sheet, as it closes its wall sheet there.
+struct PhoneEditorSheet<Editor: View>: View {
+    @ViewBuilder var editor: () -> Editor
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            editor()
+                .padding(.horizontal, 18)
+                .padding(.top, 26)
+                .padding(.bottom, 16)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .environment(\.closeWallSheet, CloseWallSheetAction { dismiss() })
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(26)
         .presentationBackground(Theme.surface)

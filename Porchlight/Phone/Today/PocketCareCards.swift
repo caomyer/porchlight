@@ -6,6 +6,8 @@ struct PocketCareHandlers {
     let log: (PocketToday.CareCard, PocketToday.CareAction, _ alsoWent: [Person.ID]) -> Void
     /// Open the full care sheet for a routine, with whoever else came along.
     let more: (PocketToday.CareCard, CareRoutine, _ alsoWent: [Person.ID]) -> Void
+    /// Open the companion's week.
+    let open: (PocketToday.CareCard) -> Void
 }
 
 /// The companions on Today: a full card each, or a grid of two when there are several
@@ -26,7 +28,7 @@ struct PocketCareSection: View {
         } else {
             ForEach(cards) { card in
                 if card.standing == .allSet && !PocketToday.isFresh(card) {
-                    AllSetCard(card: card)
+                    AllSetCard(card: card) { handlers.open(card) }
                 } else {
                     FullCareCard(card: card, handlers: handlers)
                 }
@@ -89,6 +91,13 @@ private struct FullCareCard: View {
     }
 
     private var header: some View {
+        Button { handlers.open(card) } label: { headerContent.contentShape(Rectangle()) }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens \(report.name)'s week")
+            .accessibilityIdentifier("week-\(report.name)")
+    }
+
+    private var headerContent: some View {
         HStack(alignment: .center, spacing: 10) {
             CompanionBadge(report)
             VStack(alignment: .leading, spacing: 1) {
@@ -103,6 +112,9 @@ private struct FullCareCard: View {
             if report.streak > 1 && !typeSize.isAccessibilitySize {
                 PhoneTag(text: "🔥 \(report.streak)-day streak")
             }
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Theme.muted)
         }
         .accessibilityElement(children: .combine)
     }
@@ -165,11 +177,20 @@ private struct FullCareCard: View {
 /// A companion whose day is done, folded to one line: "Yo-Yo is all set".
 private struct AllSetCard: View {
     let card: PocketToday.CareCard
+    let onOpen: () -> Void
 
     @Environment(CompanionStore.self) private var store
     @Environment(\.me) private var me
 
     var body: some View {
+        Button(action: onOpen) { content.contentShape(Rectangle()) }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens \(card.report.name)'s week")
+            .accessibilityIdentifier("week-\(card.report.name)")
+            .phoneCard(tint: card.report.look.tint)
+    }
+
+    private var content: some View {
         HStack(spacing: 10) {
             CompanionBadge(card.report)
             VStack(alignment: .leading, spacing: 1) {
@@ -181,9 +202,11 @@ private struct AllSetCard: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Theme.muted)
         }
         .accessibilityElement(children: .combine)
-        .phoneCard(tint: card.report.look.tint)
     }
 }
 
@@ -197,13 +220,23 @@ private struct SmallCareCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            CompanionBadge(card.report, size: 34)
-            Text(card.report.name)
-                .phoneFont(.display, 16, weight: 600, relativeTo: .headline)
-            Text(status)
-                .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                .foregroundStyle(Theme.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            Button { handlers.open(card) } label: {
+                VStack(alignment: .leading, spacing: 6) {
+                    CompanionBadge(card.report, size: 34)
+                    Text(card.report.name)
+                        .phoneFont(.display, 16, weight: 600, relativeTo: .headline)
+                    Text(status)
+                        .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                        .foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Opens \(card.report.name)'s week")
+            .accessibilityIdentifier("week-\(card.report.name)")
             Spacer(minLength: 0)
             if let lead = card.lead {
                 Button("\(lead.routine.emoji) \(lead.routine.kind.pastVerb)") { handlers.log(card, lead, []) }

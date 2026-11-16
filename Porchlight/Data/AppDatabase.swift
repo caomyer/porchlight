@@ -91,6 +91,8 @@ struct AppDatabase: Sendable {
         registerHomeMigrations(&migrator)
         // Always last among the schemas above: it rebuilds every one of their tables.
         registerSyncMigrations(&migrator)
+        // Changes made since, on the rebuilt tables, oldest first.
+        registerCalendarMigrationsAfterSync(&migrator)
         return migrator
     }
 }
