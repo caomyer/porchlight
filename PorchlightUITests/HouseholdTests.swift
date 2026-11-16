@@ -10,7 +10,7 @@ final class HouseholdTests: XCTestCase {
     }
 
     private func launch(_ arguments: [String]) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold"] + arguments
         app.launch()
         return app
@@ -135,6 +135,17 @@ final class HouseholdTests: XCTestCase {
         snapshot("88-arrival")
         XCTAssertTrue(toast.waitForNonExistence(timeout: 12), "The toast goes by itself")
         snapshot("89-arrival-settled")
+    }
+
+    // MARK: Sample data
+
+    /// Sample meal photos are read back from Caches and stored as photo rows, like a
+    /// camera's: the week's polaroids show them.
+    func testSampleMealsHaveTheirPhotos() {
+        let app = launch(["-startScreen", "food"])
+        let toast = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Avocado toast")).firstMatch
+        XCTAssertTrue(toast.waitForExistence(timeout: 30), "Today's breakfast is on the week")
+        snapshot("91-food-week-sample")
     }
 
     // MARK: A restored database

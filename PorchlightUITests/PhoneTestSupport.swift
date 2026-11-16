@@ -1,7 +1,7 @@
 import XCTest
 
 // One set of helpers for every phone test class (PhoneTests, PhoneTabsTests,
-// PhoneHouseholdTests).
+// PhoneHouseholdTests); `waitToSettle` serves the wall's sheets too.
 
 extension XCUIElement {
     /// Waits for an element in a sheet that is still sliding up to come to rest: a tap

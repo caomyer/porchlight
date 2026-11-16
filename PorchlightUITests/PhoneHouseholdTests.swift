@@ -20,7 +20,7 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
     private static let largestText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
 
     private func launch(_ arguments: [String]) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = arguments
         app.launch()
         return app

@@ -104,10 +104,14 @@ struct HouseholdDataTests {
         let walk = try #require(try db.writer.read(CompanionSnapshot.fetch).routines(of: companionId).first { $0.kind == .walk })
         let calendar = household.calendar
         let today = DayKey(.now, calendar: calendar)
-        let draft = CareLogDraft(people: [james], occurredAt: .now, durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil)
-        let log = try db.logCare(routineId: walk.id, draft)
+        // Fixed times, so the morning log never fills the evening slot whatever the hour.
+        let morning = calendar.date(byAdding: .hour, value: 8, to: today.startDate(in: calendar))!
         let evening = calendar.date(byAdding: .hour, value: 18, to: today.startDate(in: calendar))!
-        let slotted = try db.logCare(routineId: walk.id, slot: 1, on: today, draft, now: evening)
+        let draft = CareLogDraft(people: [james], occurredAt: morning, durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil)
+        let log = try db.logCare(routineId: walk.id, draft, now: morning)
+        var evenings = draft
+        evenings.occurredAt = evening
+        let slotted = try db.logCare(routineId: walk.id, slot: 1, on: today, evenings, now: evening)
 
         let chore = try db.saveChore(
             ChoreDraft(title: "Dishes", emoji: "🍽️", ownerId: james, recurrence: .daily, anchorDay: today, timeHint: nil, stars: 1),

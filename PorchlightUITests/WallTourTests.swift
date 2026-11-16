@@ -10,7 +10,7 @@ final class WallTourTests: XCTestCase {
     }
 
     private func launch(_ arguments: [String], settle: TimeInterval = 6) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold"] + arguments
         app.launch()
         // Sample seeding and the first layout take a moment on an older iPad.

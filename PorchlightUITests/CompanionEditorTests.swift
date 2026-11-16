@@ -12,7 +12,7 @@ final class CompanionEditorTests: XCTestCase {
     }
 
     func testAddingARoutineFromSettings() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "settings"]
         app.launch()
 
@@ -46,8 +46,16 @@ final class CompanionEditorTests: XCTestCase {
         let title = app.textFields["e.g. Brush teeth"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
-        title.typeText("Brush teeth\n")
-        app.buttons["Done"].tap()
+        title.typeText("Brush teeth")
+        let titled = expectation(for: NSPredicate(format: "value == 'Brush teeth'"), evaluatedWith: title)
+        wait(for: [titled], timeout: 5)
+        // Done sits under the keyboard while it is up: a tap there lands on a key (the
+        // editor then read "Brush teethO" and stayed open). Return puts the keyboard away.
+        title.typeText("\n")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "Return should put the keyboard away")
+        let done = app.buttons["routine-done"]
+        XCTAssertTrue(done.isHittable, "Done is on screen once the keyboard is away")
+        done.tap()
         XCTAssertTrue(app.staticTexts["New routine"].waitForNonExistence(timeout: 5), "Done should close the routine editor")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Brush teeth'")).firstMatch.waitForExistence(timeout: 5),
                       "The new routine should be listed in the companion editor")

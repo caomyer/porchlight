@@ -25,7 +25,7 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
     }
 
     private func launch(_ arguments: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.evening, "-me", "James"] + arguments
         app.launch()
         XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))

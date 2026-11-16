@@ -747,7 +747,9 @@ private struct RoutineEditorSheet: View {
                     }
                     Spacer()
                     Button("Cancel", action: close).buttonStyle(SecondaryButtonStyle())
-                    Button("Done", action: save).buttonStyle(PrimaryButtonStyle())
+                    Button("Done", action: save)
+                        .buttonStyle(PrimaryButtonStyle())
+                        .accessibilityIdentifier("routine-done")
                 }
                 .padding(.top, 22)
             }

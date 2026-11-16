@@ -26,7 +26,7 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
     }
 
     private func launch(_ arguments: [String] = [], me: String? = "James") -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.evening] + (me.map { ["-me", $0] } ?? []) + arguments
         app.launch()
         return app
@@ -138,7 +138,7 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
 
     /// Late in the evening Yo-Yo is all set, and with the faucet fixed nothing is left for James.
     func testAllClear() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
         let late = String(format: "%04d-%02d-%02dT21:30", parts.year!, parts.month!, parts.day!)
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", late, "-me", "James"]

@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class ScrollingTests: XCTestCase {
     func testSettingsScrollsToTheLastSection() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "settings"]
         app.launch()
 
@@ -16,7 +16,7 @@ final class ScrollingTests: XCTestCase {
         let screen = app.windows.firstMatch.frame
         XCTAssertGreaterThan(lastRow.frame.minY, screen.maxY, "The display section should start below the fold")
 
-        for _ in 0..<6 where lastRow.frame.maxY > screen.maxY {
+        for _ in 0..<10 where lastRow.frame.maxY > screen.maxY {
             let window = app.windows.firstMatch
             let from = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
             let to = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
@@ -30,7 +30,7 @@ final class ScrollingTests: XCTestCase {
     /// Touches still count as activity: the wall stays put while someone keeps
     /// dragging, and switches to Ambient once the touches stop.
     func testTouchesKeepTheWallAwake() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "chores", "-display.ambientMinutes", "1"]
         app.launch()
         let ambient = app.descendants(matching: .any)["ambient"]

@@ -31,7 +31,7 @@ final class FirstRunTests: XCTestCase {
     }
 
     func testOnboardingWithRealCalendarAccess() throws {
-        let app = XCUIApplication()
+        let app = XCUIApplication.porchlight()
         app.launchArguments = ["-resetData"]
         app.launch()
 
