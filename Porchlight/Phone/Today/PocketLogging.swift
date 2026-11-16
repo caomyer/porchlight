@@ -83,7 +83,7 @@ struct PocketLogging {
     /// Checks off a chore today, credited to `person` when anyone could take it.
     func complete(_ chore: Chore, by person: Person.ID?) {
         let emoji = chore.emoji ?? "✅"
-        switch home.complete(chore, by: person, now: .now) {
+        switch home.complete(chore, by: person, now: CompanionClock.now()) {
         case let .done(completion):
             toasts.show(UndoToast(
                 emoji: emoji,

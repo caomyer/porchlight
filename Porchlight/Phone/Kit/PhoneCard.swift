@@ -7,9 +7,13 @@ extension View {
     /// through the clock.
     func paperUnderStatusBar() -> some View {
         overlay(alignment: .top) {
-            Theme.background
-                .frame(height: 0)
-                .ignoresSafeArea(edges: .top)
+            // Reaches up into the status bar to learn how tall it is, and paints just that.
+            GeometryReader { proxy in
+                Theme.background.frame(height: proxy.safeAreaInsets.top)
+            }
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
 

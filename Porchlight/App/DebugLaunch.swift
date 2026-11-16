@@ -14,6 +14,14 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "onboardingStep")
     }
 
+    /// Sample and reset launches start from an empty sandbox folder, database included.
+    /// A simulator is shared by every checkout of the app, so the folder may hold a
+    /// database another branch migrated to a schema this build doesn't know.
+    static func clearSandbox(_ arguments: [String]) {
+        guard AppFiles.isSandboxed, arguments.contains("-resetData") || arguments.contains("-sampleHousehold") else { return }
+        try? FileManager.default.removeItem(at: AppFiles.root)
+    }
+
     @MainActor
     static func apply(_ arguments: [String], to database: AppDatabase) throws {
         if arguments.contains("-resetData") || arguments.contains("-sampleHousehold") {

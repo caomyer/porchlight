@@ -2,14 +2,16 @@
 import Foundation
 import UIKit
 
-/// Sample chores, rewards, lists and dinners for `-sampleHousehold`. Dates are relative to today.
+/// Sample chores, rewards, lists and dinners for `-sampleHousehold`. Dates are relative to
+/// the sample's "now" (`CompanionClock`, which `-debugCompanionNow` pins).
 enum HomeSamples {
     static func seed(_ database: AppDatabase, household: Household, people: [Person]) throws {
         guard let first = people.first?.id else { return }
         let householdId = household.id
         let second = people.dropFirst().first?.id ?? first
         let calendar = household.calendar
-        let today = DayKey(.now, calendar: calendar)
+        let now = CompanionClock.now()
+        let today = DayKey(now, calendar: calendar)
         let week = HomeWeek(containing: today, calendar: calendar)
         let weekday = calendar.component(.weekday, from: today.startDate(in: calendar))
         let start = today.adding(days: -27, calendar: calendar)
@@ -40,13 +42,17 @@ enum HomeSamples {
             let day = today.adding(days: -offset, calendar: calendar)
             for (index, chore) in repeating.enumerated() where ChoreSchedule.occurs(chore, on: day, calendar: calendar) {
                 guard (offset * 7 + index * 3) % 5 != 0 else { continue }
-                try database.toggleChore(id: chore.id, day: day, personId: offset % 2 == 0 ? first : second)
+                try database.toggleChore(id: chore.id, day: day, personId: offset % 2 == 0 ? first : second, now: now)
             }
         }
-        try database.toggleChore(id: breakfast.id, day: today, personId: nil)
-        try database.toggleChore(id: recycling.id, day: today, personId: nil)
-        try database.toggleChore(id: plants.id, day: today, personId: nil)
-        try database.toggleChore(id: fridge.id, day: today, personId: second)
+        // Today's check-offs happened through the morning, or just now early in the day.
+        func doneAt(_ hour: Int, _ minute: Int) -> Date {
+            min(CareLogic.date(today, minute: hour * 60 + minute, calendar: calendar), now)
+        }
+        try database.toggleChore(id: breakfast.id, day: today, personId: nil, now: doneAt(7, 40))
+        try database.toggleChore(id: recycling.id, day: today, personId: nil, now: doneAt(9, 5))
+        try database.toggleChore(id: plants.id, day: today, personId: nil, now: doneAt(8, 20))
+        try database.toggleChore(id: fridge.id, day: today, personId: second, now: doneAt(13, 10))
 
         // Rewards: personal treats started about a week ago; the shared fund has been going a while.
         let rewards = [

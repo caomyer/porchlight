@@ -31,6 +31,9 @@ private enum Launch {
     @MainActor
     static func start() -> Launch {
         do {
+            #if DEBUG
+            DebugLaunch.clearSandbox(ProcessInfo.processInfo.arguments)
+            #endif
             let database = try AppDatabase.openOnDisk()
             #if DEBUG
             try DebugLaunch.apply(ProcessInfo.processInfo.arguments, to: database)
