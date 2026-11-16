@@ -191,6 +191,7 @@ Choices made while building M2's sharing half, where the design above left room 
   The toast goes after six seconds and the row's glow fades once; nothing repeats.
   A row that arrives before its device row would be noted without a toast.
 - The timeline's tag shows on care, meals and chores; lists and cash-ins aren't on Today.
+  It is a quiet footnote in the muted color, with no outline or fill: with phones in use nearly every row carries one, and only the one-time glow and the toast should draw the eye.
 - The sync line in Settings (D2) names the newest change from another device; the storage meter is later.
 
 ### The phone
@@ -199,6 +200,8 @@ Choices made while building M2's sharing half, where the design above left room 
   "A newer Porchlight elsewhere" needs version tracking that doesn't exist yet, so it is left out.
 - You shows the household, Invite someone, the people and their devices, this device's name and role, and changing who you are; a sync decision shows there too.
 - "Someone new" on the invite page adds the person, then opens the same sharing sheet.
+- The join, removed and welcome screens stand outside the tabs, so besides the kit's paper behind the status bar they clip their scrolling content to the safe area; the paper alone didn't keep large text out of the clock there.
+- None of the new phone screens raises a toast, so none needed `ToastCenter.showAfterSheet`; counts that can be one ("1 person", "1 so far") were checked.
 - The sharing sheet is presented from the You sheet itself, not from the invite page pushed inside it: a sheet presented from a pushed page took the You sheet down with it when it closed.
 - The QR code is drawn with Core Image off the main thread, once per link: the first Core Image context takes seconds to start on a simulator, and drawing it in the view's body froze the screen meanwhile.
 - A sample or reset launch (`-sampleHousehold`, `-resetData`) also forgets this device's name and role, so a UI test that changes them never leaks into the next one.

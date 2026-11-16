@@ -66,6 +66,11 @@ struct WhoAreYouView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // Scrolled text never shows under the clock: these screens stand alone, outside
+        // the tabs, so they keep their content inside the safe area as well as painting
+        // paper behind the status bar.
+        .clipped()
+        .paperUnderStatusBar()
         .scrollDismissesKeyboard(.interactively)
         .onAppear {
             choice = choice ?? current.map(Choice.person)

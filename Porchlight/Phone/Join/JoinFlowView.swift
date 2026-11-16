@@ -14,14 +14,16 @@ struct JoinFlowView: View {
     @State private var flow: JoinFlow?
 
     var body: some View {
-        // A ZStack, not a Group: an empty Group never appears, and the flow is made on appear.
+        // Never empty, since the flow is made on appear and an empty view never appears. The
+        // paper is a background, so the screens keep the safe area and stay out of the clock.
         ZStack {
-            Theme.background.ignoresSafeArea()
+            Color.clear
             if let flow {
                 screen(flow)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background.ignoresSafeArea())
         .foregroundStyle(Theme.ink)
         .onAppear {
             if flow?.invitation.id != invitation.id {
@@ -109,6 +111,11 @@ private struct JoinPreview: View {
             .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // Scrolled text never shows under the clock: these screens stand alone, outside
+        // the tabs, so they keep their content inside the safe area as well as painting
+        // paper behind the status bar.
+        .clipped()
+        .paperUnderStatusBar()
     }
 
     private func row(_ emoji: String, _ title: String, _ detail: String) -> some View {
@@ -180,6 +187,11 @@ private struct BringingInView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // Scrolled text never shows under the clock: these screens stand alone, outside
+        // the tabs, so they keep their content inside the safe area as well as painting
+        // paper behind the status bar.
+        .clipped()
+        .paperUnderStatusBar()
         .task {
             let id = householdId
             let updates = ValueObservation.tracking { try ArrivalCounts.fetch($0, householdId: id) }.removeDuplicates()
@@ -285,6 +297,11 @@ struct RemovedHouseholdView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // Scrolled text never shows under the clock: these screens stand alone, outside
+        // the tabs, so they keep their content inside the safe area as well as painting
+        // paper behind the status bar.
+        .clipped()
+        .paperUnderStatusBar()
         .background(Theme.background.ignoresSafeArea())
         .foregroundStyle(Theme.ink)
     }

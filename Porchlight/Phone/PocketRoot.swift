@@ -76,6 +76,11 @@ struct PocketWelcome: View {
             .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // Scrolled text never shows under the clock: these screens stand alone, outside
+        // the tabs, so they keep their content inside the safe area as well as painting
+        // paper behind the status bar.
+        .clipped()
+        .paperUnderStatusBar()
     }
 
     private func way(_ emoji: String, _ title: String, _ detail: String) -> some View {

@@ -219,18 +219,15 @@ private struct TimelineRow: View {
                 item.leading
                     .frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(item.title)
                             .font(.body(16, weight: 700))
                             .lineLimit(1)
+                        // A footnote, not a badge: with phones in use most rows have one.
                         if let tag {
                             Text(tag)
-                                .font(.body(12, weight: 700))
-                                .foregroundStyle(Theme.accent)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Theme.surface, in: Capsule())
-                                .overlay(Capsule().strokeBorder(Theme.accent.opacity(0.35)))
+                                .font(.body(12, weight: 600))
+                                .foregroundStyle(Theme.muted)
                                 .fixedSize()
                         }
                     }
