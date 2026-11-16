@@ -215,15 +215,40 @@ final class CompanionStore {
     }
 
     @discardableResult
-    func log(routineId: CareRoutine.ID, _ draft: CareLogDraft) -> CareLog? {
+    func log(routineId: CareRoutine.ID, _ draft: CareLogDraft, now: Date = .now) -> CareLog? {
         do {
-            let log = try database.logCare(routineId: routineId, draft)
+            let log = try database.logCare(routineId: routineId, draft, now: now)
             lastError = nil
             return log
         } catch {
             lastError = error.userMessage
             return nil
         }
+    }
+
+    /// Logs one slot of a day unless someone already did it, in which case their log
+    /// comes back instead. Nil, with `lastError` set, when the log is rejected.
+    func log(routineId: CareRoutine.ID, slot: Int, on day: DayKey, _ draft: CareLogDraft, now: Date = CompanionClock.now()) -> CareSlotLog? {
+        do {
+            let result = try database.logCare(routineId: routineId, slot: slot, on: day, draft, now: now)
+            lastError = nil
+            return result
+        } catch {
+            lastError = error.userMessage
+            return nil
+        }
+    }
+
+    /// Adds people to a log ("I went too").
+    @discardableResult
+    func addPeople(_ people: [Person.ID], toLog id: CareLog.ID) -> Bool {
+        perform { try database.addPeople(people, toCareLog: id) }
+    }
+
+    /// Takes people off a log again.
+    @discardableResult
+    func removePeople(_ people: [Person.ID], fromLog id: CareLog.ID) -> Bool {
+        perform { try database.removePeople(people, fromCareLog: id) }
     }
 
     /// Saves edits to a log. Returns false, with `lastError` set, when they are rejected.

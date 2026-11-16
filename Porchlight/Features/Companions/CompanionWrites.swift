@@ -103,6 +103,13 @@ struct CompanionDraft: Equatable, Sendable {
     }
 }
 
+/// What logging one slot did: added a log, or found the slot already logged.
+enum CareSlotLog: Equatable, Sendable {
+    case logged(CareLog)
+    /// Someone logged that slot first; nothing was added.
+    case alreadyLogged(CareEntry)
+}
+
 /// What someone fills in on the log sheet.
 struct CareLogDraft: Equatable, Sendable {
     var people: [Person.ID]
@@ -306,12 +313,65 @@ extension AppDatabase {
         let note = try CareRules.validatedNote(draft, now: now)
         return try writer.write { db in
             guard let routine = try CareRoutine.fetchOne(db, id: routineId) else { throw CareValidationError.unknownRoutine }
-            var log = CareLog(careRoutineId: routineId, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now)
-            log.apply(draft, note: note, routine: routine)
-            try log.insert(db)
-            try Self.replacePeople(of: log.id, with: draft.people, in: db)
-            return log
+            return try Self.insertLog(draft, note: note, routine: routine, now: now, in: db)
         }
+    }
+
+    /// Records that people did one slot of a routine on a day, unless it was already done.
+    ///
+    /// The slot is read again inside the write, so a screen that is a little behind (or a
+    /// reminder acted on late) never adds a second log for a slot someone already did. It
+    /// gets that log back instead, to say who did it ("never confidently out of date").
+    func logCare(routineId: CareRoutine.ID, slot index: Int, on day: DayKey, _ draft: CareLogDraft, now: Date = .now) throws -> CareSlotLog {
+        let note = try CareRules.validatedNote(draft, now: now)
+        return try writer.write { db in
+            guard let routine = try CareRoutine.fetchOne(db, id: routineId) else { throw CareValidationError.unknownRoutine }
+            let calendar = try Household.fetchOne(db, sql: """
+                SELECT household.* FROM household JOIN companion ON companion.householdId = household.id
+                WHERE companion.id = ?
+                """, arguments: [routine.companionId])?.calendar ?? .current
+            let start = day.startDate(in: calendar)
+            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+            let logs = try CareLog
+                .filter(Column("careRoutineId") == routineId && Column("occurredAt") >= start && Column("occurredAt") < end)
+                .order(Column("occurredAt"), Column("createdAt"), Column("id"))
+                .fetchAll(db)
+            let links = try CareLogPerson.filter(logs.map(\.id).contains(Column("careLogId"))).fetchAll(db)
+            let entries = logs.map { log in
+                CareEntry(log: log, people: links.filter { $0.careLogId == log.id }.map(\.personId))
+            }
+            let slots = CareLogic.slots(for: routine, on: day, byDay: CareLogic.byDay(entries, calendar: calendar), now: now, calendar: calendar)
+            if let done = slots[safe: index]?.entry { return .alreadyLogged(done) }
+            return .logged(try Self.insertLog(draft, note: note, routine: routine, now: now, in: db))
+        }
+    }
+
+    /// Adds people to a log, for "I went too". People already on it stay once.
+    func addPeople(_ people: [Person.ID], toCareLog id: CareLog.ID) throws {
+        try writer.write { db in
+            guard try CareLog.exists(db, id: id) else { throw CareValidationError.unknownLog }
+            try Self.replacePeople(of: id, with: people, in: db)
+        }
+    }
+
+    /// Takes people off a log, undoing "I went too". Never leaves a log with nobody on it.
+    func removePeople(_ people: [Person.ID], fromCareLog id: CareLog.ID) throws {
+        try writer.write { db in
+            let remaining = try CareLogPerson.filter(Column("careLogId") == id).fetchAll(db)
+                .filter { !people.contains($0.personId) }
+            guard !remaining.isEmpty else { throw CareValidationError.noWalkers }
+            for personId in people {
+                _ = try CareLogPerson.deleteOne(db, id: CareLogPerson.id(careLogId: id, personId: personId))
+            }
+        }
+    }
+
+    private static func insertLog(_ draft: CareLogDraft, note: String?, routine: CareRoutine, now: Date, in db: Database) throws -> CareLog {
+        var log = CareLog(careRoutineId: routine.id, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now)
+        log.apply(draft, note: note, routine: routine)
+        try log.insert(db)
+        try replacePeople(of: log.id, with: draft.people, in: db)
+        return log
     }
 
     /// Fixes a logged routine: who, when, how long and the details. The routine and
