@@ -9,9 +9,35 @@ import SwiftUI
 @Observable
 final class CalendarStore {
     let database: AppDatabase
-    private(set) var access: CalendarAccess
-    /// Calendars the provider currently knows, in display order.
-    private(set) var calendars: [ExternalCalendar] = []
+    /// Whether this device lets Porchlight read its calendars. Stored before observers are
+    /// told, like the snapshot: a screen redrawn as access is granted must already read it,
+    /// or it keeps asking for access it has (see `AppModel.snapshot`).
+    private(set) var access: CalendarAccess {
+        get {
+            access(keyPath: \.access)
+            return storedAccess
+        }
+        set {
+            storedAccess = newValue
+            withMutation(keyPath: \.access) {}
+        }
+    }
+
+    @ObservationIgnored private var storedAccess: CalendarAccess
+    /// Calendars the provider currently knows, in display order, stored before observers
+    /// are told.
+    private(set) var calendars: [ExternalCalendar] {
+        get {
+            access(keyPath: \.calendars)
+            return storedCalendars
+        }
+        set {
+            storedCalendars = newValue
+            withMutation(keyPath: \.calendars) {}
+        }
+    }
+
+    @ObservationIgnored private var storedCalendars: [ExternalCalendar] = []
     /// What the database says now, stored before observers are told (see `AppModel.snapshot`).
     private(set) var snapshot: CalendarSnapshot {
         get {
@@ -25,8 +51,19 @@ final class CalendarStore {
     }
 
     @ObservationIgnored private var storedSnapshot: CalendarSnapshot = .empty
-    /// Resolved events in the loaded window, sorted by start.
-    private(set) var events: [CalendarEvent] = []
+    /// Resolved events in the loaded window, sorted by start, stored before observers are told.
+    private(set) var events: [CalendarEvent] {
+        get {
+            access(keyPath: \.events)
+            return storedEvents
+        }
+        set {
+            storedEvents = newValue
+            withMutation(keyPath: \.events) {}
+        }
+    }
+
+    @ObservationIgnored private var storedEvents: [CalendarEvent] = []
     var lastError: String?
 
     @ObservationIgnored private let provider: any CalendarProvider
@@ -51,7 +88,7 @@ final class CalendarStore {
         self.database = database
         self.provider = provider
         self.now = now
-        self.access = provider.access
+        self.storedAccess = provider.access
         if let first = try? database.calendarSnapshot() { snapshot = first }
         provider.onChange = { [weak self] in self?.reload() }
         reload()
