@@ -30,8 +30,8 @@ struct OnboardingView: View {
 
     @State private var step: Step = .household
     @AppStorage(DisplaySettings.keepAwakeKey) private var keepAwake = true
-    @State private var householdName = ""
-    @State private var people: [PersonDraft] = [PersonDraft(name: "", color: .suggested(for: 0))]
+    /// The household and its people, as every first run edits them.
+    @State private var setup = HouseholdSetup()
     @FocusState private var focusedRow: Int?
 
     var body: some View {
@@ -100,7 +100,7 @@ struct OnboardingView: View {
             heading("Welcome home", "Porchlight turns this iPad into your household's wall calendar. First, what should we call your home?")
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel("Household name")
-                TextField("e.g. The Lake House", text: $householdName)
+                TextField("e.g. The Lake House", text: $setup.householdName)
                     .font(.body(20, weight: 600))
                     .textInputAutocapitalization(.words)
                     .submitLabel(.next)
@@ -127,18 +127,17 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 22) {
             heading("Who lives here?", "Everyone gets a color. It marks their calendar, and who walked the dog or cooked dinner.")
             VStack(alignment: .leading, spacing: 10) {
-                ForEach(people.indices, id: \.self) { index in
+                ForEach(setup.people.indices, id: \.self) { index in
                     PersonEditorRow(
-                        name: $people[index].name,
-                        color: $people[index].color,
-                        canRemove: people.count > 1,
-                        onRemove: { people.remove(at: index) }
+                        name: $setup.people[index].name,
+                        color: $setup.people[index].color,
+                        canRemove: setup.people.count > 1,
+                        onRemove: { setup.removePerson(at: index) }
                     )
                     .focused($focusedRow, equals: index)
                 }
                 Button {
-                    people.append(PersonDraft(name: "", color: .suggested(for: people.count)))
-                    focusedRow = people.count - 1
+                    focusedRow = setup.addPerson()
                 } label: {
                     Label("Add someone", systemImage: "plus")
                 }
@@ -263,9 +262,9 @@ struct OnboardingView: View {
     private var canContinue: Bool {
         switch step {
         case .household:
-            !householdName.trimmingCharacters(in: .whitespaces).isEmpty
+            setup.hasName
         case .people:
-            people.contains { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
+            setup.hasPeople
         case .role, .calendars, .companions, .journals, .display, .iCloud:
             true
         }
@@ -280,9 +279,8 @@ struct OnboardingView: View {
             step = .people
             focusedRow = 0
         case .people:
-            // Blank rows are simply skipped.
-            let named = people.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
-            if model.createHousehold(name: householdName, people: named) { step = .calendars }
+            // A shared screen credits nobody, so no one is "me" here.
+            if setup.create(app: model, device: device) != nil { step = .calendars }
         case .calendars:
             step = .companions
         case .companions:

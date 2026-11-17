@@ -52,6 +52,8 @@ Debug-only launch arguments:
 - `-calendarAccess notDetermined|denied` with `-sampleHousehold`: start the sample calendars without access, to see how the phone asks for it
 - `-notificationAccess notDetermined|denied|allowed` on a phone: pretend that notification permission state, so the Notifications page can be seen in each state without the system prompt (asking then allows)
 - `-debugCamera sample` on a phone: the simulator has no camera, so "Snap a meal" shows a generated dish in the viewfinder and the shutter takes it (each shot a little different), through the same photo path as a real shot; `-cameraAccess notDetermined|denied|allowed` pretends the camera permission state the same way as `-notificationAccess`
+- `-debugSetup you|people|companion|done` with `-resetData` on a phone: open that step of starting a household on the phone, filled in as The Lake House (from `companion` on, the household exists)
+- `-debugYouPage household|person|companions|companion|chores|rewards|lists|storage|leave` with `-startScreen you` on a phone: open that page of You (`person` is the last person, `companion` the first companion, `leave` the leave sheet; with `-debugSharing member` it is a member's, else the owner's)
 - `-debugFoodView snap|details|detail` on a phone (with `-startScreen food`): open the camera, the details of a new meal, or today's first meal; `-sampleFood none` with `-sampleHousehold` leaves the diary empty, and `-samplePhotoMeals` gives every meal of the sample week two photos (the first launch draws and caches them, which takes a while)
 - `-debugReminderIn N` on a phone with notifications really allowed: the day's first care reminder arrives N seconds after launch, to try delivery and its actions by hand; `TEST_RUNNER_PORCHLIGHT_DELIVERY=1` with `-only-testing:PorchlightUITests/PhoneRemindersTests/testDeliveryByHand` runs that check
 - `-me NAME` on a phone: this phone belongs to the person called NAME, so it skips "Which one is you?" (for example `-sampleHousehold -me James`)
@@ -110,7 +112,7 @@ An install signed with a paid Apple Developer team lasts a year; with a free App
 
 The app is universal.
 The iPad keeps the wall, landscape only; an iPhone gets the pocket shell, portrait only: Today (with a companion's week, Pitch in and the next 7 days), Food (the week's plates, the diary and snapping a meal), Lists, Glow, and the You sheet with this phone's calendars and notifications.
-It joins a household from an invite link or the code on the shared screen, and You lists the household's people and their devices and invites more (see [docs/design/households.md](docs/design/households.md)).
+It starts a household on its own, or joins one from an invite link or the code on the shared screen; You sets the household up (people, companions, chores, rewards, lists, the food diary), invites people, shows what the household stores, and leaves it (see [docs/design/households.md](docs/design/households.md)).
 The layout follows the available width, and whether logging asks "who did it?" follows the device's role (shared screen or personal), kept on the device.
 See [docs/design/phone-shell.md](docs/design/phone-shell.md).
 
@@ -118,6 +120,36 @@ See [docs/design/phone-shell.md](docs/design/phone-shell.md).
 scripts/sim-shot.sh <iphone-udid> /tmp/phone.png -sampleHousehold -me James
 scripts/test.sh --phone --ui-only   # the phone's UI tests on the iOS 17.5 iPhone 15 simulator
 ```
+
+## TestFlight
+
+Family phones get builds through TestFlight, without a cable.
+The wall iPad stays on cable installs (`scripts/deploy-ipad.sh`), which are Release builds in the same CloudKit Production environment as TestFlight builds, so the wall and the phones share one household.
+
+One-time setup:
+- The App Store Connect app is "Porchlight Homes", bundle id `com.mingyucao.porchlight`.
+- Create an App Store Connect API key (App Store Connect › Users and Access › Integrations), keep the `.p8` file outside the repository (for example in `~/.appstoreconnect/`), and copy `Config/AppStoreConnect.example.env` to `Config/AppStoreConnect.env` with its path, key id and issuer id.
+  That file is git-ignored; never commit the key or its ids.
+- Exporting for App Store Connect signs with a distribution certificate: either the key has the Admin role, which lets it use Apple's cloud-managed distribution certificate, or this Mac has an Apple Distribution certificate of its own (Xcode › Settings › Accounts › Manage Certificates › +).
+  A key without either archives fine and then fails to export with "Cloud signing permission error".
+- The scripts that sign pass this key to `xcodebuild` (`-authenticationKeyPath`, `-authenticationKeyID`, `-authenticationKeyIssuerID`), because `xcodebuild -allowProvisioningUpdates` in a terminal may not see the account Xcode is signed in to ("No Accounts").
+
+Each build:
+
+```bash
+scripts/testflight.sh --no-upload   # archive, export for App Store Connect, validate: a validated .ipa
+scripts/testflight.sh --upload-only # upload that .ipa
+scripts/testflight.sh               # both
+```
+
+It builds from a clean working tree only, so every build is a commit.
+The version is `MARKETING_VERSION` in `project.yml`; the build number is the commit's time in UTC (`YYYYMMDD.HHMMSS`, `scripts/lib/version.sh`), so each later commit uploads higher without editing anything, a commit can be uploaded once, and a cable install of the same commit shows the same version.
+Settings on the wall and the bottom of You on a phone show the version a device runs.
+
+Testers:
+- Internal testers (up to 100 people on the App Store Connect team) get a build as soon as Apple has processed it, with no review.
+- External testers (anyone with an email address or a public link) need the build to pass a short Beta App Review first, once per version.
+- Each build expires 90 days after upload; upload a new one before then, and TestFlight updates the phones.
 
 ## Layout
 

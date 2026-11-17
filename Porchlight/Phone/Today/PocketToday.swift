@@ -100,7 +100,9 @@ enum PocketToday {
         let calendar = snapshot.calendar
         let candidates = reports.flatMap { report -> [(CompanionReport, MissedCare)] in
             let late = ([report.primary].compactMap { $0 } + report.others).flatMap { today in
-                today.slots.filter { $0.state == .late }.map { slot in
+                today.slots.filter {
+                    $0.state == .late && CareCatchUp.isOwed($0, of: today.routine, on: report.today, since: report.companion.createdAt, calendar: calendar)
+                }.map { slot in
                     MissedCare(
                         routine: today.routine, day: report.today, slot: slot,
                         usual: CareCatchUp.usualTime(slot.index, of: today.routine, on: report.today, entries: snapshot.entries(of: today.routine.id), now: report.now, calendar: calendar)

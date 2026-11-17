@@ -21,7 +21,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -34,19 +34,19 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CKSharingSupported</key>
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Porchlight shows your household's calendars on the wall. It only reads them.</string>
+	<string>Porchlight shows the calendars you choose on Today and on your household's wall. It only reads them and never changes them.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Porchlight uses the camera to snap photos of your meals for the food diary.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Porchlight uses your approximate location once to show local weather.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Porchlight can show photos you pick on the wall in Ambient mode.</string>
+	<string>Porchlight adds the photos you pick to your meals, your companions and the wall's photo frame.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Fraunces.ttf</string>

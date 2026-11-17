@@ -9,7 +9,19 @@ import SwiftUI
 final class FoodStore {
     let database: AppDatabase
 
-    private(set) var snapshot: FoodSnapshot = .empty
+    /// What the database says now, stored before observers are told (see `AppModel.snapshot`).
+    private(set) var snapshot: FoodSnapshot {
+        get {
+            access(keyPath: \.snapshot)
+            return storedSnapshot
+        }
+        set {
+            storedSnapshot = newValue
+            withMutation(keyPath: \.snapshot) {}
+        }
+    }
+
+    @ObservationIgnored private var storedSnapshot: FoodSnapshot = .empty
     var lastError: String?
 
     // MARK: Pen state, shared by the month tool bar, the day editor and the note strip

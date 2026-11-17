@@ -27,6 +27,8 @@ final class ToastCenter {
     /// A toast waiting for the sheet it came from to finish closing.
     @ObservationIgnored private var pending: UndoToast?
     @ObservationIgnored private var timer: Task<Void, Never>?
+    /// The last toast whose action ran, so a second tap while it leaves does nothing.
+    @ObservationIgnored private var ran: UUID?
 
     static let seconds: Double = 5
     static let voiceOverSeconds: Double = 12
@@ -62,10 +64,12 @@ final class ToastCenter {
         withAnimation(.easeIn(duration: 0.18)) { current = nil }
     }
 
-    /// Runs the toast's action, then takes the toast away.
-    func runAction() {
-        guard let action = current?.action else { return }
-        dismiss()
+    /// Takes `toast` away if it is still up, then runs its action, once. A toast already on
+    /// its way out still runs it: it was on screen when someone tapped Undo.
+    func run(_ toast: UndoToast) {
+        guard let action = toast.action, ran != toast.id else { return }
+        ran = toast.id
+        if current?.id == toast.id { dismiss() }
         action.run()
     }
 }
@@ -75,7 +79,7 @@ extension View {
     func hostsToasts(_ center: ToastCenter) -> some View {
         overlay(alignment: .top) {
             if let toast = center.current {
-                UndoToastView(toast: toast, onAction: center.runAction)
+                UndoToastView(toast: toast, onAction: { center.run(toast) })
                     .padding(.horizontal, 14)
                     .padding(.top, 6)
                     .transition(.move(edge: .top).combined(with: .opacity))

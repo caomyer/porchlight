@@ -30,6 +30,19 @@ struct CareCatchUpTests {
         #expect(CareCatchUp.missed(F.walk, entries: entries, on: F.key(5), now: now, calendar: calendar).isEmpty)
     }
 
+    @Test("A companion added in the evening owed nothing that closed earlier that day")
+    func addedLate() {
+        var walk = F.walk
+        walk.anchorDay = F.key(6).rawValue    // the routine starts the day it's added
+        let addedAt = F.date(day: 6, 21)
+        let missed = CareCatchUp.missed(walk, entries: [], on: F.key(6), now: now, calendar: calendar, since: addedAt)
+        #expect(missed.isEmpty, "Both walks closed before 9pm, when the companion arrived")
+        let addedAtNoon = F.date(day: 6, 12)
+        let owed = CareCatchUp.missed(walk, entries: [], on: F.key(6), now: now, calendar: calendar, since: addedAtNoon)
+        #expect(owed.map(\.slot.index) == [1], "The evening walk was still ahead at noon")
+        #expect(CareCatchUp.missed(F.walk, entries: [], on: F.key(6), now: now, calendar: calendar, since: addedAt).count == 2, "A routine that started earlier owes its slots")
+    }
+
     @Test("Today is still expected, not missed, and last week is past catching up")
     func onlyThisWeek() {
         let entries = F.fullDays(1...6)

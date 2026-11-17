@@ -16,6 +16,12 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "onboardingStep")
     }
 
+    /// `-debugSetup you|people|companion|done` (with `-resetData`) opens that step of starting
+    /// a household on a phone, filled in as The Lake House.
+    static var setupStep: String? {
+        UserDefaults.standard.string(forKey: "debugSetup")
+    }
+
     /// Sample and reset launches start from an empty sandbox folder, database included.
     /// A simulator is shared by every checkout of the app, so the folder may hold a
     /// database another branch migrated to a schema this build doesn't know.
@@ -85,5 +91,6 @@ enum DebugLaunch {
 #if !DEBUG
 enum DebugLaunch {
     static var onboardingStep: String? { nil }
+    static var setupStep: String? { nil }
 }
 #endif

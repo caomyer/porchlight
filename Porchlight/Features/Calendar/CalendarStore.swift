@@ -12,7 +12,19 @@ final class CalendarStore {
     private(set) var access: CalendarAccess
     /// Calendars the provider currently knows, in display order.
     private(set) var calendars: [ExternalCalendar] = []
-    private(set) var snapshot: CalendarSnapshot = .empty
+    /// What the database says now, stored before observers are told (see `AppModel.snapshot`).
+    private(set) var snapshot: CalendarSnapshot {
+        get {
+            access(keyPath: \.snapshot)
+            return storedSnapshot
+        }
+        set {
+            storedSnapshot = newValue
+            withMutation(keyPath: \.snapshot) {}
+        }
+    }
+
+    @ObservationIgnored private var storedSnapshot: CalendarSnapshot = .empty
     /// Resolved events in the loaded window, sorted by start.
     private(set) var events: [CalendarEvent] = []
     var lastError: String?

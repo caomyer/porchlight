@@ -145,16 +145,29 @@ final class LiveHouseholdSharing: HouseholdSharing {
         try? await sync.engine?.fetchChanges()
     }
 
+    func leave(_ household: Household) async throws {
+        guard sync.engine != nil else { throw SharingFailure.noEngine }
+        guard let share = try await latestShare(of: household),
+              share.recordID.zoneID.ownerName != CKCurrentUserDefaultName else { throw SharingFailure.notShared }
+        // A participant leaves by deleting the share from their own shared database; the
+        // owner's household, and everyone else's access to it, are untouched.
+        let (_, results) = try await container.sharedCloudDatabase.modifyRecords(saving: [], deleting: [share.recordID])
+        for result in results.values { try result.get() }
+        // The engine then sees the shared zone go, and removes the household from this device.
+        try? await sync.engine?.fetchChanges()
+    }
+
     // MARK: Private
 
     private enum SharingFailure: LocalizedError {
-        case noEngine, noHousehold, noLink, noSeats, publicLink
+        case noEngine, noHousehold, noLink, notShared, noSeats, publicLink
 
         var errorDescription: String? {
             switch self {
             case .noEngine: "iCloud sync isn't running on this device."
             case .noHousehold: "The household hasn't reached iCloud yet. Try again in a minute."
             case .noLink: "iCloud didn't make a link for the household. Try again in a minute."
+            case .notShared: "This household is yours, so there is nothing to leave."
             case .noSeats: "A join code needs iOS 18 on this device."
             case .publicLink: "The household's old open link is still on. Close it first, in Family & devices."
             }

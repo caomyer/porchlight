@@ -36,6 +36,10 @@ protocol HouseholdSharing: AnyObject {
     func accept(_ invitation: HouseholdInvitation) async throws
     /// Removes someone from the share, for the owner. Their history stays.
     func remove(_ participant: HouseholdParticipant, from household: Household) async throws
+    /// Leaves someone else's household, for a member (journey A6): this iCloud user is off
+    /// its share, and the household goes from their devices. What they logged stays with the
+    /// household for everyone else. The owner can't leave; their household is theirs.
+    func leave(_ household: Household) async throws
 }
 
 /// Someone who can see the household through its share.

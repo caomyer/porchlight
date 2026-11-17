@@ -8,7 +8,19 @@ final class HomeStore {
     let database: AppDatabase
     let photoLibrary: AmbientPhotoLibrary
 
-    private(set) var snapshot: HomeSnapshot = .empty
+    /// What the database says now, stored before observers are told (see `AppModel.snapshot`).
+    private(set) var snapshot: HomeSnapshot {
+        get {
+            access(keyPath: \.snapshot)
+            return storedSnapshot
+        }
+        set {
+            storedSnapshot = newValue
+            withMutation(keyPath: \.snapshot) {}
+        }
+    }
+
+    @ObservationIgnored private var storedSnapshot: HomeSnapshot = .empty
     /// Today in the household's time zone. Rolls over at midnight.
     private(set) var today: DayKey
     /// The last failed edit, shown near the control that caused it.

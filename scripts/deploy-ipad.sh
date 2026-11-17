@@ -47,17 +47,24 @@ if [[ ! -f Config/Local.xcconfig ]]; then
 fi
 
 source "$root/scripts/lib/device.sh"
+source "$root/scripts/lib/signing.sh"
+source "$root/scripts/lib/version.sh"
 device="$(porchlight_device)"
+# Signs in with the App Store Connect key when Config/AppStoreConnect.env has one, so
+# profiles refresh from a terminal too.
+porchlight_load_signing "$root"
 
 xcodegen generate --quiet
+# The commit's build number, as TestFlight builds of the same commit carry.
 xcodebuild build \
   -project Porchlight.xcodeproj \
   -scheme Porchlight \
   -configuration "$configuration" \
   -destination "generic/platform=iOS" \
   -derivedDataPath "$derived" \
-  -allowProvisioningUpdates \
   -skipMacroValidation \
+  "${porchlight_signing_args[@]}" \
+  CURRENT_PROJECT_VERSION="$(porchlight_build_number)" \
   | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
 
 app="$derived/Build/Products/$configuration-iphoneos/Porchlight.app"

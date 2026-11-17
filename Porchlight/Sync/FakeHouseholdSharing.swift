@@ -13,12 +13,17 @@ final class FakeHouseholdSharing: HouseholdSharing {
     var acceptFailures = 0
     /// Puts the accepted household in the database.
     var onAccept: (HouseholdInvitation) throws -> Void
+    /// Takes a household that was left out of the database, as the engine does when the
+    /// shared zone goes.
+    var onLeave: (Household) throws -> Void = { _ in }
+    /// How many times leaving fails, as offline, before it works.
+    var leaveFailures = 0
     /// Whether this "device" can make join seats, as iOS 18 can.
     var supportsJoinSeats = true
     /// The share's public link left open from the earlier join code.
     var isLinkOpen = false
     private var seats = 0
-    /// Every call, in order: "invite", "openSeat", "closeSeat", "closePublicLink", "accept", "remove <id>".
+    /// Every call, in order: "invite", "openSeat", "closeSeat", "closePublicLink", "accept", "leave", "remove <id>".
     private(set) var calls: [String] = []
 
     init(members: HouseholdMembers = .none, userName: String? = nil, onAccept: @escaping (HouseholdInvitation) throws -> Void = { _ in }) {
@@ -90,6 +95,21 @@ final class FakeHouseholdSharing: HouseholdSharing {
     func remove(_ participant: HouseholdParticipant, from household: Household) async throws {
         calls.append("remove \(participant.id)")
         members.participants.removeAll { $0.id == participant.id }
+    }
+
+    func leave(_ household: Household) async throws {
+        calls.append("leave")
+        if leaveFailures > 0 {
+            leaveFailures -= 1
+            throw Offline()
+        }
+        guard !members.isOwner else { throw NotShared() }
+        members.participants.removeAll { $0.isCurrentUser }
+        try onLeave(household)
+    }
+
+    struct NotShared: LocalizedError {
+        var errorDescription: String? { "This household is yours, so there is nothing to leave." }
     }
 }
 #endif

@@ -59,10 +59,13 @@ struct PocketTodayScreen: View {
                     chores
                     PocketAgendaCard { path.append($0) }
                     if cards.isEmpty && home.activeChores.isEmpty {
-                        Text("Chores and companions show up here once they're set up on your household's shared screen.")
-                            .phoneFont(.body, 13.5, weight: 600)
-                            .foregroundStyle(Theme.muted)
-                            .phoneCard()
+                        PocketSetUpCard(
+                            emoji: "🏡",
+                            title: "Nothing to do yet",
+                            detail: "Add a pet or plant to look after, and the household's chores. They show up here for everyone, on every phone and the wall.",
+                            action: "Set up the household",
+                            page: .household
+                        )
                     }
                 }
                 .padding(.horizontal, 16)

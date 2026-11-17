@@ -209,13 +209,16 @@ struct CompanionSettingsList: View {
     }
 }
 
-/// The companion editor in a sheet, with Save and Cancel.
-private struct CompanionEditSheet: View {
+/// The companion editor with Save and Cancel: a sheet on the wall, the page itself on a
+/// phone (You › Household › Companions), where it also offers removing the companion.
+struct CompanionEditSheet: View {
     let initial: CompanionDraft
     let onClose: () -> Void
 
     @Environment(CompanionStore.self) private var store
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var draft: CompanionDraft
+    @State private var confirmRemove = false
     @State private var routinesEdited: Bool
     @State private var isShown = false
 
@@ -227,29 +230,68 @@ private struct CompanionEditSheet: View {
     }
 
     var body: some View {
-        WallSheet(width: 1000, onClose: cancel) {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(initial.companionId == nil ? "Add a companion" : "Edit \(initial.name)")
-                    .font(.display(30))
-                CompanionEditorForm(draft: $draft, routinesEdited: $routinesEdited, compact: false)
-                HStack {
+        if sizeClass == .compact {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    title
+                    CompanionEditorForm(draft: $draft, routinesEdited: $routinesEdited, compact: false)
                     if let error = store.lastError {
                         Text(error).font(.body(14, weight: 600)).foregroundStyle(Theme.accent)
                     }
-                    Spacer()
-                    Button("Cancel", action: cancel).buttonStyle(SecondaryButtonStyle())
                     Button("Save", action: save)
                         .buttonStyle(PrimaryButtonStyle())
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                         .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .accessibilityIdentifier("save-companion")
+                    if let id = initial.companionId {
+                        Button("Remove \(initial.name)", role: .destructive) { confirmRemove = true }
+                            .buttonStyle(SecondaryButtonStyle())
+                            .foregroundStyle(Theme.accent)
+                            .confirmationDialog("Remove \(initial.name)?", isPresented: $confirmRemove, titleVisibility: .visible) {
+                                Button("Remove and delete history", role: .destructive) {
+                                    store.delete(companionId: id)
+                                    onClose()
+                                }
+                            } message: {
+                                Text("Their routines and every logged walk or meal go too. This can't be undone.")
+                            }
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
-            .frame(maxHeight: 720)
+            .scrollDismissesKeyboard(.interactively)
+            .onAppear { store.lastError = nil }
+        } else {
+            WallSheet(width: 1000, onClose: cancel) {
+                VStack(alignment: .leading, spacing: 16) {
+                    title
+                    CompanionEditorForm(draft: $draft, routinesEdited: $routinesEdited, compact: false)
+                    HStack {
+                        if let error = store.lastError {
+                            Text(error).font(.body(14, weight: 600)).foregroundStyle(Theme.accent)
+                        }
+                        Spacer()
+                        Button("Cancel", action: cancel).buttonStyle(SecondaryButtonStyle())
+                        Button("Save", action: save)
+                            .buttonStyle(PrimaryButtonStyle())
+                            .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+                .frame(maxHeight: 720)
+            }
+            .opacity(isShown ? 1 : 0)
+            .onAppear {
+                store.lastError = nil
+                withAnimation(.easeOut(duration: 0.2)) { isShown = true }
+            }
         }
-        .opacity(isShown ? 1 : 0)
-        .onAppear {
-            store.lastError = nil
-            withAnimation(.easeOut(duration: 0.2)) { isShown = true }
-        }
+    }
+
+    private var title: some View {
+        Text(initial.companionId == nil ? "Add a companion" : "Edit \(initial.name)")
+            .font(.display(30))
     }
 
     private func save() {
@@ -263,6 +305,7 @@ private struct CompanionEditSheet: View {
     }
 
     private func close() {
+        guard sizeClass != .compact else { return onClose() }
         withAnimation(.easeIn(duration: 0.18)) { isShown = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { onClose() }
     }
@@ -279,8 +322,13 @@ struct CompanionEditorForm: View {
     var compact: Bool
 
     @Environment(AppModel.self) private var model
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.colorScheme) private var scheme
     @State private var editingRoutine: RoutineEditing?
     @State private var photoItem: PhotosPickerItem?
+
+    /// A phone: one column, no preview, and the routine editor as a system sheet.
+    private var isNarrow: Bool { sizeClass == .compact }
 
     struct RoutineEditing: Identifiable {
         var draft: CareRoutineDraft
@@ -289,6 +337,61 @@ struct CompanionEditorForm: View {
     }
 
     var body: some View {
+        Group {
+            if isNarrow { narrow } else { wide }
+        }
+        .wallCover(item: isNarrow ? .constant(nil) : $editingRoutine) { item in routineEditor(item) }
+        .sheet(item: isNarrow ? $editingRoutine : .constant(nil)) { item in
+            routineEditor(item)
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.surface)
+        }
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let photo = try? await Task.detached(priority: .userInitiated, operation: { try CompanionPhotos.prepared(data) }).value {
+                    draft.photo = photo
+                }
+                photoItem = nil
+            }
+        }
+        #if DEBUG
+        .onAppear {
+            if UserDefaults.standard.string(forKey: "debugCompanionSheet") == "routine", let first = draft.routines.first {
+                present(RoutineEditing(draft: first, isNew: false))
+            }
+        }
+        #endif
+    }
+
+    /// One column for a phone: kind, name, look, routines, captions, details.
+    private var narrow: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            speciesTiles
+            field("Name") {
+                TextField("e.g. Biscuit", text: $draft.name)
+                    .font(.body(15, weight: 700))
+                    .textInputAutocapitalization(.words)
+                    .fieldStyle()
+                    .accessibilityIdentifier("companion-name")
+            }
+            field("Look") { lookPicker }
+            SectionLabel("Care routines")
+            VStack(spacing: 10) {
+                ForEach(draft.routines) { routine in
+                    RoutineRow(routine: routine) {
+                        present(RoutineEditing(draft: routine, isNew: false))
+                    }
+                }
+                addRoutineRow
+            }
+            field("Caption personality") { toneChoices }
+            detailsFields
+        }
+    }
+
+    private var wide: some View {
         VStack(alignment: .leading, spacing: 16) {
             speciesTiles
             HStack(alignment: .top, spacing: 16) {
@@ -321,21 +424,7 @@ struct CompanionEditorForm: View {
                     // Two preset routines plus "Add routine" fit without scrolling on the wall.
                     .frame(minHeight: 250)
                     .scrollBounceBehavior(.basedOnSize)
-                    field("Caption personality") {
-                        HStack(spacing: 6) {
-                            ForEach(CompanionTone.allCases, id: \.self) { tone in
-                                Button { draft.tone = tone } label: {
-                                    Text(tone.label)
-                                        .font(.body(13, weight: 700))
-                                        .foregroundStyle(draft.tone == tone ? Theme.surface : Theme.ink)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(draft.tone == tone ? Theme.ink : Theme.surface2, in: Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
+                    field("Caption personality") { toneChoices }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 VStack(alignment: .leading, spacing: 12) {
@@ -346,43 +435,46 @@ struct CompanionEditorForm: View {
             }
             .frame(maxHeight: .infinity, alignment: .top)
         }
-        .wallCover(item: $editingRoutine) { item in
-            RoutineEditorSheet(
-                initial: item.draft,
-                isNew: item.isNew,
-                companionName: draft.name.isEmpty ? draft.species.label.lowercased() : draft.name,
-                onSave: { saved in
-                    if let index = draft.routines.firstIndex(where: { $0.id == saved.id }) {
-                        draft.routines[index] = saved
-                    } else {
-                        draft.routines.append(saved)
-                    }
-                    routinesEdited = true
-                },
-                onDelete: {
-                    draft.routines.removeAll { $0.id == item.draft.id }
-                    routinesEdited = true
-                },
-                onClose: { CompanionCover.instantly { editingRoutine = nil } }
-            )
-        }
-        .onChange(of: photoItem) { _, item in
-            guard let item else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self),
-                   let photo = try? await Task.detached(priority: .userInitiated, operation: { try CompanionPhotos.prepared(data) }).value {
-                    draft.photo = photo
+    }
+
+    private func routineEditor(_ item: RoutineEditing) -> some View {
+        RoutineEditorSheet(
+            initial: item.draft,
+            isNew: item.isNew,
+            companionName: draft.name.isEmpty ? draft.species.label.lowercased() : draft.name,
+            onSave: { saved in
+                if let index = draft.routines.firstIndex(where: { $0.id == saved.id }) {
+                    draft.routines[index] = saved
+                } else {
+                    draft.routines.append(saved)
                 }
-                photoItem = nil
+                routinesEdited = true
+            },
+            onDelete: {
+                draft.routines.removeAll { $0.id == item.draft.id }
+                routinesEdited = true
+            },
+            onClose: { CompanionCover.instantly { editingRoutine = nil } }
+        )
+    }
+
+    private var toneChoices: some View {
+        HStack(spacing: 6) {
+            ForEach(CompanionTone.allCases, id: \.self) { tone in
+                Button { draft.tone = tone } label: {
+                    Text(tone.label)
+                        .font(.body(13, weight: 700))
+                        .foregroundStyle(draft.tone == tone ? Theme.surface : Theme.ink)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(draft.tone == tone ? Theme.ink : Theme.surface2, in: Capsule())
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(draft.tone == tone ? [.isButton, .isSelected] : .isButton)
             }
         }
-        #if DEBUG
-        .onAppear {
-            if UserDefaults.standard.string(forKey: "debugCompanionSheet") == "routine", let first = draft.routines.first {
-                present(RoutineEditing(draft: first, isNew: false))
-            }
-        }
-        #endif
     }
 
     private func present(_ editing: RoutineEditing) {
@@ -396,24 +488,39 @@ struct CompanionEditorForm: View {
         }
     }
 
+    /// A row of kinds on the wall; on a phone, a grid of four across that fills the width.
+    @ViewBuilder
     private var speciesTiles: some View {
-        HStack(spacing: 10) {
-            ForEach(Species.allCases.filter { $0 != .other || !compact }, id: \.self) { species in
-                let isSelected = draft.species == species
-                Button { choose(species) } label: {
-                    VStack(spacing: 2) {
-                        Text(species.emoji).font(.system(size: 30))
-                        Text(species.label).font(.body(13.5, weight: 700)).foregroundStyle(Theme.ink)
-                    }
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity)
-                    .background(SurfaceShape(cornerRadius: Theme.smallRadius, fill: isSelected ? Theme.accent.wash(0.08) : Theme.surface))
-                    .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous).strokeBorder(isSelected ? Theme.accent : .clear, lineWidth: 2))
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
+        let kinds = Species.allCases.filter { $0 != .other || !compact }
+        if isNarrow {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                ForEach(kinds, id: \.self, content: speciesTile)
+            }
+        } else {
+            HStack(spacing: 10) {
+                ForEach(kinds, id: \.self, content: speciesTile)
             }
         }
+    }
+
+    private func speciesTile(_ species: Species) -> some View {
+        let isSelected = draft.species == species
+        return Button { choose(species) } label: {
+            VStack(spacing: 2) {
+                Text(species.emoji).font(.system(size: isNarrow ? 26 : 30))
+                Text(species.label).font(.body(13.5, weight: 700)).foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            // The wash resolves against this look's paper, so the label reads in the phone's night look.
+            .background(SurfaceShape(cornerRadius: Theme.smallRadius, fill: isSelected ? Theme.accent.wash(0.08, over: Theme.surface, in: scheme) : Theme.surface))
+            .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous).strokeBorder(isSelected ? Theme.accent : .clear, lineWidth: 2))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(species.label)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
     private func choose(_ species: Species) {
@@ -529,6 +636,7 @@ struct CompanionEditorForm: View {
 /// One routine in the editor: "Walk · 2× a day", windows and tags.
 private struct RoutineRow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.colorScheme) private var scheme
     let routine: CareRoutineDraft
     let onEdit: () -> Void
 
@@ -537,7 +645,7 @@ private struct RoutineRow: View {
             Text(routine.emoji)
                 .font(.system(size: 20))
                 .frame(width: 40, height: 40)
-                .background(CoatPreset.honey.tint.wash(0.25), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(CoatPreset.honey.tint.wash(0.25, over: Theme.surface, in: scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(routine.title) · \(routine.routine().cadenceText(calendar: model.calendar))").font(.body(15, weight: 700))
                 Text(meta)
@@ -659,11 +767,15 @@ private struct RoutineEditorSheet: View {
     let onClose: () -> Void
 
     @Environment(AppModel.self) private var model
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var draft: CareRoutineDraft
     @State private var repeatChoice: RepeatChoice?
     @State private var error: String?
     @State private var isShown = false
     @State private var confirmDelete = false
+
+    /// A phone: the editor is a system sheet of its own, in one column.
+    private var isNarrow: Bool { sizeClass == .compact }
 
     init(initial: CareRoutineDraft, isNew: Bool, companionName: String,
          onSave: @escaping (CareRoutineDraft) -> Void, onDelete: @escaping () -> Void, onClose: @escaping () -> Void) {
@@ -677,12 +789,37 @@ private struct RoutineEditorSheet: View {
     }
 
     var body: some View {
-        WallSheet(width: 900, onClose: close) {
+        Group {
+            if isNarrow {
+                ScrollView {
+                    form
+                        .padding(.horizontal, 18)
+                        .padding(.top, 26)
+                        .padding(.bottom, 16)
+                }
+                .scrollDismissesKeyboard(.interactively)
+            } else {
+                WallSheet(width: 900, onClose: close) { form }
+                    .opacity(isShown ? 1 : 0)
+                    .onAppear { withAnimation(.easeOut(duration: 0.2)) { isShown = true } }
+            }
+        }
+        .confirmationDialog("Delete this routine?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete routine and its history", role: .destructive) {
+                onDelete()
+                close()
+            }
+        } message: {
+            Text("Saving the companion removes \(initial.title.lowercased()) and everything logged for it.")
+        }
+    }
+
+    private var form: some View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(isNew ? "New routine" : "Edit \(initial.title.lowercased())")
                     .font(.display(30))
-                    .padding(.trailing, 50)
-                HStack(alignment: .top, spacing: 28) {
+                    .padding(.trailing, isNarrow ? 0 : 50)
+                (isNarrow ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0)) : AnyLayout(HStackLayout(alignment: .top, spacing: 28))) {
                     VStack(alignment: .leading, spacing: 0) {
                         label("Kind")
                         FlowLayout(spacing: 6) {
@@ -734,18 +871,19 @@ private struct RoutineEditorSheet: View {
                             }
                         }
                     }
-                    .frame(width: 330, alignment: .leading)
+                    .frame(width: isNarrow ? nil : 330, alignment: .leading)
+                }
+                if let error {
+                    Text(error).font(.body(14, weight: 600)).foregroundStyle(Theme.accent)
+                        .padding(.top, 16)
                 }
                 HStack(spacing: 10) {
                     if !isNew {
-                        Button("Delete routine", role: .destructive) { confirmDelete = true }
+                        Button(isNarrow ? "Delete" : "Delete routine", role: .destructive) { confirmDelete = true }
                             .buttonStyle(SecondaryButtonStyle())
                             .foregroundStyle(Theme.accent)
                     }
-                    if let error {
-                        Text(error).font(.body(14, weight: 600)).foregroundStyle(Theme.accent)
-                    }
-                    Spacer()
+                    Spacer(minLength: 0)
                     Button("Cancel", action: close).buttonStyle(SecondaryButtonStyle())
                     Button("Done", action: save)
                         .buttonStyle(PrimaryButtonStyle())
@@ -753,17 +891,6 @@ private struct RoutineEditorSheet: View {
                 }
                 .padding(.top, 22)
             }
-        }
-        .opacity(isShown ? 1 : 0)
-        .onAppear { withAnimation(.easeOut(duration: 0.2)) { isShown = true } }
-        .confirmationDialog("Delete this routine?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete routine and its history", role: .destructive) {
-                onDelete()
-                close()
-            }
-        } message: {
-            Text("Saving the companion removes \(initial.title.lowercased()) and everything logged for it.")
-        }
     }
 
     private func label(_ text: String) -> some View {
@@ -884,6 +1011,7 @@ private struct RoutineEditorSheet: View {
     }
 
     private func close() {
+        guard !isNarrow else { return onClose() }
         withAnimation(.easeIn(duration: 0.18)) { isShown = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { onClose() }
     }
