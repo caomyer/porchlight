@@ -145,11 +145,11 @@ extension SyncStatus {
         case .noAccount:
             "This iPad isn't signed in to iCloud. Sign in in the Settings app to sync again; everything stays here meanwhile."
         case let .upToDate(lastSynced):
-            "Up to date\(Self.lastSyncedText(lastSynced))."
+            "Up to date\(Self.lastSyncedText(lastSynced, verb: "checked"))."
         case .syncing:
             "Syncing…"
         case let .waiting(lastSynced):
-            "Waiting for iCloud\(Self.lastSyncedText(lastSynced)). Changes keep saving on this iPad."
+            "Can't reach iCloud right now\(Self.lastSyncedText(lastSynced, verb: "last reached")). Changes keep saving on this iPad and go up once it answers."
         case .iCloudFull:
             "Paused until there's room in iCloud."
         case let .notAccepted(count):
@@ -161,10 +161,11 @@ extension SyncStatus {
         }
     }
 
-    private static func lastSyncedText(_ date: Date?) -> String {
+    /// ", checked at 10:41 PM": when iCloud last answered.
+    static func lastSyncedText(_ date: Date?, verb: String, calendar: Calendar = .current) -> String {
         guard let date else { return "" }
         let time = date.formatted(date: .omitted, time: .shortened)
-        if Calendar.current.isDateInToday(date) { return ", last synced at \(time)" }
-        return ", last synced \(date.formatted(.dateTime.month(.abbreviated).day())) at \(time)"
+        if calendar.isDateInToday(date) { return ", \(verb) at \(time)" }
+        return ", \(verb) \(date.formatted(.dateTime.month(.abbreviated).day())) at \(time)"
     }
 }

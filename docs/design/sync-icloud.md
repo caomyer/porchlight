@@ -104,9 +104,10 @@ Installing a Debug build over Porchlight itself would keep its data but switch i
 - `uninstall-seed` removes Porchlight Seed afterwards.
 - `export` writes Development's schema to `Config/cloudkit-schema.ckdb` with `xcrun cktool export-schema`, so schema changes show up in review.
 - `diff` compares the checked-in file with Development.
-- `check` compares Production with the checked-in file, runs `xcrun cktool validate-schema` against Production, and prints the deployment steps below.
+- `check` exports Production's schema and compares it with the checked-in file, and when they differ prints the deployment steps below.
+  (`cktool validate-schema` refuses Production: "endpoint not applicable in the environment 'production'".)
 
-`cktool` can export, validate and import schemas, but it imports only into Development; deploying to Production is a button in the CloudKit Console.
+`cktool` can export schemas from both environments, but validates and imports only in Development; deploying to Production is a button in the CloudKit Console.
 `cktool` needs a management token, made once:
 
 1. Open https://icloud.developer.apple.com, sign in with the developer account, and pick the team.
@@ -179,8 +180,50 @@ That is wrong for a wall that must keep working, so `SyncController` is the engi
 
 ## Status the UI can show
 
-`SyncStatus` is one of: off, no iCloud account, up to date (with the last time), syncing, waiting (offline, with the last time), paused because iCloud is full, or needs a decision (account changed).
+`SyncStatus` is one of: off, no iCloud account, up to date (with the last time iCloud answered), syncing, waiting (offline, or checks keep failing, with the last time iCloud answered), paused because iCloud is full, not accepted (changes iCloud turned down), or needs a decision (account changed).
 The wall shows it only in Settings, plus a dot on the gear when it has been stuck for an hour (journey D3).
+"Up to date" means iCloud answered recently: Settings says "Up to date, checked at 10:41 PM", and three failed checks in a row turn it into "Can't reach iCloud right now, last reached at 10:41 PM".
+
+## Staying current
+
+The first two-device test showed a wall that never heard of a phone's log: the phone's change reached iCloud, and the wall, open the whole time, didn't fetch it.
+The engine only fetches by itself when a push arrives, at launch, or when asked, so a wall that waits for pushes is only as current as its pushes.
+
+### Pushes, the fast path
+
+SQLiteData adds no push handling of its own: its guide asks only for the "Remote notifications" background mode (SQLiteData 1.13.0, `Sources/SQLiteData/Documentation.docc/Articles/CloudKitSync.md`, lines 41 to 43), and nothing in its sources registers for or receives remote notifications.
+`CKSyncEngine` subscribes to the databases and takes CloudKit's pushes itself, then fetches.
+The app has the background mode, so in a TestFlight or App Store build, which is signed for production push and talks to CloudKit's Production environment, pushes are expected to work.
+A Release build installed by cable is signed for development push (`aps-environment` is `development`, the only value a development profile allows) but talks to Production, whose pushes go through production APNs, so it is expected to get none.
+That is the most likely reason the wall heard nothing, and it can't be fixed in code: only a distribution-signed build (TestFlight, ad hoc) gets production pushes.
+And even where pushes arrive, iOS delivers silent pushes at its discretion and throttles them, so they can't be what keeps the wall current.
+
+### Asking on a schedule
+
+So `SyncController` asks for changes itself (`SyncPoller`):
+
+- at once when the app comes to the front, when the network comes back, and right after sync is turned on (starting the engine fetches by itself, so a launch in the background asks nothing more);
+- then, while the app stays in front, every 15 seconds on a shared screen and every 30 seconds on someone's own phone;
+- never in the background, never offline, and never two at a time.
+
+Each check is one `fetchChanges`, which asks iCloud for database changes and, only when there are some, the changed zones' records.
+A check that finds nothing is one small request per database (private and shared); four a minute from one wall is far below CloudKit's per-user request limits (tens per second), and on the 2017 iPad it is a network request every 15 seconds that does no database work, which the idle-CPU budget doesn't notice.
+Fifteen seconds is about how long someone walks from the door to the hallway after logging on their phone; shorter buys little and costs requests, longer starts to feel like the wall missed it.
+
+A check that fails waits twice as long before the next one, up to five minutes, and the network coming back starts again at once.
+A check never shows as "Syncing", writes nothing to the app's tables (at most the engine saves its own state, which no screen observes), and moves the last-synced time at most every five minutes when nothing else happened, so a quiet poll redraws nothing.
+
+### Sending
+
+A change made in the app is recorded by the engine's triggers in the same transaction, and `CKSyncEngine` sends it on its own schedule, usually within seconds while the app is in front.
+Changes made offline wait in the engine's saved state and go when it is back online.
+When the app leaves the front (the phone locked right after a log), `SyncController` sends what is pending inside a background task, so iOS gives the send time to finish rather than suspending it.
+Whatever still didn't go goes at the next launch; nothing is lost.
+
+### What to expect
+
+On the cable-installed builds, a log on the phone reaches the wall within about 20 seconds while the wall is open: the phone sends within a few seconds, and the wall's next check is at most 15 seconds away.
+A TestFlight build should usually be faster, by push.
 
 ## A fresh install looks for a household first
 
