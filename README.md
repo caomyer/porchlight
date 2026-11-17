@@ -89,32 +89,45 @@ The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator (`xcodebuild 
 
 ### Running the tests
 
-`scripts/test.sh` builds once, then runs the unit tests and the wall's UI suite on an iPad simulator, then the phone's UI suite on an iPhone simulator, and says how long each step took.
+`scripts/test.sh` builds once, then runs the unit tests and the wall's UI suite on an iPad simulator and the phone's UI suite on an iPhone simulator, side by side when the Mac has room for both, and says how long each step took.
 
 ```bash
 scripts/test.sh                    # everything
 scripts/test.sh --smoke            # unit tests and 13 UI tests across both shells: the gate before installing
 scripts/test.sh --unit-only        # unit tests only
 scripts/test.sh --wall --ui-only   # the wall's UI suite only; --phone for the phone's
-scripts/test.sh --only PhoneTests/testCheckingChores FirstRunTests   # just these, on the right simulator
-scripts/test.sh --parallel         # the iPad and the iPhone at the same time
+scripts/test.sh --only PhoneTests/testCheckingChores FirstRunTests   # just these, each on the right simulator
 ```
 
 It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
-`--runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5` runs on another installed iOS, `--no-build` reuses the last build, and `--keep-booted` leaves the simulators running.
+`--serial` runs the iPad and then the iPhone even with room for both, `--runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5` runs on another installed iOS, `--no-build` reuses the last build, and `--keep-booted` leaves the simulators running.
+Results and logs are in `$TMPDIR/porchlight-tests-<checkout>`: `unit`, `ui-wall` and `ui-phone`, each an `.xcresult` and a `.log`.
 
 How it stays fast and out of everyone's way:
 
-- **Its own simulators.** Each checkout makes its own iPad and iPhone simulators the first time ("Porchlight <checkout> ipad", "... iphone"), so runs from different worktrees never share or wait on one.
-- **Locks that cannot go stale.** A run holds its simulators with kernel file locks in `/private/tmp/porchlight-simulator-locks`, which the system releases the moment the run ends, however it ends; the old lock folder could outlive a killed run and stall every other run for hours.
+- **Its own simulators.** Each checkout makes its own iPad and iPhone simulators the first time ("Porchlight <checkout> ipad", "... iphone"), so runs from different worktrees never share or wait on one, and nobody passes a simulator id.
+- **Locks that cannot go stale.** A run holds its simulators with kernel file locks in `/private/tmp/porchlight-simulator-locks`, which the system releases the moment the run ends, however it ends; the old lock folder (`/private/tmp/porchlight-sim.lock`) could outlive a killed run and stall every other run for hours, and the script no longer uses it.
 - **Test slots for memory.** A booted simulator under test takes 1.5 to 3 GB, and with more of them than the Mac can hold everything swaps: queries time out, the test runner fails to start ("Timed out while loading Accessibility"), and tests fail that pass alone.
   So the Mac has one test slot per 8 GB of memory (two on a 16 GB Mac, or `PORCHLIGHT_TEST_SLOTS`), a run boots simulators only into slots, and it shuts them down when it finishes.
-  `--parallel` takes two slots; on a 16 GB Mac it only helps when nothing else is running.
+  A run takes two slots when both are free and runs the iPad and the iPhone side by side; with one free it runs them one after the other; with none it waits, and says for whom.
+  It never holds one slot while waiting for a second, so two runs can't wait on each other.
 - **One build.** `build-for-testing` once, then `test-without-building` for each suite, so the suites never rebuild.
+- **Fewer waits in the tests.** The idle-timer test runs on twelve-second minutes (`-debugIdleSecondsPerMinute`) instead of waiting out real ones, the first-run test resets the calendar permission itself, and toasts stay up for 30 seconds in UI tests (`PORCHLIGHT_TOAST_SECONDS`), since a busy simulator can spend 5 seconds between a tap and the next look at the screen.
 
-Where the time went before, measured from the result bundles of a full run on the 16 GB M4 (serial, warm simulators): the phone suite took 17 minutes for 60 tests and the wall's 18.5 minutes for 54.
-Most of it is the tests' own steps: each query of the screen takes about a second on these large accessibility trees, each launch with the sample household about 3 to 4 seconds, and one idle-timer test waited 2 minutes 40 seconds of real time for Ambient (it now runs on twelve-second minutes, `-debugIdleSecondsPerMinute`).
-The rest was waiting: on a stale lock, or on other runs swapping the Mac.
+Measured on the 16 GB M4 with nothing else running, the same commit and the same simulators, on November 17, 2026:
+
+| | Before (old script) | After |
+|---|---|---|
+| Unit tests | 1.5 min | 1.6 min |
+| Wall UI suite (54 tests) | 17.2 min | 23.7 min, beside the phone's |
+| Phone UI suite (61 tests) | 25.8 min | 24.6 min, beside the wall's |
+| Whole run | 44.8 min | 26.3 min |
+| Smoke set | none | 5.8 min |
+
+Both columns ran the same tests, so both include the shorter idle-timer test, which on its own took about 2 minutes off the wall's suite (160 seconds to 50).
+Side by side each suite runs slower than alone, since the two share the CPU, but the whole run takes the longer of the two instead of their sum.
+Most of a suite's time is the tests' own steps: each look at the screen takes about a second on these large accessibility trees, and each launch with the sample household 3 to 4 seconds.
+The phone suite's food tests are much slower than on November 16 (the meal page test 131 seconds, from 40), with the app slow to quit between tests; that slowness is in the app, not in the setup.
 
 ## Install on the wall iPad
 

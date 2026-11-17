@@ -56,30 +56,29 @@ porchlight_hold_simulator() {
   print -r -- "$$ $(ps -o command= -p $$)" >| "$file.holder"
 }
 
-# Takes `count` of the Mac's test slots for this shell until it exits, waiting while they
-# are taken. A booted simulator under test needs 1.5 to 3 GB; with more of them than the
-# Mac has memory for, everything swaps and UI tests time out. So a run boots simulators
-# only into slots: one for each 8 GB of memory, or PORCHLIGHT_TEST_SLOTS.
+# Takes up to `want` of the Mac's free test slots for this shell until it exits, waiting
+# only while none is free, and sets `porchlight_slots` to how many it took. A booted
+# simulator under test needs 1.5 to 3 GB; with more of them than the Mac has memory for,
+# everything swaps and UI tests time out. So a run boots simulators only into slots: one
+# for each 8 GB of memory, or PORCHLIGHT_TEST_SLOTS. Never waiting for a second slot while
+# holding a first means two runs can't each hold one and wait for the other.
 porchlight_take_slots() {
-  local count=$1 total slot fd waited=0
-  local -a held
+  local want=$1 total slot fd waited=0
   total=${PORCHLIGHT_TEST_SLOTS:-$(( $(sysctl -n hw.memsize) / (8 * 1024 * 1024 * 1024) ))}
   (( total >= 1 )) || total=1
-  (( count <= total )) || count=$total
+  typeset -g porchlight_slots=0
   mkdir -p "$porchlight_sim_locks"
-  while (( ${#held} < count )); do
+  while (( porchlight_slots == 0 )); do
     for slot in {1..$total}; do
-      # fcntl locks belong to the process, so asking again for one it holds would succeed.
-      (( ${held[(Ie)$slot]} )) && continue
+      (( porchlight_slots < want )) || break
       touch "$porchlight_sim_locks/slot-$slot.lock"
       if zsystem flock -t 0 -f fd "$porchlight_sim_locks/slot-$slot.lock" 2>/dev/null; then
         print -r -- "$$ $(ps -o command= -p $$)" >| "$porchlight_sim_locks/slot-$slot.lock.holder"
-        held+=($slot)
-        (( ${#held} < count )) || break
+        (( ++porchlight_slots ))
       fi
     done
-    if (( ${#held} < count )); then
-      (( waited )) || echo "Waiting for a free test slot ($total on this Mac): $(cat "$porchlight_sim_locks"/slot-*.lock.holder 2>/dev/null | cut -c1-120 | tr '\n' ';')" >&2
+    if (( porchlight_slots == 0 )); then
+      (( waited )) || echo "Waiting for a free test slot ($total on this Mac), held by: $(cat "$porchlight_sim_locks"/slot-*.lock.holder 2>/dev/null | cut -c1-100 | tr '\n' ';')" >&2
       waited=1
       sleep 5
     fi
