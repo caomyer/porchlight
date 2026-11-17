@@ -27,8 +27,14 @@ enum PocketTab: String, CaseIterable, Hashable {
 
 struct PocketShell: View {
     @State private var tab: PocketTab = .today
-    @State private var showsYou = false
+    /// The You sheet, and the page it opens on when a tab sent someone there.
+    @State private var you: YouRequest?
     @State private var toasts = ToastCenter()
+
+    private struct YouRequest: Identifiable {
+        let id = UUID()
+        var page: YouPage?
+    }
     @State private var reminders = ReminderSettings()
 
     init() {
@@ -50,10 +56,12 @@ struct PocketShell: View {
         }
         .tint(Theme.accent)
         .keepsRemindersScheduled()
-        .environment(\.openYou, OpenYouAction { showsYou = true })
+        .environment(\.openYou, OpenYouAction { page in
+            you = YouRequest(page: page)
+        })
         .hostsToasts(toasts)
-        .sheet(isPresented: $showsYou) {
-            YouSheet()
+        .sheet(item: $you) { request in
+            YouSheet(start: request.page)
         }
         #if DEBUG
         .onAppear(perform: applyDebugStart)
@@ -78,7 +86,7 @@ struct PocketShell: View {
     private func applyDebugStart() {
         guard let name = UserDefaults.standard.string(forKey: "startScreen") else { return }
         if name == "you" {
-            showsYou = true
+            you = YouRequest()
         } else if let start = PocketTab(rawValue: name) {
             tab = start
         }

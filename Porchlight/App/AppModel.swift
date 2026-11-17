@@ -85,13 +85,22 @@ final class AppModel {
 
     // MARK: Edits (validation errors are surfaced through `lastError`)
 
-    func createHousehold(name: String, people: [PersonDraft]) -> Bool {
-        perform { try database.createHousehold(name: name, people: people) }
+    /// Creates the household and its first people (`HouseholdSetup` calls this, on either
+    /// device). Nil, with `lastError` set, when it can't.
+    func createHousehold(name: String, people: [PersonDraft]) -> Household? {
+        var created: Household?
+        perform { created = try database.createHousehold(name: name, people: people) }
+        return created
     }
 
+    /// Ends setup, the same on the wall and the phone: the food diary exists (on, unless
+    /// the wall's journals step turned it off), and the household is marked set up.
     func finishSetup() -> Bool {
         guard let id = household?.id else { return false }
-        return perform { try database.markSetupCompleted(householdId: id) }
+        return perform {
+            try database.ensureFoodJournal(householdId: id)
+            try database.markSetupCompleted(householdId: id)
+        }
     }
 
     /// The household's calendar (time zone, first weekday), or the device's before setup.

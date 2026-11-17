@@ -54,4 +54,20 @@ final class HouseholdSharingModel {
         }
         members.participants.removeAll { $0.id == participant.id }
     }
+
+    /// Leaves someone else's household (journey A6): off its share, then the household goes
+    /// from this device. Everything this person logged stays with the household. `app`
+    /// forgets the household first, so its going isn't shown as someone removing it.
+    func leave(_ household: Household, app: AppModel) async throws {
+        var failure: (any Error)?
+        await app.removeHouseholdHere {
+            do {
+                try await service.leave(household)
+            } catch {
+                failure = error
+            }
+        }
+        if let failure { throw failure }
+        members = .none
+    }
 }

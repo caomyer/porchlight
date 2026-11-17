@@ -154,7 +154,7 @@ Choices made while building M2's sharing half, where the design above left room 
 - A household that disappears while chosen, which is what SQLiteData does when its shared zone is deleted (the owner removed this device or stopped sharing), shows "You're no longer in …" (A6) on the phone and the wall.
   "OK" forgets it, and the oldest household left becomes current, or the welcome shows.
 - The device's own removals ("Remove it from this iPad", "Use what is in iCloud") forget the household first and hold the remembering while the engine deletes, so they never read as someone else removing it.
-- The removed screen has only "OK": starting a household on a phone (A2) isn't built.
+- The removed screen has only "OK"; on a phone the welcome after it offers "Start a household" (A2).
 
 ### Sharing
 
@@ -206,6 +206,16 @@ Choices made while building M2's sharing half, where the design above left room 
 - The QR code is drawn with Core Image off the main thread, once per link: the first Core Image context takes seconds to start on a simulator, and drawing it in the view's body froze the screen meanwhile.
 - A sample or reset launch (`-sampleHousehold`, `-resetData`) also forgets this device's name and role, so a UI test that changes them never leaks into the next one.
 
+### Leaving and starting a household on a phone (M4)
+
+- `HouseholdSharing` gained `leave(_:)`, for a member: the live sharing deletes the household's share from this user's shared database, which takes them off it and leaves the owner's household and everyone else's access alone; then it fetches changes, so the engine sees the shared zone go and removes the household from this device, as it does when the owner removes someone.
+  The owner can't leave (the household's zone is theirs), and the phone says why instead of offering it.
+- `HouseholdSharingModel.leave` runs inside `AppModel.removeHouseholdHere`, so the household is forgotten first and its going isn't shown as being removed; a failure (offline) leaves everything as it was.
+- The fake records "leave", can fail a set number of times as if offline, and takes the household out of the database through `onLeave`, which `-debugSharing member` wires to deleting it, as the engine would.
+- Removing someone from the phone uses the same `HouseholdSharingModel.remove` as the wall, and the same words (`RemoveDevicesWords`).
+- A household started on a phone (A2) is created by `HouseholdSetup`, the model the wall's first run uses, and is the share's root like any other, so a wall that joins it, or opens with the same Apple ID, finds an ordinary household.
+- The removed screen keeps only "OK": after it, the welcome offers "Start a household".
+
 ### What only real devices can prove
 
 The live sharing code cannot run in tests or unsigned simulator builds; these lines are on the M2 device checklist:
@@ -219,6 +229,8 @@ The live sharing code cannot run in tests or unsigned simulator builds; these li
 - `remove(_:from:)`: removing a participant and that ending their access (experiment S2).
 - A deleted shared zone removing the household on the participant's device, so the removed screen shows.
 - The quota event arriving from the shared database on a member's device.
+- `leave(_:)`: deleting the share from a member's shared database taking them off it, the engine then removing the household from their device, and the owner and other members keeping it.
+- A household started on a phone and then opened by a wall signed in to the same Apple ID, or joined by one.
 
 ### Merging the phone's everyday tabs
 

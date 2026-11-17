@@ -104,7 +104,7 @@ struct CompanionReport {
             weekStats: CareLogic.weekStats(for: routine, entries: entries, days: weekDays, now: now, calendar: calendar),
             leaderboard: CareLogic.leaderboard(weekEntries, people: peopleOrder),
             diary: weekEntries.reversed().map { DiaryItem(entry: $0, caption: captions[$0.id]) },
-            missed: CareCatchUp.missed(routines, entries: { snapshot.entries(of: $0.id) }, now: now, calendar: calendar),
+            missed: CareCatchUp.missed(routines, entries: { snapshot.entries(of: $0.id) }, now: now, calendar: calendar, since: companion.createdAt),
             milestones: milestones(routine: routine, entries: entries, snapshot: snapshot, now: now, calendar: calendar)
         )
     }

@@ -11,7 +11,7 @@
 #
 # --phone runs on the iOS 17.5 iPhone 15 simulator instead, and its UI run is the
 # phone's own tests (PhoneTests, PhoneTabsTests, PhoneHouseholdTests,
-# PhoneRemindersTests, PhoneFoodTests). The iPad run skips them.
+# PhoneRemindersTests, PhoneFoodTests, PhoneSetupTests). The iPad run skips them.
 #
 # Usage: scripts/test.sh [--tour] [--phone] [--unit-only | --ui-only] [--workers N] [simulator-udid]
 set -euo pipefail
@@ -89,7 +89,7 @@ if (( ui )); then
   xcrun simctl privacy "$udid" reset calendar com.mingyucao.porchlight
   # The app was com.porchlight.porchlight for a while; never leave it beside this one.
   xcrun simctl uninstall "$udid" com.porchlight.porchlight 2>/dev/null || true
-  phone_classes=(PhoneTests PhoneTabsTests PhoneHouseholdTests PhoneRemindersTests PhoneFoodTests)
+  phone_classes=(PhoneTests PhoneTabsTests PhoneHouseholdTests PhoneRemindersTests PhoneFoodTests PhoneSetupTests)
   skip=()
   if (( phone )); then
     for class in $phone_classes; do skip+=(-only-testing:PorchlightUITests/$class); done

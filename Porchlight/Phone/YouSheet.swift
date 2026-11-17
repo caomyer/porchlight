@@ -1,15 +1,25 @@
 import SwiftUI
 
 /// "You", from the avatar on every tab: who you are (and a way to change it), the
-/// household's people and their devices, inviting someone, this device's name and role,
-/// and which of its calendars show. Only what works today is here; notifications, storage
-/// and leaving arrive with their own milestones.
+/// household (and setting it up), inviting someone, the people and their devices, its
+/// storage, this device's name, role, calendars and notifications, sync, and leaving.
 struct YouSheet: View {
+    /// The page to open on, when a tab sent someone here ("Set up the household").
+    var start: YouPage?
+
+    init(start: YouPage? = nil) {
+        self.start = start
+        // Pages under Household go back to it.
+        _path = State(initialValue: start.map { $0 == .household || $0 == .storage ? [$0] : [.household, $0] } ?? [])
+    }
+
     @Environment(AppModel.self) private var model
     @Environment(DeviceSettings.self) private var device
     @Environment(HouseholdSharingModel.self) private var sharing
     @Environment(SyncController.self) private var sync
     @Environment(CalendarStore.self) private var calendars
+    @Environment(HomeStore.self) private var home
+    @Environment(CompanionStore.self) private var companions
     @Environment(\.me) private var me
     @Environment(\.dismiss) private var dismiss
 
@@ -17,6 +27,8 @@ struct YouSheet: View {
     /// The sharing sheet, presented from the You sheet itself: one presented from a page
     /// pushed inside it would take the You sheet down with it when it closes.
     @State private var invite: HouseholdInvite?
+    /// "Leave The Lake House?", or, for its owner, why they can't.
+    @State private var leaving = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -28,8 +40,17 @@ struct YouSheet: View {
                     }
                     PhoneList {
                         if let household = model.household {
-                            InfoRow(emoji: "🏡", title: household.name, detail: homeLine)
-                                .accessibilityIdentifier("household-home")
+                            Button { path.append(.household) } label: {
+                                InfoRow(emoji: "🏡", title: household.name, detail: "People, companions, chores, rewards, lists", chevron: true)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("household")
+                            RowDivider()
+                            Button { path.append(.storage) } label: {
+                                InfoRow(emoji: "☁️", title: "iCloud storage", detail: homeLine, chevron: true)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("household-home")
                             RowDivider()
                         }
                         Button { path.append(.invite) } label: {
@@ -86,6 +107,15 @@ struct YouSheet: View {
                         .frame(minHeight: 44)
                         .accessibilityIdentifier("sync-switch")
                     }
+                    if let household = model.household {
+                        PhoneList {
+                            Button { leaving = true } label: {
+                                InfoRow(emoji: "🚪", title: "Leave \(household.name)", detail: sharing.members.isOwner ? "It's yours, so it stays with you" : "Your history stays with the household")
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("leave-household")
+                        }
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -122,6 +152,30 @@ struct YouSheet: View {
                         PocketCalendars()
                     case .notifications:
                         PocketNotifications()
+                    case .household:
+                        PocketHouseholdHub()
+                    case let .person(id):
+                        PocketPersonPage(personId: id)
+                    case .companions:
+                        PocketCompanionsPage()
+                    case let .companion(id):
+                        PocketCompanionPage(companionId: id)
+                    case .chores:
+                        PocketChoresPage()
+                    case let .chore(id):
+                        PocketEditorPage(title: id == nil ? "New chore" : "Chore") {
+                            ChoreEditor(chore: id.flatMap { id in home.snapshot.chores.first { $0.id == id } }, newOwner: me?.id)
+                        }
+                    case .rewards:
+                        PocketRewardsPage()
+                    case let .reward(id):
+                        PocketEditorPage(title: id == nil ? "New reward" : "Reward") {
+                            RewardEditor(reward: id.flatMap { id in home.snapshot.rewards.first { $0.id == id } })
+                        }
+                    case .lists:
+                        PocketListsSetupPage()
+                    case .storage:
+                        PocketStoragePage()
                     }
                 }
                 .background(Theme.background)
@@ -130,6 +184,29 @@ struct YouSheet: View {
         .tint(Theme.accent)
         .presentationBackground(Theme.background)
         .sheet(item: $invite) { InviteSheet(invite: $0, onDone: { invite = nil }) }
+        .sheet(isPresented: $leaving) {
+            PocketLeaveSheet(onManage: {
+                leaving = false
+                path = [.household]
+            }, onLeft: { dismiss() })
+        }
+        #if DEBUG
+        .onAppear {
+            // `-debugYouPage household|storage|leave|companions|chores|rewards|lists` opens a page.
+            switch UserDefaults.standard.string(forKey: "debugYouPage") {
+            case "household": path = [.household]
+            case "storage": path = [.storage]
+            case "leave": leaving = true
+            case "companions": path = [.household, .companions]
+            case "companion": path = [.household, .companions, .companion(companions.companions.first?.id)]
+            case "chores": path = [.household, .chores]
+            case "rewards": path = [.household, .rewards]
+            case "lists": path = [.household, .lists]
+            case "person": path = [.household] + (model.people.last.map { [.person($0.id)] } ?? [])
+            default: break
+            }
+        }
+        #endif
         .task { await sharing.refresh(model.household) }
     }
 
@@ -195,12 +272,15 @@ struct YouSheet: View {
     }
 }
 
-private enum YouPage: Hashable {
+enum YouPage: Hashable {
     case whoAreYou, invite, joinCode, deviceName, calendars, notifications
+    /// Household setup (F1, F2) and storage (E4).
+    case household, person(Person.ID), companions, companion(Companion.ID?), chores, chore(Chore.ID?)
+    case rewards, reward(Reward.ID?), lists, storage
 }
 
 /// A list card in the You sheet.
-private struct PhoneList<Content: View>: View {
+struct PhoneList<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -233,7 +313,7 @@ private struct PeopleCard: View {
 }
 
 /// A person with how they use Porchlight: their devices, invited, or no phone yet.
-private struct PersonStateRow: View {
+struct PersonStateRow: View {
     let row: FamilyRoster.Row
     var action: (title: String, run: () -> Void)?
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -277,7 +357,7 @@ private struct PersonStateRow: View {
 }
 
 /// "Joined", "Invited", "No phone", at phone size.
-private struct PhoneStatePill: View {
+struct PhoneStatePill: View {
     let state: FamilyRoster.Row.State
 
     var body: some View {
@@ -297,7 +377,7 @@ private struct PhoneStatePill: View {
 }
 
 /// The outlined accent capsule of "Invite" and "I'll do it", with a 44 pt target.
-private struct TakeButtonStyle: ButtonStyle {
+struct TakeButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
@@ -606,7 +686,7 @@ private struct SyncDecisionCard: View {
 }
 
 /// A row in the You sheet: an emoji, a title and a line under it.
-private struct InfoRow: View {
+struct InfoRow: View {
     let emoji: String
     let title: String
     let detail: String

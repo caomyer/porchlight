@@ -23,7 +23,7 @@ struct PocketRoot: View {
                         .environment(\.me, me)
                 }
             } else {
-                PocketWelcome()
+                PocketStart()
             }
         }
         .background(Theme.background.ignoresSafeArea())
@@ -40,15 +40,26 @@ extension EnvironmentValues {
     @Entry var openYou: OpenYouAction? = nil
 }
 
-/// Opens the You sheet.
+/// Opens the You sheet, at its top or on one of its pages (an empty tab opens Household).
 struct OpenYouAction {
-    let open: @MainActor () -> Void
-    @MainActor func callAsFunction() { open() }
+    let open: @MainActor (YouPage?) -> Void
+    @MainActor func callAsFunction(_ page: YouPage? = nil) { open(page) }
 }
 
-/// The first screen on a phone that isn't in a household: the two ways in, an invite link
-/// someone sent, or the code on the family's shared screen.
+/// The first screen on a phone that isn't in a household (`a2welcome`): two doors, start
+/// a household here or join one, and how joining works (an invite someone sent, or the code
+/// on the family's shared screen).
+///
+/// A fresh install signed in to iCloud first looks for a household there, as the wall does;
+/// while it looks, starting one waits a few seconds, so a family's household opens instead
+/// of a second one being made.
 struct PocketWelcome: View {
+    let onStart: () -> Void
+
+    @Environment(SyncController.self) private var sync
+    @State private var showsJoin = false
+    @State private var waited = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
@@ -59,19 +70,44 @@ struct PocketWelcome: View {
                 Text("Your family's day in one place: who walked the dog, what's for dinner, who pitched in.")
                     .phoneFont(.body, 15, weight: 500)
                     .foregroundStyle(Theme.muted)
-                VStack(alignment: .leading, spacing: 0) {
-                    way("✉️", "Open the invite someone sent you", "It opens Porchlight and asks if you want to join.")
-                    RowDivider()
-                    way("📷", "Or scan your family's code", "On the shared screen, open Settings › Family & devices › Show a code to join, and point the Camera app at it.")
+                VStack(spacing: 10) {
+                    if sync.isLookingForHousehold {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("Looking for a household in your iCloud")
+                                .phoneFont(.body, 13, weight: 600, relativeTo: .footnote)
+                                .foregroundStyle(Theme.muted)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("household-search")
+                    }
+                    Button("Start a household", action: start)
+                        .buttonStyle(PhoneButtonStyle())
+                        .disabled(sync.isLookingForHousehold && !waited)
+                        .accessibilityIdentifier("start-household")
+                    Button("Join one") { withAnimation(.easeOut(duration: 0.2)) { showsJoin.toggle() } }
+                        .buttonStyle(PhoneButtonStyle(kind: .ghost))
+                        .accessibilityIdentifier("join-one")
+                    if showsJoin {
+                        VStack(alignment: .leading, spacing: 0) {
+                            way("✉️", "Open the invite someone sent you", "It opens Porchlight and asks if you want to join.")
+                            RowDivider()
+                            way("📷", "Or scan your family's code", "On the shared screen, open Settings › Family & devices › Show a code to join, and point the Camera app at it.")
+                        }
+                        .padding(.horizontal, 14)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                    } else {
+                        Text("To join, open the invite someone sent you or scan the code on your family's screen.")
+                            .phoneFont(.body, 12.5, weight: 500, relativeTo: .footnote)
+                            .foregroundStyle(Theme.muted)
+                    }
                 }
-                .padding(.horizontal, 14)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-                .padding(.top, 18)
+                .padding(.top, 40)
             }
             .multilineTextAlignment(.center)
             .frame(maxWidth: 340)
             .padding(.horizontal, 24)
-            .padding(.top, 110)
+            .padding(.top, 90)
             .padding(.bottom, 40)
             .frame(maxWidth: .infinity)
         }
@@ -81,6 +117,16 @@ struct PocketWelcome: View {
         // paper behind the status bar.
         .clipped()
         .paperUnderStatusBar()
+        .task {
+            try? await Task.sleep(for: HouseholdSearchView.freshStartDelay)
+            waited = true
+        }
+    }
+
+    /// Starting here ends the search: this iCloud has no household, or the person wants a new one.
+    private func start() {
+        if sync.isLookingForHousehold { sync.stopLookingForHousehold() }
+        onStart()
     }
 
     private func way(_ emoji: String, _ title: String, _ detail: String) -> some View {

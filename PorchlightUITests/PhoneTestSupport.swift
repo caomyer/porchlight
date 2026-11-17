@@ -1,7 +1,7 @@
 import XCTest
 
 // One set of helpers for every phone test class (PhoneTests, PhoneTabsTests,
-// PhoneHouseholdTests, PhoneRemindersTests, PhoneFoodTests); `waitToSettle` serves the
+// PhoneHouseholdTests, PhoneRemindersTests, PhoneFoodTests, PhoneSetupTests); `waitToSettle` serves the
 // wall's sheets too.
 
 extension XCUIElement {

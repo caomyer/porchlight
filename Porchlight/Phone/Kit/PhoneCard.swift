@@ -69,6 +69,8 @@ struct PhoneButtonStyle: ButtonStyle {
         case primary
         /// A quieter second choice.
         case ghost
+        /// Something that can't be taken back: "Leave".
+        case destructive
     }
 
     var kind: Kind = .primary
@@ -81,14 +83,22 @@ struct PhoneButtonStyle: ButtonStyle {
         configuration.label
             .phoneFont(.body, small ? 13.5 : 16, weight: 800)
             .multilineTextAlignment(.center)
-            .foregroundStyle(kind == .primary ? Theme.accentInk : Theme.ink)
+            .foregroundStyle(kind == .ghost ? Theme.ink : Theme.accentInk)
             .padding(.horizontal, small ? 12 : 16)
             .padding(.vertical, small ? 10 : 14)
             .frame(maxWidth: .infinity, minHeight: 44)
-            .background(kind == .primary ? Theme.accent : Theme.surface2, in: Capsule())
+            .background(fill, in: Capsule())
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
+    }
+
+    private var fill: Color {
+        switch kind {
+        case .primary: Theme.accent
+        case .ghost: Theme.surface2
+        case .destructive: Theme.danger
+        }
     }
 }
 

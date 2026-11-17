@@ -287,7 +287,32 @@ private struct JoinCodeWallSheet: View {
     }
 }
 
-/// "Remove Mia's iPhone?" (journey A6, the owner's side). The person stays.
+/// "Remove Mia's iPhone?" (journey A6, the owner's side), worded once for the wall's sheet
+/// and the phone's: what changes, and that the person and their history stay.
+struct RemoveDevicesWords {
+    let row: FamilyRoster.Row
+    let householdName: String
+
+    /// "Mia's iPhone", or "Mia's devices" for more than one.
+    var what: String {
+        row.devices.count == 1 ? row.devices[0].name : "\(row.title)'s devices"
+    }
+
+    /// "Mia · Mia's iPhone", over the title.
+    var label: String { ([row.title] + row.devices.map(\.name)).joined(separator: " · ") }
+
+    var title: String { "Remove \(what)?" }
+
+    var body: String {
+        "\(row.devices.count == 1 ? "It stops" : "They stop") seeing \(householdName). \(row.title) stays in the household with the same color and history, and can still pitch in on a shared screen. You can invite \(row.title) again any time."
+    }
+
+    static func failure(device: String) -> String {
+        "Couldn't remove them. Check that this \(device) is online, then try again."
+    }
+}
+
+/// The wall's sheet for removing someone's devices.
 private struct RemoveDevicesSheet: View {
     let row: FamilyRoster.Row
     @Environment(AppModel.self) private var model
@@ -296,16 +321,12 @@ private struct RemoveDevicesSheet: View {
     @State private var failure: String?
     @State private var isRemoving = false
 
-    private var what: String {
-        row.devices.count == 1 ? row.devices[0].name : "\(row.title)'s devices"
-    }
-
     var body: some View {
-        let household = model.household?.name ?? "the household"
+        let words = RemoveDevicesWords(row: row, householdName: model.household?.name ?? "the household")
         VStack(alignment: .leading, spacing: 16) {
-            SectionLabel(([row.title] + row.devices.map(\.name)).joined(separator: " · "))
-            Text("Remove \(what)?").font(.display(30))
-            Text("\(row.devices.count == 1 ? "It stops" : "They stop") seeing \(household). \(row.title) stays in the household with the same color and history, and can still pitch in on a shared screen. You can invite \(row.title) again any time.")
+            SectionLabel(words.label)
+            Text(words.title).font(.display(30))
+            Text(words.body)
                 .font(.body(16, weight: 500))
                 .foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -330,7 +351,7 @@ private struct RemoveDevicesSheet: View {
                 try await sharing.remove(participant, from: household)
                 close()
             } catch {
-                failure = "Couldn't remove them. Check that this iPad is online, then try again."
+                failure = RemoveDevicesWords.failure(device: "iPad")
                 isRemoving = false
             }
         }

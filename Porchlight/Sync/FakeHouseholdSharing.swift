@@ -13,6 +13,11 @@ final class FakeHouseholdSharing: HouseholdSharing {
     var acceptFailures = 0
     /// Puts the accepted household in the database.
     var onAccept: (HouseholdInvitation) throws -> Void
+    /// Takes a household that was left out of the database, as the engine does when the
+    /// shared zone goes.
+    var onLeave: (Household) throws -> Void = { _ in }
+    /// How many times leaving fails, as offline, before it works.
+    var leaveFailures = 0
     var joinCodeURL = URL(string: "https://www.icloud.com/share/0PorchlightSampleHousehold#The_Lake_House")!
     /// Every call, in order: "invite", "joinCode", "endJoinCode", "accept", "remove <id>".
     private(set) var calls: [String] = []
@@ -57,6 +62,21 @@ final class FakeHouseholdSharing: HouseholdSharing {
     func remove(_ participant: HouseholdParticipant, from household: Household) async throws {
         calls.append("remove \(participant.id)")
         members.participants.removeAll { $0.id == participant.id }
+    }
+
+    func leave(_ household: Household) async throws {
+        calls.append("leave")
+        if leaveFailures > 0 {
+            leaveFailures -= 1
+            throw Offline()
+        }
+        guard !members.isOwner else { throw NotShared() }
+        members.participants.removeAll { $0.isCurrentUser }
+        try onLeave(household)
+    }
+
+    struct NotShared: LocalizedError {
+        var errorDescription: String? { "This household is yours, so there is nothing to leave." }
     }
 }
 #endif

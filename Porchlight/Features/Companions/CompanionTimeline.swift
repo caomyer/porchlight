@@ -24,7 +24,7 @@ enum CompanionTimeline {
                     items.append(logItem(entry, routine: routine, companion: companion, caption: captions[entry.id], face: face, snapshot: snapshot))
                 }
                 // Earlier this week, every routine's missed slots show where they'd be, to catch up on.
-                for missed in CareCatchUp.missed(routine, entries: entries, on: day, now: now, calendar: calendar) {
+                for missed in CareCatchUp.missed(routine, entries: entries, on: day, now: now, calendar: calendar, since: companion.createdAt) {
                     items.append(missedItem(missed, companion: companion, face: face))
                 }
                 // Only the main routine (the walk) is expected on the agenda; the rest show once logged.

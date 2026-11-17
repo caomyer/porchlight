@@ -98,6 +98,22 @@ struct PocketGlowScreen: View {
                 }
             }
             .phoneCard()
+        } else if home.activeChores.isEmpty {
+            PocketSetUpCard(
+                emoji: "⭐",
+                title: "Stars come from chores",
+                detail: "Each chore earns stars when someone checks it off, and the stars count toward rewards the household saves for.",
+                action: "Add chores",
+                page: .chores
+            )
+        } else if home.snapshot.rewards.allSatisfy(\.archived) {
+            PocketSetUpCard(
+                emoji: "🎁",
+                title: "Something to save for",
+                detail: "A reward, for one person or everyone together, that chores' stars count toward.",
+                action: "Add a reward",
+                page: .rewards
+            )
         }
     }
 

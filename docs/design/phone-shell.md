@@ -191,8 +191,45 @@ A DEBUG sample launch marks its reminders, so an action handled with the app lau
 
 ## You (E1)
 
-The sheet shows my avatar and name, the household and this phone's role, then four rows: the household (its name and people), this phone (its role), "This iPhone is James", which opens "Which one is you?" to change it, and Calendars.
-Nothing else is listed until it works.
+The sheet shows my avatar and name, the household and this phone's role, then the household (which opens its setup), iCloud storage (which says where it lives), Invite someone, the people, this phone, "This iPhone is James", Calendars, Notifications, the sync switch, and leaving.
+A tab can open it on one of its pages (`OpenYouAction` takes a page), which is how an empty tab offers to set itself up.
+
+## Starting a household on a phone (A2)
+
+A phone with no household shows the welcome's two doors (`a2welcome`): "Start a household" and "Join one", which says how joining works (an invite, or the code on a shared screen).
+A fresh install signed in to iCloud first looks for a household there, as the wall does (`HouseholdSearchView`); while it looks, the welcome says so and "Start a household" waits the same four seconds the wall's "Start fresh instead" does, then ends the search when tapped.
+
+Starting takes four steps (`PocketSetupView`): you and the household (its name, your name, your color), who else lives here, anyone to look after, and ready.
+The household is created after "Who else lives here" through `HouseholdSetup`, the model the wall's first run now edits too, so both make the household with the same call (`AppModel.createHousehold`) and end setup with the same one (`AppModel.finishSetup`, which also makes the food diary, on, unless the wall's journals step turned it off).
+This phone is personal and belongs to the first person, set with the household, so it never asks "Which one is you?".
+A companion is saved by `CompanionStore.save` with its species' preset routines, as the wall's companion step saves it.
+"Ready" says where the household lives in `HouseholdHome`'s words, offers to invite each person (or says why it can't yet), and mentions a spare iPad as a shared screen.
+A household whose setup was interrupted (the app quit after the household was made) opens again at "Anyone to look after".
+
+## Setting up the household from the phone (F1, F2)
+
+You › Household (`PocketHouseholdHub`, `f1hub`) holds the household's name, its people (with + Add), companions, chores, rewards, lists, and the food diary's switch and meals.
+Each pushes a page inside the You sheet rather than stacking sheets on it.
+A person's page (`f2person`) changes their name and color, shows their phone (with Remove for the owner, or an invite if they have none), and archives them; archiving keeps their history and is never offered for yourself or the last person.
+Chores and rewards open the wall's own `ChoreEditor` and `RewardEditor` as pages (`PocketEditorPage`, which closes them by going back).
+A companion opens the wall's `CompanionEditSheet`, which now lays itself out in one column at a compact width, on both devices: the kinds as a grid of four, then name, look, routines, caption personality and details, without the preview; its routine editor becomes a system sheet in one column.
+Lists can be added (grocery or to-do) and deleted, after asking.
+
+## Leaving, and removing someone (A6)
+
+The last row in You is "Leave The Lake House".
+A member gets `a6leave`: it goes from this phone, their reminders for it stop, and what they logged stays with the household.
+Leaving goes through `HouseholdSharing.leave`, which takes this iCloud user off the share; the engine then removes the household's rows from this phone, as it does when the owner removes someone.
+`HouseholdSharingModel.leave` forgets the household first (as the device's other removals do), so its going isn't shown as "You're no longer in …".
+If leaving fails (offline), nothing changes and the sheet says so.
+The owner gets `a6owner`: the household is in their iCloud, so leaving would delete it for everyone; "Manage members" opens Household, where a joined person's page offers "Remove Mia's iPhone" with the wall's own words (`RemoveDevicesWords`, shared with the wall's sheet).
+
+## Storage (E4)
+
+You › iCloud storage (`PocketStoragePage`, `e4storage`) says where the household lives (`HouseholdHome`), then a meter and a line of what it takes up: photos (meal photos' whole shots and thumbnails, and companion photos, from their rows' byte counts), Pencil pages (the drawings' lengths), and everything else (what the database file holds in use, less those).
+Every number is summed from this phone's rows (`AppDatabase.storage`); every device has every row, so every device sees the same sums.
+It says whose iCloud it counts against, how much photo was added in the last 30 days, and "Your photos here", the meal photos added from this person's devices.
+When the owner's iCloud is full, a banner says sync is paused and nothing is lost; the owner is told where in Settings to free space or change plan, and a member that it sends once the owner does.
 
 ## Accessibility
 
@@ -208,7 +245,8 @@ Star counts always agree in number ("+1 star", "2 stars") through `StarWords`.
 - Unit: `PocketTodayTests` (which slot one tap logs, card order, freshness, catch-up, my chores and the shared ones, stars, the words), `PocketWritesTests` (the already-logged path, joining and its undo, undo of a log, chores that are already done), `DeviceSettingsTests` (role defaults, stored role, "me" per household, forgetting) and `CareLogFieldsTests`.
 - Unit, everyday screens: `PocketTabsTests` (grocery sections, dinners to groceries, Glow for me and who earned a reward, the next 7 days, Pitch in's week, the calendar choices).
 - Unit, reminders: `ReminderPlannerTests` (only chosen slots, done slots removed, if missed, snooze and hand-off, archived "me", chores the evening before, the 64 cap, pruning).
-- UI: `PhoneTests`, `PhoneTabsTests` and `PhoneRemindersTests`, which run only on an iPhone; `scripts/test.sh --phone --ui-only` runs them on the iOS 17.5 iPhone 15 simulator, and the iPad run skips them.
+- Unit, households: `HouseholdSetupTests` (a household started on a phone is the one the wall's first run makes, drafts, an invalid name, a member leaving on the fake and the owner who can't) and `HouseholdStorageTests` (the sums come from the rows).
+- UI: `PhoneTests`, `PhoneTabsTests`, `PhoneHouseholdTests`, `PhoneRemindersTests`, `PhoneFoodTests` and `PhoneSetupTests` (A2 from a fresh install to Today, every tab empty, setup edits, a companion in the wall's editor, leaving, removing someone, storage), which run only on an iPhone; `scripts/test.sh --phone --ui-only` runs them on the iOS 17.5 iPhone 15 simulator, and the iPad run skips them.
   Each test attaches a screenshot of every screen it visits.
 
 ## Judgment calls
@@ -267,6 +305,19 @@ Where the atlas was silent, or didn't fit the code:
 - **Small grid cells.** Seven days across a phone leaves cells of about 36 pt, under the 44 pt target (rule 8). Every meal in them is also a full-width row in the diary below, so nothing is reachable only through a small cell.
 - **The week's grid grows only so far.** Its day letters and meal names stop growing at the extra-large text size; at accessibility sizes they squeezed the plates to slivers. Every meal in the grid is also a row in the diary, whose words grow all the way.
 - **The wall's restaurant field and time pill keep their fixed sizes.** They are shared with the wall and don't grow with Dynamic Type; everything else on the Food tab does.
+- **Starting waits for the iCloud search.** The atlas's welcome has no search; a fresh phone signed in to the family's iCloud would otherwise make a second household before the first one arrived. The wall already waits, so the phone waits the same four seconds, saying why.
+- **Who else lives here doesn't ask about phones.** `a2people` says "Has an iPhone" or "No phone needed" per person; nothing in the data records that before an invite, so the step only names people, and "Ready" offers to invite each one.
+- **Companions on A2 are one, with presets.** The step adds one pet or plant with its species' routines (the wall's presets); more, and changing routines, are in Household. The atlas's "Baby" isn't a species in the data, so the kinds are the wall's.
+- **iCloud on the phone isn't a question.** Sync is on by default on a fresh install, as on the wall; "Ready" says where the household lives in `HouseholdHome`'s words, including "on this iPhone until you sign in" when signed out, and the sync switch stays in You.
+- **Pages, not sheets, for Household's editors.** The atlas draws them as sheets over Household; inside the You sheet, a sheet on a sheet is cramped and the sharing sheet showed that stacking them misbehaves, so each editor is a page with the way back in the corner. The routine editor, a third level, is a system sheet.
+- **The companion editor has no preview on a phone.** At the wall's size the live preview sits beside the form; on a phone it would push the routines a screen down, so it's left out at a compact width.
+- **No photo frame settings on the phone.** What the frame shows, its photos and its night hours are the wall's own device settings, not the household's, so there's nothing for a phone to set.
+- **Archived people aren't listed.** Household lists the people who live here; bringing an archived person back stays on the wall's Settings for now.
+- **The owner can't delete the household from the phone.** `a6owner` shows "Delete The Lake House for everyone…"; deleting every member's data can't be proven without devices and isn't needed for the M4 gate, so the phone explains why the owner can't leave and points to removing someone instead.
+- **Leaving needs to be online.** Leaving is a change to the share in iCloud; offline, the sheet says to try again rather than hiding the household and leaving the share in place.
+- **No "Keep originals on this iPhone".** `e4storage` offers it, but there is no original to keep: the stored 2048 px photo is the photo (docs/design/sync-icloud.md), and saving originals to Photos at capture time isn't built. The owner's "shrink older photos" (D2) isn't built either.
+- **"Everything else" is measured, not estimated.** It is the database's pages in use less the photos and pages counted, on this phone, so it includes indexes and any other household this phone holds.
+- **Empty tabs offer setup.** Right after A2, Today says there's nothing to do yet and opens Household; Glow says stars come from chores and opens Chores (or Rewards once there are chores); Food's empty diary and Lists' default lists already read as intended.
 - **"Just me" is stored, not yet enforced.** Nothing leaves the phone today, so it can't change what others see; the choice is kept so it's right when calendar mappings sync.
 
 ## Fixed on the wall along the way
@@ -275,6 +326,8 @@ Nothing on the wall looked broken while working here.
 The paper under the status bar was never painted: `paperUnderStatusBar` read the top inset from a reader that ignored the top safe area, where it is 0, so scrolled text showed under the clock on every tab (it was plainest on Food and Lists, whose content scrolls furthest). It now measures where the view starts on screen and paints paper above it, and `PhoneTabsTests.testPaperUnderTheStatusBar` and the `PhoneFoodTests` status bar tests scroll each tab and Food's pages, in light, dark and the largest text, and check that the band under the Dynamic Island is one flat color.
 Settings › Photo frame sometimes kept the photo list and "Add photos" under "Porch view" after switching to it (PhotoFrameTests failed 2 runs in 4): the picker showed the new choice while the rows read an older `@AppStorage` value. The settings now hold the choice in `@State` and write it through to the same UserDefaults key, and the test passed 6 runs in 6.
 A big polaroid used to show its bare tablecloth while the whole shot loaded; it now shows the photo's thumbnail until then, on the wall too.
+A companion added in the evening was told its dinner "wasn't logged" minutes after it arrived, on the wall's companion page and the phone's Today banner: the routine starts that day, and every window that had already closed counted as missed. `CareCatchUp.isOwed` now leaves out slots on a routine's first day whose window closed before the companion was added.
+For M4 the wall's first run now edits `HouseholdSetup` instead of its own fields, `AppModel.finishSetup` also makes the food diary, the wall's companion and routine editors lay themselves out for a compact width, and the remove sheet's words moved to `RemoveDevicesWords`; on the wall each looks and behaves as before.
 Wall code changed only to share it: "On this day"'s sentence (`FoodMemoryWords`), the care form's logic and the time pill's day math, `Color.wash` resolving its colors explicitly, the companion page's week line, the grocery sections, `HomeStore.cashIn` returning the cash-in, and the chore editor's compact layout (its regular layout is unchanged).
 The wall's UI tests cover all of them.
 

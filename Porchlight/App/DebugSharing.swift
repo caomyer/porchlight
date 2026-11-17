@@ -41,7 +41,12 @@ enum DebugSharing {
         participants.append(miaJoined
             ? HouseholdParticipant(id: mia, name: "Mia", userName: mia, role: .member, status: .joined, isCurrentUser: isMember)
             : HouseholdParticipant(id: "mia@example.com", name: "Mia", userName: nil, role: .member, status: .invited, isCurrentUser: false))
-        return FakeHouseholdSharing(members: HouseholdMembers(participants: participants), userName: isMember ? mia : james)
+        let fake = FakeHouseholdSharing(members: HouseholdMembers(participants: participants), userName: isMember ? mia : james)
+        // Leaving takes the household off this device, as the engine does when its shared zone goes.
+        fake.onLeave = { household in
+            try database.writer.write { db in _ = try Household.deleteOne(db, id: household.id) }
+        }
+        return fake
     }
 
     @MainActor
