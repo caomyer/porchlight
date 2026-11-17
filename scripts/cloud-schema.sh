@@ -106,15 +106,21 @@ seed() {
     products=Debug-iphonesimulator
   fi
   xcodegen generate --quiet
+  # Signs with the App Store Connect key, as the other signing scripts do (scripts/lib/signing.sh).
+  source "$root/scripts/lib/signing.sh"
+  source "$root/scripts/lib/version.sh"
+  porchlight_load_signing "$root"
   # Its own bundle id and name: the seeding app installs beside Porchlight, never over it.
+  # It carries the commit's build number, as every signed build does.
   xcodebuild build \
     -project Porchlight.xcodeproj \
     -scheme Porchlight \
     -configuration Debug \
     -destination "$destination" \
     -derivedDataPath "$derived" \
-    -allowProvisioningUpdates \
     -skipMacroValidation \
+    "${porchlight_signing_args[@]}" \
+    CURRENT_PROJECT_VERSION="$(porchlight_build_number)" \
     PORCHLIGHT_BUNDLE_ID="$seed_bundle" \
     PORCHLIGHT_DISPLAY_NAME="Porchlight Seed" \
     | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
