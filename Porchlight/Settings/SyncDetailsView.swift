@@ -9,18 +9,30 @@ struct SyncDetails: View {
     var compact = false
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isOpen) {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) { isOpen.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text("Sync details")
+                        .font(.body(compact ? 13 : 15, weight: 700))
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: compact ? 11 : 13, weight: .bold))
+                        .rotationEffect(.degrees(isOpen ? 90 : 0))
+                }
+                .foregroundStyle(Theme.muted)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(isOpen ? "open" : "closed")
+            .accessibilityIdentifier("sync-details")
             if isOpen {
                 SyncDetailsBody(compact: compact)
-                    .padding(.top, 8)
+                    .padding(.top, 4)
             }
-        } label: {
-            Text("Sync details")
-                .font(.body(compact ? 13 : 15, weight: 700))
-                .foregroundStyle(Theme.muted)
         }
-        .tint(Theme.muted)
-        .accessibilityIdentifier("sync-details")
     }
 }
 
