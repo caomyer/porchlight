@@ -37,7 +37,7 @@ It holds only what the widgets draw, for today and tomorrow in the household's t
 - the groceries list's count and its first three items.
 
 The app writes it only on a personal device: a shared screen asks who did something, which a widget or Siri can't.
-A shared screen writes nothing, starts nothing and pays nothing for widgets; its widgets say so ("Porchlight widgets are for your own phone").
+A shared screen writes one small marker once ("this is a shared screen") and then watches nothing but its role, so it pays nothing for widgets; its widgets say "Porchlight widgets are for your own phone."
 
 ### When it is rewritten
 
@@ -62,7 +62,7 @@ Each entry works out what is open, done or next at its own time from the summary
 - No summary, or a version this widget doesn't know: "Open Porchlight once to see today here."
 - No household: "Join or start a household in Porchlight."
 - No "me" on this phone: "Open Porchlight and say who you are."
-- A summary written more than six hours before the entry: the widget still shows it, with "As of 5:40 pm" under it, since another device may have logged meanwhile.
+- A summary written more than six hours before the entry: the widget still shows it, with "As of 5:40pm" under it, since another device may have logged meanwhile.
 - An entry after the summary's last day (tomorrow): "Open Porchlight to see today."
 
 A log button is shown only for a slot whose window is open and that the summary says nobody has logged.
@@ -78,8 +78,10 @@ Companion names, counts and times stay visible: they are what a Lock Screen glan
 | Intent | Who uses it | What it does |
 |---|---|---|
 | `LogSlotIntent` | the companion widget's button | Logs one slot of one day for "me", by `AppDatabase.logCare(routineId:slot:on:)` |
-| `CheckChoreIntent` | the Today widget's check box, Siri, Shortcuts | Checks a chore off for "me" today, by `AppDatabase.completeChore` |
-| `LogCareIntent` | Siri, Shortcuts ("I walked Yo-Yo") | Picks the slot one tap on Today would log for that companion and routine, then logs it like `LogSlotIntent` |
+| `CheckChoreIntent` | the Today widget's check box | Checks one chore off for "me" on a day, by `AppDatabase.completeChore` |
+| `LogWalkIntent`, `LogMealIntent` | Siri, Shortcuts ("I walked Yo-Yo", "I fed Miso") | Logs that companion's walk or meal: the routine of that kind whose window is open, else its first; the slot a log now belongs to by the wall's rule |
+| `LogCareIntent` | Siri, Shortcuts ("Log care for Miso") | The same, with an optional kind of care or an exact routine; without either, the routine one tap on Today would log |
+| `CheckOffChoreIntent` | Siri, Shortcuts ("Check off recycling") | Checks one of today's chores (mine or anyone's) off for "me" |
 | `AddListItemIntent` | Siri, Shortcuts ("Add oat milk to groceries") | Adds an item to a list, added by "me" |
 | `WhatsNextIntent` | Siri, Shortcuts ("What's on at home today?") | Says what care is open and which of my chores are left |
 
@@ -123,4 +125,45 @@ Two households and per-widget household choice are for M5's switcher; the summar
 
 ## Implementation notes
 
-Filled in as it is built.
+### Where things are
+
+- `Porchlight/WidgetsShared/`, compiled into the app and the extension: the summary (`WidgetSummary`, `WidgetSummaryFile`), the moments and timeline planner (`WidgetMoment`, `WidgetTimeline`, `WidgetWords`), the views of every family (`WidgetViews.swift`), the widgets' intents and the companion entity (`WidgetIntents.swift`), and the sample summary the gallery and the render tests draw (`WidgetPreviewData`).
+  `Porchlight/Design/ThemeTokens.swift` holds the colors and faces both targets draw with; `Theme.swift` keeps the styles built on the app's types.
+- `Porchlight/Intents/`, the app only: `WidgetSummaryBuilder`, `WidgetSummaryKeeper` (started with the stores at launch, so it runs in a background launch too, where no view does), `IntentWork` (every action's work on a database it is handed) and `PorchlightIntents.swift` (the Siri and Shortcuts intents, their entities, `PorchlightShortcuts` and `IntentRunner`).
+- `PorchlightWidgets/`: the extension's bundle, timeline providers and widget configurations.
+- The extension's code paths that would run the app's work are behind `#if !WIDGET_EXTENSION`; the extension has `WIDGET_EXTENSION` set and never links the database.
+- `SyncController.launched` and `SyncController.sendSoon` (a send, waited for at most ten seconds) let background work reach iCloud; `AppDatabase.launched` was already there for reminder actions.
+
+### Judgment calls
+
+- The widget extension shares only plain files with the app; entities read the summary there, so configuring a widget works even while the app is not running.
+- `LogSlotIntent` and `CheckChoreIntent` are `LiveActivityIntent`s, which iOS 17 runs in the app's process even from a widget; that is what keeps a second database connection out of the extension.
+  The app declares no Live Activity, and doesn't need to.
+- "I walked Yo-Yo" logs the slot a log now belongs to (`CareLogic.windowIndex`), also after the window closed: someone telling Siri they walked the dog did walk it, and the wall files it the same way.
+- Siri's answer has no Undo: interactive snippets need iOS 26, and an Undo intent Siri offers after the fact would be a second, easily misheard write.
+  The answer says what was logged and for whom; Today's own undo stays the way to take it back.
+- "Snap a meal" from the atlas's Shortcuts list is left out: it opens the camera, which is the Food screen's work on the phone branch being built beside this one.
+- The Today widget shows care and chores, not calendar events: events live in each device's own calendars, which the extension can't read without asking for calendar access of its own.
+- The keeper reads the database itself rather than the stores' snapshots, so a write from a background intent is in the summary before the stores have caught up; it is debounced by a second and compares before writing, so a burst of changes is one read and at most one write.
+- Widgets follow the device's 12- or 24-hour clock with the app's words ("5 to 8pm", "5:40pm").
+- A summary on disk is written again with the same contents after an hour, but only when the keeper looks anyway (a change, coming to the front, background time), so "As of" means "the app hasn't looked since", never "nothing changed since".
+- A tap on a widget opens the tab it shows (`porchlight://today`, `porchlight://lists`), handled by one `onOpenURL` in `PocketShell`.
+
+### What has to be registered for signing
+
+Automatic signing does most of this on the first signed build; the developer account must allow it:
+
+- the app id `com.mingyucao.porchlight.widgets` for the widget extension, with the App Groups capability;
+- the app group `group.com.mingyucao.porchlight`, added to both `com.mingyucao.porchlight` and `com.mingyucao.porchlight.widgets`;
+- on `com.mingyucao.porchlight`: App Groups added beside iCloud (CloudKit, container `iCloud.com.mingyucao.porchlight`) and Push Notifications, and the Background Modes "Remote notifications" and "Background fetch" (the last is a plist entry, not a portal capability);
+- Siri needs no capability for App Intents and App Shortcuts, and widgets need none beyond the app group;
+- the CloudKit schema seed's app, built by `scripts/cloud-schema.sh seed`, brings `com.mingyucao.porchlight.schemaseed` and `com.mingyucao.porchlight.schemaseed.widgets` with the same capabilities.
+
+### What only a real phone can prove
+
+- That a widget's button runs `LogSlotIntent` in the app's process with the app not running, and that the log reaches the wall: the M4 gate, tried on James's iPhone with the wall's glow as the check.
+- How long iOS keeps a background launch alive after an intent, and so whether `sendSoon`'s ten seconds are enough on a slow network.
+- That `BGAppRefreshTask` actually runs near midnight (iOS decides, from how the phone is used), and what the widgets show on mornings it didn't (the "Open Porchlight to see today" state).
+- Lock Screen redaction: which text the system hides when "Allow access when locked" is off for widgets.
+- Siri's handling of the phrases with companion names, its disambiguation between two cats, and the "continue in the app" hand-off without "me".
+- That the widget gallery's previews and the extension's fonts draw as the PNG renders do; the renders come from the same views, but not from WidgetKit itself.

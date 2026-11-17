@@ -156,20 +156,26 @@ enum WidgetTimeline {
 
 /// The words widgets use, shared so they read the same in every family.
 enum WidgetWords {
-    /// "5 to 8 pm", "8:30 to 10 am".
-    static func window(_ start: Int, _ end: Int) -> String {
-        if start <= 0 && end >= 1440 { return "any time today" }
-        let samePeriod = end < 1440 && (start < 720) == (end < 720)
-        return "\(time(start, withPeriod: !samePeriod)) to \(time(end))"
+    /// Whether this device shows a 12-hour clock, as the app's `ClockFormat` decides.
+    static var twelveHour: Bool {
+        DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current)?.contains("a") ?? true
     }
 
-    /// "5 pm", "8:30 am".
-    static func time(_ minute: Int, withPeriod: Bool = true) -> String {
-        let minutes = minute % 1440
+    /// "5 to 8pm", "8:30 to 10am", "17 to 20": a window, in the app's words.
+    static func window(_ start: Int, _ end: Int, twelveHour: Bool = WidgetWords.twelveHour) -> String {
+        if start <= 0 && end >= 1440 { return "Any time today" }
+        let samePeriod = end < 1440 && (start < 720) == (end < 720)
+        return "\(time(start, withPeriod: !samePeriod, twelveHour: twelveHour)) to \(time(end, twelveHour: twelveHour))"
+    }
+
+    /// "5pm", "8:30am" (or "17", "8:30"), like the app's `CareTime.hour`.
+    static func time(_ minute: Int, withPeriod: Bool = true, twelveHour: Bool = WidgetWords.twelveHour) -> String {
+        let minutes = ((minute % 1440) + 1440) % 1440
         let hour24 = minutes / 60, minute = minutes % 60
-        let hour = hour24 % 12 == 0 ? 12 : hour24 % 12
+        guard twelveHour else { return minute == 0 ? "\(hour24)" : String(format: "%d:%02d", hour24, minute) }
+        let hour = (hour24 + 11) % 12 + 1
         let clock = minute == 0 ? "\(hour)" : String(format: "%d:%02d", hour, minute)
-        return withPeriod ? clock + (hour24 < 12 ? " am" : " pm") : clock
+        return withPeriod ? clock + (hour24 < 12 ? "am" : "pm") : clock
     }
 
     /// "45m", "9h", "2d".
@@ -179,11 +185,11 @@ enum WidgetWords {
         return "\(minutes / (24 * 60))d"
     }
 
-    /// "5:40 pm" for a moment, in the household's time zone.
-    static func clock(_ date: Date, timeZone: TimeZone) -> String {
+    /// "5:40pm" for a moment, in the household's time zone.
+    static func clock(_ date: Date, timeZone: TimeZone, twelveHour: Bool = WidgetWords.twelveHour) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let parts = calendar.dateComponents([.hour, .minute], from: date)
-        return time((parts.hour ?? 0) * 60 + (parts.minute ?? 0))
+        return time((parts.hour ?? 0) * 60 + (parts.minute ?? 0), twelveHour: twelveHour)
     }
 }

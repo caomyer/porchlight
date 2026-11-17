@@ -31,6 +31,7 @@ targets:
     dependencies:
       - package: GRDB
       - package: SQLiteData
+      - target: PorchlightWidgets
     info:
       path: Porchlight/Info.plist
       properties:
@@ -62,9 +63,18 @@ targets:
         NSPhotoLibraryUsageDescription: Porchlight can show photos you pick on the wall in Ambient mode.
         NSLocationWhenInUseUsageDescription: Porchlight uses your approximate location once to show local weather.
         # iCloud sync: the engine is woken by pushes, and the household is shared in M2.
+        # Widgets turn over to the new day in background time (docs/design/beyond-the-app.md).
         UIBackgroundModes:
           - remote-notification
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.mingyucao.porchlight.widgets.refresh
         CKSharingSupported: true
+        # A widget's tap opens a tab: porchlight://lists, porchlight://today.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.mingyucao.porchlight
+            CFBundleURLSchemes:
+              - porchlight
     entitlements:
       path: Porchlight/Porchlight.entitlements
       properties:
@@ -74,6 +84,9 @@ targets:
           - iCloud.com.mingyucao.porchlight
         com.apple.developer.icloud-container-environment: $(PORCHLIGHT_CLOUDKIT_ENVIRONMENT)
         aps-environment: development
+        # The widgets read the summary the app writes here.
+        com.apple.security.application-groups:
+          - group.com.mingyucao.porchlight
     settings:
       base:
         # scripts/cloud-schema.sh seed overrides both, so its app installs beside Porchlight.
@@ -89,6 +102,40 @@ targets:
           PORCHLIGHT_CLOUDKIT_ENVIRONMENT: Development
         Release:
           PORCHLIGHT_CLOUDKIT_ENVIRONMENT: Production
+  PorchlightWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PorchlightWidgets
+      # Shared with the app: the summary, the timeline, the views and the widgets' intents.
+      - path: Porchlight/WidgetsShared
+      - path: Porchlight/Design/ThemeTokens.swift
+      - path: Porchlight/Resources/Fonts
+        includes: ["*.ttf"]
+        buildPhase: resources
+    info:
+      path: PorchlightWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Porchlight
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        UIAppFonts:
+          - Fraunces.ttf
+          - DMSans.ttf
+          - Caveat.ttf
+    entitlements:
+      path: PorchlightWidgets/PorchlightWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.mingyucao.porchlight
+    settings:
+      base:
+        PORCHLIGHT_BUNDLE_ID: com.mingyucao.porchlight
+        PRODUCT_BUNDLE_IDENTIFIER: $(PORCHLIGHT_BUNDLE_ID).widgets
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
+        SKIP_INSTALL: YES
   PorchlightTests:
     type: bundle.unit-test
     platform: iOS

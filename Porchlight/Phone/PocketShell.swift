@@ -55,6 +55,12 @@ struct PocketShell: View {
         .sheet(isPresented: $showsYou) {
             YouSheet()
         }
+        // A widget's tap: porchlight://lists opens Lists.
+        .onOpenURL { url in
+            guard url.scheme == "porchlight", let opened = url.host().flatMap(PocketTab.init(rawValue:)) else { return }
+            showsYou = false
+            tab = opened
+        }
         #if DEBUG
         .onAppear(perform: applyDebugStart)
         #endif

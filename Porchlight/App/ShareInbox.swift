@@ -26,6 +26,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// Reminder actions arrive here, also when one launches the app in the background.
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = ReminderNotifications.shared
+        // Before launch ends, as iOS requires: the widgets' turn to the new day.
+        WidgetSummaryKeeper.registerBackgroundRefresh()
         return true
     }
 
