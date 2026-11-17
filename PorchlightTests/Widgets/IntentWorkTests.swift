@@ -35,6 +35,8 @@ struct IntentWorkTests {
         var draft = CompanionDraft.new(species: .dog)
         draft.name = "Yo-Yo"
         companionId = try db.saveCompanion(draft, householdId: household.id)
+        // New routines start today; these tests run on a fixed day before it.
+        try db.writer.write { try $0.execute(sql: "UPDATE careRoutine SET anchorDay = ''") }
         walk = try #require(try db.writer.read(CompanionSnapshot.fetch).routines(of: companionId).first { $0.kind == .walk })
         now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: 18, minute: 5))!
         defaults = UserDefaults(suiteName: "intent-work-\(UUID().uuidString)")!

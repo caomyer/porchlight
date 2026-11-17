@@ -36,6 +36,13 @@ struct WidgetMoment: Equatable, Sendable {
         var care: Care
         /// Minutes since its main routine was last done, if ever.
         var minutesSinceCare: Int?
+        /// The next slot still to open today, shown under what was done.
+        var upcoming: Upcoming?
+
+        struct Upcoming: Equatable, Sendable {
+            var name: String
+            var start: Int
+        }
     }
 
     var date: Date
@@ -111,7 +118,9 @@ struct WidgetMoment: Equatable, Sendable {
             care = .allSet
         }
         let since = companion.lastCare.flatMap { last in last <= date ? Int(date.timeIntervalSince(last) / 60) : nil }
-        return CompanionCard(id: companion.id, name: companion.name, face: companion.face, care: care, minutesSinceCare: since)
+        let upcoming = slots.filter { !$1.isDone && $1.start > minute }.min { $0.1.start < $1.1.start }
+            .map { CompanionCard.Upcoming(name: $0.1.name, start: $0.1.start) }
+        return CompanionCard(id: companion.id, name: companion.name, face: companion.face, care: care, minutesSinceCare: since, upcoming: upcoming)
     }
 
     static func dayKey(_ date: Date, calendar: Calendar) -> String {

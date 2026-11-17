@@ -30,6 +30,8 @@ struct WidgetSummaryBuilderTests {
         var draft = CompanionDraft.new(species: .dog)
         draft.name = "Yo-Yo"
         let companionId = try db.saveCompanion(draft, householdId: household.id)
+        // New routines start today; these tests run on a fixed day before it.
+        try db.writer.write { try $0.execute(sql: "UPDATE careRoutine SET anchorDay = ''") }
         walk = try #require(try db.writer.read(CompanionSnapshot.fetch).routines(of: companionId).first { $0.kind == .walk })
         now = household.calendar.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: 18, minute: 5))!
     }
@@ -115,7 +117,7 @@ struct WidgetSummaryBuilderTests {
         #expect(!WidgetSummaryWrite.isNeeded(summary.written(at: now.addingTimeInterval(59 * 60)), over: summary))
         #expect(WidgetSummaryWrite.isNeeded(summary.written(at: now.addingTimeInterval(60 * 60)), over: summary))
         var changed = summary
-        changed.chores = []
+        changed.me?.name = "Jim"
         #expect(WidgetSummaryWrite.isNeeded(changed.written(at: now.addingTimeInterval(60)), over: summary))
         let marker = WidgetSummary(writtenAt: now, isSharedScreen: true)
         #expect(!WidgetSummaryWrite.isNeeded(marker.written(at: now.addingTimeInterval(30 * 24 * 3600)), over: marker))

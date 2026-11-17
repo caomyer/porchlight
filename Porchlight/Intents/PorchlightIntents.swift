@@ -19,7 +19,7 @@ enum IntentRunner {
     /// The widgets draw the change at once; sync sends it before iOS suspends the app.
     static func afterWrite() async {
         await WidgetSummaryKeeper.shared?.refresh()
-        await SyncController.launched?.sendSoon()
+        await SyncController.current?.sendSoon()
     }
 
     static func logSlot(routineId: String, slot: Int, day: String) async {

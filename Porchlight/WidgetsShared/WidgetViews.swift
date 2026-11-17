@@ -199,7 +199,16 @@ struct CompanionSmallView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("widget-log")
         } else {
-            AsOfLine(moment: moment, timeZone: timeZone)
+            VStack(alignment: .leading, spacing: 3) {
+                if case .done = card.care, let upcoming = card.upcoming {
+                    Text("Next: \(upcoming.name) at \(WidgetWords.time(upcoming.start))")
+                        .widgetFont(.body, 12, weight: 600)
+                        .foregroundStyle(Theme.muted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                AsOfLine(moment: moment, timeZone: timeZone)
+            }
         }
         if case .open = card.care {
             AsOfLine(moment: moment, timeZone: timeZone)
@@ -406,29 +415,28 @@ struct GlowRectangularView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text("✨ Glow")
-                .font(.system(size: 13, weight: .semibold))
-                .widgetAccentable()
             if moment.availability == .ready, let glow = moment.glow {
-                Text(line(glow))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                Text("✨ \(glow.myStarsThisWeek) \(glow.myStarsThisWeek == 1 ? "star" : "stars") this week")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .widgetAccentable()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                Text("stars this week")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                if let goal = glow.goalTitle, glow.goalTarget > 0 {
+                    Text("\(glow.goalEmoji ?? "🎯") \(goal) \(glow.goalEarned)/\(glow.goalTarget)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
             } else {
+                Text("✨ Glow")
+                    .font(.system(size: 13, weight: .semibold))
+                    .widgetAccentable()
                 Text(WidgetNotice.text(moment.availability) ?? "")
                     .font(.system(size: 12, weight: .medium))
                     .lineLimit(2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func line(_ glow: WidgetSummary.Glow) -> String {
-        guard let goal = glow.goalTitle, glow.goalTarget > 0 else { return "\(glow.myStarsThisWeek)" }
-        return "\(glow.myStarsThisWeek) · \(goal) \(glow.goalEarned)/\(glow.goalTarget)"
     }
 }
 

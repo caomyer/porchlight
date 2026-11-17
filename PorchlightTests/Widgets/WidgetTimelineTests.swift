@@ -50,10 +50,20 @@ struct WidgetTimelineTests {
 
     @Test("Before anything opens: what opens next")
     func nextSlot() throws {
-        let moment = WidgetMoment.at(at(5), summary: summary)
+        // Written at 4:50 am, before anyone did anything today.
+        var early = WidgetPreviewData.summary(at: at(4, 50), timeZone: timeZone)
+        for c in early.companions.indices {
+            for r in early.companions[c].routines.indices {
+                for s in early.companions[c].routines[r].slots.indices {
+                    early.companions[c].routines[r].slots[s].doneBy = nil
+                    early.companions[c].routines[r].slots[s].doneAt = nil
+                }
+            }
+        }
+        let moment = WidgetMoment.at(at(5), summary: early)
         #expect(moment.companion("yoyo")?.care == .next(name: "morning walk", start: 6 * 60))
-        // A log later in the day doesn't count yet at 5 am.
-        #expect(moment.companion("yoyo")?.minutesSinceCare == nil)
+        // Yesterday's log is in the summary's last-care time, not a log from later today.
+        #expect(WidgetMoment.at(at(5), summary: summary).companion("yoyo")?.minutesSinceCare == nil)
     }
 
     @Test("A window that ended without a log no longer offers the button")

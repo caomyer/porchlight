@@ -100,7 +100,7 @@ Companion names, counts and times stay visible: they are what a Lock Screen glan
    Launching opens the database the usual way: the restore check, the sync engine, then `AppDatabase.launched`.
 2. The write goes through that instance, so the engine's triggers record it as a pending change.
 3. The engine sends pending changes on its own schedule while the process lives; the intent also asks it to send right away (`SyncController.sendSoon`) and waits a few seconds for that, so a background launch that ends quickly still delivers.
-4. The wall receives it by push, like any other change, and shows "from Mia's phone" with its glow (D1).
+4. The wall receives it like any other change, by push or by its own check within 15 seconds (`sync-icloud.md`, "Staying current"), and shows "from Mia's phone" with its glow (D1).
 
 When sync waits for a decision, or the phone is offline or signed out, the log is still written and the widget updates; it is pending in the engine and goes up the next time sync runs.
 Nothing is ever lost or doubled: the row's id is stable and the write checked the slot first.
@@ -132,7 +132,7 @@ Two households and per-widget household choice are for M5's switcher; the summar
 - `Porchlight/Intents/`, the app only: `WidgetSummaryBuilder`, `WidgetSummaryKeeper` (started with the stores at launch, so it runs in a background launch too, where no view does), `IntentWork` (every action's work on a database it is handed) and `PorchlightIntents.swift` (the Siri and Shortcuts intents, their entities, `PorchlightShortcuts` and `IntentRunner`).
 - `PorchlightWidgets/`: the extension's bundle, timeline providers and widget configurations.
 - The extension's code paths that would run the app's work are behind `#if !WIDGET_EXTENSION`; the extension has `WIDGET_EXTENSION` set and never links the database.
-- `SyncController.launched` and `SyncController.sendSoon` (a send, waited for at most ten seconds) let background work reach iCloud; `AppDatabase.launched` was already there for reminder actions.
+- `SyncController.current` (also what the push callbacks use) and `SyncController.sendSoon` (a send, waited for at most ten seconds) let background work reach iCloud; `AppDatabase.launched` was already there for reminder actions.
 
 ### Judgment calls
 

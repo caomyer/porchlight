@@ -345,10 +345,6 @@ final class SyncController {
 
     // MARK: Engine and device events
 
-    /// The controller of this launch, for work done with the app in the background (a
-    /// widget's button, Siri), which has no view to find it through.
-    static var launched: SyncController?
-
     /// Sends pending changes now and waits for that, at most `timeout`: a widget or Siri
     /// log may be all a background launch does, and iOS can suspend the app soon after, so
     /// it doesn't wait for the engine's own schedule (docs/design/beyond-the-app.md). When

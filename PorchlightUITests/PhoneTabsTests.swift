@@ -89,6 +89,16 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Lists
 
+    /// The Groceries widget's tap opens Lists: `porchlight://lists`, as the widget's link.
+    func testAWidgetLinkOpensLists() {
+        let app = launch()
+        app.open(URL(string: "porchlight://lists")!)
+        XCTAssertTrue(app.staticTexts["PRODUCE"].waitForExistence(timeout: 10), "The link opens Lists")
+        XCTAssertTrue(app.tabBars.buttons["Lists"].isSelected)
+        app.open(URL(string: "porchlight://today")!)
+        XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 10), "and Today")
+    }
+
     func testListsAndDinners() {
         let app = launch()
         app.tabBars.buttons["Lists"].tap()

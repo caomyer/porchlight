@@ -66,9 +66,8 @@ private enum Launch {
             // Rows written by migrations once sync has been on must be recorded by the engine.
             try database.migrateData()
             // Reminder actions, widget buttons and Siri, handled with the app in the
-            // background, use this same instance and controller.
+            // background, use this same instance, and `SyncController.current`.
             AppDatabase.launched = database
-            SyncController.launched = sync
             return .ready(Stores(database: database, sync: sync))
         } catch {
             return .failed(error.localizedDescription)
