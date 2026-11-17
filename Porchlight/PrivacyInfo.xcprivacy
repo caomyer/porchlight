@@ -3,9 +3,10 @@
 <!--
   Porchlight's privacy manifest. Porchlight has no tracking, no third-party SDKs that
   collect data, and collects nothing itself: a household's data stays on its devices and in
-  its owner's iCloud. The one required-reason API the app's own code uses is UserDefaults,
-  for this device's settings (its role, "me", reminder choices). GRDB and swift-sharing
-  ship their own manifests for what they use.
+  its owner's iCloud. The app's own code uses two required-reason APIs: UserDefaults, for
+  this device's settings (its role, "me", reminder choices), and a file's attributes, which
+  carry its dates, for the size of the sync log in the app's own container (SyncTrace).
+  GRDB and swift-sharing ship their own manifests for what they use.
 -->
 <plist version="1.0">
 <dict>
@@ -23,6 +24,14 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
 			</array>
 		</dict>
 	</array>
