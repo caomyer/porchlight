@@ -311,7 +311,10 @@ private struct PhotoFrameSettings: View {
     var managePhotos: () -> Void
 
     @Environment(HomeStore.self) private var store
-    @AppStorage(AmbientSettings.showKey) private var show = FrameShow.photos
+    /// Held here and written through, rather than read back with `@AppStorage`: with
+    /// `@AppStorage` the picker sometimes showed the new choice while the rows under it
+    /// still followed the old one (the photo list stayed under "Porch view").
+    @State private var show = FrameShow(rawValue: UserDefaults.standard.string(forKey: AmbientSettings.showKey) ?? "") ?? .photos
     @AppStorage(AmbientSettings.nightEnabledKey) private var nightEnabled = true
     @AppStorage(AmbientSettings.nightStartKey) private var nightStart = NightWindow.default.start
     @AppStorage(AmbientSettings.nightEndKey) private var nightEnd = NightWindow.default.end
@@ -327,6 +330,9 @@ private struct PhotoFrameSettings: View {
             }
             divider
             nightRow
+        }
+        .onChange(of: show) { _, value in
+            UserDefaults.standard.set(value.rawValue, forKey: AmbientSettings.showKey)
         }
     }
 

@@ -272,6 +272,7 @@ Where the atlas was silent, or didn't fit the code:
 ## Fixed on the wall along the way
 
 Nothing on the wall looked broken while working here.
+Settings › Photo frame sometimes kept the photo list and "Add photos" under "Porch view" after switching to it (PhotoFrameTests failed 2 runs in 4): the picker showed the new choice while the rows read an older `@AppStorage` value. The settings now hold the choice in `@State` and write it through to the same UserDefaults key, and the test passed 6 runs in 6.
 A big polaroid used to show its bare tablecloth while the whole shot loaded; it now shows the photo's thumbnail until then, on the wall too.
 Wall code changed only to share it: "On this day"'s sentence (`FoodMemoryWords`), the care form's logic and the time pill's day math, `Color.wash` resolving its colors explicitly, the companion page's week line, the grocery sections, `HomeStore.cashIn` returning the cash-in, and the chore editor's compact layout (its regular layout is unchanged).
 The wall's UI tests cover all of them.
