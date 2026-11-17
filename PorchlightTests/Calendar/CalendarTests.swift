@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import Observation
 import Testing
 @testable import Porchlight
 
@@ -363,7 +364,8 @@ private final class FakeProvider: CalendarProvider {
     var eventList: [ExternalEvent] = []
 
     func requestAccess() async -> CalendarAccess { access }
-    func calendars() -> [ExternalCalendar] { calendarList }
+    /// Like EventKit, no calendars until access is granted.
+    func calendars() -> [ExternalCalendar] { access == .granted ? calendarList : [] }
     func events(in interval: DateInterval, calendarIds: Set<String>) -> [ExternalEvent] {
         eventList.filter { calendarIds.contains($0.calendarId) && $0.end > interval.start && $0.start < interval.end }
     }
@@ -394,6 +396,39 @@ struct CalendarStoreTests {
         ]
         let store = CalendarStore(database: db, provider: provider, now: { date(7, 9.7) })
         return (store, provider, db, try db.snapshot().people)
+    }
+
+    /// What a reader saw when it heard of the next change.
+    final class Seen<Value: Sendable>: @unchecked Sendable {
+        var value: Value?
+    }
+
+    /// Reads again the moment a change is announced, as SwiftUI may redraw a screen then.
+    private func readOnChange<Value: Sendable>(_ read: @escaping @MainActor @Sendable () -> Value) -> Seen<Value> {
+        let seen = Seen<Value>()
+        withObservationTracking {
+            _ = read()
+        } onChange: {
+            MainActor.assumeIsolated { seen.value = read() }
+        }
+        return seen
+    }
+
+    @Test("A screen redrawn as access is granted already reads it, and the calendars")
+    func observersReadTheGrant() throws {
+        let (store, provider, _, _) = try makeStore()
+        provider.access = .notDetermined
+        store.reload()
+        #expect(store.access == .notDetermined)
+        #expect(store.calendars.isEmpty)
+
+        let access = readOnChange { store.access }
+        let calendars = readOnChange { store.calendars.count }
+        // The system store says it changed once access is granted.
+        provider.access = .granted
+        provider.onChange?()
+        #expect(access.value == .granted)
+        #expect(calendars.value == 3)
     }
 
     @Test("Today outputs: timeline items, all-day chips and countdowns")

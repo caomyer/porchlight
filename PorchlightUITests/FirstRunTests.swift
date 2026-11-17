@@ -3,8 +3,7 @@ import XCTest
 /// A brand-new household's first run against the real calendar store: onboarding,
 /// the iPadOS calendar permission prompt, and giving each calendar to a person.
 /// `-resetData` uses the sample storage sandbox, so real data is never touched.
-/// Run after `xcrun simctl privacy <udid> reset calendar com.mingyucao.porchlight`
-/// so the permission prompt appears.
+/// The test resets the calendar permission itself, so the prompt always appears.
 @MainActor
 final class FirstRunTests: XCTestCase {
     private func snapshot(_ name: String) {
@@ -32,6 +31,8 @@ final class FirstRunTests: XCTestCase {
 
     func testOnboardingWithRealCalendarAccess() throws {
         let app = XCUIApplication.porchlight()
+        // Ask as a new install does, whatever an earlier run on this simulator answered.
+        app.resetAuthorizationStatus(for: .calendar)
         app.launchArguments = ["-resetData"]
         app.launch()
 

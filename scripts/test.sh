@@ -1,114 +1,283 @@
 #!/bin/zsh
-# Runs the unit tests, then the UI tests, on an iOS 17.5 iPad simulator (the wall
-# iPad runs iPadOS 17).
+# Builds once, then runs the unit tests and both UI suites, the wall's on an iPad and the
+# phone's on an iPhone, on iOS 17.5 simulators of this checkout's own.
 #
-# The screen tour (WallTourTests.testScreens) only takes screenshots for review,
-# so it is skipped unless --tour is given; run it before deploying.
+#   scripts/test.sh                 everything: unit and the wall's UI suite on the iPad, then the phone's
+#   scripts/test.sh --smoke         unit, then a few UI tests on each: the gate before installing
+#   scripts/test.sh --unit-only     only the unit tests
+#   scripts/test.sh --ui-only       only the UI suites
+#   scripts/test.sh --wall          only the wall's UI suite (with --ui-only, no unit tests)
+#   scripts/test.sh --phone         only the phone's UI suite (with --ui-only, no unit tests)
+#   scripts/test.sh --only Class/testName ...   just these UI tests (and no unit tests)
+#   scripts/test.sh --parallel      the iPad and the iPhone at the same time (needs two test slots)
+#   scripts/test.sh --tour          also the wall's screen tour, which only takes screenshots for review
+#   scripts/test.sh --runtime <id>  another iOS, e.g. com.apple.CoreSimulator.SimRuntime.iOS-26-5
+#   scripts/test.sh --workers N     each UI suite on N clones of its simulator
+#   scripts/test.sh --no-build      reuse the last build
+#   scripts/test.sh --keep-booted   leave the simulators running afterwards
+#   scripts/test.sh <udid>          the given simulator instead of this checkout's own (one suite)
 #
-# --workers N runs UI tests on N simulator clones. On a 10-core, 16 GB Mac two
-# clones were no faster than one simulator and made timing-sensitive tests flaky,
-# so it is off by default; try it on an idle, bigger machine.
-#
-# --phone runs on the iOS 17.5 iPhone 15 simulator instead, and its UI run is the
-# phone's own tests (PhoneTests, PhoneTabsTests, PhoneHouseholdTests,
-# PhoneRemindersTests, PhoneFoodTests, PhoneSetupTests). The iPad run skips them.
-#
-# Usage: scripts/test.sh [--tour] [--phone] [--unit-only | --ui-only] [--workers N] [simulator-udid]
+# Each checkout makes its own simulators ("Porchlight <checkout> ipad" and "... iphone"), so
+# runs from different worktrees never share one. A run holds its simulators, and the Mac's
+# test slots (one per 8 GB of memory, so simulators never push it into swap), with file locks
+# the system releases the moment the run ends, however it ends (scripts/lib/simulators.sh).
+# Prints how long each step took. Result bundles go to $TMPDIR/porchlight-tests-<checkout>.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+source scripts/lib/simulators.sh
 
-tour=0
 unit=1
 ui=1
+wall_asked=0
+phone_asked=0
+parallel=0
+smoke=0
+tour=0
+build=1
+keep=0
 workers=1
-phone=0
 udid=""
+only=()
 while (( $# )); do
   case "$1" in
-    --tour) tour=1 ;;
-    --phone) phone=1 ;;
     --unit-only) ui=0 ;;
     --ui-only) unit=0 ;;
+    --wall) wall_asked=1 ;;
+    --phone) phone_asked=1 ;;
+    --parallel) parallel=1 ;;
+    --serial) parallel=0 ;;
+    --smoke) smoke=1 ;;
+    --tour) tour=1 ;;
+    --no-build) build=0 ;;
+    --keep-booted) keep=1 ;;
     --workers) shift; workers="$1" ;;
-    -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --runtime) shift; porchlight_sim_runtime="$1" ;;
+    --only) shift; while (( $# )) && [[ "$1" != -* ]]; do only+=("$1"); shift; done; continue ;;
+    -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) udid="$1" ;;
   esac
   shift
 done
 
-if [[ -z "$udid" ]] && (( phone )); then
-  udid=47B9AD5F-E3F3-4EC2-A22F-364E3D90C55C
+phone_classes=(PhoneTests PhoneTabsTests PhoneHouseholdTests PhoneRemindersTests PhoneFoodTests PhoneSetupTests)
+
+# Which UI suites: both unless one was named. Named tests go to the suite they belong to.
+wall=1 phone=1
+if (( wall_asked || phone_asked )); then
+  wall=$wall_asked
+  phone=$phone_asked
 fi
-if [[ -z "$udid" ]]; then
-  udid=$(xcrun simctl list devices available -j | python3 -c '
-import json, sys
-devices = json.load(sys.stdin)["devices"]
-ipads = [d for runtime, list in devices.items() if "iOS-17-5" in runtime for d in list if "iPad" in d["name"]]
-# Prefer one that is shut down: a booted one may be busy with a run from another checkout.
-# (It gets booted for the run, and the next run reuses it.)
-ipads.sort(key=lambda d: d["state"] == "Booted")
-if not ipads: sys.exit(1)
-print(ipads[0]["udid"])
-') || { echo "No iOS 17.5 iPad simulator. Install the runtime: xcodebuild -downloadPlatform iOS -buildVersion 17.5" >&2; exit 1; }
+wall_only=()
+phone_only=()
+if (( ${#only} )); then
+  unit=0
+  for test in $only; do
+    if (( ${phone_classes[(Ie)${test%%/*}]} )); then phone_only+=("$test"); else wall_only+=("$test"); fi
+  done
+  wall=$(( ${#wall_only} > 0 ))
+  phone=$(( ${#phone_only} > 0 ))
 fi
+(( ui )) || { wall=0; phone=0; }
+
+# The gate before installing: a few tests across each shell's main paths, a few minutes.
+smoke_wall=(
+  DayAtAGlanceTests/testCheckingOffAChoreOnToday
+  PitchInTests/testFixingWhoDidAChore
+  LoggedEntryTests/testLoggingAWalkSaysWhenItStarted
+  FoodMealsTests/testSeveralDishesOnTodaysPlates
+  HouseholdTests/testFamilyAndDevicesShowsEveryoneAndBothWaysIn
+  SyncSettingsTests/testAFullICloudPausesSync
+  FirstRunTests/testOnboardingWithRealCalendarAccess
+)
+smoke_phone=(
+  PhoneTests/testOneTapLogAndUndo
+  PhoneTests/testCheckingChores
+  PhoneTabsTests/testPitchInAndAddingAChore
+  PhoneFoodTests/testSnappingAMeal
+  PhoneHouseholdTests/testJoiningFromAnInvite
+  PhoneSetupTests/testStartingAHouseholdOnThisPhone
+)
 
 # One build folder per checkout, so worktrees don't overwrite each other's builds.
 checkout=$(basename "$PWD")
 derived="$HOME/Library/Developer/Xcode/DerivedData/Porchlight-${checkout}"
 results="${TMPDIR:-/tmp}/porchlight-tests-${checkout}"
 mkdir -p "$results"
-common=(-project Porchlight.xcodeproj -destination "id=$udid" -derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO -skipMacroValidation)
+# Simulators on this Mac are arm64; a generic destination would build Intel too.
+flags=(-derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO -skipMacroValidation ARCHS=arm64)
 
 # Keep only results, failures and the summary from xcodebuild's output.
 summarize() {
-  grep -E "error:|warning:|passed \(|failed \(|\*\* TEST|✘" | grep -v "Run script\|appintents\|strip-bitcode" || true
+  grep -E "error:|passed \(|failed \(|\*\* (TEST|BUILD)|✘" | grep -v "Run script\|appintents\|strip-bitcode" || true
 }
 
-xcodegen generate --quiet
+started=$SECONDS
+timings=()
+# Each step's time, said as it ends and again at the end (a background job's list stays
+# with it, so side by side only the overall times are repeated).
+took() {
+  local line=$(printf '%-12s %5ds' "$1" $(( SECONDS - $2 )))
+  timings+=("$line")
+  echo "Took: $line"
+}
+
+# Simulators: the one given, else this checkout's own.
+ipad="" iphone=""
+if (( unit || wall )); then
+  if [[ -n "$udid" ]] && ! (( phone )); then ipad=$udid; else ipad=$(porchlight_simulator ipad); fi
+fi
+if (( phone )); then
+  if [[ -n "$udid" ]] && ! (( unit || wall )); then iphone=$udid; else iphone=$(porchlight_simulator iphone); fi
+fi
+for sim in $ipad $iphone; do porchlight_hold_simulator "$sim"; done
+both=$(( ${#ipad} && ${#iphone} ))
+(( both )) || parallel=0
+
+# Shut down what this run boots, to give the memory back, unless asked to keep it.
+already=$(xcrun simctl list devices booted)
+booted_here=()
+for sim in $ipad $iphone; do [[ "$already" == *"$sim"* ]] || booted_here+=("$sim"); done
+cleanup() {
+  (( keep )) && return
+  for sim in $booted_here; do xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true; done
+}
+trap cleanup EXIT INT TERM
+boot() { porchlight_boot_simulator "$1"; }
+shut() {
+  (( keep )) && return
+  if (( ${booted_here[(Ie)$1]} )); then xcrun simctl shutdown "$1" >/dev/null 2>&1 || true; fi
+}
+
+if (( build )); then
+  step=$SECONDS
+  xcodegen generate --quiet
+  echo "Building for testing"
+  # The UI scheme builds the app and the UI tests; the unit scheme adds the unit tests.
+  xcodebuild build-for-testing -project Porchlight.xcodeproj -scheme PorchlightUI \
+    -destination 'generic/platform=iOS Simulator' "${flags[@]}" 2>&1 | summarize
+  if (( unit )); then
+    xcodebuild build-for-testing -project Porchlight.xcodeproj -scheme Porchlight \
+      -destination 'generic/platform=iOS Simulator' "${flags[@]}" 2>&1 | summarize
+  fi
+  took build $step
+fi
+
+# The Mac's test slots: one per simulator booted at a time.
+step=$SECONDS
+porchlight_take_slots $(( parallel ? 2 : 1 ))
+(( SECONDS - step < 2 )) || took "waiting" $step
+
+xctestrun() {
+  local found=("$derived"/Build/Products/${1}_iphonesimulator*.xctestrun(Nom))
+  (( ${#found} )) || { echo "No build of $1 to test: run without --no-build" >&2; return 1; }
+  print -r -- "${found[1]}"
+}
+
+# Prints "<name>: passed/total" from a result bundle, and fails unless it passed.
+report() {
+  xcrun xcresulttool get test-results summary --path "$2" 2>/dev/null | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+skipped = " (%d skipped)" % d["skippedTests"] if d["skippedTests"] else ""
+print("%s: %d/%d passed%s" % (sys.argv[1], d["passedTests"], d["totalTestCount"], skipped))
+sys.exit(0 if d["result"] == "Passed" else 1)
+' "$1" || { echo "$1: did not finish, see $results/${2:t:r}.log"; return 1; }
+}
+
+# Runs one UI suite: `ui_suite <name> <udid> <selection...>`, into $results/<name>.xcresult.
+ui_suite() {
+  local name=$1 sim=$2
+  shift 2
+  local clones=()
+  (( workers > 1 )) && clones=(-parallel-testing-enabled YES -parallel-testing-worker-count "$workers")
+  rm -rf "$results/$name.xcresult"
+  xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
+    "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult" > "$results/$name.log" 2>&1 || true
+  summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
+}
+
+wall_args=()
+phone_args=()
+if (( wall )); then
+  if (( ${#wall_only} )); then
+    for test in $wall_only; do wall_args+=(-only-testing:PorchlightUITests/$test); done
+  elif (( smoke )); then
+    for test in $smoke_wall; do wall_args+=(-only-testing:PorchlightUITests/$test); done
+  else
+    for class in $phone_classes; do wall_args+=(-skip-testing:PorchlightUITests/$class); done
+    (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
+  fi
+fi
+if (( phone )); then
+  if (( ${#phone_only} )); then
+    for test in $phone_only; do phone_args+=(-only-testing:PorchlightUITests/$test); done
+  elif (( smoke )); then
+    for test in $smoke_phone; do phone_args+=(-only-testing:PorchlightUITests/$test); done
+  else
+    for class in $phone_classes; do phone_args+=(-only-testing:PorchlightUITests/$class); done
+  fi
+fi
+
 failed=0
 
-if (( unit )); then
-  echo "Unit tests on $udid"
-  rm -rf "$results/unit.xcresult"
-  xcodebuild test "${common[@]}" -scheme Porchlight -resultBundlePath "$results/unit.xcresult" 2>&1 | summarize || true
-  xcrun xcresulttool get test-results summary --path "$results/unit.xcresult" | python3 -c '
-import json, sys
-d = json.load(sys.stdin)
-print("Unit: %d/%d passed" % (d["passedTests"], d["totalTestCount"]))
-sys.exit(0 if d["result"] == "Passed" else 1)
-' || failed=1
-fi
-
-if (( ui )); then
-  echo "UI tests on $udid$( (( workers > 1 )) && echo " ($workers clones)")$( (( tour )) && echo ', with the screen tour')"
-  # The first-run test needs the calendar prompt, and resetting it needs a booted
-  # simulator (clones copy this state too).
-  xcrun simctl bootstatus "$udid" -b >/dev/null
-  xcrun simctl privacy "$udid" reset calendar com.mingyucao.porchlight
-  # The app was com.porchlight.porchlight for a while; never leave it beside this one.
-  xcrun simctl uninstall "$udid" com.porchlight.porchlight 2>/dev/null || true
-  phone_classes=(PhoneTests PhoneTabsTests PhoneHouseholdTests PhoneRemindersTests PhoneFoodTests PhoneSetupTests)
-  skip=()
-  if (( phone )); then
-    for class in $phone_classes; do skip+=(-only-testing:PorchlightUITests/$class); done
-  else
-    for class in $phone_classes; do skip+=(-skip-testing:PorchlightUITests/$class); done
-    (( tour )) || skip+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
+run_ipad() {
+  local step=$SECONDS
+  boot "$ipad"
+  took "boot ipad" $step
+  # An app from before the rename must never sit beside this one.
+  xcrun simctl uninstall "$ipad" com.porchlight.porchlight 2>/dev/null || true
+  if (( unit )); then
+    step=$SECONDS
+    echo "Unit tests on $ipad"
+    rm -rf "$results/unit.xcresult"
+    xcodebuild test-without-building -xctestrun "$(xctestrun Porchlight)" -destination "id=$ipad" \
+      -resultBundlePath "$results/unit.xcresult" > "$results/unit.log" 2>&1 || true
+    summarize < "$results/unit.log" | grep -v "passed ("
+    report Unit "$results/unit.xcresult" || failed=1
+    took unit $step
   fi
-  parallel=()
-  (( workers > 1 )) && parallel=(-parallel-testing-enabled YES -parallel-testing-worker-count "$workers")
-  rm -rf "$results/ui.xcresult"
-  xcodebuild test "${common[@]}" -scheme PorchlightUI "${skip[@]}" "${parallel[@]}" \
-    -resultBundlePath "$results/ui.xcresult" 2>&1 | summarize || true
-  xcrun xcresulttool get test-results summary --path "$results/ui.xcresult" | python3 -c '
-import json, sys
-d = json.load(sys.stdin)
-print("UI: %d/%d passed" % (d["passedTests"], d["totalTestCount"]))
-sys.exit(0 if d["result"] == "Passed" else 1)
-' || failed=1
+  if (( wall )); then
+    step=$SECONDS
+    echo "Wall UI tests on $ipad"
+    ui_suite ui-wall "$ipad" "${wall_args[@]}"
+    report "UI wall" "$results/ui-wall.xcresult" || failed=1
+    took "ui wall" $step
+  fi
+}
+
+run_iphone() {
+  local step=$SECONDS
+  boot "$iphone"
+  took "boot phone" $step
+  step=$SECONDS
+  echo "Phone UI tests on $iphone"
+  ui_suite ui-phone "$iphone" "${phone_args[@]}"
+  report "UI phone" "$results/ui-phone.xcresult" || failed=1
+  took "ui phone" $step
+}
+
+if (( parallel )); then
+  step=$SECONDS
+  # The two report through files, since a background job's variables stay with it.
+  ( run_ipad; exit $failed ) & ipad_job=$!
+  ( run_iphone; exit $failed ) & iphone_job=$!
+  wait $ipad_job || failed=1
+  wait $iphone_job || failed=1
+  took "side by side" $step
+else
+  if [[ -n "$ipad" ]] && (( unit || wall )); then
+    run_ipad
+    shut "$ipad"
+  fi
+  if [[ -n "$iphone" ]]; then
+    run_iphone
+    shut "$iphone"
+  fi
 fi
 
+took total $started
+print -l -- "Time:" "  "${^timings}
 echo "Result bundles: $results"
 exit $failed

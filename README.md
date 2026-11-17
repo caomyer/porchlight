@@ -87,13 +87,35 @@ scripts/idle-cpu.sh
 
 UI tests (screen tour, handwriting round trip, meal editing, choosing the photo frame and removing several photos, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, several photos per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, typing times on the number pad (meals, night hours across midnight, routine windows), chores on Today and in the calendar, walks and meals in the week grid, keyboard placement, scrolling, the idle timer, sync's states in Settings with the gear's dot, the first launch looking for a household in iCloud, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
 The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
-`scripts/test.sh` runs the unit tests and then the UI tests on an iOS 17.5 iPad simulator, resetting the calendar permission so the first-run test sees the prompt.
-It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
-Each checkout builds into its own DerivedData folder, so worktrees can test side by side, but two UI suites at once slow each other enough to time out.
+
+### Running the tests
+
+`scripts/test.sh` builds once, then runs the unit tests and the wall's UI suite on an iPad simulator, then the phone's UI suite on an iPhone simulator, and says how long each step took.
 
 ```bash
-scripts/test.sh
+scripts/test.sh                    # everything
+scripts/test.sh --smoke            # unit tests and 13 UI tests across both shells: the gate before installing
+scripts/test.sh --unit-only        # unit tests only
+scripts/test.sh --wall --ui-only   # the wall's UI suite only; --phone for the phone's
+scripts/test.sh --only PhoneTests/testCheckingChores FirstRunTests   # just these, on the right simulator
+scripts/test.sh --parallel         # the iPad and the iPhone at the same time
 ```
+
+It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
+`--runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5` runs on another installed iOS, `--no-build` reuses the last build, and `--keep-booted` leaves the simulators running.
+
+How it stays fast and out of everyone's way:
+
+- **Its own simulators.** Each checkout makes its own iPad and iPhone simulators the first time ("Porchlight <checkout> ipad", "... iphone"), so runs from different worktrees never share or wait on one.
+- **Locks that cannot go stale.** A run holds its simulators with kernel file locks in `/private/tmp/porchlight-simulator-locks`, which the system releases the moment the run ends, however it ends; the old lock folder could outlive a killed run and stall every other run for hours.
+- **Test slots for memory.** A booted simulator under test takes 1.5 to 3 GB, and with more of them than the Mac can hold everything swaps: queries time out, the test runner fails to start ("Timed out while loading Accessibility"), and tests fail that pass alone.
+  So the Mac has one test slot per 8 GB of memory (two on a 16 GB Mac, or `PORCHLIGHT_TEST_SLOTS`), a run boots simulators only into slots, and it shuts them down when it finishes.
+  `--parallel` takes two slots; on a 16 GB Mac it only helps when nothing else is running.
+- **One build.** `build-for-testing` once, then `test-without-building` for each suite, so the suites never rebuild.
+
+Where the time went before, measured from the result bundles of a full run on the 16 GB M4 (serial, warm simulators): the phone suite took 17 minutes for 60 tests and the wall's 18.5 minutes for 54.
+Most of it is the tests' own steps: each query of the screen takes about a second on these large accessibility trees, each launch with the sample household about 3 to 4 seconds, and one idle-timer test waited 2 minutes 40 seconds of real time for Ambient (it now runs on twelve-second minutes, `-debugIdleSecondsPerMinute`).
+The rest was waiting: on a stale lock, or on other runs swapping the Mac.
 
 ## Install on the wall iPad
 
@@ -119,7 +141,7 @@ See [docs/design/phone-shell.md](docs/design/phone-shell.md).
 
 ```bash
 scripts/sim-shot.sh <iphone-udid> /tmp/phone.png -sampleHousehold -me James
-scripts/test.sh --phone --ui-only   # the phone's UI tests on the iOS 17.5 iPhone 15 simulator
+scripts/test.sh --phone --ui-only   # the phone's UI tests on an iOS 17.5 iPhone 15 simulator
 ```
 
 ## TestFlight
