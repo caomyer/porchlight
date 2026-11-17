@@ -140,7 +140,7 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
     // MARK: You
 
     func testYouListsPeopleAndInvites() {
-        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you"])
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
         let people = app.descendants(matching: .any)["people-card"]
         XCTAssertTrue(people.waitForExistence(timeout: 60))
         XCTAssertTrue(app.staticTexts["Invited, hasn't joined yet"].exists, "Mia is invited")
@@ -160,7 +160,7 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
     /// On its own launch: after a sheet over the You sheet closes, iOS 17's accessibility
     /// tree stops seeing the You sheet, though it is on screen.
     func testShowingTheCodeOnThePhone() {
-        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you"])
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
         let invite = app.buttons["invite-someone"]
         XCTAssertTrue(invite.waitForExistence(timeout: 60))
         invite.tap()
@@ -175,8 +175,46 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         snapshot("phone-123-join-code")
     }
 
+    /// With sync off, You and the invite page say the household is on this phone only, and
+    /// inviting says why it can't.
+    func testWithSyncOffTheHouseholdIsOnThisPhoneOnly() {
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-debugSyncStatus", "off", "-startScreen", "you"])
+        let home = app.descendants(matching: .any)["household-home"].firstMatch
+        XCTAssertTrue(home.waitForExistence(timeout: 60))
+        XCTAssertTrue(home.label.contains("On this iPhone only"), home.label)
+        app.buttons["invite-someone"].tap()
+        let explanation = app.staticTexts["invite-explanation"]
+        XCTAssertTrue(explanation.waitForExistence(timeout: 5))
+        XCTAssertEqual(explanation.label, "The household is on this iPhone only, so nobody can join it yet.")
+        XCTAssertTrue(app.descendants(matching: .any)["invite-blocker"].firstMatch.label.contains("Turn on iCloud sync to invite phones."))
+        snapshot("phone-124-invite-sync-off")
+
+        // The switch is in You: turning sync on lets invites go.
+        app.navigationBars.buttons.firstMatch.tap()
+        let toggle = app.switches["sync-switch"]
+        reveal(toggle, in: app)
+        XCTAssertEqual(toggle.value as? String, "0")
+        snapshot("phone-126-you-sync-off")
+        // The switch itself, not the row's label, flips it.
+        let knob = toggle.switches.firstMatch
+        (knob.exists ? knob : toggle).tap()
+        XCTAssertTrue(home.label.contains("Stored in your iCloud"), home.label)
+        app.buttons["invite-someone"].tap()
+        XCTAssertTrue(app.staticTexts["invite-explanation"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["invite-blocker"].exists, "Invites can go once sync is on")
+    }
+
+    /// As a member, the household is in its owner's iCloud.
+    func testAMemberSeesWhoseICloudItIs() {
+        let app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
+        let home = app.descendants(matching: .any)["household-home"].firstMatch
+        XCTAssertTrue(home.waitForExistence(timeout: 60))
+        XCTAssertTrue(home.label.contains("Stored in James's iCloud"), home.label)
+        snapshot("phone-125-you-member")
+    }
+
     func testRenamingThisPhone() {
-        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you"])
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
         let device = app.buttons["this-device"]
         XCTAssertTrue(device.waitForExistence(timeout: 60))
         XCTAssertTrue(device.label.hasPrefix("James's iPhone"), device.label)
@@ -201,7 +239,7 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         snapshot("phone-131-join-who-dark")
         app.terminate()
 
-        app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you"])
+        app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
         XCTAssertTrue(app.descendants(matching: .any)["people-card"].waitForExistence(timeout: 60))
         snapshot("phone-132-you-dark")
     }

@@ -4,6 +4,9 @@ import SwiftUI
 /// device's name and role, and the two ways in, an invite or a code to scan. The owner can
 /// remove someone's devices here.
 struct FamilySection: View {
+    /// Brings the iCloud sync switch into view, when sync being off is what stops inviting.
+    var showSync: () -> Void = {}
+
     @Environment(AppModel.self) private var model
     @Environment(HouseholdSharingModel.self) private var sharing
     @Environment(DeviceSettings.self) private var device
@@ -59,9 +62,10 @@ struct FamilySection: View {
                     .foregroundStyle(Theme.muted)
             }
             if let household = model.household {
-                Text(storedIn(household))
+                Text("\(household.name) · \(home.whereText(device: device.model))")
                     .font(.body(14, weight: 600))
                     .foregroundStyle(Theme.muted)
+                    .accessibilityIdentifier("household-home")
             }
         }
         .padding(.bottom, 8)
@@ -77,14 +81,39 @@ struct FamilySection: View {
                     .buttonStyle(SecondaryButtonStyle())
                     .accessibilityIdentifier("show-code")
             }
-            .disabled(sharing.unavailableReason != nil)
-            if let reason = sharing.unavailableReason ?? failure {
-                Text(reason)
-                    .font(.body(14, weight: 600))
-                    .foregroundStyle(Theme.muted)
+            .disabled(blocker != nil)
+            if let reason = blocker ?? failure {
+                HStack(spacing: 10) {
+                    Text(reason)
+                        .font(.body(14, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("invite-blocker")
+                    if blocker != nil && home.turnsOnWithTheSwitch {
+                        Button("Go to iCloud sync", action: showSync)
+                            .font(.body(14, weight: 700))
+                            .foregroundStyle(Theme.accent)
+                            .frame(minHeight: 44)
+                            .accessibilityIdentifier("go-to-sync")
+                    }
+                }
             }
         }
         .padding(.top, 16)
+    }
+
+    /// Where the household lives now, from sync's state and the share.
+    private var home: HouseholdHome {
+        HouseholdHome.from(
+            sync.status, isOwner: sharing.members.isOwner,
+            ownerName: sharing.ownerName(people: model.everyone, devices: model.devices),
+            onSharedScreen: device.role == .sharedScreen
+        )
+    }
+
+    /// Why inviting can't work now: sync's state first, then the sharing itself.
+    private var blocker: String? {
+        home.inviteBlocker(device: device.model) ?? sharing.unavailableReason
     }
 
     private var me: Person? {
@@ -98,14 +127,6 @@ struct FamilySection: View {
         case .sharedScreen: "Shared screen · asks who did it"
         case .personal: "Just me · credits \(me?.name ?? "its owner")"
         }
-    }
-
-    /// "The Lake House · stored in James's iCloud".
-    private func storedIn(_ household: Household) -> String {
-        let owner = sharing.members.isOwner && sharing.members.participants.isEmpty
-            ? "your"
-            : sharing.ownerName(people: model.everyone, devices: model.devices).map { "\($0)'s" } ?? "its owner's"
-        return "\(household.name) · stored in \(owner) iCloud"
     }
 
     private func present(_ sheet: FamilySheet) {

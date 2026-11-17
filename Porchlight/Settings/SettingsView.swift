@@ -65,8 +65,10 @@ struct SettingsView: View {
                         .frame(maxWidth: 980, alignment: .leading)
                     }
 
-                    FamilySection()
-                        .id(Self.familyAnchor)
+                    FamilySection(showSync: {
+                        withAnimation(.easeInOut(duration: 0.35)) { reader.scrollTo(Self.syncAnchor, anchor: .top) }
+                    })
+                    .id(Self.familyAnchor)
 
                     // Each feature owns its own settings section.
                     CalendarSettingsSection()
@@ -75,6 +77,7 @@ struct SettingsView: View {
                     HomeSettingsSection()
 
                     SyncSettingsSection()
+                        .id(Self.syncAnchor)
 
                     section("This display") {
                         Toggle(isOn: $keepAwake) {
@@ -147,6 +150,7 @@ struct SettingsView: View {
     }
 
     private static let familyAnchor = "family"
+    private static let syncAnchor = "sync"
 
     private func binding(for person: Person) -> Binding<PersonDraft> {
         let id = person.id

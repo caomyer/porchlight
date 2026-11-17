@@ -39,7 +39,7 @@ final class HouseholdTests: XCTestCase {
     // MARK: Family & devices
 
     func testFamilyAndDevicesShowsEveryoneAndBothWaysIn() {
-        let app = launch(["-startScreen", "settings", "-debugSharing", "invited"])
+        let app = launch(["-startScreen", "settings", "-debugSharing", "invited", "-debugSyncStatus", "upToDate"])
         scroll(to: app.staticTexts["Who has the app"], in: app)
         scroll(to: app.buttons["show-code"], in: app)
         XCTAssertTrue(row(app, "James").label.contains("Owner · James's iPhone"), row(app, "James").label)
@@ -63,8 +63,26 @@ final class HouseholdTests: XCTestCase {
         XCTAssertFalse(app.images["join-code"].waitForExistence(timeout: 2))
     }
 
+    /// With sync off nothing is in iCloud: the card says so, and Invite says why it can't,
+    /// with a way to the switch.
+    func testWithSyncOffTheHouseholdIsOnThisIPadOnly() {
+        let app = launch(["-startScreen", "settings", "-debugSharing", "invited", "-debugSyncStatus", "off"])
+        let blocker = app.staticTexts["invite-blocker"]
+        scroll(to: blocker, in: app)
+        XCTAssertEqual(app.staticTexts["household-home"].label, "The Lake House · on this iPad only")
+        XCTAssertEqual(blocker.label, "Turn on iCloud sync to invite phones.")
+        XCTAssertFalse(app.buttons["invite"].isEnabled, "Invite waits for sync")
+        XCTAssertFalse(app.buttons["show-code"].isEnabled)
+        snapshot("92-family-sync-off")
+        app.buttons["go-to-sync"].tap()
+        let toggle = app.switches["sync-switch"]
+        let shown = expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: toggle)
+        wait(for: [shown], timeout: 5)
+        snapshot("93-sync-section")
+    }
+
     func testTheOwnerRemovesSomeonesPhone() {
-        let app = launch(["-startScreen", "settings", "-debugSharing", "joined"])
+        let app = launch(["-startScreen", "settings", "-debugSharing", "joined", "-debugSyncStatus", "upToDate"])
         let remove = app.buttons["Remove Mia's devices"]
         scroll(to: remove, in: app)
         XCTAssertTrue(row(app, "Mia").label.contains("Mia's iPhone"), row(app, "Mia").label)
@@ -80,7 +98,7 @@ final class HouseholdTests: XCTestCase {
     }
 
     func testRenamingThisIPadFitsAboveTheKeyboard() {
-        let app = launch(["-startScreen", "settings", "-debugSharing", "invited"])
+        let app = launch(["-startScreen", "settings", "-debugSharing", "invited", "-debugSyncStatus", "upToDate"])
         let change = app.buttons["change-this-device"]
         scroll(to: change, in: app)
         change.tap()

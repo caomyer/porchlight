@@ -28,7 +28,8 @@ struct YouSheet: View {
                     }
                     PhoneList {
                         if let household = model.household {
-                            InfoRow(emoji: "🏡", title: household.name, detail: peopleLine)
+                            InfoRow(emoji: "🏡", title: household.name, detail: homeLine)
+                                .accessibilityIdentifier("household-home")
                             RowDivider()
                         }
                         Button { path.append(.invite) } label: {
@@ -64,6 +65,26 @@ struct YouSheet: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("notifications")
+                    }
+                    // The phone's own switch, so "Turn on iCloud sync" always has a place to go.
+                    PhoneList {
+                        Toggle(isOn: Binding(get: { sync.isEnabled }, set: { sync.setEnabled($0) })) {
+                            HStack(spacing: 12) {
+                                Text("☁️").phoneFont(.body, 20).accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text("Sync with iCloud").phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                                    Text(sync.status.phoneSummary(device: DeviceWords.this))
+                                        .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                                        .foregroundStyle(Theme.muted)
+                                }
+                                .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .tint(Theme.good)
+                        .disabled(!sync.isAvailable || sync.decision != nil)
+                        .padding(.vertical, 8)
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("sync-switch")
                     }
                 }
                 .padding(.horizontal, 16)
@@ -137,9 +158,14 @@ struct YouSheet: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var peopleLine: String {
-        let names = model.people.map(\.name)
-        return names.count == 1 ? "Just \(names[0])" : "\(names.count) people · " + ListFormatter.localizedString(byJoining: names)
+    /// Where the household lives now: "Stored in James's iCloud", "On this iPhone only".
+    private var homeLine: String {
+        let home = HouseholdHome.from(
+            sync.status, isOwner: sharing.members.isOwner,
+            ownerName: sharing.ownerName(people: model.everyone, devices: model.devices)
+        )
+        let text = home.whereText(device: DeviceWords.this)
+        return text.prefix(1).uppercased() + text.dropFirst()
     }
 
     /// "Mia hasn't joined yet", or how to invite.
@@ -272,6 +298,8 @@ private struct PhoneStatePill: View {
 
 /// The outlined accent capsule of "Invite" and "I'll do it", with a 44 pt target.
 private struct TakeButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .phoneFont(.body, 12.5, weight: 800, relativeTo: .caption)
@@ -281,7 +309,7 @@ private struct TakeButtonStyle: ButtonStyle {
             .overlay(Capsule().strokeBorder(Theme.accent, lineWidth: 1))
             .frame(minHeight: 44)
             .contentShape(Rectangle())
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
             .fixedSize()
     }
 }
@@ -294,6 +322,7 @@ private struct InvitePage: View {
 
     @Environment(AppModel.self) private var model
     @Environment(HouseholdSharingModel.self) private var sharing
+    @Environment(SyncController.self) private var sync
     @State private var failure: String?
     @State private var addsSomeone = false
     @State private var newPerson = PersonDraft(name: "", color: .blue)
@@ -313,11 +342,13 @@ private struct InvitePage: View {
                         .phoneFont(.display, 28, weight: 600, relativeTo: .largeTitle)
                         .accessibilityAddTraits(.isHeader)
                 }
-                Text("They join with their own Apple ID and use \(storedIn) for the household. It uses almost none of their storage.")
+                Text(explanation)
                     .phoneFont(.body, 13.5, weight: 500)
                     .foregroundStyle(Theme.muted)
-                if let reason = sharing.unavailableReason ?? failure {
+                    .accessibilityIdentifier("invite-explanation")
+                if let reason = blocker ?? failure {
                     StatusBanner(tone: .info, emoji: "☁️", title: "Inviting needs iCloud", detail: reason)
+                        .accessibilityIdentifier("invite-blocker")
                 }
                 VStack(spacing: 0) {
                     ForEach(Array(waiting.enumerated()), id: \.element.id) { index, row in
@@ -352,15 +383,35 @@ private struct InvitePage: View {
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
-        .disabled(sharing.unavailableReason != nil)
+        .disabled(blocker != nil)
         // "‹ Invite someone" on the code's page; the page shows its own big title.
         .navigationTitle("Invite someone")
         .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1) } }
         .onAppear { newPerson.color = .suggested(for: model.people.count) }
     }
 
-    private var storedIn: String {
-        sharing.members.isOwner ? "your iCloud" : (sharing.ownerName(people: model.everyone, devices: model.devices).map { "\($0)'s iCloud" } ?? "the owner's iCloud")
+    private var home: HouseholdHome {
+        HouseholdHome.from(
+            sync.status, isOwner: sharing.members.isOwner,
+            ownerName: sharing.ownerName(people: model.everyone, devices: model.devices)
+        )
+    }
+
+    /// Why inviting can't work now: sync's state first, then the sharing itself.
+    private var blocker: String? {
+        home.inviteBlocker(device: DeviceWords.this) ?? sharing.unavailableReason
+    }
+
+    /// What joining means, true to where the household lives now.
+    private var explanation: String {
+        switch home {
+        case .yourICloud:
+            "They join with their own Apple ID and use your iCloud for the household. It uses almost none of their storage."
+        case .ownersICloud:
+            "They join with their own Apple ID and the household stays \(home.whereText(device: DeviceWords.this)). It uses almost none of their storage."
+        default:
+            "The household is \(home.whereText(device: DeviceWords.this)), so nobody can join it yet."
+        }
     }
 
     @ViewBuilder

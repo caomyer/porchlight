@@ -226,3 +226,10 @@ The live sharing code cannot run in tests or unsigned simulator builds; these li
   Each of the three changes different tables, and GRDB runs every unapplied migration in registered order, so a simulator that already ran the phone's migration still gets the other two, and one that ran ours gets the calendar's; the wall has run none of them.
 - The phone's cached sample photos now cache the bytes `MealPhotoImaging.prepare` makes, and sample meals store them as photo rows, as camera shots are; the cache key moved to `v2` because the files differ from the phone branch's.
 - The phone's new screens (Pitch in, Lists, Glow, the care sheet) write through the same store and database functions, so their rows are stamped too; `PhoneStampTests` checks every stamped table through those paths.
+
+### Where the household lives, said truthfully
+
+- Every place that names where the household is stored (the wall's Family & devices card, the phone's You sheet and invite page) reads it from `HouseholdHome`, which follows sync's state rather than the share alone.
+  With sync off it says "on this iPad only"; signed out or waiting for a choice, "on this iPad until …"; syncing, "stored in your iCloud" on someone's own device, or the owner's name on a shared screen and on members' devices.
+- While sync can't carry an invite, Invite and the code are disabled and a line says why; with sync off by choice, "Go to iCloud sync" brings the wall's switch into view.
+  The phone gained its own sync switch in You, so the same advice has somewhere to go there too.

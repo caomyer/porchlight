@@ -21,16 +21,11 @@ final class LiveHouseholdSharing: HouseholdSharing {
     /// engine, and creating a `CKContainer` there traps.
     private var container: CKContainer { CKContainer(identifier: SyncController.containerIdentifier) }
 
+    /// Sync's own states are told by `HouseholdHome`; this is what is left when sync is on
+    /// but the engine hasn't started yet.
     var unavailableReason: String? {
-        guard let engine = sync.engine else {
-            return "Inviting needs iCloud, and this build can't use it."
-        }
-        switch sync.status {
-        case .noAccount: return "Sign in to iCloud in the Settings app to invite people."
-        case .off(.switchedOff): return "Turn on iCloud sync below to invite people."
-        case .needsDecision: return "Choose what to do about iCloud sync below first."
-        default: return engine.isRunning ? nil : "Inviting works once iCloud sync is running."
-        }
+        guard let engine = sync.engine else { return "Inviting needs iCloud, and this build can't use it." }
+        return engine.isRunning ? nil : "Inviting works once iCloud sync is running."
     }
 
     func currentUserName() async -> String? {

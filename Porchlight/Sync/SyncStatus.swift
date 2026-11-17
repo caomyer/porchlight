@@ -112,3 +112,18 @@ enum SyncDebugStatus: String, CaseIterable, Sendable {
     case off, upToDate, syncing, waiting, noAccount, iCloudFull, needsDecision, restoredCopy, lookingForHousehold
 }
 #endif
+
+extension SyncStatus {
+    /// One short line under the phone's sync switch.
+    func phoneSummary(device: String) -> String {
+        switch self {
+        case .off(.switchedOff): "Off. Everything stays on this \(device)."
+        case .off: "Can't sync on this \(device) now."
+        case .noAccount: "Signed out of iCloud."
+        case .upToDate, .syncing: "On."
+        case .waiting: "On, waiting for iCloud."
+        case .iCloudFull: "Paused: iCloud is full."
+        case .needsDecision: "Waiting for your choice above."
+        }
+    }
+}
