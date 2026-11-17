@@ -29,8 +29,12 @@ final class LoggedEntryTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Who walked Yo-Yo?"].waitForExistence(timeout: 5))
         app.buttons["10 min"].tap()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save walk'")).firstMatch.tap()
+        // Saving celebrates, and the celebration goes by itself after a few seconds. Wait it
+        // out: tapping its button races it, and on a busy simulator the button can be gone by
+        // the tap, or come after the test stopped waiting and cover the taps below.
         let done = app.buttons["Back to today"]
-        if done.waitForExistence(timeout: 5) { done.tap() }
+        XCTAssertTrue(done.waitForExistence(timeout: 15), "Saving a walk celebrates")
+        XCTAssertTrue(done.waitForNonExistence(timeout: 15), "The celebration goes by itself")
 
         let walk = button(app, containing: "walked Yo-Yo · 10 min")
         XCTAssertTrue(walk.waitForExistence(timeout: 10), "The new walk should be a tappable row")
