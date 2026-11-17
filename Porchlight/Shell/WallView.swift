@@ -166,10 +166,12 @@ struct WallView: View {
 
     /// Switches to Ambient mode after `ambientMinutes` without a touch (0 = never).
     private func watchForIdle() async {
+        let minute = DisplaySettings.secondsPerIdleMinute
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(15))
+            // Four checks a minute: Ambient comes within 15 seconds of its time.
+            try? await Task.sleep(for: .seconds(minute / 4))
             guard ambientMinutes > 0, !showAmbient, selection != .settings else { continue }
-            if Date.now.timeIntervalSince(lastInteraction) >= Double(ambientMinutes) * 60 {
+            if Date.now.timeIntervalSince(lastInteraction) >= Double(ambientMinutes) * minute {
                 withAnimation(.easeInOut(duration: 1.2)) { showAmbient = true }
             }
         }

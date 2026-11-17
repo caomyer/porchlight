@@ -28,24 +28,30 @@ final class ScrollingTests: XCTestCase {
     }
 
     /// Touches still count as activity: the wall stays put while someone keeps
-    /// dragging, and switches to Ambient once the touches stop.
+    /// dragging, and switches to Ambient once the touches stop. A "minute" here lasts twelve
+    /// seconds (`-debugIdleSecondsPerMinute`), on the wall's real schedule.
     func testTouchesKeepTheWallAwake() {
+        let minute: TimeInterval = 12
         let app = XCUIApplication.porchlight()
-        app.launchArguments = ["-sampleHousehold", "-startScreen", "chores", "-display.ambientMinutes", "1"]
+        app.launchArguments = [
+            "-sampleHousehold", "-startScreen", "chores", "-display.ambientMinutes", "1",
+            "-debugIdleSecondsPerMinute", "\(Int(minute))",
+        ]
         app.launch()
         let ambient = app.descendants(matching: .any)["ambient"]
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 30))
 
+        // A drag every third of a minute, for well over a minute.
         let start = Date.now
-        while Date.now.timeIntervalSince(start) < 95 {
+        while Date.now.timeIntervalSince(start) < minute * 2.5 {
             let from = window.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.6))
             let to = window.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5))
             from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0)
-            Thread.sleep(forTimeInterval: 20)
+            Thread.sleep(forTimeInterval: minute / 3)
         }
         XCTAssertFalse(ambient.exists, "Regular touches should keep Ambient away")
 
-        XCTAssertTrue(ambient.waitForExistence(timeout: 100), "Ambient should appear about a minute after the last touch")
+        XCTAssertTrue(ambient.waitForExistence(timeout: minute * 3), "Ambient should appear about a minute after the last touch")
     }
 }

@@ -7,6 +7,16 @@ enum DisplaySettings {
     /// Minutes without a touch before the wall switches to Ambient mode (0 = never).
     static let ambientMinutesKey = "display.ambientMinutes"
     static let defaultAmbientMinutes = 10
+
+    /// How many seconds one of those minutes lasts: 60, except in a Debug build launched with
+    /// `-debugIdleSecondsPerMinute N`, so a UI test of Ambient takes seconds, not minutes.
+    static var secondsPerIdleMinute: Double {
+        #if DEBUG
+        let seconds = UserDefaults.standard.double(forKey: "debugIdleSecondsPerMinute")
+        if seconds > 0 { return seconds }
+        #endif
+        return 60
+    }
 }
 
 /// Wall-display behavior: never sleep while Porchlight is open, and hide the
