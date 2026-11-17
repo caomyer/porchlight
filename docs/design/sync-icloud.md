@@ -280,6 +280,32 @@ So when asking for everything fails, the check asks again for the household's ow
 The failure of "everything" stays visible under "Last error", and never backs off the household's own checks.
 SQLiteData doesn't expose its two engines, so the two databases can't be asked separately without changing the library.
 
+### When fetching brings nothing
+
+On the wall (iPadOS 17.7) every check was answered, yet four checks after the phone's change brought neither its new row nor its deletions, while a relaunch, which starts a fresh engine, brought them at once.
+Nothing on our side swallows the fetch: SQLiteData's `fetchChanges` calls `CKSyncEngine.fetchChanges` on the running private and shared engines and returns after the engine has handed every fetched change to its delegate (the header's note: the completion runs "only after your sync delegate finishes processing all related fetch events"); the poller's timeout only answers early and never cancels a fetch that finished; the household-zone retry only runs after an error; and ignoring fetch activity while a check runs only keeps "Syncing" off the screen, the engine's events are applied regardless.
+Why the explicit fetch of a long-running engine brings nothing there isn't documented; it may be iOS 17's `CKSyncEngine`, and it can't be reproduced without iCloud on a simulator.
+So a check no longer trusts it:
+
+1. It asks iCloud itself which zones changed since the last check, with its own change tokens apart from the engine's (`CKDatabase.databaseChanges(since:)`, one small request per database), each database on its own, so one failing never hides the other.
+   The first probe of a launch is only a baseline: the engine's start fetches everything older.
+2. Nothing changed: the check is answered and nothing else is asked, which is also the cheapest check there can be.
+3. Something changed (or the check came from a push or "Check now"): the engine fetches; when rows arrive, done.
+4. iCloud said something changed and the fetch brought nothing: the engine is stopped and started, as a relaunch does, and fetches.
+   It waits for a send in progress, and its saved state keeps pending sends; rows iCloud has no record of are queued again after it starts.
+   The wall's own sends also show as a changed zone, so a tap on the wall can cost one quiet restart, a few small reads of the schema and two requests: nothing the 2017 iPad notices at the rate people tap it.
+
+Each check's log line says what it brought and how: "nothing new (timer)", "received changes via timer, engine fetch: 149 to 150 rows", "received changes via timer, engine restart: …", or "iCloud reported private 1 zone changed; nothing new arrived" (most often this device's own send).
+Sync details shows the same under "Brought in", "iCloud says" and "Engine restarts", so the next device test is conclusive from the log alone.
+
+### A device that gets no push token
+
+The app asks for a token when the engine is created, again 30 seconds, 2 minutes and 10 minutes after coming to the front while none came, and whenever the network comes back; each ask is logged with "registered for pushes: yes/no".
+iOS answers an ask with either a token or an error; it answers with neither while the device's push daemon has no connection to Apple's push service for the app's environment (a development-signed build uses the sandbox service), and keeps the ask open until it has one.
+So no token and no error over minutes, on more than one network, points at the device: its push daemon stuck (a restart of the iPad is the usual cure), or the device not reaching the sandbox push service, which a development-signed build needs and a TestFlight build doesn't.
+A token that arrives with no pushes after it points at delivery instead (the subscription, or the network), and "Pushes" counts what arrives.
+SwiftUI forwards the push callbacks to the app delegate through `UIApplicationDelegateAdaptor` on iOS 17 as on later versions; the phone, running the same code, gets its token and its pushes.
+
 ### Checks that hang
 
 A check that takes more than a minute counts as failed; the fetch is cancelled and left to finish on its own, so it can never stop the checks that follow.

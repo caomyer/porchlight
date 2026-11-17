@@ -175,6 +175,17 @@ actor FakeSyncDevice: SyncDevice {
     func answer(after delay: Duration) {
         self.delay = delay
     }
+
+    /// What the next probes of iCloud say, in order; none left means it can't probe.
+    private var probes: [SyncProbe] = []
+
+    func willProbe(_ probes: [SyncProbe]) {
+        self.probes = probes
+    }
+
+    func probeChanges() -> SyncProbe? {
+        probes.isEmpty ? nil : probes.removeFirst()
+    }
     func accountName() -> String { name }
     nonisolated func changes() -> AsyncStream<SyncDeviceChange> { stream }
 

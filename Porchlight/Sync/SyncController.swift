@@ -114,6 +114,7 @@ final class SyncController {
     /// themselves (`appActivityChanged`), since the test host is always in front.
     @ObservationIgnored private let followsApplication: Bool
     @ObservationIgnored private var lifecycle: [NSObjectProtocol] = []
+    @ObservationIgnored private var tokenTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - hasHousehold: Whether this device already has a household, which decides the
@@ -179,7 +180,7 @@ final class SyncController {
         // iCloud, so a UI test can watch them tick on an untouched screen.
         if engine == nil, ProcessInfo.processInfo.arguments.contains("-debugSyncPoll") {
             trace.engineRunning = true
-            poller = makePoller { .checked }
+            poller = makePoller { _ in .checked }
             followLifecycle()
             return
         }
@@ -192,8 +193,8 @@ final class SyncController {
         // CloudKit registers for pushes itself once an engine exists; asking again is
         // harmless (UIKit hands back the same token) and makes the app delegate hear whether
         // a token arrived, which is the first thing to know when pushes don't come.
-        UIApplication.shared.registerForRemoteNotifications()
-        poller = makePoller { [weak self] in try await self?.quietFetch() ?? .skipped }
+        if followsApplication { requestPushToken(reason: "engine created") }
+        poller = makePoller { [weak self] trigger in try await self?.quietFetch(trigger) ?? .skipped }
         listenForChanges()
         watchActivity()
         watchStatus()
@@ -436,8 +437,13 @@ final class SyncController {
     func networkChanged(isOnline: Bool) {
         if isOnline != self.isOnline { trace.note(isOnline ? "online" : "offline") }
         self.isOnline = isOnline
+        let cameBack = isOnline && !trace.isOnline
         trace.isOnline = isOnline
         poller?.setOnline(isOnline)
+        // A new network (a hotspot) is a new chance at reaching Apple's push service.
+        if cameBack, followsApplication, poller != nil, !trace.pushToken.hasPrefix("arrived") {
+            requestPushToken(reason: "network back")
+        }
     }
 
     /// Records the end of a round of syncing as the last-synced time, when it ended online.
@@ -620,7 +626,7 @@ final class SyncController {
             ?? .standard(for: UIDevice.current.userInterfaceIdiom)
     }
 
-    private func makePoller(fetch: @escaping @MainActor @Sendable () async throws -> SyncPoller.Outcome) -> SyncPoller {
+    private func makePoller(fetch: @escaping @MainActor @Sendable (SyncPoller.Trigger) async throws -> SyncPoller.Outcome) -> SyncPoller {
         let timing = timing, role = role
         return SyncPoller(
             policy: .init(
@@ -701,6 +707,28 @@ final class SyncController {
         return trace.lastCheck?.outcome == "answered"
     }
 
+    /// Asks for a push token again when none came: 30 seconds, 2 minutes and 10 minutes
+    /// after the app came to the front, logging each ask.
+    private func watchPushToken() {
+        guard tokenTask == nil, followsApplication else { return }
+        tokenTask = Task { [weak self] in
+            for delay in [30, 120, 600] {
+                try? await Task.sleep(for: .seconds(delay))
+                guard let self, !Task.isCancelled else { return }
+                guard !self.trace.pushToken.hasPrefix("arrived") else { return }
+                self.requestPushToken(reason: "no token \(delay)s after coming to the front")
+            }
+        }
+    }
+
+    private func requestPushToken(reason: String) {
+        let application = UIApplication.shared
+        trace.tokenRequests += 1
+        application.registerForRemoteNotifications()
+        readPushState()
+        trace.note("asked for a push token (\(reason), ask \(trace.tokenRequests)); registered for pushes: \(application.isRegisteredForRemoteNotifications ? "yes" : "no")")
+    }
+
     /// "Check now" in Sync details, and a push: one check at once, also in the background.
     func checkNow(_ trigger: SyncPoller.Trigger) async {
         guard let poller else { return }
@@ -730,14 +758,21 @@ final class SyncController {
         trace.note("\(isActive ? "active" : "inactive") (\(source)), role \(role().rawValue), pushes \(trace.registeredForPushes ? "registered" : "not registered"), background refresh \(trace.backgroundRefresh), low power \(trace.lowPowerMode ? "on" : "off")")
         if !isActive { trace.nextCheckAt = nil }
         poller.setActive(isActive)
+        if isActive { watchPushToken() }
     }
 
-    /// One check, as the poller's. When asking for everything fails, it asks for the
-    /// household's own zone alone: SQLiteData fetches the private and shared databases
-    /// together and one failing cancels the other, and an owner's shared database (or a
-    /// member's private one) holds nothing of the household, so it must never stand in the
-    /// way (docs/design/sync-icloud.md, "Seeing what sync does").
-    private func quietFetch() async throws -> SyncPoller.Outcome {
+    /// One check, as the poller's (docs/design/sync-icloud.md, "When fetching brings
+    /// nothing"):
+    ///
+    /// 1. Ask iCloud, apart from the engine, which zones changed since the last check, in
+    ///    each database on its own. Nothing changed: done, nothing else is asked.
+    /// 2. Something changed: ask the engine to fetch. When rows arrive, done.
+    /// 3. iCloud said something changed but the engine's fetch brought nothing (as on the
+    ///    wall's iPadOS 17): restart the engine, which fetches on start as a relaunch does.
+    ///
+    /// Every check logs which of these brought the changes, so a device log says which
+    /// mechanism works there.
+    private func quietFetch(_ trigger: SyncPoller.Trigger) async throws -> SyncPoller.Outcome {
         guard let engine else { return .skipped }
         guard engine.isRunning, isEnabled, decision == nil else {
             let reason = !isEnabled ? "switch off" : decision != nil ? "waiting for a decision" : "engine not running"
@@ -749,9 +784,60 @@ final class SyncController {
         }
         quietFetches += 1
         defer { quietFetches -= 1 }
+        let before = await fingerprint()
+        let probe = await device?.probeChanges()
+        if let probe {
+            trace.lastProbe = probe.description
+            if probe.databases.contains(where: { $0.error != nil }) {
+                trace.note("probe (\(trigger.rawValue)): \(probe.description)")
+            }
+            if !probe.hasChanges {
+                // A push says something changed even when the probe's last token is newer.
+                guard trigger == .push || trigger == .manual else {
+                    trace.received = "nothing new (\(trigger.rawValue))"
+                    if probe.databases.allSatisfy({ $0.error != nil }) { throw ProbeFailed(description: probe.description) }
+                    return .checked
+                }
+            }
+        }
+        try await fetch(engine)
+        let afterFetch = await fingerprint()
+        if afterFetch != before {
+            received(via: "\(trigger.rawValue), engine fetch", before: before, after: afterFetch, probe: probe)
+            return .checked
+        }
+        guard let probe, probe.hasChanges else {
+            if trigger == .push || trigger == .manual { trace.note("nothing new after \(trigger.rawValue)") }
+            trace.received = "nothing new (\(trigger.rawValue))"
+            return .checked
+        }
+        // iCloud has changes the engine's fetch didn't bring. A fresh engine does.
+        guard !engine.isSendingChanges else {
+            trace.note("iCloud has changes (\(probe.description)); engine fetch brought none; restart waits for a send to finish")
+            return .checked
+        }
+        await settle()
+        await restartQuietly(engine)
+        let afterRestart = await fingerprint()
+        if afterRestart != before {
+            received(via: "\(trigger.rawValue), engine restart", before: before, after: afterRestart, probe: probe)
+        } else {
+            // Most often this device's own sends: they change the zone too.
+            trace.note("iCloud reported \(probe.description); nothing new arrived (\(trigger.rawValue), after an engine restart)")
+            trace.received = "nothing new (\(trigger.rawValue))"
+        }
+        return .checked
+    }
+
+    struct ProbeFailed: Error, CustomStringConvertible {
+        var description: String
+    }
+
+    /// The engine's fetch of both databases, and when that fails, of the household's own
+    /// zone alone, so the other database can't hold it back.
+    private func fetch(_ engine: SyncEngine) async throws {
         do {
             try await engine.fetchChanges()
-            return .checked
         } catch {
             if Task.isCancelled { throw error }
             let everything = error.syncDescription
@@ -763,11 +849,51 @@ final class SyncController {
                 try await engine.fetchChanges(CKSyncEngine.FetchChangesOptions(scope: .zoneIDs([zone])))
                 trace.note("check: everything failed (\(everything)), the household's zone answered")
                 trace.lastError = "everything: \(everything); household zone fine"
-                return .checked
             } catch {
                 trace.note("check failed: everything \(everything); household zone \(error.syncDescription)")
                 throw error
             }
+        }
+    }
+
+    /// Stops and starts the engine, as a relaunch does, and waits for its fetch. Pending
+    /// sends survive: the engine keeps them in its saved state, and rows iCloud never took
+    /// are queued again (`resendUnsent`).
+    private func restartQuietly(_ engine: SyncEngine) async {
+        trace.restarts += 1
+        engine.stop()
+        do {
+            try await engine.start()
+            try await engine.fetchChanges()
+        } catch {
+            trace.note("engine restart: \(error.syncDescription)")
+        }
+        trace.engineRunning = engine.isRunning
+        await resendUnsent()
+    }
+
+    /// What arrived, in rows the engine knows about.
+    private func received(via mechanism: String, before: Fingerprint?, after: Fingerprint?, probe: SyncProbe?) {
+        let rows = "\(before?.rows ?? 0) to \(after?.rows ?? 0) rows"
+        trace.received = "\(mechanism), \(rows)"
+        trace.note("received changes via \(mechanism): \(rows)\(probe.map { "; iCloud reported \($0.description)" } ?? "")")
+    }
+
+    /// The engine's record of every row: how many, and when they last changed. Rows that
+    /// arrive, change or go change it.
+    struct Fingerprint: Equatable, Sendable {
+        var rows: Int
+        var modified: Double
+    }
+
+    private func fingerprint() async -> Fingerprint? {
+        guard let writer else { return nil }
+        return try? await writer.read { db in
+            let row = try Row.fetchOne(db, sql: """
+                SELECT COUNT(*) AS rows, TOTAL(userModificationTime) AS modified
+                FROM sqlitedata_icloud_metadata WHERE NOT _isDeleted
+                """)
+            return Fingerprint(rows: row?["rows"] ?? 0, modified: row?["modified"] ?? 0)
         }
     }
 
@@ -802,7 +928,7 @@ final class SyncController {
             }
             markChecked(at: date)
             // Every check, but tersely: the log shows the checks keep coming.
-            trace.note("check answered (\(trigger.rawValue), \(trace.checks) so far)")
+            trace.note("check answered (\(trigger.rawValue), \(trace.checks) so far): \(trace.received ?? "-")")
         case .failed:
             let text = error?.syncDescription ?? "unknown"
             trace.lastCheck = .init(at: date, outcome: "failed", milliseconds: 0)

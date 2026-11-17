@@ -71,7 +71,7 @@ struct SyncPollerTests {
         let timing = SyncController.Timing()
         return SyncPoller(
             policy: .init(interval: { role == .sharedScreen ? timing.sharedScreenPoll : timing.personalPoll }, maxBackoff: timing.pollBackoff),
-            fetch: { try await fetch.run() },
+            fetch: { _ in try await fetch.run() },
             sleep: { try await clock.sleep($0) },
             timeoutSleep: timeoutSleep,
             onOutcome: { outcome, failures, _, trigger in
