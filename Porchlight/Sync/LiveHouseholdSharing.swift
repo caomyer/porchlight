@@ -46,12 +46,45 @@ final class LiveHouseholdSharing: HouseholdSharing {
 
     func joinCode(_ household: Household) async throws -> URL {
         let shared = try await share(household) { $0.publicPermission = .readWrite }
+        Self.log("join code on", shared.share)
         guard let url = shared.share.url else { throw SharingFailure.noLink }
         return url
     }
 
+    func linkJoiners(of household: Household) async throws -> [HouseholdParticipant] {
+        guard let share = try await latestShare(of: household) else { return [] }
+        let me = await currentUserName()
+        return HouseholdMembers(share: share, currentUserName: me).participants
+            .filter { $0.joinedByLink && $0.status == .joined && !$0.isCurrentUser }
+    }
+
     func endJoinCode(_ household: Household) async throws {
-        _ = try await share(household) { $0.publicPermission = .none }
+        let shared = try await share(household) { $0.publicPermission = .none }
+        Self.log("join code off", shared.share)
+    }
+
+    /// The share's state for the sync log: its link and how many participants of each
+    /// role and status, never who.
+    static func log(_ event: String, _ share: CKShare) {
+        let link = share.publicPermission == .none ? "closed" : "open"
+        var counts: [String: Int] = [:]
+        for participant in share.participants {
+            let role = switch participant.role {
+            case .owner: "owner"
+            case .privateUser: "private"
+            case .publicUser: "link"
+            default: "other"
+            }
+            let status = switch participant.acceptanceStatus {
+            case .accepted: "joined"
+            case .pending: "pending"
+            case .removed: "removed"
+            default: "unknown"
+            }
+            counts["\(role) \(status)", default: 0] += 1
+        }
+        let summary = counts.sorted { $0.key < $1.key }.map { "\($0.value) \($0.key)" }.joined(separator: ", ")
+        SyncLog.shared.write("share: \(event); link \(link); participants \(summary)")
     }
 
     func accept(_ invitation: HouseholdInvitation) async throws {
@@ -65,6 +98,7 @@ final class LiveHouseholdSharing: HouseholdSharing {
         share.removeParticipant(found)
         let (results, _) = try await container.privateCloudDatabase.modifyRecords(saving: [share], deleting: [])
         for result in results.values { _ = try result.get() }
+        Self.log("participant removed", share)
         // The engine caches the share with the household's metadata; fetching refreshes it.
         try? await sync.engine?.fetchChanges()
     }
@@ -142,7 +176,8 @@ extension HouseholdMembers {
                     userName: userName,
                     role: participant.role == .owner ? .owner : .member,
                     status: participant.acceptanceStatus == .accepted ? .joined : .invited,
-                    isCurrentUser: isCurrentUser
+                    isCurrentUser: isCurrentUser,
+                    joinedByLink: participant.role == .publicUser
                 )
             }
             .sorted { ($0.role == .owner ? 0 : 1) < ($1.role == .owner ? 0 : 1) }

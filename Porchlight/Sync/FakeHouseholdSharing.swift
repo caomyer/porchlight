@@ -46,8 +46,14 @@ final class FakeHouseholdSharing: HouseholdSharing {
         return joinCodeURL
     }
 
+    func linkJoiners(of household: Household) async throws -> [HouseholdParticipant] {
+        members.participants.filter { $0.joinedByLink && $0.status == .joined }
+    }
+
+    /// As CloudKit does: closing the link removes everyone who joined through it.
     func endJoinCode(_ household: Household) async throws {
         calls.append("endJoinCode")
+        members.participants.removeAll { $0.joinedByLink }
     }
 
     func accept(_ invitation: HouseholdInvitation) async throws {

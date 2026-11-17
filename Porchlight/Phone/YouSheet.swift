@@ -588,6 +588,7 @@ private struct JoinCodePage: View {
                     .phoneFont(.body, 14, weight: 500)
                     .foregroundStyle(Theme.muted)
                     .multilineTextAlignment(.center)
+                JoinCodeJoiners(compact: true)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)

@@ -280,6 +280,7 @@ private struct JoinCodeWallSheet: View {
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+            JoinCodeJoiners()
             Button("Done") { close() }
                 .buttonStyle(PrimaryButtonStyle())
         }

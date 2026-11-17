@@ -18,7 +18,11 @@ protocol HouseholdSharing: AnyObject {
     func invite(_ household: Household) async throws -> HouseholdInvite
     /// The share's link for a code to scan, after letting anyone with the link join.
     func joinCode(_ household: Household) async throws -> URL
-    /// Stops anyone with the link joining, when the code is put away.
+    /// Who joined through the link and is still in: they lose access when the code is
+    /// turned off (docs/design/households.md, "The join code").
+    func linkJoiners(of household: Household) async throws -> [HouseholdParticipant]
+    /// Stops anyone with the link joining. CloudKit then removes everyone who joined through
+    /// it, so it is only called when nobody did, or when the owner chose to after being told who.
     func endJoinCode(_ household: Household) async throws
     /// Accepts an invite that opened the app; the household syncs in.
     func accept(_ invitation: HouseholdInvitation) async throws
@@ -44,6 +48,8 @@ struct HouseholdParticipant: Identifiable, Hashable, Sendable {
     var role: Role
     var status: Status
     var isCurrentUser: Bool
+    /// Joined through the code's link (a public participant): turning the code off removes them.
+    var joinedByLink = false
 }
 
 /// Everyone on the household's share.
@@ -129,10 +135,37 @@ extension HouseholdParticipant {
     }
 }
 
-/// How the QR code behaves when it is put away (docs/design/households.md, experiment S2).
+/// How the QR code behaves when it is put away (docs/design/households.md, "The join code").
+///
+/// Experiment S2 answered it on two devices, as Apple's documentation says: setting the
+/// share's `publicPermission` back to none removes everyone who joined through the link. So
+/// putting the code away only closes the link when nobody joined through it; otherwise the
+/// code stays on, the sheet says who it keeps in, and turning it off is the owner's choice,
+/// made knowing who will lose access.
 enum JoinCodePolicy {
-    /// Whether someone who joined through the link keeps access once link-joining is turned
-    /// off. Assumed yes until two devices prove it; if not, the code stays joinable after the
-    /// screen closes, and the screen says so.
-    static let joinersKeepAccess = true
+    /// What putting the code away does, given who joined through it.
+    enum Closing: Equatable {
+        /// Nobody joined through it: the link closes.
+        case closeLink
+        /// These people joined through it and keep access only while it stays on.
+        case keepOpen([String])
+    }
+
+    static func closing(linkJoiners: [HouseholdParticipant]) -> Closing {
+        linkJoiners.isEmpty ? .closeLink : .keepOpen(linkJoiners.map { $0.name ?? "Someone with the code" })
+    }
+
+    /// "Carol joined with this code…", or nil when nobody did.
+    static func keptOpenText(_ names: [String]) -> String? {
+        guard !names.isEmpty else { return nil }
+        let who = ListFormatter.localizedString(byJoining: names)
+        let they = names.count == 1 ? "They keep" : "They keep"
+        return "\(who) joined with this code. \(they) access only while the code stays on, so it stays on after you close this."
+    }
+
+    /// The question before turning the code off: who it removes.
+    static func turnOffQuestion(_ names: [String]) -> String {
+        let who = ListFormatter.localizedString(byJoining: names)
+        return "Turning the code off removes \(who) from the household. You can invite \(names.count == 1 ? "them" : "them") again by name with Invite someone."
+    }
 }
