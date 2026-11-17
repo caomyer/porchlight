@@ -54,8 +54,10 @@ private enum Launch {
             let sync = SyncController.live(database: database)
             // Rows written by migrations once sync has been on must be recorded by the engine.
             try database.migrateData()
-            // Reminder actions handled with the app in the background use this same instance.
+            // Reminder actions, widget buttons and Siri, handled with the app in the
+            // background, use this same instance and controller.
             AppDatabase.launched = database
+            SyncController.launched = sync
             return .ready(Stores(database: database, sync: sync))
         } catch {
             return .failed(error.localizedDescription)
@@ -88,6 +90,9 @@ private struct Stores {
         photos = PhotoImages(database: database)
         device = DeviceSettings()
         sharing = HouseholdSharingModel(service: Self.sharingService(database: database, sync: sync), database: database)
+        // Also in a background launch, where no view runs: a widget's button or a change
+        // from sync then still reaches the widgets.
+        WidgetSummaryKeeper.start(database: database, companions: companions, home: home, device: device)
         #if DEBUG
         DebugArrivals.start(ProcessInfo.processInfo.arguments, database: database)
         #endif

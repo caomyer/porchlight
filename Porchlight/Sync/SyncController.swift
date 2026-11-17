@@ -267,6 +267,27 @@ final class SyncController {
 
     // MARK: Engine and device events
 
+    /// The controller of this launch, for work done with the app in the background (a
+    /// widget's button, Siri), which has no view to find it through.
+    static var launched: SyncController?
+
+    /// Sends pending changes now and waits for that, at most `timeout`: a widget or Siri
+    /// log may be all a background launch does, and iOS can suspend the app soon after, so
+    /// it doesn't wait for the engine's own schedule (docs/design/beyond-the-app.md). When
+    /// sync is off, waiting for a decision, signed out or offline, it returns at once or at
+    /// the timeout, and the change stays pending for the next time sync runs.
+    func sendSoon(timeout: Duration = .seconds(10)) async {
+        guard let engine else { return }
+        await settle()
+        guard engine.isRunning else { return }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { try? await engine.sendChanges() }
+            group.addTask { try? await Task.sleep(for: timeout) }
+            await group.next()
+            group.cancelAll()
+        }
+    }
+
     /// Brings the engine in line with the switch, the account and any pending decision.
     /// Later calls replace earlier ones, so the last change always wins.
     func refresh() {
