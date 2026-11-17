@@ -128,6 +128,8 @@ One-time setup:
 - The App Store Connect app is "Porchlight Homes", bundle id `com.mingyucao.porchlight`.
 - Create an App Store Connect API key (App Store Connect › Users and Access › Integrations), keep the `.p8` file outside the repository (for example in `~/.appstoreconnect/`), and copy `Config/AppStoreConnect.example.env` to `Config/AppStoreConnect.env` with its path, key id and issuer id.
   That file is git-ignored; never commit the key or its ids.
+- Exporting for App Store Connect signs with a distribution certificate: either the key has the Admin role, which lets it use Apple's cloud-managed distribution certificate, or this Mac has an Apple Distribution certificate of its own (Xcode › Settings › Accounts › Manage Certificates › +).
+  A key without either archives fine and then fails to export with "Cloud signing permission error".
 - The scripts that sign pass this key to `xcodebuild` (`-authenticationKeyPath`, `-authenticationKeyID`, `-authenticationKeyIssuerID`), because `xcodebuild -allowProvisioningUpdates` in a terminal may not see the account Xcode is signed in to ("No Accounts").
 
 Each build:

@@ -115,7 +115,15 @@ xcodebuild -exportArchive \
   -exportPath "$export_dir" \
   -exportOptionsPlist "$out/ExportOptions.plist" \
   "${porchlight_signing_args[@]}" \
-  > "$out/export.log" 2>&1 || { grep -E "error:" "$out/export.log" | head -20; echo "Export failed; see $out/export.log" >&2; exit 1; }
+  > "$out/export.log" 2>&1 || {
+    grep -E "error:" "$out/export.log" | head -20
+    if grep -q "cloud-managed distribution certificates" "$out/export.log"; then
+      echo "The App Store Connect key may not use cloud-managed distribution certificates, and this Mac has no Apple Distribution certificate of its own." >&2
+      echo "Either give the key the Admin role (App Store Connect › Users and Access › Integrations), or create an Apple Distribution certificate on this Mac (Xcode › Settings › Accounts › Manage Certificates › +), then run this again." >&2
+    fi
+    echo "Export failed; see $out/export.log" >&2
+    exit 1
+  }
 ipa="$(ls "$export_dir"/*.ipa | head -1)"
 
 echo "Validating with App Store Connect"
