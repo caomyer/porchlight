@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import UserNotifications
 
 /// Makes iOS's pending notifications match the planner: removes what is no longer planned
@@ -12,14 +13,12 @@ enum ReminderScheduler {
     static let snoozeAction = "snooze"
     static let handOffAction = "handOff"
 
-    /// Reads the household, "me" and this phone's choices, plans, and applies the plan.
-    /// The same path runs from the app and from a notification action with the app closed.
+    /// Reads every household this phone belongs to, "me" in each and this phone's choices,
+    /// plans, and applies the plan. Reminders come from every household, not only the one on
+    /// screen, each named by its household when there is more than one (journey A5). The
+    /// same path runs from the app and from a notification action with the app closed.
     static func refresh(database: AppDatabase, defaults: UserDefaults = .standard, now: Date = CompanionClock.now()) async {
         let center = UNUserNotificationCenter.current()
-        guard let companions = try? await database.writer.read(CompanionSnapshot.fetch), let household = companions.household else {
-            await apply([], settled: [], now: now, center: center)
-            return
-        }
         // Only a personal device reminds; a shared screen never asks and never schedules.
         let device = DeviceSettings(defaults: defaults)
         guard device.role == .personal, await NotificationAccess.current() == .allowed else {
@@ -27,17 +26,38 @@ enum ReminderScheduler {
             return
         }
         var choices = ReminderSettings.load(defaults)
-        choices.prune(before: DayKey(now, calendar: household.calendar).adding(days: -1, calendar: household.calendar))
-        ReminderSettings.save(choices, to: defaults)
-        let home = try? database.homeSnapshot(since: DayKey(now, calendar: household.calendar).adding(days: -1, calendar: household.calendar))
+        let households = (try? await database.writer.read { try Household.order(Column("createdAt"), Column("id")).fetchAll($0) }) ?? []
+        if let first = households.first {
+            choices.prune(before: DayKey(now, calendar: first.calendar).adding(days: -2, calendar: first.calendar))
+            ReminderSettings.save(choices, to: defaults)
+        }
+        var plan: [PlannedReminder] = []
+        var settled = Set<String>()
+        for household in households {
+            let plans = plans(for: household, named: households.count > 1, database: database, device: device, choices: choices, now: now)
+            plan += plans.plan
+            settled.formUnion(plans.settled)
+        }
+        await apply(plan, settled: settled, now: now, center: center)
+    }
+
+    /// One household's reminders, for this phone's person there. Pure but for the reads.
+    static func plans(
+        for household: Household, named: Bool, database: AppDatabase, device: DeviceSettings, choices: ReminderChoices, now: Date
+    ) -> (plan: [PlannedReminder], settled: Set<String>) {
+        guard let companions = try? database.writer.read({ try CompanionSnapshot.fetch($0, householdId: household.id) }) else { return ([], []) }
+        let since = DayKey(now, calendar: household.calendar).adding(days: -1, calendar: household.calendar)
+        let home = try? database.writer.read { try HomeSnapshot.fetch($0, since: since, householdId: household.id) }
+        let me = device.me(in: household.id)
         var plan = ReminderPlanner.plan(
             companions: companions, chores: home?.chores ?? [], completions: home?.completions ?? [],
-            me: device.me(in: household.id), choices: choices, now: now
+            me: me, choices: choices, now: now
         )
         #if DEBUG
-        if let soon = debugReminder(companions: companions, me: device.me(in: household.id), now: now) { plan.append(soon) }
+        if let soon = debugReminder(companions: companions, me: me, now: now) { plan.append(soon) }
         #endif
-        await apply(plan, settled: ReminderPlanner.settledIDs(companions: companions, now: now), now: now, center: center)
+        if named { plan = plan.map { ReminderPlanner.named($0, household: household.name) } }
+        return (plan, ReminderPlanner.settledIDs(companions: companions, now: now))
     }
 
     #if DEBUG
@@ -49,7 +69,7 @@ enum ReminderScheduler {
         var choices = ReminderChoices(chores: false)
         for slot in ReminderSlots.all(companions) { choices.care[slot.id] = .missed }
         guard var soon = ReminderPlanner.plan(companions: companions, chores: [], completions: [], me: me, choices: choices, now: now).first else { return nil }
-        soon.id = PlannedReminder.prefix + "debug"
+        soon.id = PlannedReminder.prefix + "debug." + (companions.household?.id.description ?? "")
         soon.fireDate = now.addingTimeInterval(seconds)
         return soon
     }
@@ -79,7 +99,8 @@ enum ReminderScheduler {
         content.title = reminder.title
         content.body = reminder.body
         content.sound = .default
-        content.threadIdentifier = "porchlight"
+        // One thread per household, so each household's reminders stack together.
+        content.threadIdentifier = reminder.household.map { "porchlight.\($0)" } ?? "porchlight"
         var info: [String: String] = ["fingerprint": fingerprint(reminder)]
         if case let .care(routine, slot, day) = reminder.kind {
             content.categoryIdentifier = careCategoryPrefix + routine.description

@@ -26,8 +26,20 @@ struct CompanionSnapshot: Equatable, Sendable {
 
     static let empty = CompanionSnapshot()
 
+    /// The household on screen.
     static func fetch(_ db: Database) throws -> CompanionSnapshot {
         guard let household = try Household.current(db) else { return .empty }
+        return try fetch(db, household: household)
+    }
+
+    /// One household's companions, whichever is on screen: reminders and a reminder's
+    /// action read every household this phone belongs to.
+    static func fetch(_ db: Database, householdId: Household.ID) throws -> CompanionSnapshot {
+        guard let household = try Household.fetchOne(db, id: householdId) else { return .empty }
+        return try fetch(db, household: household)
+    }
+
+    private static func fetch(_ db: Database, household: Household) throws -> CompanionSnapshot {
         let householdId = household.id
         let everyone = try Person.everyone(in: householdId).fetchAll(db)
         let companions = try Companion
@@ -57,7 +69,14 @@ struct CompanionSnapshot: Equatable, Sendable {
         let photos = Dictionary(uniqueKeysWithValues: photoRows.map { ($0["companionId"] as Companion.ID, $0["byteCount"] as Int) })
         let order = Dictionary(uniqueKeysWithValues: everyone.enumerated().map { index, person in (person.id, index) })
         var peopleByLog: [CareLog.ID: [Person.ID]] = [:]
-        for link in try CareLogPerson.fetchAll(db) {
+        // This household's links only, never another household's.
+        for link in try CareLogPerson.fetchAll(db, sql: """
+            SELECT careLogPerson.* FROM careLogPerson
+            JOIN careLog ON careLog.id = careLogPerson.careLogId
+            JOIN careRoutine ON careRoutine.id = careLog.careRoutineId
+            JOIN companion ON companion.id = careRoutine.companionId
+            WHERE companion.householdId = ?
+            """, arguments: [householdId]) {
             peopleByLog[link.careLogId, default: []].append(link.personId)
         }
         let entries = logs.map { log in

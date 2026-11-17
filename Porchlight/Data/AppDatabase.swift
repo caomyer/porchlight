@@ -186,6 +186,10 @@ extension AppDatabase {
                 )
                 try person.insert(db)
             }
+            // A household started here is the one this device shows from now on, also when
+            // it already belongs to another (journey A5).
+            try DeviceState.set(.currentHouseholdId, household.id.description, db)
+            try DeviceState.set(.currentHouseholdName, household.name, db)
             return household
         }
     }
@@ -324,20 +328,27 @@ struct HouseholdSnapshot: Equatable, Sendable {
     /// The household this device showed and no longer has: someone removed it from the
     /// household, or stopped sharing it (journey A6). Nil until the person has seen it.
     var removed: RemovedHousehold?
+    /// Every household on this device, oldest first, with who lives in each, for "Your
+    /// households" (journey A5). Only names and people: nothing else of another household
+    /// is ever read for a screen.
+    var households: [HouseholdChoice] = []
 
     static let empty = HouseholdSnapshot(household: nil, people: [], everyone: [])
 
     static func fetch(_ db: Database) throws -> HouseholdSnapshot {
         let removed = try RemovedHousehold.fetch(db)
+        let households = try HouseholdChoice.fetchAll(db)
         guard let household = try Household.current(db) else {
-            return HouseholdSnapshot(household: nil, people: [], everyone: [], removed: removed)
+            return HouseholdSnapshot(household: nil, people: [], everyone: [], removed: removed, households: households)
         }
         let everyone = try Person.everyone(in: household.id).fetchAll(db)
         let devices = try Device
             .filter(Column("householdId") == household.id)
             .order(Column("createdAt"), Column("id"))
             .fetchAll(db)
-        return HouseholdSnapshot(household: household, people: everyone.active, everyone: everyone, devices: devices, removed: removed)
+        return HouseholdSnapshot(
+            household: household, people: everyone.active, everyone: everyone, devices: devices, removed: removed, households: households
+        )
     }
 
     /// The personal devices a person has, newest first.
@@ -351,6 +362,28 @@ struct HouseholdSnapshot: Equatable, Sendable {
         guard let device = deviceId.flatMap({ id in devices.first { $0.id == id } }),
               let person = everyone.person(device.owner) else { return nil }
         return "from \(person.name)'s \(device.kindWord)"
+    }
+}
+
+/// One household in "Your households": its name and the people who live there now.
+struct HouseholdChoice: Equatable, Sendable, Identifiable {
+    var household: Household
+    var people: [Person]
+
+    var id: Household.ID { household.id }
+
+    /// Set up households, oldest first; one still being set up here is shown once it is.
+    static func fetchAll(_ db: Database) throws -> [HouseholdChoice] {
+        try Household.filter(Column("setupCompleted") == true).order(Column("createdAt"), Column("id")).fetchAll(db).map { household in
+            HouseholdChoice(household: household, people: try Person.active(in: household.id).fetchAll(db))
+        }
+    }
+
+    /// "You are Mia · 3 people".
+    func line(me: Person.ID?) -> String {
+        let count = people.count == 1 ? "1 person" : "\(people.count) people"
+        guard let me = people.person(me) else { return count }
+        return "You are \(me.name) · \(count)"
     }
 }
 

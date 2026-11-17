@@ -104,11 +104,41 @@ struct PocketShell: View {
 struct PocketHeader: View {
     var small: String?
     let title: String
+    /// The household's name, tappable to switch, on a phone in more than one (journey A5,
+    /// `a5today`); nil otherwise.
+    var household: String?
+
+    @Environment(\.openYou) private var openYou
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 0) {
-                if let small {
+                if let household {
+                    HStack(spacing: 0) {
+                        if let small {
+                            Text(small + " · ")
+                                .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
+                                .foregroundStyle(Theme.muted)
+                        }
+                        Button { openYou?() } label: {
+                            HStack(spacing: 3) {
+                                Text(household)
+                                    .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 9, weight: .heavy))
+                            }
+                            .foregroundStyle(Theme.accent)
+                            .frame(minHeight: 28)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(household)
+                        .accessibilityHint("Shows your households, to switch")
+                        .accessibilityIdentifier("household-switcher")
+                    }
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                } else if let small {
                     Text(small)
                         .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
                         .foregroundStyle(Theme.muted)

@@ -200,7 +200,7 @@ extension AppDatabase {
             try ChoreCompletion.filter(Column("choreId") == chore.id).deleteAll(db)
         }
         let completion = ChoreCompletion(
-            choreId: chore.id, day: day, personId: person, stars: chore.stars, completedAt: now, deviceId: try stamp(db)
+            choreId: chore.id, day: day, personId: person, stars: chore.stars, completedAt: now, deviceId: stamp(in: chore.householdId)
         )
         try completion.upsert(db)
         return completion
@@ -227,7 +227,7 @@ extension AppDatabase {
                 throw HomeValidationError.notDue
             }
             let completion = ChoreCompletion(
-                choreId: id, day: day, personId: personId, stars: chore.stars, completedAt: now, deviceId: try stamp(db)
+                choreId: id, day: day, personId: personId, stars: chore.stars, completedAt: now, deviceId: stamp(in: chore.householdId)
             )
             try completion.upsert(db)
         }
@@ -289,7 +289,7 @@ extension AppDatabase {
             guard latest == known, stars > 0 else { throw HomeValidationError.alreadyCashedIn }
             let redemption = RewardRedemption(
                 id: RewardRedemption.id(rewardId: id, after: known), rewardId: id, personId: reward.ownerId,
-                stars: max(stars, 0), day: day.rawValue, redeemedAt: now, deviceId: try stamp(db)
+                stars: max(stars, 0), day: day.rawValue, redeemedAt: now, deviceId: stamp(in: reward.householdId)
             )
             try redemption.upsert(db)
             try db.execute(sql: "UPDATE reward SET startDay = ? WHERE id = ?", arguments: [day.rawValue, id])
@@ -359,7 +359,7 @@ extension AppDatabase {
                 checked: false,
                 sortOrder: try Self.nextOrder(db, table: "listItem", where: "listId", listId),
                 createdAt: now,
-                deviceId: try stamp(db)
+                deviceId: stamp(in: list.householdId)
             )
             try item.insert(db)
             return item
@@ -488,6 +488,16 @@ struct HomeSnapshot: Equatable, Sendable {
     /// can show: the window from `since` and every active reward's start day.
     static func fetch(_ db: Database, since: DayKey) throws -> HomeSnapshot {
         guard let household = try Household.current(db) else { return .empty }
+        return try fetch(db, since: since, household: household)
+    }
+
+    /// One household's Home data, whichever is on screen (reminders read every household).
+    static func fetch(_ db: Database, since: DayKey, householdId: Household.ID) throws -> HomeSnapshot {
+        guard let household = try Household.fetchOne(db, id: householdId) else { return .empty }
+        return try fetch(db, since: since, household: household)
+    }
+
+    private static func fetch(_ db: Database, since: DayKey, household: Household) throws -> HomeSnapshot {
         let householdId = household.id
         let everyone = try Person.everyone(in: householdId).fetchAll(db)
         let chores = try Chore.filter(Column("householdId") == householdId).order(Column("sortOrder"), Column("createdAt"), Column("id")).fetchAll(db)

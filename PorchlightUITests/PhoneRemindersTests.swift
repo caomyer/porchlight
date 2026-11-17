@@ -117,6 +117,35 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         snapshot("c1-12-logged")
     }
 
+    /// Two households' reminders arrive, each named (journey A5, `a5notif`). Delivery by hand,
+    /// like `testDeliveryByHand`: `TEST_RUNNER_PORCHLIGHT_DELIVERY=1` with
+    /// `-only-testing:PorchlightUITests/PhoneRemindersTests/testNamedRemindersByHand`, after
+    /// notifications were allowed once. `TEST_RUNNER_PORCHLIGHT_DARK=1` shoots the night look.
+    func testNamedRemindersByHand() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["PORCHLIGHT_DELIVERY"] == "1", "Run by hand")
+        let dark = ProcessInfo.processInfo.environment["PORCHLIGHT_DARK"] == "1"
+        XCUIDevice.shared.appearance = dark ? .dark : .light
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let app = XCUIApplication.porchlight()
+        app.launchArguments = ["-sampleHousehold", "-sampleSecondHousehold", "-debugCompanionNow", Self.evening, "-me", "James", "-debugReminderIn", "15"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
+        sleep(6)
+        app.terminate()
+        XCUIDevice.shared.press(.home)
+        let lake = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'The Lake House ·'")).firstMatch
+        let rosas = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS \"Grandma Rosa's ·\"")).firstMatch
+        XCTAssertTrue(lake.waitForExistence(timeout: 40) || rosas.waitForExistence(timeout: 5), "A reminder arrives, named")
+        sleep(4)
+        // Notification Center lists both.
+        let top = springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.005))
+        top.press(forDuration: 0.1, thenDragTo: springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.7)))
+        XCTAssertTrue(lake.waitForExistence(timeout: 10), "The Lake House's reminder, named")
+        XCTAssertTrue(rosas.waitForExistence(timeout: 10), "and Grandma Rosa's, named")
+        sleep(1)
+        snapshot(dark ? "a5-41-named-reminders-dark" : "a5-40-named-reminders")
+    }
+
     func testNightLook() {
         XCUIDevice.shared.appearance = .dark
         let app = openNotifications("allowed")

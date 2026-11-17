@@ -19,11 +19,12 @@ extension AppDatabase {
         Device.id(householdId: householdId, install: installId)
     }
 
-    /// The device every row written now is stamped with: this device's row in the current
-    /// household. Every write path that adds a stamped row calls it once, inside its own
-    /// transaction (docs/design/households.md, "Where a row came from").
-    func stamp(_ db: Database) throws -> Device.ID? {
-        try Household.current(db).map { thisDeviceId(in: $0.id) }
+    /// The device a row written into a household is stamped with: this device's row in
+    /// that household, which needn't be the one on screen (a reminder's action logs into its
+    /// own household). Every write path that adds a stamped row names the household the row
+    /// belongs to (docs/design/households.md, "Where a row came from", "Two households").
+    func stamp(in householdId: Household.ID) -> Device.ID? {
+        thisDeviceId(in: householdId)
     }
 
     /// Writes this device's row in a household: when it opens the household, and whenever

@@ -26,6 +26,78 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         return app
     }
 
+    // MARK: Two households (A5)
+
+    private static var evening: String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
+        return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
+    }
+
+    private func twoHouseholds(_ extra: [String] = []) -> XCUIApplication {
+        let app = launch(["-sampleHousehold", "-sampleSecondHousehold", "-me", "James", "-debugCompanionNow", Self.evening] + extra)
+        XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
+        return app
+    }
+
+    /// Today names the household, You lists both with a tick, and one tap switches every tab.
+    func testSwitchingHouseholds() {
+        let app = twoHouseholds()
+        let switcher = app.buttons["household-switcher"]
+        XCTAssertTrue(switcher.exists, "Today's header names the household when there are two")
+        XCTAssertEqual(switcher.label, "The Lake House")
+        XCTAssertTrue(app.buttons["week-Yo-Yo"].exists || app.staticTexts["Yo-Yo"].exists, "The Lake House's companion")
+        snapshot("a5-10-today-header")
+        switcher.tap()
+
+        let rosas = app.buttons["household-Grandma Rosa's"]
+        XCTAssertTrue(rosas.waitForExistence(timeout: 5), "You lists both households")
+        XCTAssertTrue(app.buttons["household-The Lake House"].label.contains("You are James · 2 people"), app.buttons["household-The Lake House"].label)
+        XCTAssertEqual(app.buttons["household-The Lake House"].value as? String, "Showing now")
+        XCTAssertTrue(app.buttons["another-household"].exists, "Join or start another")
+        snapshot("a5-11-your-households")
+        rosas.tap()
+
+        XCTAssertTrue(app.buttons["household-switcher"].waitForExistence(timeout: 10))
+        let switched = expectation(for: NSPredicate(format: "label == %@", "Grandma Rosa's"), evaluatedWith: app.buttons["household-switcher"])
+        wait(for: [switched], timeout: 10)
+        XCTAssertTrue(element(app, beginningWith: "Tomatoes").waitForExistence(timeout: 10), "Today shows Grandma Rosa's tomatoes")
+        XCTAssertFalse(app.staticTexts["Yo-Yo"].exists, "and nothing of The Lake House")
+        snapshot("a5-12-today-rosas")
+
+        app.tabBars.buttons["Lists"].tap()
+        XCTAssertTrue(app.staticTexts["Groceries"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["PRODUCE"].exists, "The Lake House's groceries stay there")
+    }
+
+    /// The night look of the switcher and the header, for review.
+    func testSwitcherNightLook() {
+        XCUIDevice.shared.appearance = .dark
+        let app = twoHouseholds()
+        XCTAssertTrue(app.buttons["household-switcher"].exists)
+        snapshot("a5-20-today-header-dark")
+        app.buttons["household-switcher"].tap()
+        XCTAssertTrue(app.buttons["household-Grandma Rosa's"].waitForExistence(timeout: 5))
+        snapshot("a5-21-your-households-dark")
+    }
+
+    /// With one household, nothing names it and You has no list, only "Join or start another".
+    func testOneHouseholdHasNoSwitcher() {
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugCompanionNow", Self.evening])
+        XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
+        XCTAssertFalse(app.buttons["household-switcher"].exists)
+        let you = app.buttons["you"]
+        // Today is still settling after launch: a tap during that is dropped.
+        you.waitToSettle()
+        you.tap()
+        let another = app.buttons["another-household"]
+        XCTAssertTrue(another.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["household-The Lake House"].exists)
+        reveal(another, in: app)
+        another.tap()
+        XCTAssertTrue(app.buttons["start-another"].waitForExistence(timeout: 5), "Start or join another")
+        snapshot("a5-30-another")
+    }
+
     // MARK: Welcome and joining
 
     func testTheWelcomeExplainsBothWaysIn() {

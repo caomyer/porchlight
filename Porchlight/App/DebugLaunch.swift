@@ -45,7 +45,13 @@ enum DebugLaunch {
             DeviceSettings.forgetNameAndRole()
         }
         if arguments.contains("-sampleHousehold") {
-            try seedSampleHousehold(database)
+            let lakeHouse = try seedSampleHousehold(database)
+            // `-sampleSecondHousehold`: Grandma Rosa's too, a household of its own, with
+            // The Lake House still the one showing (journey A5).
+            if arguments.contains("-sampleSecondHousehold") {
+                try seedSecondHousehold(database)
+                try database.chooseHousehold(lakeHouse.id)
+            }
         }
         if AppFiles.isSandboxed && arguments.contains("-debugRemoved") {
             // A household this device showed, gone: its owner removed this device.
@@ -56,12 +62,48 @@ enum DebugLaunch {
                 try DeviceState.set(DeviceState.ownerKey(gone), "James", db)
             }
         }
+        // `-me NAME`: this phone is NAME's in every household that has someone called that.
         if let name = UserDefaults.standard.string(forKey: "me") {
-            let snapshot = try database.snapshot()
-            if let household = snapshot.household, let person = snapshot.people.first(where: { $0.name == name }) {
-                DeviceSettings.store(me: person.id, in: household.id)
+            let people = try database.writer.read { db in
+                try Person.filter(Column("name") == name && Column("archivedAt") == nil).fetchAll(db)
+            }
+            for person in people {
+                DeviceSettings.store(me: person.id, in: person.householdId)
             }
         }
+    }
+
+    /// "Grandma Rosa's", a second household for journey A5: Rosa and James, the tomatoes
+    /// watered every three days (due today), and one chore of James's.
+    @MainActor
+    @discardableResult
+    static func seedSecondHousehold(_ database: AppDatabase) throws -> Household {
+        let household = try database.createHousehold(
+            name: "Grandma Rosa's",
+            people: [PersonDraft(name: "Rosa", color: .plum), PersonDraft(name: "James", color: .blue)]
+        )
+        try database.markSetupCompleted(householdId: household.id)
+        let people = try database.writer.read { try Person.active(in: household.id).fetchAll($0) }
+        let calendar = household.calendar
+        let now = CompanionClock.now()
+        let today = DayKey(now, calendar: calendar)
+        var tomatoes = CompanionDraft.new(species: .plant)
+        tomatoes.name = "Tomatoes"
+        tomatoes.about = "On the back porch"
+        for index in tomatoes.routines.indices { tomatoes.routines[index].startDay = today.adding(days: -9, calendar: calendar) }
+        let id = try database.saveCompanion(tomatoes, householdId: household.id, now: now)
+        if let water = try database.writer.read({ db in try CareRoutine.filter(Column("companionId") == id).fetchOne(db) }) {
+            for back in [9, 6, 3] {
+                let day = today.adding(days: -back, calendar: calendar)
+                try database.logCare(routineId: water.id, CareLogDraft(people: [people[0].id], occurredAt: CareLogic.date(day, minute: 10 * 60, calendar: calendar)), now: now)
+            }
+        }
+        _ = try database.saveChore(
+            ChoreDraft(title: "Call Rosa about Thanksgiving", emoji: "📞", ownerId: people[1].id, recurrence: .daily, anchorDay: today, timeHint: nil, stars: 1),
+            householdId: household.id
+        )
+        try database.ensureDefaultLists(householdId: household.id)
+        return household
     }
 
     /// The sample household, "The Lake House": James and Mia, with a week of everything.

@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import UIKit
 import UserNotifications
 
@@ -103,7 +104,15 @@ enum ReminderActions {
     /// The log action's write, credited to this device's person and stamped with this
     /// device like every other phone write. Nil when there is no one to credit.
     static func logSlot(routine routineId: CareRoutine.ID, slot: Int, day: DayKey, database: AppDatabase, defaults: UserDefaults, now: Date) async -> Confirmation? {
-        guard let snapshot = try? await database.writer.read(CompanionSnapshot.fetch),
+        // The routine's own household, which needn't be the one on screen: reminders come
+        // from every household this phone belongs to (journey A5).
+        guard let snapshot = try? await database.writer.read({ db -> CompanionSnapshot? in
+                  guard let householdId = try Household.ID.fetchOne(db, sql: """
+                      SELECT companion.householdId FROM careRoutine JOIN companion ON companion.id = careRoutine.companionId
+                      WHERE careRoutine.id = ?
+                      """, arguments: [routineId]) else { return nil }
+                  return try CompanionSnapshot.fetch(db, householdId: householdId)
+              }) ?? nil,
               let household = snapshot.household,
               let me = DeviceSettings(defaults: defaults).me(in: household.id),
               let routine = snapshot.routines.first(where: { $0.id == routineId }),

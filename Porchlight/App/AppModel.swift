@@ -49,6 +49,18 @@ final class AppModel {
     var devices: [Device] { snapshot.devices }
     /// The household this device showed and no longer has (journey A6).
     var removedHousehold: RemovedHousehold? { snapshot.removed }
+    /// Every set-up household on this device, oldest first (journey A5).
+    var households: [HouseholdChoice] { snapshot.households }
+    /// True when this device belongs to more than one household, so screens say which.
+    var isInSeveralHouseholds: Bool { snapshot.households.count > 1 }
+    /// "Join or start another" chose to start one: the phone shows setup until it exists.
+    var isStartingAnotherHousehold = false
+
+    /// Shows another household; every tab follows (journey A5).
+    func switchHousehold(to id: Household.ID) {
+        guard id != household?.id else { return }
+        perform { try database.chooseHousehold(id) }
+    }
 
     /// This device's row in the current household.
     var thisDeviceId: Device.ID? {

@@ -278,7 +278,9 @@ struct TodayMediumView: View {
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Today at home")
+                    Text(moment.isOneOfSeveral ? moment.householdName ?? "Today at home" : "Today at home")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .widgetFont(.display, 17, weight: 600)
                         .foregroundStyle(Theme.ink)
                     Spacer()

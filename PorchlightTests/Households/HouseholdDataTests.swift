@@ -183,7 +183,9 @@ struct HouseholdDataTests {
     @Test("The first household becomes current and stays current when others arrive")
     func firstBecomesCurrent() throws {
         try db.rememberCurrentHousehold()
-        let later = try db.createHousehold(name: "Grandma Rosa's", people: [PersonDraft(name: "Rosa", color: .sage)], now: .now.addingTimeInterval(-3600))
+        // Arriving through sync, not started here (starting one here shows it): a plain insert.
+        let later = Household(name: "Grandma Rosa's", timeZoneIdentifier: "America/Los_Angeles", firstWeekday: 1, setupCompleted: true, createdAt: .now.addingTimeInterval(-3600))
+        try db.writer.write { try later.insert($0) }
         try db.rememberCurrentHousehold()
         #expect(try db.snapshot().household?.id == household.id, "an older household arriving doesn't take over")
         try db.chooseHousehold(later.id)

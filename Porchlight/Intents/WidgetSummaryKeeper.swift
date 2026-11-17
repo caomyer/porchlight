@@ -105,14 +105,14 @@ final class WidgetSummaryKeeper {
         let role = device.role
         let summary: WidgetSummary
         if role == .personal {
-            guard let (companionSnapshot, homeSnapshot) = try? await database.writer.read({ db in
+            guard let (companionSnapshot, homeSnapshot, households) = try? await database.writer.read({ db in
                 let companions = try CompanionSnapshot.fetch(db)
                 let calendar = companions.calendar
                 let week = HomeWeek(containing: DayKey(now, calendar: calendar), calendar: calendar)
-                return (companions, try HomeSnapshot.fetch(db, since: week.first))
+                return (companions, try HomeSnapshot.fetch(db, since: week.first), try Household.fetchCount(db))
             }) else { return false }
             let me = companionSnapshot.household.flatMap { device.me(in: $0.id) }
-            summary = WidgetSummaryBuilder.make(companions: companionSnapshot, home: homeSnapshot, me: me, role: role, now: now)
+            summary = WidgetSummaryBuilder.make(companions: companionSnapshot, home: homeSnapshot, me: me, role: role, now: now, households: households)
             scheduleBackgroundRefresh(after: now, timeZone: companionSnapshot.calendar.timeZone)
         } else {
             summary = WidgetSummaryBuilder.make(companions: .empty, home: .empty, me: nil, role: role, now: now)

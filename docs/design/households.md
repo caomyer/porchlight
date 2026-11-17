@@ -56,7 +56,61 @@ A small device-only table, `deviceState(key, value)`, holds `currentHouseholdId`
 It is a table, not UserDefaults, so every read that asks "which household?" sees it inside its own transaction and observations update when it changes.
 `Household.current` returns that household when it exists, else the oldest, as today.
 When a household arrives on a device that has none, it becomes current.
-The switcher for people in several households is M5; until then the newest accepted invite becomes current.
+A household started on this device becomes current too, and so does the newest accepted invite; one arriving through sync never takes over.
+Switching between several is journey A5, below.
+
+### Two households (A5)
+
+A phone can belong to several households: a co-parent's, a grandparent's, a neighbor's pets.
+The M5 gate is that two households under different Apple IDs never mix, so the design starts from scoping, then the screens.
+
+What one device holds:
+
+- Each household is its own tree of rows under its `household` row, in its own iCloud zone: ours in our private database, a joined one in its owner's zone through the shared database.
+  A new row inherits its parent's zone (SQLiteData's triggers), so a row written into a household goes to that household's zone; `TwoHouseholdZonesTests` checks it.
+- `currentHouseholdId` names the one on screen; every screen reads only that household (`Household.current`), and switching rewrites that one value, so every store's observation runs again.
+- "Me" is per household (`DeviceSettings.me(in:)`, keyed by household id): James can be James in both, or Mia in one and Mom in the other.
+- This device has a row in each household it opened, with the same install id and a different row id per household (`Device.id(householdId:install:)`).
+
+The screens:
+
+- You lists "Your households" when there are two or more: each with "You are James · 2 people", a tick on the one showing, one tap to switch (the You sheet closes, so the tabs show it), and "Join or start another".
+  With one household, You keeps its usual rows and adds "Join or start another" under them.
+- Today's header names the household, tappable to switch, only when there are two or more ("Sunday · Grandma Rosa's ▾").
+- Today, Food, Lists, Glow and the rest show one household at a time; the tab you were on stays.
+- "Join or start another" offers starting one here (the phone's own setup, with "Cancel" and your name filled in) or joining one, by an invite or the owner's code.
+  A household started here shows at once; one joined shows once it arrives, as for a first join.
+- Leaving or being removed from the household showing shows the removed screen; "OK" shows the other household.
+- A shared screen shows one household and never offers the switcher.
+
+Reminders come from every household this phone belongs to, for "me" in each, and, when there are two or more, each title starts with its household's name ("Grandma Rosa's · Water the tomatoes"), with one notification thread per household.
+A reminder's action logs into its own household, for "me" there, whichever household is showing.
+
+The audit (every read and write, checked for the household it touches) found these, all fixed with tests in `TwoHouseholdsTests`:
+
+1. Stamping a row with "this device" used the household showing, so a write into the other household (a reminder's action, a widget's button) named this device's row in the wrong household.
+   `stamp(in:)` now takes the household the row is written into.
+2. Reminders were planned for the household showing only, so switching removed every reminder of the other household.
+3. A reminder's action read the household showing, so acting on the other household's reminder logged nothing.
+4. The evening chores reminder had one id per day, so two households' chores on the same day replaced each other; the id now includes the household.
+5. The companion snapshot read every household's care-log people, then used only its own; it now reads only its own.
+6. A care log could credit people from another household (nothing checked); the write now refuses anyone who doesn't live in the routine's household.
+7. Checking off a chore from a widget or Siri credited "me" of the household showing even for a chore of the other household; it now uses the chore's household and "me" there.
+8. Starting a household on a phone that already had one left the old one showing, so setup continued out of sight; a household started here now becomes current.
+9. Switching to a household in another time zone left "today" on the old one for up to 30 seconds; it now follows at once.
+
+Widgets and Siri follow the household showing.
+Per-widget household choice (the atlas's "a widget shows the household it was set up for") is left out: a widget configured for a household that isn't showing would need the summary of every household, and a household that left would leave widgets behind showing nothing.
+When there are two or more, the medium widget's title is the household's name, and Siri's answers say which household ("At Grandma Rosa's · For James at 6:05pm").
+A widget button tapped after a switch, before the widget redraws, still logs where it said: the routine's own household, for "me" there.
+
+What only two real Apple IDs can prove:
+
+- a household joined from another Apple ID lives in that owner's zone, and a row written into it reaches the owner's devices and never ours;
+- switching on a phone never makes the wall or the other household's devices show anything of the household not theirs;
+- removing this phone from one household leaves the other's sync untouched;
+- reminders of both households arrive, each named, and the actions log into the right one with the app closed.
+
 
 ## Sharing
 

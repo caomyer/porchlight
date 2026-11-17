@@ -159,6 +159,8 @@ enum CareValidationError: Error, Equatable, LocalizedError {
     case inTheFuture
     case unknownRoutine
     case unknownLog
+    /// Someone picked isn't in the routine's household.
+    case notInHousehold
 
     var errorDescription: String? {
         switch self {
@@ -175,6 +177,7 @@ enum CareValidationError: Error, Equatable, LocalizedError {
         case .inTheFuture: "That time hasn't happened yet."
         case .unknownRoutine: "That routine no longer exists."
         case .unknownLog: "That log was already removed."
+        case .notInHousehold: "Pick someone from this household."
         }
     }
 }
@@ -386,8 +389,15 @@ extension AppDatabase {
     }
 
     /// The one place a care log is added, stamped with the device that wrote it.
+    /// The people must live in the routine's household: a log never credits someone from
+    /// another household (journey A5).
     private func insertLog(_ draft: CareLogDraft, note: String?, routine: CareRoutine, now: Date, in db: Database) throws -> CareLog {
-        var log = CareLog(careRoutineId: routine.id, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now, deviceId: try stamp(db))
+        guard let householdId = try Household.ID.fetchOne(db, sql: "SELECT householdId FROM companion WHERE id = ?", arguments: [routine.companionId]) else {
+            throw CareValidationError.unknownRoutine
+        }
+        let residents = try Set(Person.ID.fetchAll(db, sql: "SELECT id FROM person WHERE householdId = ?", arguments: [householdId]))
+        guard draft.people.allSatisfy(residents.contains) else { throw CareValidationError.notInHousehold }
+        var log = CareLog(careRoutineId: routine.id, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now, deviceId: stamp(in: householdId))
         log.apply(draft, note: note, routine: routine)
         try log.insert(db)
         try Self.replacePeople(of: log.id, with: draft.people, in: db)
