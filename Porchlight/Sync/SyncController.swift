@@ -3,6 +3,7 @@ import Foundation
 import Observation
 import SQLiteData
 import SwiftData
+import UIKit
 
 /// Owns the sync engine: starts it when the device's switch is on and iCloud is there,
 /// stops it otherwise, and publishes a small `SyncStatus` for Settings.
@@ -36,6 +37,19 @@ final class SyncController {
         var unsentCheck: Duration = .seconds(30)
         /// How often rows iCloud turned down are offered to it again.
         var resend: Duration = .seconds(10 * 60)
+        /// How often a shared screen in front asks iCloud for changes: the wall must feel
+        /// live, and one request that finds nothing is a few hundred bytes (see "Staying
+        /// current" in docs/design/sync-icloud.md).
+        var sharedScreenPoll: Duration = .seconds(15)
+        /// How often someone's own phone in front asks.
+        var personalPoll: Duration = .seconds(30)
+        /// The longest wait between checks while they keep failing.
+        var pollBackoff: Duration = .seconds(5 * 60)
+        /// Checks that find nothing move the last-synced time at most this often, so a
+        /// quiet poll doesn't redraw what shows the status.
+        var quietCheckRecord: TimeInterval = 5 * 60
+        /// Checks failing this many times in a row show as waiting for iCloud.
+        var failedChecks = 3
     }
 
     private(set) var isEnabled: Bool
@@ -78,14 +92,24 @@ final class SyncController {
     @ObservationIgnored private var searchTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var stuckSince: Date?
     @ObservationIgnored private var attentionTask: Task<Void, Never>?
+    /// Asks iCloud for changes while the app is in front; nil without an engine.
+    @ObservationIgnored private(set) var poller: SyncPoller?
+    /// Fetches the poller is running, which never show as syncing.
+    @ObservationIgnored private var quietFetches = 0
+    /// Checks keep failing (`Timing.failedChecks`), so sync says it is waiting.
+    private var checksFailing = false
+    @ObservationIgnored private var lifecycle: [NSObjectProtocol] = []
 
     /// - Parameters:
     ///   - hasHousehold: Whether this device already has a household, which decides the
     ///     switch the first time: on for a new install, off on a wall that already has data,
     ///     so its first upload is a deliberate act.
     ///   - removeFiles: Removes the household's files when the owner removes its data.
+    ///   - role: How this device is used, read before each check: a shared screen checks
+    ///     more often than a phone.
     init(
         _ setup: Setup, preferences: SyncPreferences, hasHousehold: Bool, timing: Timing = Timing(),
+        role: @escaping @MainActor () -> DeviceRole = SyncController.storedRole,
         removeFiles: @escaping () -> Void
     ) {
         self.preferences = preferences
@@ -134,9 +158,18 @@ final class SyncController {
         }
         #endif
         guard engine != nil else { return }
+        poller = SyncPoller(
+            policy: .init(
+                interval: { role() == .sharedScreen ? timing.sharedScreenPoll : timing.personalPoll },
+                maxBackoff: timing.pollBackoff
+            ),
+            fetch: { [weak self] in try await self?.quietFetch() ?? .skipped },
+            onOutcome: { [weak self] outcome, failures in self?.checked(outcome, failures: failures) }
+        )
         listenForChanges()
         watchActivity()
         watchStatus()
+        followLifecycle()
         refresh()
         if !hasHousehold && isEnabled && decision == nil {
             lookForHousehold()
@@ -202,7 +235,7 @@ final class SyncController {
         }
         if isFull { return .iCloudFull }
         if isSynchronizing { return .syncing }
-        if !isOnline { return .waiting(lastSynced: lastSynced) }
+        if !isOnline || checksFailing { return .waiting(lastSynced: lastSynced) }
         if unsentCount > 0 { return .notAccepted(count: unsentCount) }
         return .upToDate(lastSynced: lastSynced)
     }
@@ -322,6 +355,8 @@ final class SyncController {
         do {
             try await engine.start()
             startFailure = nil
+            // Sync was just turned on, or the app launched: look for changes now.
+            poller?.checkNow()
             // Rows iCloud turned down in an earlier launch go again: SQLiteData only queues
             // them by itself when the account signs in.
             await resendUnsent()
@@ -359,6 +394,7 @@ final class SyncController {
 
     func networkChanged(isOnline: Bool) {
         self.isOnline = isOnline
+        poller?.setOnline(isOnline)
     }
 
     /// Records the end of a round of syncing as the last-synced time, when it ended online.
@@ -518,14 +554,92 @@ final class SyncController {
         }
     }
 
+    /// Follows the engine's sending and fetching. The poller's own fetches never count, so
+    /// a check every few seconds doesn't flicker "Syncing" or redraw the status.
     private func watchActivity() {
         guard let engine else { return }
-        let active = withObservationTracking {
-            engine.isSynchronizing
+        let (sending, fetching) = withObservationTracking {
+            (engine.isSendingChanges, engine.isFetchingChanges)
         } onChange: { [weak self] in
             Task { @MainActor in self?.watchActivity() }
         }
-        activityChanged(isSynchronizing: active)
+        let active = sending || (fetching && quietFetches == 0)
+        if active != isSynchronizing { activityChanged(isSynchronizing: active) }
+    }
+
+    // MARK: Staying current
+
+    /// How this device is used, as `DeviceSettings` keeps it.
+    static func storedRole() -> DeviceRole {
+        UserDefaults.standard.string(forKey: DeviceSettings.roleKey).flatMap(DeviceRole.init(rawValue:))
+            ?? .standard(for: UIDevice.current.userInterfaceIdiom)
+    }
+
+    /// Checks while the app is in front, and sends what is pending when it leaves, inside
+    /// a background task, so a log made just before locking the phone still goes up.
+    private func followLifecycle() {
+        let center = NotificationCenter.default
+        lifecycle = [
+            center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.appActivityChanged(isActive: true) }
+            },
+            center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.appActivityChanged(isActive: false) }
+            },
+            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.sendBeforeSuspending() }
+            },
+        ]
+    }
+
+    func appActivityChanged(isActive: Bool) {
+        poller?.setActive(isActive)
+    }
+
+    /// One check, as the poller's: nothing to ask while the engine isn't running.
+    private func quietFetch() async throws -> SyncPoller.Outcome {
+        guard let engine, engine.isRunning, isEnabled, decision == nil else { return .skipped }
+        quietFetches += 1
+        defer { quietFetches -= 1 }
+        try await engine.fetchChanges()
+        return .checked
+    }
+
+    /// After each check: a success is the last-synced time (at most every
+    /// `Timing.quietCheckRecord` when nothing else happened), and checks that keep failing
+    /// say so.
+    func checked(_ outcome: SyncPoller.Outcome, failures: Int, at date: Date = .now) {
+        switch outcome {
+        case .checked:
+            if checksFailing { checksFailing = false }
+            if lastSynced.map({ date.timeIntervalSince($0) >= timing.quietCheckRecord }) ?? true {
+                lastSynced = date
+                preferences.lastSynced = date
+            }
+        case .failed:
+            if failures >= timing.failedChecks && !checksFailing { checksFailing = true }
+        case .skipped:
+            break
+        }
+    }
+
+    /// Sends whatever is pending as the app leaves the front, with background time asked
+    /// for, so iOS doesn't suspend it mid-send. With nothing pending it returns at once.
+    private func sendBeforeSuspending() {
+        guard let engine, engine.isRunning else { return }
+        let application = UIApplication.shared
+        let task = BackgroundTaskID()
+        task.id = application.beginBackgroundTask(withName: "Porchlight sync") {
+            application.endBackgroundTask(task.id)
+            task.id = .invalid
+        }
+        Task {
+            try? await engine.sendChanges()
+            if task.id != .invalid {
+                application.endBackgroundTask(task.id)
+                task.id = .invalid
+            }
+        }
     }
 }
 
@@ -554,4 +668,10 @@ private final class SyncEvents: SyncEngineDelegate {
     private func forward(quotaExceeded: Bool) {
         controller?.quotaChanged(isExceeded: quotaExceeded)
     }
+}
+
+/// A background task's id, kept by reference so its expiry and the send can both end it.
+@MainActor
+private final class BackgroundTaskID {
+    var id: UIBackgroundTaskIdentifier = .invalid
 }

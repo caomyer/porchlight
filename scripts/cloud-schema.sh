@@ -177,9 +177,10 @@ case "${1:-}" in
       echo "Production already has every record type and field in $schema_file."
       exit 0
     fi
+    # cktool's validate-schema refuses Production ("endpoint not applicable in the
+    # environment 'production'"), so the export above is the whole check.
     echo
-    echo "Production lacks what is marked + above. Checking that the change can be deployed:"
-    xcrun cktool validate-schema --team-id "$(team_id)" --container-id "$container" --environment production --file "$schema_file"
+    echo "Production lacks what is marked + above (- Production, + checked in)."
     cat <<EOF
 
 Deploy it in the CloudKit Console (cktool can't change Production):
