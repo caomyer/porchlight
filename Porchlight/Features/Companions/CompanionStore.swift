@@ -120,7 +120,19 @@ enum CompanionClock {
 @Observable
 final class CompanionStore {
     let database: AppDatabase
-    private(set) var snapshot: CompanionSnapshot = .empty
+    /// What the database says now, stored before observers are told (see `AppModel.snapshot`).
+    private(set) var snapshot: CompanionSnapshot {
+        get {
+            access(keyPath: \.snapshot)
+            return storedSnapshot
+        }
+        set {
+            storedSnapshot = newValue
+            withMutation(keyPath: \.snapshot) {}
+        }
+    }
+
+    @ObservationIgnored private var storedSnapshot: CompanionSnapshot = .empty
     var lastError: String?
 
     @ObservationIgnored private var observation: Task<Void, Never>?
@@ -155,11 +167,10 @@ final class CompanionStore {
     }
 
     private func apply(_ snapshot: CompanionSnapshot) {
-        // Store first, then drop cached reports. Observers hear about the change in
-        // `willSet`, so a report built then still sees the old snapshot; clearing
-        // afterwards keeps it from outliving the change.
-        self.snapshot = snapshot
+        // Drop cached reports first: the snapshot is stored before observers hear of it, and
+        // a screen redrawn then builds its reports from the new one.
         reportCache = [:]
+        self.snapshot = snapshot
     }
 
     // MARK: Reads
