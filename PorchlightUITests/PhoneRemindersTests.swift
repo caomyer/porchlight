@@ -136,9 +136,11 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         let lake = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'The Lake House ·'")).firstMatch
         let rosas = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS \"Grandma Rosa's ·\"")).firstMatch
         // In DEBUG each household's comes ten seconds after the one before, so each has its own banner.
-        XCTAssertTrue(lake.waitForExistence(timeout: 40), "The Lake House's reminder arrives, named")
-        snapshot(dark ? "a5-41-named-reminder-dark" : "a5-40-named-reminder")
         let shown = NSPredicate(format: "exists == true AND hittable == true")
+        expectation(for: shown, evaluatedWith: lake)
+        waitForExpectations(timeout: 40)
+        sleep(1)
+        snapshot(dark ? "a5-41-named-reminder-dark" : "a5-40-named-reminder")
         expectation(for: shown, evaluatedWith: rosas)
         waitForExpectations(timeout: 40)
         XCTAssertFalse(lake.isHittable, "Grandma Rosa's banner is the one showing")

@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import GRDB
+import UserNotifications
 
 /// Debug-only launch arguments for screenshots and manual testing:
 ///   -resetData          start from an empty database (shows onboarding)
@@ -43,6 +44,9 @@ enum DebugLaunch {
             // device starts with its own name and role, as a new install would.
             DeviceSettings.forgetMe()
             DeviceSettings.forgetNameAndRole()
+            // Reminders for the old rows go too, so a run sees only what it scheduled.
+            UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+            UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         }
         if arguments.contains("-sampleHousehold") {
             let lakeHouse = try seedSampleHousehold(database)
