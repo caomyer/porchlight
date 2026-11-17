@@ -51,7 +51,7 @@ final class SyncPoller {
     }
 
     private let policy: Policy
-    private let fetch: @MainActor @Sendable () async throws -> Outcome
+    private let fetch: @MainActor @Sendable (Trigger) async throws -> Outcome
     private let sleep: (Duration) async throws -> Void
     private let timeoutSleep: @Sendable (Duration) async throws -> Void
     private let onOutcome: (Outcome, _ failures: Int, _ error: (any Error)?, _ trigger: Trigger) -> Void
@@ -72,7 +72,7 @@ final class SyncPoller {
     ///   - onWait: Called with each wait before it starts, for "next check".
     init(
         policy: Policy,
-        fetch: @escaping @MainActor @Sendable () async throws -> Outcome,
+        fetch: @escaping @MainActor @Sendable (Trigger) async throws -> Outcome,
         sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         timeoutSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         onOutcome: @escaping (Outcome, _ failures: Int, _ error: (any Error)?, _ trigger: Trigger) -> Void = { _, _, _, _ in },
@@ -152,7 +152,7 @@ final class SyncPoller {
         var outcome: Outcome
         var failure: (any Error)?
         do {
-            outcome = try await withTimeout()
+            outcome = try await withTimeout(trigger)
         } catch {
             // Stopping cancels the check in flight; that is no failure of iCloud's.
             if Task.isCancelled { return }
@@ -167,7 +167,7 @@ final class SyncPoller {
         onOutcome(outcome, failures, failure, trigger)
     }
 
-    private func withTimeout() async throws -> Outcome {
+    private func withTimeout(_ trigger: Trigger) async throws -> Outcome {
         let timeout = policy.timeout
         let wait = timeoutSleep, run = fetch
         // Not a task group: a group waits for every child, so a fetch that ignores being
@@ -178,7 +178,7 @@ final class SyncPoller {
             try await withCheckedThrowingContinuation { continuation in
                 answer.continuation = continuation
                 answer.fetch = Task { @MainActor in
-                    do { answer.resume(.success(try await run())) } catch { answer.resume(.failure(error)) }
+                    do { answer.resume(.success(try await run(trigger))) } catch { answer.resume(.failure(error)) }
                 }
                 answer.timer = Task { @MainActor in
                     guard (try? await wait(timeout)) != nil else { return }

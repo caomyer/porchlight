@@ -32,6 +32,14 @@ final class SyncTrace {
     var lastCheck: Check?
     /// What started the last check: a push, the timer, coming to the front…
     var lastTrigger: String?
+    /// What the last check brought: "nothing new (timer)", "push, engine fetch, 149 to 150 rows".
+    var received: String?
+    /// What the last probe of iCloud said, database by database.
+    var lastProbe: String?
+    /// Engine restarts because a fetch brought nothing iCloud said was there.
+    var restarts = 0
+    /// Times this launch asked for a push token.
+    var tokenRequests = 0
     var pushes = 0
     var lastPush: Date?
     /// "arrived (length 32)", "failed: …", or "not yet".
