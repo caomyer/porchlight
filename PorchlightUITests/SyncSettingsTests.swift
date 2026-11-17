@@ -40,12 +40,12 @@ final class SyncSettingsTests: XCTestCase {
     /// details counts the checks.
     func testChecksTickOnAnUntouchedWall() {
         let app = launch(["-sampleHousehold", "-startScreen", "settings", "-debugSyncPoll"])
-        let details = app.descendants(matching: .any)["sync-details"]
+        let details = app.buttons["sync-details"]
         XCTAssertTrue(details.waitForExistence(timeout: 20), "Settings has Sync details")
         for _ in 0..<8 where !details.isHittable {
             app.swipeUp()
         }
-        details.buttons.firstMatch.exists ? details.buttons.firstMatch.tap() : details.tap()
+        details.tap()
         let checks = app.descendants(matching: .any)["sync-details-checks"]
         XCTAssertTrue(checks.waitForExistence(timeout: 5), "The details open")
         XCTAssertTrue((checks.label).contains("Checks"), "got \(checks.label)")
