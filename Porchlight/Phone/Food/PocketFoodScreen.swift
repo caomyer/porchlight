@@ -271,25 +271,32 @@ private struct PocketFoodMemory: View {
     let onOpen: (JournalEntry) -> Void
 
     @Environment(FoodStore.self) private var store
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .footnote) private var hand: CGFloat = 19
     @PhoneMetric(upTo: 1.3) private var width: CGFloat = 84
 
     var body: some View {
         if let memory = store.memory(today: today) {
             Button { onOpen(memory.entry) } label: {
-                AdaptiveRow(spacing: 14) {
-                    Polaroid(entry: memory.entry, rotation: -3, emojiSize: 30, captionSize: 13, plate: 0.46, badgeSize: 18, showsPhotoCount: false)
-                        .frame(width: width)
-                        .padding(.vertical, 4)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("On this day")
-                            .phoneFont(.display, 17, weight: 600, relativeTo: .headline)
-                        Text(FoodMemoryWords.sentence(memory, store: store, handSize: hand))
-                            .phoneFont(.body, 13.5, weight: 600, relativeTo: .footnote)
-                            .foregroundStyle(Theme.muted)
-                            .fixedSize(horizontal: false, vertical: true)
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        // Stacked: the title, the keepsake centered, then the sentence.
+                        VStack(alignment: .leading, spacing: 10) {
+                            title
+                            polaroid(memory)
+                                .frame(maxWidth: .infinity)
+                            sentence(memory)
+                        }
+                    } else {
+                        HStack(spacing: 14) {
+                            polaroid(memory)
+                            VStack(alignment: .leading, spacing: 3) {
+                                title
+                                sentence(memory)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .contentShape(Rectangle())
             }
@@ -297,6 +304,24 @@ private struct PocketFoodMemory: View {
             .phoneCard()
             .accessibilityIdentifier("on-this-day")
         }
+    }
+
+    private var title: some View {
+        Text("On this day")
+            .phoneFont(.display, 17, weight: 600, relativeTo: .headline)
+    }
+
+    private func polaroid(_ memory: FoodMemory) -> some View {
+        Polaroid(entry: memory.entry, rotation: -3, emojiSize: 30, captionSize: 13, plate: 0.46, badgeSize: 18, showsPhotoCount: false)
+            .frame(width: width)
+            .padding(.vertical, 4)
+    }
+
+    private func sentence(_ memory: FoodMemory) -> some View {
+        Text(FoodMemoryWords.sentence(memory, store: store, handSize: hand))
+            .phoneFont(.body, 13.5, weight: 600, relativeTo: .footnote)
+            .foregroundStyle(Theme.muted)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

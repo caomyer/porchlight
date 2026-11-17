@@ -32,6 +32,37 @@ extension PhoneTestHelpers {
         add(attachment)
     }
 
+    /// Scrolls the page down a screenful, then checks that the band of the status bar just
+    /// under the Dynamic Island is one flat color: paper, with nothing scrolled under the
+    /// clock. Attaches the screenshot as `name`.
+    func expectPaperUnderStatusBar(_ app: XCUIApplication, _ name: String, file: StaticString = #filePath, line: UInt = #line) {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)))
+        Thread.sleep(forTimeInterval: 1)
+        let screenshot = XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        guard let image = screenshot.image.cgImage else { return XCTFail("No screenshot", file: file, line: line) }
+        let scale = CGFloat(image.width) / app.windows.firstMatch.frame.width
+        // Between the island's bottom (about 48 pt) and the safe area's (59 pt), across the
+        // middle of the screen, clear of the clock and the battery.
+        let xs = stride(from: Int(CGFloat(image.width) * 0.12), to: Int(CGFloat(image.width) * 0.88), by: 3).map { $0 }
+        let colors = [51, 56].flatMap { row in xs.map { pixel(image, x: $0, y: Int(CGFloat(row) * scale)) } }
+        let first = colors[0]
+        let off = colors.filter { color in zip(color, first).contains { abs(Int($0) - Int($1)) > 6 } }
+        XCTAssertTrue(off.isEmpty, "\(name): something shows under the status bar (\(off.count) of \(colors.count) samples differ)", file: file, line: line)
+    }
+
+    private func pixel(_ image: CGImage, x: Int, y: Int) -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: 4)
+        let context = CGContext(data: &bytes, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.draw(image, in: CGRect(x: -x, y: -(image.height - 1 - y), width: image.width, height: image.height))
+        return Array(bytes.prefix(3))
+    }
+
     /// The first element whose label begins with `part`.
     func element(_ app: XCUIApplication, beginningWith part: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch

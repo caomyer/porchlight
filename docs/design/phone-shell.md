@@ -272,6 +272,7 @@ Where the atlas was silent, or didn't fit the code:
 ## Fixed on the wall along the way
 
 Nothing on the wall looked broken while working here.
+The paper under the status bar was never painted: `paperUnderStatusBar` read the top inset from a reader that ignored the top safe area, where it is 0, so scrolled text showed under the clock on every tab (it was plainest on Food and Lists, whose content scrolls furthest). It now measures where the view starts on screen and paints paper above it, and `PhoneTabsTests.testPaperUnderTheStatusBar` and the `PhoneFoodTests` status bar tests scroll each tab and Food's pages, in light, dark and the largest text, and check that the band under the Dynamic Island is one flat color.
 Settings › Photo frame sometimes kept the photo list and "Add photos" under "Porch view" after switching to it (PhotoFrameTests failed 2 runs in 4): the picker showed the new choice while the rows read an older `@AppStorage` value. The settings now hold the choice in `@State` and write it through to the same UserDefaults key, and the test passed 6 runs in 6.
 A big polaroid used to show its bare tablecloth while the whole shot loaded; it now shows the photo's thumbnail until then, on the wall too.
 Wall code changed only to share it: "On this day"'s sentence (`FoodMemoryWords`), the care form's logic and the time pill's day math, `Color.wash` resolving its colors explicitly, the companion page's week line, the grocery sections, `HomeStore.cashIn` returning the cash-in, and the chore editor's compact layout (its regular layout is unchanged).

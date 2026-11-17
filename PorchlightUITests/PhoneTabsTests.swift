@@ -204,6 +204,19 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         snapshot("m3-83-celebration-dark")
     }
 
+    /// Every tab, scrolled, keeps paper under the status bar, at the usual size and the largest.
+    func testPaperUnderTheStatusBar() {
+        for size in ["", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            let app = launch(size.isEmpty ? [] : ["-UIPreferredContentSizeCategoryName", size])
+            for tab in ["Today", "Food", "Lists", "Glow"] {
+                app.tabBars.buttons[tab].tap()
+                Thread.sleep(forTimeInterval: 0.5)
+                expectPaperUnderStatusBar(app, "m3-95-\(tab.lowercased())-scrolled\(size.isEmpty ? "" : "-largest")")
+            }
+            app.terminate()
+        }
+    }
+
     func testLargestText() {
         let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         let window = app.windows.firstMatch.frame

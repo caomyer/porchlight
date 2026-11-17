@@ -27,7 +27,10 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         let app = XCUIApplication.porchlight()
         app.launchArguments = household + ["-debugCompanionNow", Self.dinnerTime, "-me", "James", "-startScreen", "food"] + arguments
         app.launch()
-        XCTAssertTrue(app.staticTexts["What we ate"].waitForExistence(timeout: 60))
+        // `-debugFoodView` opens something over the diary straight away.
+        if !arguments.contains("-debugFoodView") {
+            XCTAssertTrue(app.staticTexts["What we ate"].waitForExistence(timeout: 60))
+        }
         return app
     }
 
@@ -134,6 +137,41 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         toast.tap()
         XCTAssertTrue(app.buttons["edit-meal"].waitForExistence(timeout: 5))
         snapshot("b5-41-detail-dark")
+    }
+
+    // MARK: Paper under the status bar
+
+    func testPaperUnderTheStatusBar() { scrolledScreens(look: "light") }
+
+    func testPaperUnderTheStatusBarAtNight() {
+        XCUIDevice.shared.appearance = .dark
+        scrolledScreens(look: "dark")
+    }
+
+    func testPaperUnderTheStatusBarAtTheLargestSize() {
+        scrolledScreens(look: "largest", ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+    }
+
+    /// The diary, a meal's page, the camera and a new meal's details, each scrolled: nothing
+    /// shows under the clock.
+    private func scrolledScreens(look: String, _ arguments: [String] = []) {
+        let app = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"] + arguments)
+        expectPaperUnderStatusBar(app, "b5-60-diary-scrolled-\(look)")
+
+        app.terminate()
+        let page = launch(["-debugFoodView", "detail"] + arguments)
+        XCTAssertTrue(page.descendants(matching: .any)["meal-pager"].waitForExistence(timeout: 60))
+        expectPaperUnderStatusBar(page, "b5-61-meal-scrolled-\(look)")
+
+        page.terminate()
+        let snap = launch(["-debugCamera", "sample", "-cameraAccess", "allowed", "-debugFoodView", "snap"] + arguments)
+        XCTAssertTrue(snap.buttons["shutter"].waitForExistence(timeout: 60))
+        expectPaperUnderStatusBar(snap, "b5-62-camera-scrolled-\(look)")
+
+        snap.terminate()
+        let details = launch(["-debugFoodView", "details"] + arguments)
+        XCTAssertTrue(details.textFields["dish"].waitForExistence(timeout: 60))
+        expectPaperUnderStatusBar(details, "b5-63-details-scrolled-\(look)")
     }
 
     func testLargestText() {

@@ -6,21 +6,32 @@ extension View {
     /// Paper behind the status bar, so a tab's content scrolls under it instead of
     /// through the clock.
     func paperUnderStatusBar() -> some View {
-        overlay(alignment: .top) {
-            // Reaches up into the status bar to learn how tall it is, and paints just that.
-            GeometryReader { proxy in
-                Theme.background.frame(height: proxy.safeAreaInsets.top)
-            }
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-        }
+        modifier(PaperUnderStatusBar())
     }
 
     /// A paper card: 14 pt inside, 20 pt corners, a soft shadow. A `tint` (a companion's
     /// color) warms it from the top, like the pet card on the wall.
     func phoneCard(tint: Color? = nil) -> some View {
         modifier(PhoneCardStyle(tint: tint))
+    }
+}
+
+/// Paints paper from the top of the screen down to where the view starts, which is the
+/// status bar for a view in the safe area. (Measured from outside: a reader that ignores
+/// the top safe area sees no inset there, and so painted nothing.)
+private struct PaperUnderStatusBar: ViewModifier {
+    @State private var top: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGFloat.self) { max($0.frame(in: .global).minY, 0) } action: { top = $0 }
+            .overlay(alignment: .top) {
+                Theme.background
+                    .frame(height: top)
+                    .offset(y: -top)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
     }
 }
 
