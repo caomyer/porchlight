@@ -121,8 +121,8 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
         let app = launch()
         let faucet = app.buttons["Check off Fix the leaky faucet"]
         XCTAssertTrue(faucet.waitForExistence(timeout: 60))
-        // Undo first, while the toast is surely up: it goes after five seconds, and a busy
-        // simulator could spend those on the checks below.
+        // Undo first, while the toast is surely up (30 seconds in the tests, see
+        // `XCUIApplication.porchlight()`).
         faucet.tap()
         XCTAssertTrue(app.staticTexts["Fix the leaky faucet done"].waitForExistence(timeout: 5))
         tapToastAction(app)
