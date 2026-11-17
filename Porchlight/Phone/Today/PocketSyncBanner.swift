@@ -49,6 +49,11 @@ struct PocketSyncNotice: Equatable {
                 tone: .warn, emoji: "⏸️", title: "Sync paused: \(whose) iCloud is full",
                 detail: "Your changes are safe on this \(device)."
             )
+        case let .notAccepted(count):
+            return PocketSyncNotice(
+                tone: .warn, emoji: "⏸️", title: "iCloud isn't taking changes yet",
+                detail: "\(count == 1 ? "1 change is" : "\(count) changes are") safe on this \(device) and \(count == 1 ? "goes" : "go") up by \(count == 1 ? "itself" : "themselves") later."
+            )
         case let .waiting(lastSynced) where stuckLong:
             let since = lastSynced.map { date in
                 calendar.isDateInToday(date)

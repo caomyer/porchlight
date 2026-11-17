@@ -24,6 +24,10 @@ struct PorchlightApp: App {
                     .environment(ShareInbox.shared)
             case let .failed(message):
                 StartupErrorView(message: message)
+            #if DEBUG
+            case .seedingSchema:
+                SchemaSeedView()
+            #endif
             }
         }
     }
@@ -33,9 +37,16 @@ struct PorchlightApp: App {
 private enum Launch {
     case ready(Stores)
     case failed(String)
+    #if DEBUG
+    /// `-seedCloudSchema`: nothing of the household is opened (`SchemaSeed`).
+    case seedingSchema
+    #endif
 
     @MainActor
     static func start() -> Launch {
+        #if DEBUG
+        if SchemaSeed.isRequested { return .seedingSchema }
+        #endif
         do {
             #if DEBUG
             DebugLaunch.clearSandbox(ProcessInfo.processInfo.arguments)

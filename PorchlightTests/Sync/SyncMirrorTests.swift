@@ -6,16 +6,7 @@ import Testing
 @Suite("Sync mirrors")
 struct SyncMirrorTests {
     /// Every mirror, as the engine is given them in `SyncMirror.engine`.
-    static let mirrors: [any PrimaryKeyedTable.Type] = [
-        SyncMirror.Household.self, SyncMirror.Person.self,
-        SyncMirror.Companion.self, SyncMirror.CareRoutine.self, SyncMirror.CareLog.self, SyncMirror.CareLogPerson.self,
-        SyncMirror.Journal.self, SyncMirror.FoodPlace.self, SyncMirror.JournalEntry.self,
-        SyncMirror.JournalEntryEater.self, SyncMirror.JournalEntryPhoto.self, SyncMirror.JournalPage.self,
-        SyncMirror.Chore.self, SyncMirror.ChoreCompletion.self, SyncMirror.Reward.self, SyncMirror.RewardRedemption.self,
-        SyncMirror.HomeList.self, SyncMirror.ListItem.self, SyncMirror.MealPlan.self,
-        SyncMirror.CompanionPhoto.self, SyncMirror.JournalEntryPhotoThumb.self, SyncMirror.JournalEntryPhotoImage.self,
-        SyncMirror.Device.self,
-    ]
+    static let mirrors = SyncMirror.all
 
     /// The SQLite column each plain Swift type stands for, and whether it may be NULL.
     private static let columnTypes: [ObjectIdentifier: String] = [

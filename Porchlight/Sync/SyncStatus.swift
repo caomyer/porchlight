@@ -9,6 +9,9 @@ enum SyncStatus: Equatable, Sendable {
     /// Offline, or still checking the account; changes keep saving on the device meanwhile.
     case waiting(lastSynced: Date?)
     case iCloudFull
+    /// iCloud turned changes down (Production without the schema they need): they wait on
+    /// this device, are offered again on their own, and nothing is lost.
+    case notAccepted(count: Int)
     /// Nothing syncs until the owner chooses what to do.
     case needsDecision(SyncDecision)
 }
@@ -35,7 +38,7 @@ extension SyncStatus {
     /// an account, room in iCloud or a decision. Off is a choice, and syncing is progress.
     var isStuck: Bool {
         switch self {
-        case .waiting, .noAccount, .iCloudFull, .needsDecision: true
+        case .waiting, .noAccount, .iCloudFull, .notAccepted, .needsDecision: true
         case .off, .upToDate, .syncing: false
         }
     }
@@ -123,6 +126,7 @@ extension SyncStatus {
         case .upToDate, .syncing: "On."
         case .waiting: "On, waiting for iCloud."
         case .iCloudFull: "Paused: iCloud is full."
+        case .notAccepted: "On, but iCloud isn't taking changes yet."
         case .needsDecision: "Waiting for your choice above."
         }
     }

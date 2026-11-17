@@ -30,7 +30,7 @@ enum HouseholdHome: Equatable {
         case .off: .syncUnavailable
         case .noAccount: .signedOut
         case .needsDecision: .waitingForChoice
-        case .upToDate, .syncing, .waiting, .iCloudFull:
+        case .upToDate, .syncing, .waiting, .iCloudFull, .notAccepted:
             isOwner && (!onSharedScreen || ownerName == nil) ? .yourICloud : .ownersICloud(ownerName)
         }
     }

@@ -34,7 +34,8 @@ targets:
     info:
       path: Porchlight/Info.plist
       properties:
-        CFBundleDisplayName: Porchlight
+        # "Porchlight Seed" for the CloudKit schema seed's own app (scripts/cloud-schema.sh).
+        CFBundleDisplayName: $(PORCHLIGHT_DISPLAY_NAME)
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
         # The wall keeps its single light look and hidden status bar from launch; the
@@ -75,7 +76,10 @@ targets:
         aps-environment: development
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mingyucao.porchlight
+        # scripts/cloud-schema.sh seed overrides both, so its app installs beside Porchlight.
+        PORCHLIGHT_BUNDLE_ID: com.mingyucao.porchlight
+        PORCHLIGHT_DISPLAY_NAME: Porchlight
+        PRODUCT_BUNDLE_IDENTIFIER: $(PORCHLIGHT_BUNDLE_ID)
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
         # The wall (Release, by cable) and family phones (TestFlight) must meet in the same

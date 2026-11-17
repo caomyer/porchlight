@@ -53,9 +53,92 @@ The Release configuration sets `com.apple.developer.icloud-container-environment
 Debug builds, simulators and tests stay on Development.
 This is experiment S4, and it is confirmed on real devices before M2 invites anyone.
 
-Production only accepts record types that were deployed to it.
-Before a release that adds tables or columns, a Debug build writes one row to every table on Development, and the schema is promoted to Production with `cktool`.
-A script does both, so a release cannot forget it.
+Production only accepts record types and fields that were deployed to it.
+See "Deploying the CloudKit schema" below for how they get there.
+
+## Deploying the CloudKit schema
+
+CloudKit learns a schema only in Development, and only from records: a record type appears when a record of it is first saved, and a field when a non-nil value of it is first saved.
+Production never learns anything by itself; its schema is whatever was last deployed to it from Development.
+A table or column that never reached Development with a value is missing in Production, and the first real value there fails.
+
+### What CloudKit has to know
+
+SQLiteData writes one record type per synced table, named like the table, in one zone of the private database (`co.pointfree.SQLiteData.defaultZone`).
+Each record type has these fields (read from SQLiteData 1.13.0's `CKRecord.update(with:userModificationTime:)` and checked by `SchemaSeedTests` against its stand-in for iCloud):
+
+- one field per column, named like the column: encrypted, and typed by the mirror (`String` and `UUID` as strings, `Int` and `Bool` as 64-bit integers, `Double` as a double, `Date` as a date and time);
+- `BLOB` columns (the three photo tables' `image`, `journalPage.drawing`) as plain asset fields, each with an encrypted `<column>_hash` beside it;
+- `sqlitedata_icloud_userModificationTime_<column>` for every column, an encrypted 64-bit integer SQLiteData compares to merge edits field by field;
+- `sqlitedata_icloud_userModificationTime` for the whole record;
+- the record's parent, a system field, for every table but `household`.
+
+Sharing adds the system record type `cloudkit.share`: SQLiteData saves a `CKShare` of the household record (`share-<recordName>`) in the household's zone, and the app (or the share sheet) may set its `title` and `thumbnailImageData`.
+SQLiteData creates no other record types in iCloud: its own tables (`sqlitedata_icloud_metadata`, `_recordTypes`, `_stateSerialization`, `_unsyncedRecordIDs`, `_pendingRecordZoneChanges`) stay on the device.
+
+Indexes: SQLiteData never queries CloudKit; it reads zone changes through `CKSyncEngine`, and the sharing code reads records by id.
+So nothing needs a queryable or sortable index.
+The CloudKit Console's record browser wants `recordName` queryable to list records, which is a convenience for looking, not something the app needs; it can be added in the Console at any time.
+
+### The seed
+
+A Debug build launched with `-seedCloudSchema` teaches Development all of it (`Porchlight/Sync/SchemaSeed.swift`):
+
+1. It opens a throwaway database with its own sync metadata in the temporary folder; nothing of the household on the device is opened.
+2. It writes one row to every synced table, parents first, with a value in every column (dates, ids pointing at the seeded rows, a few bytes for every BLOB), driven by `SyncMirror.all`, so a new table or column is seeded without anyone remembering to.
+   `SchemaSeedTests` fails when a column has no value or a mirror column has a type the seed doesn't know.
+3. It starts a sync engine on its own zone, `porchlight.schemaSeed`, never the household's, and sends until every row is saved.
+4. It shares the seed household, with a title and a thumbnail, so `cloudkit.share` and its fields exist.
+5. It reads back every saved record from the engine's metadata and checks that every column is a field.
+6. It deletes its zone from iCloud (the records and the share go with it) and the throwaway files, then shows "Schema seeded: 24 record types, 23 records sent, household shared." or what failed.
+   The record types stay in Development's schema, which is the point; no seed data remains in anyone's iCloud.
+
+It runs from its own app, "Porchlight Seed" (`com.mingyucao.porchlight.schemaseed`), a Debug build of Porchlight with another bundle id and name, signed for the same iCloud container.
+An iCloud container can be used by several app ids of a team when each lists it in its entitlements, and Xcode's automatic signing registers the new id with the container on the first build.
+Installing it never replaces the Porchlight app beside it, so that app's data, its Release build, its sync switch and its Production environment are untouched.
+Installing a Debug build over Porchlight itself would keep its data but switch it to Development until the next Release install, which is why the seed doesn't.
+
+### `scripts/cloud-schema.sh`
+
+- `seed` builds Porchlight Seed, installs it on the first paired iPhone (or `PORCHLIGHT_SEED_DEVICE`), launches it with `-seedCloudSchema` and says what to watch for; `seed --simulator <id>` does the same on a simulator signed in to iCloud.
+- `uninstall-seed` removes Porchlight Seed afterwards.
+- `export` writes Development's schema to `Config/cloudkit-schema.ckdb` with `xcrun cktool export-schema`, so schema changes show up in review.
+- `diff` compares the checked-in file with Development.
+- `check` compares Production with the checked-in file, runs `xcrun cktool validate-schema` against Production, and prints the deployment steps below.
+
+`cktool` can export, validate and import schemas, but it imports only into Development; deploying to Production is a button in the CloudKit Console.
+`cktool` needs a management token, made once:
+
+1. Open https://icloud.developer.apple.com, sign in with the developer account, and pick the team.
+2. Open Settings, then Tokens & Keys, and add a Management Token; give it a name like "cktool on James's Mac".
+3. Copy the token and run `xcrun cktool save-token --type management`, pasting it at the prompt; it is kept in the Mac's keychain.
+
+### Deploying to Production
+
+1. In the CloudKit Console, open CloudKit Database and pick the container `iCloud.com.mingyucao.porchlight`.
+2. With Development selected at the top, click "Deploy Schema Changes...", check that the list matches `Config/cloudkit-schema.ckdb`, and click Deploy.
+3. `scripts/cloud-schema.sh check` then says Production has everything.
+
+Deploying only adds; CloudKit never removes a deployed record type or field, which matches the rule that columns are only ever added.
+
+### The first rollout
+
+1. Seed Development from James's iPhone: `scripts/cloud-schema.sh seed`, and wait for "Schema seeded".
+2. `scripts/cloud-schema.sh uninstall-seed`.
+3. `scripts/cloud-schema.sh export`, review `Config/cloudkit-schema.ckdb`, and commit it.
+4. Deploy to Production in the CloudKit Console, then `scripts/cloud-schema.sh check`.
+5. Only then turn the wall's sync switch on.
+
+Before every later release that adds a table or a column, steps 1 to 4 run again, and `diff` in review shows what the release adds.
+
+### When iCloud turns changes down
+
+If sync is turned on before Production has the schema, CloudKit refuses each record ("Cannot create new type ... in production schema").
+SQLiteData 1.13.0 keeps the row on the device but drops it from what it sends, and tells the app nothing; it queues such rows again only when the account signs in.
+So `SyncController` looks for rows iCloud never took (`SyncUnsent`) 30 seconds after each round of syncing ends.
+While there are any, the status is `notAccepted`: Settings says "iCloud isn't taking N changes yet. They are safe on this iPad and Porchlight offers them again by itself.", the phone's banner says the same, and it counts as stuck, so the gear's dot appears after an hour.
+Every ten minutes, and at every launch, it queues them again (touching their metadata, as SQLiteData does after signing in) and sends.
+Once the schema is deployed the next offer goes through, the count drops to zero, and the status is up to date, with nothing lost and nothing to do.
 
 ## Photos
 
