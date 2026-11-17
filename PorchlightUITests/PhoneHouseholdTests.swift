@@ -212,6 +212,10 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         let home = app.descendants(matching: .any)["household-home"].firstMatch
         XCTAssertTrue(home.waitForExistence(timeout: 60))
         XCTAssertTrue(home.label.contains("Stored in James's iCloud"), home.label)
+        // Only the owner can add people to the share: no way in, and who can.
+        XCTAssertFalse(app.buttons["invite-someone"].exists, "A member has nothing to invite with")
+        let invite = app.descendants(matching: .any)["invite-someone"].firstMatch
+        XCTAssertTrue(invite.label.contains("Only James can add people"), invite.label)
         snapshot("phone-125-you-member")
     }
 

@@ -53,11 +53,17 @@ struct YouSheet: View {
                             .accessibilityIdentifier("household-home")
                             RowDivider()
                         }
-                        Button { path.append(.invite) } label: {
-                            InfoRow(emoji: "✉️", title: "Invite someone", detail: inviteLine, chevron: true)
+                        // Only the owner can add people to the share; a member's phone says who can.
+                        if sharing.members.isOwner {
+                            Button { path.append(.invite) } label: {
+                                InfoRow(emoji: "✉️", title: "Invite someone", detail: inviteLine, chevron: true)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("invite-someone")
+                        } else {
+                            InfoRow(emoji: "✉️", title: "Invite someone", detail: onlyOwnerLine)
+                                .accessibilityIdentifier("invite-someone")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("invite-someone")
                     }
                     PeopleCard(roster: roster)
                     PhoneList {
@@ -259,7 +265,12 @@ struct YouSheet: View {
         if let waiting = roster.rows.first(where: { $0.person != nil && $0.state != .joined }) {
             return "\(waiting.title) hasn't joined yet"
         }
-        return sharing.members.isOwner ? "Send a link, or show a code" : "Only the owner can add people"
+        return sharing.service.supportsJoinSeats ? "Send a link, or show a code" : "Send a link"
+    }
+
+    /// "Only James can add people", on a member's phone.
+    private var onlyOwnerLine: String {
+        "Only \(sharing.ownerName(people: model.everyone, devices: model.devices) ?? "the household's owner") can add people"
     }
 
     /// "2 shown on Today", or why there are none.

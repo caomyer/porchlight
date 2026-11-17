@@ -416,7 +416,7 @@ private struct PocketSetupDone: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 PhoneCardHeader(title: "Got a spare iPad?")
-                Text("Open Porchlight on it, choose \u{201C}Join one\u{201D}, and make it a shared screen to put the whole family's day on the wall.")
+                Text(spareIPadLine)
                     .phoneFont(.body, 13.5, weight: 500)
                     .foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -432,6 +432,14 @@ private struct PocketSetupDone: View {
 
     private var home: HouseholdHome {
         HouseholdHome.from(sync.status, isOwner: true, ownerName: nil)
+    }
+
+    /// How a spare iPad joins: a join code from this phone where it can make one.
+    private var spareIPadLine: String {
+        let join = sharing.service.supportsJoinSeats
+            ? "choose \u{201C}Join one\u{201D}, and scan the code from You › Invite someone › Show a code on this \(DeviceWords.this)"
+            : "choose \u{201C}Join one\u{201D}, and open an invite you send it"
+        return "Open Porchlight on it, \(join). Then make it a shared screen to put the whole family's day on the wall."
     }
 
     private var canInvite: Bool {

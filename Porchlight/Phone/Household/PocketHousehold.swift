@@ -403,13 +403,19 @@ struct PocketPersonPage: View {
                     .accessibilityIdentifier("remove-devices")
                 }
             case .invited:
-                InfoRow(emoji: "✉️", title: "Invited", detail: "Hasn't joined yet. Resend from Invite someone, on You.")
+                InfoRow(emoji: "✉️", title: "Invited", detail: sharing.members.isOwner ? "Hasn't joined yet. Resend from Invite someone, on You." : "Hasn't joined yet")
             case .noPhone:
-                NavigationLink(value: YouPage.invite) {
-                    InfoRow(emoji: "📱", title: "Not yet", detail: "Invite when \(person.name) gets one", chevron: true)
+                // Only the owner can add people to the share.
+                if sharing.members.isOwner {
+                    NavigationLink(value: YouPage.invite) {
+                        InfoRow(emoji: "📱", title: "Not yet", detail: "Invite when \(person.name) gets one", chevron: true)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("invite-person")
+                } else {
+                    InfoRow(emoji: "📱", title: "Not yet", detail: "Only \(sharing.ownerName(people: model.everyone, devices: model.devices) ?? "the household's owner") can add people")
+                        .accessibilityIdentifier("invite-person")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("invite-person")
             }
         }
         .padding(.horizontal, 14)
