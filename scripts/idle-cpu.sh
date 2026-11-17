@@ -45,7 +45,7 @@ for screen in $screens; do
     porch) args=(-startScreen photos -ambient.show porchView) ;;
     *) args=(-startScreen "$screen") ;;
   esac
-  xcrun devicectl device process launch --terminate-existing --device "$device" com.porchlight.porchlight -- $args >/dev/null
+  xcrun devicectl device process launch --terminate-existing --device "$device" com.mingyucao.porchlight -- $args >/dev/null
   sleep 3
   xcrun xctrace record --template "Activity Monitor" --device "$udid" --all-processes \
     --time-limit "${secs}s" --output "$work/$screen.trace" >/dev/null 2>&1
@@ -91,4 +91,4 @@ render, _ = usage('backboardd')
 print(f'{sys.argv[2]:<14} app {app:5.1f}%  {wakeups:6.1f} wakeups/s   render server {render:5.1f}%   total {app + render:5.1f}%')
 EOF
 done
-xcrun devicectl device process launch --terminate-existing --device "$device" com.porchlight.porchlight >/dev/null
+xcrun devicectl device process launch --terminate-existing --device "$device" com.mingyucao.porchlight >/dev/null

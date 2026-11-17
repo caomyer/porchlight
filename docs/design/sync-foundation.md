@@ -179,17 +179,25 @@ The rule from now on: migrations use raw SQL and rows only, never record types.
 - The database stays in the app's own container.
   Widgets will read a small summary the app writes for them (M4), so no shared container is needed.
 
-## The move to `com.porchlight.porchlight`
+## The bundle id
 
-The bundle id, and the iCloud container named after it, can never change once data syncs, so the app takes its permanent id in M0.
-To an iPad a new bundle id is a new app with an empty container, so the household is carried across from the Mac:
+The bundle id, and the iCloud container named after it, can never change once data syncs.
 
-1. `scripts/backup-ipad.sh --bundle com.mingyucao.porchlight` copies the old app's data.
-2. `scripts/deploy-ipad.sh --no-backup` installs the new app.
+- The app started as `com.mingyucao.porchlight`.
+- At M0 it moved to `com.porchlight.porchlight`, meant to be permanent.
+  Cable installs were signed with a wildcard profile, which hid that the id had never been registered to the team.
+- On 2026-11-16 registering it explicitly, which iCloud and push need, failed: Apple reported the id as not available.
+  The app went back to `com.mingyucao.porchlight`, with the container `iCloud.com.mingyucao.porchlight`, before any data had synced.
+
+To an iPad a new bundle id is a new app with an empty container, so the wall's household moves by backup and restore, from the Mac:
+
+1. `scripts/backup-ipad.sh --bundle com.porchlight.porchlight` copies the running app's data.
+2. `scripts/deploy-ipad.sh --no-backup` installs the app under its id.
 3. With the new app closed, `scripts/restore-ipad.sh <backup>` puts the data into its container.
-4. The new app opens, keeps its own safety copy, and runs the "sync v1" migration.
+4. The new app opens and runs any migrations it hasn't yet.
 
 The old app stays installed, untouched, until the new one has been checked.
+Settings kept in the app's preferences (UserDefaults), rather than in the data folder, don't move with it.
 
 ## Implementation notes
 

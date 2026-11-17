@@ -21,7 +21,7 @@ if [[ $# -lt 1 || ! -f "$1/Porchlight/porchlight.sqlite" ]]; then
   exit 1
 fi
 backup="${1:A}"
-bundle="com.porchlight.porchlight"
+bundle="com.mingyucao.porchlight"
 [[ "${2:-}" == "--bundle" ]] && bundle="$3"
 
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"

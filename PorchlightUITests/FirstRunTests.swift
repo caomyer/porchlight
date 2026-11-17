@@ -3,7 +3,7 @@ import XCTest
 /// A brand-new household's first run against the real calendar store: onboarding,
 /// the iPadOS calendar permission prompt, and giving each calendar to a person.
 /// `-resetData` uses the sample storage sandbox, so real data is never touched.
-/// Run after `xcrun simctl privacy <udid> reset calendar com.porchlight.porchlight`
+/// Run after `xcrun simctl privacy <udid> reset calendar com.mingyucao.porchlight`
 /// so the permission prompt appears.
 @MainActor
 final class FirstRunTests: XCTestCase {

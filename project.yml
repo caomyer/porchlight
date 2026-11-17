@@ -1,6 +1,6 @@
 name: Porchlight
 options:
-  bundleIdPrefix: com.porchlight
+  bundleIdPrefix: com.mingyucao
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -70,12 +70,12 @@ targets:
         com.apple.developer.icloud-services:
           - CloudKit
         com.apple.developer.icloud-container-identifiers:
-          - iCloud.com.porchlight.porchlight
+          - iCloud.com.mingyucao.porchlight
         com.apple.developer.icloud-container-environment: $(PORCHLIGHT_CLOUDKIT_ENVIRONMENT)
         aps-environment: development
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.porchlight.porchlight
+        PRODUCT_BUNDLE_IDENTIFIER: com.mingyucao.porchlight
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
         # The wall (Release, by cable) and family phones (TestFlight) must meet in the same
@@ -94,7 +94,7 @@ targets:
       - target: Porchlight
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.porchlight.porchlight.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.mingyucao.porchlight.tests
         GENERATE_INFOPLIST_FILE: YES
   PorchlightUITests:
     type: bundle.ui-testing
@@ -105,7 +105,7 @@ targets:
       - target: Porchlight
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.porchlight.porchlight.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.mingyucao.porchlight.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: Porchlight
 schemes:

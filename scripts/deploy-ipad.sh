@@ -67,6 +67,6 @@ fi
 porchlight_devicectl device install app --device "$device" "$app"
 if (( launch )); then
   # Opening the app fails while the iPad is locked; the install itself is done.
-  xcrun devicectl device process launch --device "$device" com.porchlight.porchlight || true
+  xcrun devicectl device process launch --device "$device" com.mingyucao.porchlight || true
 fi
 echo "Installed a $configuration build of Porchlight on $device"

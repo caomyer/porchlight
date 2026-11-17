@@ -35,7 +35,8 @@ App code ── GRDB records ──▶ SQLite ◀── triggers ── SyncEngi
 
 ## Turning it on
 
-- Entitlements: iCloud with CloudKit and the container `iCloud.com.porchlight.porchlight`, push notifications, and the remote-notification background mode.
+- Entitlements: iCloud with CloudKit and the container `iCloud.com.mingyucao.porchlight`, push notifications, and the remote-notification background mode.
+  The container is named after the bundle id; `sync-foundation.md`, "The bundle id", says how that id came back to `com.mingyucao.porchlight` before anything synced.
   `CKSharingSupported` is set in Info.plist now, so M2 needs no further project change to share.
 - The engine is created after migrations, with `startImmediately: false`.
   It starts when the device's sync switch is on and an iCloud account is available.
@@ -124,7 +125,7 @@ A unit test checks that a data migration run after the engine exists is recorded
 ## Backups and restore
 
 `scripts/backup-ipad.sh` copies the whole data folder, `Library/Application Support/Porchlight`.
-SQLiteData keeps its metadata in a database beside the app's own: `attachMetadatabase(containerIdentifier:)` names it after the database and the container, so it is `.porchlight.metadata-iCloud.com.porchlight.porchlight.sqlite` (a hidden file, with its own `-wal` and `-shm`), in the same folder.
+SQLiteData keeps its metadata in a database beside the app's own: `attachMetadatabase(containerIdentifier:)` names it after the database and the container, so it is `.porchlight.metadata-iCloud.com.mingyucao.porchlight.sqlite` (a hidden file, with its own `-wal` and `-shm`), in the same folder.
 It holds what the engine knows about every row (the last record iCloud confirmed, and when each field last changed), the engine's change tokens, the changes still waiting to be sent, and the tables it has seen.
 So a backup carries an older pair: the data and the metadata that describes it.
 Each file is consistent on its own; with the database in WAL mode, SQLite does not keep two attached databases in step, so the pair is as consistent as a crash would leave it, which the library has to recover from anyway.
@@ -148,7 +149,8 @@ Since M2 the app notices when its database was replaced underneath it, and sync 
 - Every launch puts a fresh random token in the database's device-only `deviceState` table and in UserDefaults.
   A backup never holds UserDefaults, so a restored backup brings back an older token, or none, and the two disagree at the next launch.
   The token is rotated so a crash halfway never looks like a restore: UserDefaults first holds the old and the new token, then the database gets the new one, then UserDefaults keeps only the new one.
-- A database token with nothing in UserDefaults means the data folder was copied into a fresh install, which is also a replaced database.
+- A database token with nothing in UserDefaults means the data folder was copied into a fresh install, for example when the wall's data moves to a new bundle id.
+  That install has never synced, and a device that already has a household starts with the sync switch off, so nothing is sent until the owner turns it on; it is not treated as a replaced database, which would otherwise leave no way to sync it short of dropping it.
 - The engine's metadata database missing at launch, on an install that has synced before (it knows its iCloud account), is the same hazard: every row would look new.
   The check runs before the database opens, because opening it creates the metadata database.
 - A database with no household, and the very first launch (no token anywhere), are never taken for a restore.

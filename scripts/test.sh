@@ -86,7 +86,9 @@ if (( ui )); then
   # The first-run test needs the calendar prompt, and resetting it needs a booted
   # simulator (clones copy this state too).
   xcrun simctl bootstatus "$udid" -b >/dev/null
-  xcrun simctl privacy "$udid" reset calendar com.porchlight.porchlight
+  xcrun simctl privacy "$udid" reset calendar com.mingyucao.porchlight
+  # The app was com.porchlight.porchlight for a while; never leave it beside this one.
+  xcrun simctl uninstall "$udid" com.porchlight.porchlight 2>/dev/null || true
   phone_classes=(PhoneTests PhoneTabsTests PhoneHouseholdTests PhoneRemindersTests PhoneFoodTests)
   skip=()
   if (( phone )); then

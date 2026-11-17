@@ -19,9 +19,11 @@ if ! xcodebuild build -project Porchlight.xcodeproj -scheme Porchlight -destinat
   exit 1
 fi
 xcrun simctl boot "$udid" 2>/dev/null || true
+# The app was com.porchlight.porchlight for a while; never leave it beside this one.
+xcrun simctl uninstall "$udid" com.porchlight.porchlight 2>/dev/null || true
 xcrun simctl install "$udid" "$derived/Build/Products/Debug-iphonesimulator/Porchlight.app"
-xcrun simctl terminate "$udid" com.porchlight.porchlight 2>/dev/null || true
-xcrun simctl launch "$udid" com.porchlight.porchlight "$@" > /dev/null
+xcrun simctl terminate "$udid" com.mingyucao.porchlight 2>/dev/null || true
+xcrun simctl launch "$udid" com.mingyucao.porchlight "$@" > /dev/null
 /usr/bin/python3 -c "import time; time.sleep(${WAIT:-4})"
 timeout 30 xcrun simctl io "$udid" screenshot "$out" > /dev/null 2>&1
 # Older simulators save the portrait framebuffer; newer ones save the screen as shown.

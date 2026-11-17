@@ -13,7 +13,7 @@ import SwiftData
 @MainActor
 @Observable
 final class SyncController {
-    nonisolated static let containerIdentifier = "iCloud.com.porchlight.porchlight"
+    nonisolated static let containerIdentifier = "iCloud.com.mingyucao.porchlight"
 
     enum Setup {
         /// Sync this database, on this device.

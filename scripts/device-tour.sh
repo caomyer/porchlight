@@ -8,7 +8,7 @@
 set -euo pipefail
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 out="${1:-/tmp/porchlight-device-tour}"
-app=com.porchlight.porchlight
+app=com.mingyucao.porchlight
 device="${PORCHLIGHT_DEVICE:-}"
 if [[ -z "$device" ]]; then
   json="$(mktemp)"

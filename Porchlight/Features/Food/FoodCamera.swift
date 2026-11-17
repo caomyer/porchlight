@@ -6,7 +6,7 @@ import UIKit
 /// a private serial queue; the class is only touched through that queue or its async API.
 final class MealCamera: NSObject, @unchecked Sendable {
     let session = AVCaptureSession()
-    private let queue = DispatchQueue(label: "com.porchlight.porchlight.camera")
+    private let queue = DispatchQueue(label: "com.mingyucao.porchlight.camera")
     private let output = AVCapturePhotoOutput()
     private var input: AVCaptureDeviceInput?
     private var pending: CheckedContinuation<UIImage, any Error>?
