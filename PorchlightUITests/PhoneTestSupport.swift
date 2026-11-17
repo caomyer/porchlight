@@ -63,6 +63,15 @@ extension PhoneTestHelpers {
         return Array(bytes.prefix(3))
     }
 
+    /// Taps the toast's action (Undo, I went too) once the toast has finished sliding in:
+    /// a tap computed mid-slide misses it, and the toast goes by itself.
+    func tapToastAction(_ app: XCUIApplication) {
+        let action = app.buttons["toast-action"]
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        action.waitToSettle()
+        action.tap()
+    }
+
     /// The first element whose label begins with `part`.
     func element(_ app: XCUIApplication, beginningWith part: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch

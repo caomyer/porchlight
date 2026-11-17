@@ -103,7 +103,7 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(toast.waitForExistence(timeout: 8), "Back on the diary, a toast says where it went")
         XCTAssertTrue(element(app, beginningWith: "Saved to").exists)
         snapshot("b5-23-saved")
-        app.buttons["toast-action"].tap()
+        tapToastAction(app)
         let pager = app.otherElements["meal-pager"].exists ? app.otherElements["meal-pager"] : app.buttons["meal-pager"]
         XCTAssertTrue(pager.waitForExistence(timeout: 5), "Open goes to the new meal")
         XCTAssertTrue(element(app, beginningWith: "You and Mia").exists || app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "You and Mia")).firstMatch.exists)

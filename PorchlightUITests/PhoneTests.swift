@@ -79,7 +79,7 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(element(app, beginningWith: "With Mia").exists, "Also went adds Mia")
         snapshot("phone-20-logged-toast")
         XCTAssertFalse(log.exists, "The walk is done")
-        app.buttons["toast-action"].tap()
+        tapToastAction(app)
         XCTAssertTrue(log.waitForExistence(timeout: 5), "Undo takes the walk back")
         snapshot("phone-21-undone")
     }
@@ -121,12 +121,15 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
         let app = launch()
         let faucet = app.buttons["Check off Fix the leaky faucet"]
         XCTAssertTrue(faucet.waitForExistence(timeout: 60))
+        // Undo first, while the toast is surely up: it goes after five seconds, and a busy
+        // simulator could spend those on the checks below.
         faucet.tap()
         XCTAssertTrue(app.staticTexts["Fix the leaky faucet done"].waitForExistence(timeout: 5))
+        tapToastAction(app)
+        XCTAssertTrue(faucet.waitForExistence(timeout: 5), "Undo puts it back")
+        faucet.tap()
         XCTAssertTrue(element(app, beginningWith: "Nothing else for you today").waitForExistence(timeout: 5), "All mine done folds into a quiet line")
         snapshot("phone-50-chores-done")
-        app.buttons["toast-action"].tap()
-        XCTAssertTrue(faucet.waitForExistence(timeout: 5), "Undo puts it back")
 
         let vacuum = app.buttons["Check off Vacuum the living room as yours"]
         reveal(vacuum, in: app)
