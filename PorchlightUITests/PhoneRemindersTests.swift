@@ -135,15 +135,14 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         XCUIDevice.shared.press(.home)
         let lake = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'The Lake House ·'")).firstMatch
         let rosas = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS \"Grandma Rosa's ·\"")).firstMatch
-        XCTAssertTrue(lake.waitForExistence(timeout: 40) || rosas.waitForExistence(timeout: 5), "A reminder arrives, named")
-        sleep(4)
-        // Notification Center lists both.
-        let top = springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.005))
-        top.press(forDuration: 0.1, thenDragTo: springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.7)))
-        XCTAssertTrue(lake.waitForExistence(timeout: 10), "The Lake House's reminder, named")
-        XCTAssertTrue(rosas.waitForExistence(timeout: 10), "and Grandma Rosa's, named")
-        sleep(1)
-        snapshot(dark ? "a5-41-named-reminders-dark" : "a5-40-named-reminders")
+        // In DEBUG each household's comes ten seconds after the one before, so each has its own banner.
+        XCTAssertTrue(lake.waitForExistence(timeout: 40), "The Lake House's reminder arrives, named")
+        snapshot(dark ? "a5-41-named-reminder-dark" : "a5-40-named-reminder")
+        let shown = NSPredicate(format: "exists == true AND hittable == true")
+        expectation(for: shown, evaluatedWith: rosas)
+        waitForExpectations(timeout: 40)
+        XCTAssertFalse(lake.isHittable, "Grandma Rosa's banner is the one showing")
+        snapshot(dark ? "a5-43-named-reminder-other-dark" : "a5-42-named-reminder-other")
     }
 
     func testNightLook() {

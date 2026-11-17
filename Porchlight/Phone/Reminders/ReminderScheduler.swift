@@ -33,8 +33,11 @@ enum ReminderScheduler {
         }
         var plan: [PlannedReminder] = []
         var settled = Set<String>()
-        for household in households {
-            let plans = plans(for: household, named: households.count > 1, database: database, device: device, choices: choices, now: now)
+        for (index, household) in households.enumerated() {
+            let plans = plans(
+                for: household, named: households.count > 1, database: database, device: device, choices: choices, now: now,
+                debugDelay: Double(index) * 10
+            )
             plan += plans.plan
             settled.formUnion(plans.settled)
         }
@@ -43,7 +46,8 @@ enum ReminderScheduler {
 
     /// One household's reminders, for this phone's person there. Pure but for the reads.
     static func plans(
-        for household: Household, named: Bool, database: AppDatabase, device: DeviceSettings, choices: ReminderChoices, now: Date
+        for household: Household, named: Bool, database: AppDatabase, device: DeviceSettings, choices: ReminderChoices, now: Date,
+        debugDelay: TimeInterval = 0
     ) -> (plan: [PlannedReminder], settled: Set<String>) {
         guard let companions = try? database.writer.read({ try CompanionSnapshot.fetch($0, householdId: household.id) }) else { return ([], []) }
         let since = DayKey(now, calendar: household.calendar).adding(days: -1, calendar: household.calendar)
@@ -54,7 +58,8 @@ enum ReminderScheduler {
             me: me, choices: choices, now: now
         )
         #if DEBUG
-        if let soon = debugReminder(companions: companions, me: me, now: now) { plan.append(soon) }
+        // Each household's a little after the one before, so each shows its own banner.
+        if let soon = debugReminder(companions: companions, me: me, now: now, delay: debugDelay) { plan.append(soon) }
         #endif
         if named { plan = plan.map { ReminderPlanner.named($0, household: household.name) } }
         return (plan, ReminderPlanner.settledIDs(companions: companions, now: now))
@@ -63,14 +68,14 @@ enum ReminderScheduler {
     #if DEBUG
     /// `-debugReminderIn N`: the day's first care reminder, as if every slot were set to
     /// "if missed", N seconds from now, to check delivery and the actions by hand.
-    private static func debugReminder(companions: CompanionSnapshot, me: Person.ID?, now: Date) -> PlannedReminder? {
+    private static func debugReminder(companions: CompanionSnapshot, me: Person.ID?, now: Date, delay: TimeInterval = 0) -> PlannedReminder? {
         let seconds = UserDefaults.standard.double(forKey: "debugReminderIn")
         guard seconds > 0 else { return nil }
         var choices = ReminderChoices(chores: false)
         for slot in ReminderSlots.all(companions) { choices.care[slot.id] = .missed }
         guard var soon = ReminderPlanner.plan(companions: companions, chores: [], completions: [], me: me, choices: choices, now: now).first else { return nil }
         soon.id = PlannedReminder.prefix + "debug." + (companions.household?.id.description ?? "")
-        soon.fireDate = now.addingTimeInterval(seconds)
+        soon.fireDate = now.addingTimeInterval(seconds + delay)
         return soon
     }
     #endif
