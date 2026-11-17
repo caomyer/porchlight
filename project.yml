@@ -34,7 +34,8 @@ targets:
     info:
       path: Porchlight/Info.plist
       properties:
-        CFBundleDisplayName: Porchlight
+        # "Porchlight Seed" for the CloudKit schema seed's own app (scripts/cloud-schema.sh).
+        CFBundleDisplayName: $(PORCHLIGHT_DISPLAY_NAME)
         # Set by MARKETING_VERSION and CURRENT_PROJECT_VERSION below; the scripts that sign
         # derive the build number from the commit (scripts/lib/version.sh).
         CFBundleShortVersionString: $(MARKETING_VERSION)
@@ -77,7 +78,10 @@ targets:
         aps-environment: development
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mingyucao.porchlight
+        # scripts/cloud-schema.sh seed overrides both, so its app installs beside Porchlight.
+        PORCHLIGHT_BUNDLE_ID: com.mingyucao.porchlight
+        PORCHLIGHT_DISPLAY_NAME: Porchlight
+        PRODUCT_BUNDLE_IDENTIFIER: $(PORCHLIGHT_BUNDLE_ID)
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # The version people see, set here and nowhere else.
         MARKETING_VERSION: "0.1.0"

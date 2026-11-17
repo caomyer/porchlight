@@ -152,6 +152,8 @@ extension SyncStatus {
             "Waiting for iCloud\(Self.lastSyncedText(lastSynced)). Changes keep saving on this iPad."
         case .iCloudFull:
             "Paused until there's room in iCloud."
+        case let .notAccepted(count):
+            "iCloud isn't taking \(count == 1 ? "1 change" : "\(count) changes") yet. \(count == 1 ? "It is" : "They are") safe on this iPad and Porchlight offers \(count == 1 ? "it" : "them") again by itself."
         case .needsDecision(.accountChanged):
             "The household on this iPad belongs to the earlier account, so nothing syncs until you choose what to do with it."
         case .needsDecision(.restoredCopy):

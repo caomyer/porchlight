@@ -32,6 +32,10 @@ final class SyncController {
         var householdSearch: Duration = .seconds(30)
         /// How long sync is stuck before the gear on the rail shows a dot.
         var attention: Duration = .seconds(60 * 60)
+        /// How long after the engine goes quiet it looks for rows iCloud never took.
+        var unsentCheck: Duration = .seconds(30)
+        /// How often rows iCloud turned down are offered to it again.
+        var resend: Duration = .seconds(10 * 60)
     }
 
     private(set) var isEnabled: Bool
@@ -59,6 +63,11 @@ final class SyncController {
 
     /// Nil when sync can't run in this launch or build.
     @ObservationIgnored let engine: SyncEngine?
+    /// The database the engine syncs, to find rows iCloud never took.
+    @ObservationIgnored private let writer: (any DatabaseWriter)?
+    /// Rows iCloud turned down and that wait here to be sent again (`SyncUnsent`).
+    private(set) var unsentCount = 0
+    @ObservationIgnored private var unsentTask: Task<Void, Never>?
     @ObservationIgnored private let device: (any SyncDevice)?
     @ObservationIgnored private let preferences: SyncPreferences
     @ObservationIgnored private let removeFiles: () -> Void
@@ -90,6 +99,7 @@ final class SyncController {
             if preferences.isEnabled == nil {
                 preferences.isEnabled = !hasHousehold
             }
+            writer = database
             do {
                 engine = try SyncMirror.engine(for: database, delegate: events)
             } catch {
@@ -99,11 +109,13 @@ final class SyncController {
             self.device = device
         case let .unavailable(reason):
             engine = nil
+            writer = nil
             device = nil
             unavailable = reason
         #if DEBUG
         case let .debug(status):
             engine = nil
+            writer = nil
             device = nil
             debugStatus = status
         #endif
@@ -150,7 +162,7 @@ final class SyncController {
         let setup: Setup
         if AppFiles.isSandboxed {
             setup = .unavailable(.sampleData)
-        } else if !hasEntitlement {
+        } else if !isSignedForICloud {
             setup = .unavailable(.noEntitlement)
         } else {
             setup = .sync(database.writer, device: LiveSyncDevice(container: CKContainer(identifier: containerIdentifier)))
@@ -166,7 +178,7 @@ final class SyncController {
 
     /// Whether this build is signed with the household's iCloud container. SwiftData reads
     /// the entitlement without touching CloudKit, so this is safe in any build.
-    private static var hasEntitlement: Bool {
+    static var isSignedForICloud: Bool {
         ModelConfiguration(groupContainer: .automatic).cloudKitContainerIdentifier == containerIdentifier
     }
 
@@ -191,6 +203,7 @@ final class SyncController {
         if isFull { return .iCloudFull }
         if isSynchronizing { return .syncing }
         if !isOnline { return .waiting(lastSynced: lastSynced) }
+        if unsentCount > 0 { return .notAccepted(count: unsentCount) }
         return .upToDate(lastSynced: lastSynced)
     }
 
@@ -309,6 +322,9 @@ final class SyncController {
         do {
             try await engine.start()
             startFailure = nil
+            // Rows iCloud turned down in an earlier launch go again: SQLiteData only queues
+            // them by itself when the account signs in.
+            await resendUnsent()
         } catch {
             startFailure = error.localizedDescription
         }
@@ -351,7 +367,54 @@ final class SyncController {
             lastSynced = date
             preferences.lastSynced = date
         }
+        if isSynchronizing, !active {
+            checkUnsentSoon()
+        }
         isSynchronizing = active
+    }
+
+    // MARK: Changes iCloud turned down
+
+    /// Looks for rows iCloud never took once the engine has been quiet a while, so rows
+    /// that are only waiting their turn in a long upload aren't counted.
+    private func checkUnsentSoon() {
+        guard writer != nil else { return }
+        unsentTask?.cancel()
+        let delay = timing.unsentCheck
+        unsentTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            await self?.checkUnsent()
+        }
+    }
+
+    /// Counts the rows iCloud turned down. While there are any, sync says so (a stuck
+    /// state: the data is safe here) and offers them again every `Timing.resend`, so once
+    /// iCloud accepts them (the schema was deployed) sync is up to date by itself.
+    func checkUnsent() async {
+        guard let writer, let engine, engine.isRunning, !isSynchronizing else { return }
+        let count = (try? await writer.read(SyncUnsent.count)) ?? 0
+        unsentCount = count
+        guard count > 0 else { return }
+        unsentTask?.cancel()
+        let delay = timing.resend
+        unsentTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            await self?.resendUnsent()
+        }
+    }
+
+    /// Offers every row iCloud never took to it again, and sends.
+    func resendUnsent() async {
+        guard let writer, let engine, engine.isRunning else { return }
+        guard (try? await writer.read(SyncUnsent.count)) ?? 0 > 0 else {
+            unsentCount = 0
+            return
+        }
+        try? await writer.write(SyncUnsent.requeue)
+        try? await engine.sendChanges()
+        await checkUnsent()
     }
 
     // MARK: Looking for a household

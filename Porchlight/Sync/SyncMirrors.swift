@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import SQLiteData
 
@@ -259,12 +260,32 @@ enum SyncMirror {
 }
 
 extension SyncMirror {
+    /// Every mirror, as `engine(for:)` hands them to the engine (the engine takes them as a
+    /// parameter pack, so this list stands beside it; a test checks it against
+    /// `SyncSchema.synced`). The CloudKit schema seed writes a row to each.
+    static let all: [any PrimaryKeyedTable.Type] = [
+        Household.self, Person.self,
+        Companion.self, CareRoutine.self, CareLog.self, CareLogPerson.self,
+        Journal.self, FoodPlace.self, JournalEntry.self, JournalEntryEater.self, JournalEntryPhoto.self,
+        JournalPage.self,
+        Chore.self, ChoreCompletion.self, Reward.self, RewardRedemption.self,
+        HomeList.self, ListItem.self, MealPlan.self,
+        CompanionPhoto.self, JournalEntryPhotoThumb.self, JournalEntryPhotoImage.self,
+        Device.self,
+    ]
+
+    /// The zone the household lives in, the engine's own default.
+    static let householdZone = CKRecordZone(zoneName: "co.pointfree.SQLiteData.defaultZone")
+
     /// A sync engine for every mirror, in `SyncSchema.synced` order, created stopped:
     /// `SyncController` decides when it runs.
     ///
     /// Creating it validates the schema and installs the triggers that record every write,
     /// so it is created right after migrations, before anything else writes.
-    static func engine(for database: any DatabaseWriter, delegate: any SyncEngineDelegate) throws -> SyncEngine {
+    ///
+    /// - Parameter zone: Where the records live in iCloud; only the CloudKit schema seed
+    ///   uses another zone, so it never touches a household.
+    static func engine(for database: any DatabaseWriter, delegate: any SyncEngineDelegate, zone: CKRecordZone = householdZone) throws -> SyncEngine {
         try SyncEngine(
             for: database,
             tables: Household.self, Person.self,
@@ -276,6 +297,7 @@ extension SyncMirror {
             CompanionPhoto.self, JournalEntryPhotoThumb.self, JournalEntryPhotoImage.self,
             Device.self,
             containerIdentifier: SyncController.containerIdentifier,
+            defaultZone: zone,
             startImmediately: false,
             delegate: delegate
         )
