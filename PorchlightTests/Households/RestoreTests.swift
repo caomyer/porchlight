@@ -20,8 +20,8 @@ struct RestoreTests {
                 "an older backup")
         #expect(DatabaseIdentity.isReplaced(Evidence(databaseToken: nil, knownTokens: ["b"], metadataExisted: true, hasSynced: false, hasHousehold: true)),
                 "a backup from before tokens")
-        #expect(DatabaseIdentity.isReplaced(Evidence(databaseToken: "a", knownTokens: [], metadataExisted: true, hasSynced: false, hasHousehold: true)),
-                "a data folder copied into a fresh install")
+        #expect(!DatabaseIdentity.isReplaced(Evidence(databaseToken: "a", knownTokens: [], metadataExisted: true, hasSynced: false, hasHousehold: true)),
+                "a data folder copied into a fresh install, which starts with sync off")
         #expect(DatabaseIdentity.isReplaced(Evidence(databaseToken: "b", knownTokens: ["b"], metadataExisted: false, hasSynced: true, hasHousehold: true)),
                 "the engine's metadata is gone, so every row would look new")
         #expect(!DatabaseIdentity.isReplaced(Evidence(databaseToken: nil, knownTokens: [], metadataExisted: false, hasSynced: false, hasHousehold: true)),

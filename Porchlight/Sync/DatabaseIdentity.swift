@@ -29,15 +29,16 @@ enum DatabaseIdentity {
     ///
     /// A database with no household has nothing to send. Neither token means the first
     /// launch of an install, or of the version that brought tokens. A database token with
-    /// none in UserDefaults means the data folder was copied into a fresh install.
+    /// none in UserDefaults means the data folder was copied into a fresh install, which has
+    /// never synced: like any device that already has a household, it starts with the sync
+    /// switch off, so its first upload is the owner's deliberate act (as when the wall's
+    /// data moves to a new bundle id).
     static func isReplaced(_ evidence: Evidence) -> Bool {
         guard evidence.hasHousehold else { return false }
         if evidence.hasSynced && !evidence.metadataExisted { return true }
-        switch (evidence.databaseToken, evidence.knownTokens.isEmpty) {
-        case (nil, true): return false
-        case let (token?, false): return !evidence.knownTokens.contains(token)
-        case (nil, false), (_?, true): return true
-        }
+        // Nothing in UserDefaults: a fresh install, or the first launch with tokens.
+        guard !evidence.knownTokens.isEmpty else { return false }
+        return evidence.databaseToken.map { !evidence.knownTokens.contains($0) } ?? true
     }
 
     /// The engine's metadata database beside the app's own (SQLiteData names it after the
