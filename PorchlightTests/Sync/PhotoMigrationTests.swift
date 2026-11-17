@@ -195,7 +195,14 @@ struct PhotoMigrationTests {
         // The files the rows name, read before anything changes.
         let database = copy.appendingPathComponent("porchlight.sqlite")
         let queue = try DatabaseQueue(path: database.path, configuration: AppDatabase.configuration)
-        try AppDatabase.migrator(files: nil).migrate(queue, upTo: SyncFixture.lastOldMigration)
+        let migrator = AppDatabase.migrator(files: nil)
+        let applied = try queue.read { try migrator.appliedIdentifiers($0) }
+        try #require(!applied.contains("sync v2: photos become rows"), "the copy is from before the photo import")
+        // A copy from before "sync v1" is brought up to the last old migration, so the photo
+        // tables exist. A copy from after it (the wall since M0) already has them.
+        if !applied.contains(AppDatabase.syncMigration) {
+            try migrator.migrate(queue, upTo: SyncFixture.lastOldMigration)
+        }
         let named = try queue.read { db -> [String] in
             let meals = try Row.fetchAll(db, sql: "SELECT photoFile, thumbnailFile FROM journalEntryPhoto").flatMap { row -> [String] in
                 let photo: String = row["photoFile"]
