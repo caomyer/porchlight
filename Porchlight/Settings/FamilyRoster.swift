@@ -52,8 +52,17 @@ struct FamilyRoster: Equatable {
         let ownerUser = members.owner?.userName ?? (members.participants.isEmpty ? thisUserName : nil)
         var unmatched = members.participants.filter { $0.role != .owner }
 
+        // Once the share is known, a personal device whose iCloud user is neither the owner
+        // nor someone who joined is left over from someone who was removed: it says so.
+        let shareKnown = !members.participants.isEmpty
+        func stillIn(_ device: Device) -> Bool {
+            guard shareKnown, device.role == .personal, let user = device.userName else { return true }
+            return user == ownerUser || members.participant(userName: user)?.status == .joined
+        }
         var rows: [Row] = snapshot.people.map { person in
-            let devices = snapshot.devices(of: person.id)
+            let all = snapshot.devices(of: person.id)
+            let devices = all.filter(stillIn)
+            let leftOver = all.filter { !stillIn($0) }
             let isOwner = ownerUser != nil && devices.contains { $0.userName == ownerUser }
             let participant = devices.lazy.compactMap { members.participant(userName: $0.userName) }.first
                 ?? (devices.isEmpty ? unmatched.first { $0.status == .invited && $0.names(person) } : nil)
@@ -69,7 +78,9 @@ struct FamilyRoster: Equatable {
             case .invited:
                 detail = "Invited, hasn't joined yet"
             case .noPhone:
-                detail = onSharedScreen ? "Pitches in on this screen" : "No phone yet"
+                detail = !leftOver.isEmpty
+                    ? "Not joined: \(leftOver[0].name) no longer has access"
+                    : onSharedScreen ? "Pitches in on this screen" : "No phone yet"
             }
             return Row(
                 id: person.id.description, person: person, title: person.name, detail: detail, state: state,
