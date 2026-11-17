@@ -57,7 +57,7 @@ final class HouseholdTests: XCTestCase {
 
         app.buttons["show-code"].tap()
         XCTAssertTrue(app.images["join-code"].waitForExistence(timeout: 15), "The code is drawn on the iPad")
-        XCTAssertTrue(app.staticTexts["Point an iPhone camera here. Anyone who scans joins The Lake House, so show it only to family."].exists)
+        XCTAssertTrue(app.staticTexts["Point an iPhone camera here. The first person who scans joins The Lake House, so show it only to family."].exists)
         snapshot("82-family-join-code")
         app.buttons["Done"].tap()
         XCTAssertFalse(app.images["join-code"].waitForExistence(timeout: 2))

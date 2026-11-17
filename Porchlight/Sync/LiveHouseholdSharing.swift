@@ -44,23 +44,65 @@ final class LiveHouseholdSharing: HouseholdSharing {
         return .cloud(try await share(household) { _ in }, engine)
     }
 
-    func joinCode(_ household: Household) async throws -> URL {
-        let shared = try await share(household) { $0.publicPermission = .readWrite }
-        Self.log("join code on", shared.share)
-        guard let url = shared.share.url else { throw SharingFailure.noLink }
-        return url
+    var supportsJoinSeats: Bool {
+        if #available(iOS 18, *) { return true }
+        return false
     }
 
-    func linkJoiners(of household: Household) async throws -> [HouseholdParticipant] {
-        guard let share = try await latestShare(of: household) else { return [] }
+    func openSeat(_ household: Household) async throws -> JoinSeat {
+        guard #available(iOS 18, *) else { throw SharingFailure.noSeats }
+        // The share exists from here on (the household's first code may come before any invite).
+        _ = try await share(household) { _ in }
+        guard let share = try await latestShare(of: household) else { throw SharingFailure.noHousehold }
+        // Never public: a seat is a private participant, and the two can't mix.
+        guard share.publicPermission == .none else { throw SharingFailure.publicLink }
+        let seat = CKShare.Participant.oneTimeURLParticipant()
+        seat.permission = .readWrite
+        share.addParticipant(seat)
+        let saved = try await save(share)
+        Self.log("join seat added", saved)
+        guard let url = saved.__oneTimeURL(forParticipantID: seat.participantID) else { throw SharingFailure.noLink }
+        return JoinSeat(id: seat.participantID, url: url)
+    }
+
+    func seatState(_ seat: JoinSeat, in household: Household) async throws -> SeatState {
+        guard let share = try await latestShare(of: household),
+              let participant = share.participants.first(where: { $0.participantID == seat.id }) else { return .gone }
+        guard participant.acceptanceStatus == .accepted else { return .waiting }
+        return .claimed(userName: participant.userIdentity.userRecordID?.recordName)
+    }
+
+    func closeSeat(_ seat: JoinSeat, in household: Household) async throws {
+        guard let share = try await latestShare(of: household),
+              let participant = share.participants.first(where: { $0.participantID == seat.id }),
+              participant.acceptanceStatus != .accepted else { return }
+        share.removeParticipant(participant)
+        Self.log("join seat removed unclaimed", try await save(share))
+    }
+
+    func publicLink(of household: Household) async throws -> [HouseholdParticipant]? {
+        guard let share = try await latestShare(of: household), share.publicPermission != .none else { return nil }
         let me = await currentUserName()
         return HouseholdMembers(share: share, currentUserName: me).participants
-            .filter { $0.joinedByLink && $0.status == .joined && !$0.isCurrentUser }
+            .filter { $0.joinedByLink && !$0.isCurrentUser }
     }
 
-    func endJoinCode(_ household: Household) async throws {
-        let shared = try await share(household) { $0.publicPermission = .none }
-        Self.log("join code off", shared.share)
+    func closePublicLink(_ household: Household) async throws {
+        guard let share = try await latestShare(of: household), share.publicPermission != .none else { return }
+        share.publicPermission = .none
+        Self.log("public link closed", try await save(share))
+    }
+
+    /// Saves the share to the owner's private database, then has the engine fetch so it
+    /// caches the new share.
+    private func save(_ share: CKShare) async throws -> CKShare {
+        let (results, _) = try await container.privateCloudDatabase.modifyRecords(saving: [share], deleting: [])
+        var saved = share
+        for result in results.values {
+            if let record = try result.get() as? CKShare { saved = record }
+        }
+        try? await sync.engine?.fetchChanges()
+        return saved
     }
 
     /// The share's state for the sync log: its link and how many participants of each
@@ -118,7 +160,7 @@ final class LiveHouseholdSharing: HouseholdSharing {
     // MARK: Private
 
     private enum SharingFailure: LocalizedError {
-        case noEngine, noHousehold, noLink, notShared
+        case noEngine, noHousehold, noLink, notShared, noSeats, publicLink
 
         var errorDescription: String? {
             switch self {
@@ -126,6 +168,8 @@ final class LiveHouseholdSharing: HouseholdSharing {
             case .noHousehold: "The household hasn't reached iCloud yet. Try again in a minute."
             case .noLink: "iCloud didn't make a link for the household. Try again in a minute."
             case .notShared: "This household is yours, so there is nothing to leave."
+            case .noSeats: "A join code needs iOS 18 on this device."
+            case .publicLink: "The household's old open link is still on. Close it first, in Family & devices."
             }
         }
     }

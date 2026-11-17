@@ -92,12 +92,12 @@ struct PocketWelcome: View {
                         VStack(alignment: .leading, spacing: 0) {
                             way("✉️", "Open the invite someone sent you", "It opens Porchlight and asks if you want to join.")
                             RowDivider()
-                            way("📷", "Or scan your family's code", "On the shared screen, open Settings › Family & devices › Show a code to join, and point the Camera app at it.")
+                            way("📷", "Or scan your family's code", "On the household owner's iPhone, open Porchlight: You › Invite someone › Show a code, and point the Camera app at it.")
                         }
                         .padding(.horizontal, 14)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
                     } else {
-                        Text("To join, open the invite someone sent you or scan the code on your family's screen.")
+                        Text("To join, open the invite someone sent you or scan the code on the household owner's iPhone.")
                             .phoneFont(.body, 12.5, weight: 500, relativeTo: .footnote)
                             .foregroundStyle(Theme.muted)
                     }
