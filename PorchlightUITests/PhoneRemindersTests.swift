@@ -31,8 +31,10 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         let row = app.buttons["notifications"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.waitToSettle()
+        // Below the household, storage and people now, so scrolled into view first.
+        reveal(row, in: app)
         row.tap()
-        XCTAssertTrue(app.staticTexts["Notifications"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars.buttons["You"].waitForExistence(timeout: 5), "On the Notifications page")
         return app
     }
 

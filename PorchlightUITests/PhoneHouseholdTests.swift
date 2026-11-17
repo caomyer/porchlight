@@ -30,7 +30,9 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
 
     func testTheWelcomeExplainsBothWaysIn() {
         let app = launch(["-resetData"])
-        XCTAssertTrue(app.staticTexts["Open the invite someone sent you"].waitForExistence(timeout: 60))
+        XCTAssertTrue(app.buttons["start-household"].waitForExistence(timeout: 60), "Two doors: start one here")
+        app.buttons["join-one"].tap()
+        XCTAssertTrue(app.staticTexts["Open the invite someone sent you"].waitForExistence(timeout: 5), "or join one, and how")
         XCTAssertTrue(app.staticTexts["Or scan your family's code"].exists)
         snapshot("phone-100-welcome")
     }
@@ -110,7 +112,7 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["James removed this iPhone from the household, or stopped sharing it. What you logged stays with the household."].exists)
         snapshot("phone-106-removed")
         app.buttons["removed-ok"].tap()
-        XCTAssertTrue(app.staticTexts["Open the invite someone sent you"].waitForExistence(timeout: 10), "then the household is gone from this phone")
+        XCTAssertTrue(app.buttons["start-household"].waitForExistence(timeout: 10), "then the household is gone from this phone")
     }
 
     // MARK: Sync banners
