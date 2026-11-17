@@ -119,6 +119,34 @@ scripts/sim-shot.sh <iphone-udid> /tmp/phone.png -sampleHousehold -me James
 scripts/test.sh --phone --ui-only   # the phone's UI tests on the iOS 17.5 iPhone 15 simulator
 ```
 
+## TestFlight
+
+Family phones get builds through TestFlight, without a cable.
+The wall iPad stays on cable installs (`scripts/deploy-ipad.sh`), which are Release builds in the same CloudKit Production environment as TestFlight builds, so the wall and the phones share one household.
+
+One-time setup:
+- The App Store Connect app is "Porchlight Homes", bundle id `com.mingyucao.porchlight`.
+- Create an App Store Connect API key (App Store Connect › Users and Access › Integrations), keep the `.p8` file outside the repository (for example in `~/.appstoreconnect/`), and copy `Config/AppStoreConnect.example.env` to `Config/AppStoreConnect.env` with its path, key id and issuer id.
+  That file is git-ignored; never commit the key or its ids.
+- The scripts that sign pass this key to `xcodebuild` (`-authenticationKeyPath`, `-authenticationKeyID`, `-authenticationKeyIssuerID`), because `xcodebuild -allowProvisioningUpdates` in a terminal may not see the account Xcode is signed in to ("No Accounts").
+
+Each build:
+
+```bash
+scripts/testflight.sh --no-upload   # archive, export for App Store Connect, validate: a validated .ipa
+scripts/testflight.sh --upload-only # upload that .ipa
+scripts/testflight.sh               # both
+```
+
+It builds from a clean working tree only, so every build is a commit.
+The version is `MARKETING_VERSION` in `project.yml`; the build number is the commit's time in UTC (`YYYYMMDD.HHMMSS`, `scripts/lib/version.sh`), so each later commit uploads higher without editing anything, a commit can be uploaded once, and a cable install of the same commit shows the same version.
+Settings on the wall and the bottom of You on a phone show the version a device runs.
+
+Testers:
+- Internal testers (up to 100 people on the App Store Connect team) get a build as soon as Apple has processed it, with no review.
+- External testers (anyone with an email address or a public link) need the build to pass a short Beta App Review first, once per version.
+- Each build expires 90 days after upload; upload a new one before then, and TestFlight updates the phones.
+
 ## Layout
 
 - `Porchlight/App` - app entry, live stores, kiosk behavior, debug launch hooks

@@ -134,6 +134,13 @@ struct SettingsView: View {
                             .font(.body(14, weight: 600))
                             .foregroundStyle(Theme.accent)
                     }
+
+                    // Which build this wall runs, quietly, last.
+                    Text(AppVersion.text)
+                        .font(.body(12.5, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("app-version")
                 }
                 // One readable column for every section, features included.
                 .frame(maxWidth: 980, alignment: .leading)

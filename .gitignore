@@ -6,8 +6,10 @@ build/
 *.xcuserstate
 xcuserdata/
 .swiftpm/
-# Machine-specific signing settings
+# Machine-specific signing settings, and the App Store Connect key's ids
 Config/Local.xcconfig
+Config/AppStoreConnect.env
+*.p8
 .DS_Store
 # Claude Code worktrees and local state
 .claude/

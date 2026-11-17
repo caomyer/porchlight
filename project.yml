@@ -35,8 +35,10 @@ targets:
       path: Porchlight/Info.plist
       properties:
         CFBundleDisplayName: Porchlight
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
+        # Set by MARKETING_VERSION and CURRENT_PROJECT_VERSION below; the scripts that sign
+        # derive the build number from the commit (scripts/lib/version.sh).
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # The wall keeps its single light look and hidden status bar from launch; the
         # phone shows its status bar and launches in the system's light or night look.
         UILaunchScreen:
@@ -56,9 +58,9 @@ targets:
           - DMSans.ttf
           - Caveat.ttf
         ITSAppUsesNonExemptEncryption: false
-        NSCalendarsFullAccessUsageDescription: Porchlight shows your household's calendars on the wall. It only reads them.
+        NSCalendarsFullAccessUsageDescription: Porchlight shows the calendars you choose on Today and on your household's wall. It only reads them and never changes them.
         NSCameraUsageDescription: Porchlight uses the camera to snap photos of your meals for the food diary.
-        NSPhotoLibraryUsageDescription: Porchlight can show photos you pick on the wall in Ambient mode.
+        NSPhotoLibraryUsageDescription: Porchlight adds the photos you pick to your meals, your companions and the wall's photo frame.
         NSLocationWhenInUseUsageDescription: Porchlight uses your approximate location once to show local weather.
         # iCloud sync: the engine is woken by pushes, and the household is shared in M2.
         UIBackgroundModes:
@@ -77,6 +79,11 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mingyucao.porchlight
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # The version people see, set here and nowhere else.
+        MARKETING_VERSION: "0.1.0"
+        # Builds from Xcode or the simulator scripts say 0; deploy-ipad.sh and testflight.sh
+        # pass the commit's build number (scripts/lib/version.sh).
+        CURRENT_PROJECT_VERSION: "0"
       configs:
         # The wall (Release, by cable) and family phones (TestFlight) must meet in the same
         # CloudKit environment, so Release uses Production; Debug, simulators and tests stay

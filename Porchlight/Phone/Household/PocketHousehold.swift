@@ -28,7 +28,8 @@ struct PocketHouseholdHub: View {
                 PhoneList {
                     link(.companions, "🐾", "Companions", companionsLine, id: "household-companions")
                     RowDivider()
-                    link(.chores, "☑️", "Chores", choresLine, id: "household-chores")
+                    // The same green check as chores on the Notifications page.
+                    link(.chores, "", "Chores", choresLine, id: "household-chores", symbol: ("checkmark.square.fill", Theme.good))
                     RowDivider()
                     link(.rewards, "🎁", "Rewards", rewardsLine, id: "household-rewards")
                     RowDivider()
@@ -153,9 +154,9 @@ struct PocketHouseholdHub: View {
 
     // MARK: The rest
 
-    private func link(_ page: YouPage, _ emoji: String, _ title: String, _ detail: String, id: String) -> some View {
+    private func link(_ page: YouPage, _ emoji: String, _ title: String, _ detail: String, id: String, symbol: (name: String, color: Color)? = nil) -> some View {
         NavigationLink(value: page) {
-            InfoRow(emoji: emoji, title: title, detail: detail, chevron: true)
+            InfoRow(emoji: emoji, title: title, detail: detail, chevron: true, symbol: symbol)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(id)

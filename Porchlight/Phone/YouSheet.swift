@@ -116,6 +116,13 @@ struct YouSheet: View {
                             .accessibilityIdentifier("leave-household")
                         }
                     }
+                    // Which build this phone runs, quietly, last.
+                    Text(AppVersion.text)
+                        .phoneFont(.body, 11.5, weight: 600, relativeTo: .caption)
+                        .foregroundStyle(Theme.muted)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("app-version")
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -691,10 +698,22 @@ struct InfoRow: View {
     let title: String
     let detail: String
     var chevron = false
+    /// A symbol drawn instead of the emoji, as chores are everywhere on the phone.
+    var symbol: (name: String, color: Color)?
+
+    @PhoneMetric(upTo: 1.4) private var symbolSize: CGFloat = 20
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(emoji).phoneFont(.body, 20).accessibilityHidden(true)
+            if let symbol {
+                Image(systemName: symbol.name)
+                    .font(.system(size: symbolSize, weight: .semibold))
+                    .foregroundStyle(symbol.color)
+                    .frame(minWidth: 24)
+                    .accessibilityHidden(true)
+            } else {
+                Text(emoji).phoneFont(.body, 20).accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
                 Text(detail)
