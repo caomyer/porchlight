@@ -66,8 +66,7 @@ The switcher for people in several households is M5; until then the newest accep
 - `invite()` returns what the system share sheet needs.
   The standard `UICloudSharingController` (SQLiteData's `CloudSharingView`) sends the invite by Messages, Mail or a copied link, and manages who has access.
   It is Apple's own UI for this, it handles every edge of the sharing rules, and people have seen it in Notes and Reminders.
-- `joinCode()` returns the share's link for a QR code, after making the share joinable by anyone with the link.
-  `linkJoiners()` says who joined through it, and `endJoinCode()` turns it off; see "The join code" for when.
+- `openSeat()`, `seatState()` and `closeSeat()` make, follow and put away one private seat for a join code; `publicLink()` and `closePublicLink()` are the safety net for a share left public; see "The join code".
 - `accept(_:)` accepts an invite that opened the app.
 - `remove(_:)` removes a participant, for the owner.
 
@@ -76,34 +75,43 @@ Participants get read and write access.
 ### The join code (experiment S2, answered)
 
 On the first two-Apple-ID test, Carol joined by scanning the wall's code, and the moment the code sheet closed her phone showed "removed".
-That is what the platform says it does; the earlier design assumed the opposite.
+That is what the platform says it does; the earlier design (a QR of the share's public link, closed again when the sheet closed) assumed the opposite.
 From the iOS 26.2 SDK's CloudKit headers:
 
 - `CKShare.publicPermission`: "CloudKit removes all public participants when you save the share if you set the property's value to none."
 - `CKShare.addParticipant` and `removeParticipant`: "To modify the list of participants, a share's publicPermission must be none. You can't mix and match public and private users in the same share."
 - `CKShare.Participant`: anyone with the URL of a public share joins with the `publicUser` role; "CloudKit removes any pending participants if the owner changes the share's publicPermission. CloudKit removes all participants if the new permission is none."
-- `CKShare.Participant.oneTimeURLParticipant()` (iOS 18 and later) adds a private participant that whoever opens its one-time URL claims; after acceptance it works like the share's URL.
+- `CKShare.Participant` roles: the owner "can invite private users"; a private user "can access the share"; only an administrator, a role that needs iOS 26, "can add and remove participants".
+- `CKShare.Participant.oneTimeURLParticipant()` (iOS 18): "When a participant's email address / phone number / userRecordID isn't known up-front, you can add a oneTimeURLParticipant to the share. Once you save the share, you can get a custom invitation link or one-time URL for the added participant via `CKShare.oneTimeURL(for:)`. Any recipient user can use this custom link to fetch share metadata and accept the share."
+  A pending one-time participant has empty name components and no lookup info.
+- `CKShare.oneTimeURLForParticipantID:` (iOS 18): "One-time URLs are stable, and tied to the associated participantIDs as long as the participant is part of the share. After share acceptance, the one-time URL becomes functionally equivalent to the regular URL."
 - Access requests (`allowsAccessRequests`, `requesters`, `CKShareRequestAccessOperation`) need iOS 26 on both sides.
 
-So someone who joined through the link can't be kept once the link closes: they can't be made private while the share is public, and closing it removes them in the same save.
-One-time URLs would be the clean answer (each code a private seat for one person), but the share's owner device must save them, and the wall is an iPad Pro 10.5 that stops at iPadOS 17.
-Access requests are further out still.
+So a household open to whoever holds a link can't also have members invited by name, and closing that link removes everyone who came through it.
+The decision: Porchlight never sets `publicPermission` to anything but none.
 
-What Porchlight does now:
-
-- Showing the code opens the link (`publicPermission = .readWrite`), as before.
-- Putting the code away closes the link only if nobody joined through it (`JoinCodePolicy.putAway`, which asks the share again so someone who scanned a moment ago counts).
-  If someone did, the link stays open: closing the sheet never removes anyone.
-- While the code shows, the sheet lists who joined with it ("Carol joined with this code. They keep access only while the code stays on, so it stays on after you close this.") and offers "Turn off the code…", which first asks, naming who it removes ("Turning the code off removes Carol from the household. You can invite them again by name with Invite someone.").
-- The caption under every code says that anyone who joins with it keeps access while it stays on.
-- "Invite someone" (the system's share sheet, private participants by name) stays the way to add someone for good with the link closed; while anyone is in through the link, the share is public and can't take private participants, which the share sheet itself reports.
-- The share's operations go to the sync log: the link opened or closed, and participants counted by role and status (owner, private, link; joined, pending, removed), never who.
+- A join code is one private seat: `oneTimeURLParticipant()` with read and write, added and saved by the owner's device that shows the code, one seat per showing.
+  The code is that seat's one-time URL; the first person who opens it takes the seat and is a private participant like anyone invited by name.
+- The sheet follows the seat every few seconds: "One person can join with this code. It works until you close this.", then "Carol joined with this code." once her phone has said who she is.
+- Putting the code away removes the seat when nobody took it: the share is fetched fresh, the participant with that `participantID` is removed only while its status isn't accepted, and the share is saved.
+  Removing a participant from a private share touches no one else, so accepted members are never affected (`removeParticipant` names exactly one participant).
+- Only the share's owner can add participants, and only a device with iOS 18 can make a seat.
+  So "Show a code" appears only on the owner's own iOS 18 device; the iPadOS 17 wall and members' phones show one line instead: "To show a join code, open Porchlight on James's iPhone: You, Invite someone, Show a code.", which on a member's phone starts "Only James can add people to the household."
+  A member's device shows no invite button at all, since the share wouldn't let it add anyone.
+- The phone's welcome says where the code is: "On the household owner's iPhone, open Porchlight: You › Invite someone › Show a code, and point the Camera app at it."
+- A safety net for shares left public by the earlier code: when the owner's device reads the share and finds its link open, it closes it at once if nobody joined through it; if someone did, Family & devices and the phone's invite page say who and offer "Close the link…", which first says who closing it removes and that they can be invited again by name.
+  Nothing is ever closed by itself while someone is in through it.
+- The share's operations go to the sync log: a seat added or removed unclaimed, the link closed, a participant removed, and participants counted by role and status (owner, private, link; joined, pending, removed), never who.
 
 The member's side: a phone that was removed shows the removed screen, starts over on "OK", and can join again; the household arrives through the engine as on a first join, and a "me" chosen for that household before is kept, since it is the same household.
 The owner's side: once the share is known, a personal device whose iCloud user is neither the owner nor someone who joined no longer counts as having the app; the person shows "Not joined: Carol's iPhone no longer has access", and invites from there work as for anyone.
 
-Still to prove on devices: that the link left open keeps Carol in across the wall's restarts and her phone's; that a removed phone's second join brings the household back with nothing stale; and that the share sheet refuses private invites while the link has joiners, as the documentation says.
-Later, on an owner device with iOS 18 (James's phone), the code can become a one-time URL for one private seat, which closes the gap entirely; the wall would then show a code its owner's phone made.
+Still to prove on devices:
+
+- a one-time URL made on James's iPhone, scanned by a second Apple ID, joins as a private participant, and the sheet sees it taken;
+- putting the code away untaken removes the seat, and the person who took a seat before stays;
+- a member's phone can't add participants (the headers say only the owner, or an iOS 26 administrator, can), and the share sheet there offers no invite;
+- the safety net on the wall's existing share, which was public during the first test.
 
 ## Joining (A4)
 
@@ -182,7 +190,7 @@ Choices made while building M2's sharing half, where the design above left room 
 
 - `HouseholdSharing` is a protocol with `LiveHouseholdSharing` and `FakeHouseholdSharing`; `HouseholdSharingModel` wraps either for the screens and keeps the last participants it read, so they show offline.
 - The live sharing creates or saves the share with SQLiteData's `share(record:configure:)` on the household's mirror, sets the share's title to the household's name, and presents `CloudSharingView` with `[.allowReadWrite, .allowPrivate]`, so invites go to the people they're sent to and everyone can write.
-- The join code sets `publicPermission = .readWrite` through the same call and shows the share's URL as a QR code; putting the code away sets it back to `.none` only when no one joined through it (`JoinCodePolicy`, see "The join code").
+- The join code adds a one-time participant to the share, saves it to the private database, and shows the participant's one-time URL as a QR code (see "The join code").
 - Removing someone fetches the share fresh, removes the participant, saves the share to the private database, and fetches changes so the engine caches the new share; then the owner deletes that person's device rows, and their person stays.
 - Participants are matched to people through device rows: a device carries its iCloud user's record name, and the share's participants carry theirs.
   On the owner's own devices a share may name its owner `__defaultOwner__`, so the current user's participant takes the record name the device read itself.
@@ -234,7 +242,7 @@ The live sharing code cannot run in tests or unsigned simulator builds; these li
 - `SceneDelegate` receiving the share at a cold start and while running, with the SwiftUI life cycle.
 - `HouseholdInvitation(metadata:)`: the share's title, the owner's name, and the household id from `hierarchicalRootRecordID`.
 - `engine.acceptShare(metadata:)` and the household arriving in time on the joining phone.
-- `LiveHouseholdSharing.share`: creating the share, the invite through `CloudSharingView`, and `publicPermission` for the code (experiment S2).
+- `LiveHouseholdSharing.share`: creating the share and the invite through `CloudSharingView`; `openSeat` and `closeSeat` for the join code (a one-time participant, iOS 18).
 - `latestShare`: reading the cached share from the metadata and refreshing it from the private or shared database.
 - `HouseholdMembers(share:currentUserName:)`: participants' names, statuses and record names, including `__defaultOwner__`.
 - `remove(_:from:)`: removing a participant and that ending their access (experiment S2).

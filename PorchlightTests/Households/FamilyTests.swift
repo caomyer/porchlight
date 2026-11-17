@@ -102,10 +102,10 @@ struct FamilyTests {
         #expect(model.members.participants.count == 2)
 
         _ = try await fake.invite(household)
-        _ = try await fake.joinCode(household)
-        try await fake.endJoinCode(household)
+        let seat = try await fake.openSeat(household)
+        try await fake.closeSeat(seat, in: household)
         try await model.remove(miaJoined, from: household)
-        #expect(fake.calls == ["invite", "joinCode", "endJoinCode", "remove _mia"])
+        #expect(fake.calls == ["invite", "openSeat", "closeSeat", "remove _mia"])
         #expect(model.members.participants == [Self.owner])
         let snapshot = try db.snapshot()
         #expect(snapshot.devices(of: mia.id).isEmpty)

@@ -13,8 +13,12 @@ final class FakeHouseholdSharing: HouseholdSharing {
     var acceptFailures = 0
     /// Puts the accepted household in the database.
     var onAccept: (HouseholdInvitation) throws -> Void
-    var joinCodeURL = URL(string: "https://www.icloud.com/share/0PorchlightSampleHousehold#The_Lake_House")!
-    /// Every call, in order: "invite", "joinCode", "endJoinCode", "accept", "remove <id>".
+    /// Whether this "device" can make join seats, as iOS 18 can.
+    var supportsJoinSeats = true
+    /// The share's public link left open from the earlier join code.
+    var isLinkOpen = false
+    private var seats = 0
+    /// Every call, in order: "invite", "openSeat", "closeSeat", "closePublicLink", "accept", "remove <id>".
     private(set) var calls: [String] = []
 
     init(members: HouseholdMembers = .none, userName: String? = nil, onAccept: @escaping (HouseholdInvitation) throws -> Void = { _ in }) {
@@ -36,18 +40,41 @@ final class FakeHouseholdSharing: HouseholdSharing {
         return .standIn(householdName: household.name)
     }
 
-    func joinCode(_ household: Household) async throws -> URL {
-        calls.append("joinCode")
-        return joinCodeURL
+    func openSeat(_ household: Household) async throws -> JoinSeat {
+        calls.append("openSeat")
+        seats += 1
+        let id = "seat-\(seats)"
+        members.participants.append(HouseholdParticipant(id: id, name: nil, userName: nil, role: .member, status: .invited, isCurrentUser: false))
+        return JoinSeat(id: id, url: URL(string: "https://www.icloud.com/share/0PorchlightSeat\(seats)")!)
     }
 
-    func linkJoiners(of household: Household) async throws -> [HouseholdParticipant] {
-        members.participants.filter { $0.joinedByLink && $0.status == .joined }
+    func seatState(_ seat: JoinSeat, in household: Household) async throws -> SeatState {
+        guard let participant = members.participants.first(where: { $0.id == seat.id }) else { return .gone }
+        return participant.status == .joined ? .claimed(userName: participant.userName) : .waiting
+    }
+
+    func closeSeat(_ seat: JoinSeat, in household: Household) async throws {
+        calls.append("closeSeat")
+        members.participants.removeAll { $0.id == seat.id && $0.status != .joined }
+    }
+
+    /// Someone opened the seat's link, as their phone accepting it would.
+    func claim(_ seat: JoinSeat, as userName: String, name: String) {
+        guard let index = members.participants.firstIndex(where: { $0.id == seat.id }) else { return }
+        members.participants[index].status = .joined
+        members.participants[index].userName = userName
+        members.participants[index].name = name
+    }
+
+    func publicLink(of household: Household) async throws -> [HouseholdParticipant]? {
+        guard isLinkOpen else { return nil }
+        return members.participants.filter(\.joinedByLink)
     }
 
     /// As CloudKit does: closing the link removes everyone who joined through it.
-    func endJoinCode(_ household: Household) async throws {
-        calls.append("endJoinCode")
+    func closePublicLink(_ household: Household) async throws {
+        calls.append("closePublicLink")
+        isLinkOpen = false
         members.participants.removeAll { $0.joinedByLink }
     }
 

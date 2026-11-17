@@ -16,14 +16,22 @@ protocol HouseholdSharing: AnyObject {
     func participants(of household: Household) async throws -> HouseholdMembers
     /// What the system's share sheet needs to invite someone.
     func invite(_ household: Household) async throws -> HouseholdInvite
-    /// The share's link for a code to scan, after letting anyone with the link join.
-    func joinCode(_ household: Household) async throws -> URL
-    /// Who joined through the link and is still in: they lose access when the code is
-    /// turned off (docs/design/households.md, "The join code").
-    func linkJoiners(of household: Household) async throws -> [HouseholdParticipant]
-    /// Stops anyone with the link joining. CloudKit then removes everyone who joined through
-    /// it, so it is only called when nobody did, or when the owner chose to after being told who.
-    func endJoinCode(_ household: Household) async throws
+    /// Whether this device can make a join code: a one-time private seat, which needs
+    /// iOS 18 on the device that saves the share (docs/design/households.md, "The join code").
+    var supportsJoinSeats: Bool { get }
+    /// Adds one private, read-and-write seat to the share and returns its one-time link, for
+    /// a code to scan. Whoever opens the link first takes the seat.
+    func openSeat(_ household: Household) async throws -> JoinSeat
+    /// Whether someone has taken the seat yet.
+    func seatState(_ seat: JoinSeat, in household: Household) async throws -> SeatState
+    /// Removes the seat if nobody took it. A taken seat, and everyone else, is never touched.
+    func closeSeat(_ seat: JoinSeat, in household: Household) async throws
+    /// Nil when the share's public link is closed, as Porchlight keeps it; otherwise who
+    /// joined through it (possibly nobody), left from the earlier public join code.
+    func publicLink(of household: Household) async throws -> [HouseholdParticipant]?
+    /// Closes the public link, which removes everyone who joined through it; only called
+    /// when nobody did, or when the owner chose it after being told who.
+    func closePublicLink(_ household: Household) async throws
     /// Accepts an invite that opened the app; the household syncs in.
     func accept(_ invitation: HouseholdInvitation) async throws
     /// Removes someone from the share, for the owner. Their history stays.
@@ -131,37 +139,35 @@ extension HouseholdParticipant {
     }
 }
 
-/// How the QR code behaves when it is put away (docs/design/households.md, "The join code").
-///
-/// Experiment S2 answered it on two devices, as Apple's documentation says: setting the
-/// share's `publicPermission` back to none removes everyone who joined through the link. So
-/// putting the code away only closes the link when nobody joined through it; otherwise the
-/// code stays on, the sheet says who it keeps in, and turning it off is the owner's choice,
-/// made knowing who will lose access.
-enum JoinCodePolicy {
-    /// What putting the code away does, given who joined through it.
-    enum Closing: Equatable {
-        /// Nobody joined through it: the link closes.
-        case closeLink
-        /// These people joined through it and keep access only while it stays on.
-        case keepOpen([String])
-    }
+/// One private seat on the share, for a join code: the participant CloudKit made and the
+/// one-time link that claims it.
+struct JoinSeat: Equatable, Sendable {
+    var id: String
+    var url: URL
+}
 
-    static func closing(linkJoiners: [HouseholdParticipant]) -> Closing {
-        linkJoiners.isEmpty ? .closeLink : .keepOpen(linkJoiners.map { $0.name ?? "Someone with the code" })
-    }
+/// A seat's state, as the code's sheet follows it.
+enum SeatState: Equatable, Sendable {
+    /// Nobody has opened the link yet.
+    case waiting
+    /// Someone took it; their iCloud user, once known, names their person here.
+    case claimed(userName: String?)
+    /// The seat isn't on the share anymore.
+    case gone
+}
 
-    /// "Carol joined with this code…", or nil when nobody did.
-    static func keptOpenText(_ names: [String]) -> String? {
-        guard !names.isEmpty else { return nil }
-        let who = ListFormatter.localizedString(byJoining: names)
-        let they = names.count == 1 ? "They keep" : "They keep"
-        return "\(who) joined with this code. \(they) access only while the code stays on, so it stays on after you close this."
-    }
+/// Where a join code can be shown (docs/design/households.md, "The join code").
+enum JoinCodeAvailability: Equatable, Sendable {
+    case available
+    /// Not on this device: the one line that says where instead.
+    case elsewhere(String)
 
-    /// The question before turning the code off: who it removes.
-    static func turnOffQuestion(_ names: [String]) -> String {
-        let who = ListFormatter.localizedString(byJoining: names)
-        return "Turning the code off removes \(who) from the household. You can invite \(names.count == 1 ? "them" : "them") again by name with Invite someone."
+    /// Only the household's owner can add people to its share, and a code is a seat only a
+    /// device with iOS 18 can make.
+    static func decide(isOwner: Bool, supportsSeats: Bool, ownerName: String?) -> JoinCodeAvailability {
+        let owners = ownerName.map { "\($0)'s iPhone" } ?? "the owner's iPhone"
+        let way = "To show a join code, open Porchlight on \(owners): You, Invite someone, Show a code."
+        if isOwner { return supportsSeats ? .available : .elsewhere(way) }
+        return .elsewhere("Only \(ownerName ?? "the household's owner") can add people to the household. \(way)")
     }
 }

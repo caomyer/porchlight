@@ -11,6 +11,9 @@ final class HouseholdSharingModel {
     @ObservationIgnored private let database: AppDatabase
 
     private(set) var members: HouseholdMembers = .none
+    /// People who joined through the share's old public link, which is still open: the
+    /// owner is shown who they are and chooses (docs/design/households.md, "The join code").
+    private(set) var linkJoiners: [HouseholdParticipant] = []
     /// This device's iCloud user record name, once read.
     private(set) var userName: String?
 
@@ -27,10 +30,36 @@ final class HouseholdSharingModel {
         userName = await service.currentUserName() ?? userName
         guard let members = try? await service.participants(of: household) else { return }
         self.members = members
+        if members.isOwner { await checkPublicLink(household) }
         // Remembered so a removed device can still say who removed it.
         if !members.isOwner, let owner = members.owner?.name {
             try? database.rememberOwner(owner, of: household.id)
         }
+    }
+
+    /// Porchlight keeps the share's public link closed. One left open from the earlier
+    /// join code is closed at once when nobody joined through it; otherwise the owner sees
+    /// who did, and nothing is closed until they choose.
+    func checkPublicLink(_ household: Household) async {
+        guard let joiners = try? await service.publicLink(of: household) else {
+            if !linkJoiners.isEmpty { linkJoiners = [] }
+            return
+        }
+        if joiners.isEmpty {
+            try? await service.closePublicLink(household)
+            SyncLog.shared.write("share: public link found open with nobody through it; closed")
+            if !linkJoiners.isEmpty { linkJoiners = [] }
+        } else {
+            SyncLog.shared.write("share: public link found open, \(joiners.count) joined through it; asking the owner")
+            if joiners != linkJoiners { linkJoiners = joiners }
+        }
+    }
+
+    /// The owner chose: the link closes, which removes the people who joined through it.
+    func closePublicLink(_ household: Household) async throws {
+        try await service.closePublicLink(household)
+        linkJoiners = []
+        await refresh(household)
     }
 
     /// The owner's name as the household says it: their person, through the iCloud user

@@ -71,17 +71,34 @@ struct FamilySection: View {
         .padding(.bottom, 8)
     }
 
+    /// Where a join code can be shown, and whether this device may add people at all.
+    private var codeAvailability: JoinCodeAvailability {
+        .decide(
+            isOwner: sharing.members.isOwner, supportsSeats: sharing.service.supportsJoinSeats,
+            ownerName: sharing.ownerName(people: model.everyone, devices: model.devices)
+        )
+    }
+
     private var actions: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                Button("Invite someone", action: openInvite)
-                    .buttonStyle(PrimaryButtonStyle())
-                    .accessibilityIdentifier("invite")
-                Button("Show a code to join") { present(.code) }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .accessibilityIdentifier("show-code")
+            PublicLinkNotice()
+            // Only the owner can add people to the share; a member's device says so.
+            if sharing.members.isOwner {
+                HStack(spacing: 12) {
+                    Button("Invite someone", action: openInvite)
+                        .buttonStyle(PrimaryButtonStyle())
+                        .accessibilityIdentifier("invite")
+                    if codeAvailability == .available {
+                        Button("Show a code to join") { present(.code) }
+                            .buttonStyle(SecondaryButtonStyle())
+                            .accessibilityIdentifier("show-code")
+                    }
+                }
+                .disabled(blocker != nil)
             }
-            .disabled(blocker != nil)
+            if case let .elsewhere(text) = codeAvailability {
+                JoinCodeElsewhere(text: text)
+            }
             if let reason = blocker ?? failure {
                 HStack(spacing: 10) {
                     Text(reason)
@@ -275,12 +292,11 @@ private struct JoinCodeWallSheet: View {
                     .multilineTextAlignment(.center)
             }
             JoinCodeCard(size: 280)
-            Text(JoinCodePolicy.caption(name))
+            Text("Point an iPhone camera here. The first person who scans joins \(name), so show it only to family.")
                 .font(.body(16, weight: 500))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            JoinCodeJoiners()
             Button("Done") { close() }
                 .buttonStyle(PrimaryButtonStyle())
         }

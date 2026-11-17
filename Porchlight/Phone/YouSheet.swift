@@ -175,7 +175,7 @@ struct YouSheet: View {
         if let waiting = roster.rows.first(where: { $0.person != nil && $0.state != .joined }) {
             return "\(waiting.title) hasn't joined yet"
         }
-        return "Send a link, or show a code"
+        return sharing.members.isOwner ? "Send a link, or show a code" : "Only the owner can add people"
     }
 
     /// "2 shown on Today", or why there are none.
@@ -362,6 +362,12 @@ private struct InvitePage: View {
                 }
                 .padding(.horizontal, 14)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                PublicLinkNotice()
+                if case let .elsewhere(text) = codeAvailability {
+                    JoinCodeElsewhere(text: text, compact: true)
+                        .padding(.horizontal, 4)
+                }
+                if codeAvailability == .available {
                 NavigationLink(value: YouPage.joinCode) {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
@@ -371,7 +377,7 @@ private struct InvitePage: View {
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundStyle(Theme.muted)
                         }
-                        Text("For someone standing next to you. Same as the code on a shared screen.")
+                        Text("For someone standing next to you: one code, one person.")
                             .phoneFont(.body, 13, weight: 500)
                             .foregroundStyle(Theme.muted)
                             .fixedSize(horizontal: false, vertical: true)
@@ -380,6 +386,7 @@ private struct InvitePage: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("show-code")
+                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
@@ -395,6 +402,13 @@ private struct InvitePage: View {
     private var home: HouseholdHome {
         HouseholdHome.from(
             sync.status, isOwner: sharing.members.isOwner,
+            ownerName: sharing.ownerName(people: model.everyone, devices: model.devices)
+        )
+    }
+
+    private var codeAvailability: JoinCodeAvailability {
+        .decide(
+            isOwner: sharing.members.isOwner, supportsSeats: sharing.service.supportsJoinSeats,
             ownerName: sharing.ownerName(people: model.everyone, devices: model.devices)
         )
     }
@@ -496,12 +510,11 @@ private struct JoinCodePage: View {
                     .phoneFont(.display, 26, weight: 600, relativeTo: .largeTitle)
                     .multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
-                JoinCodeCard(size: 240)
-                Text(JoinCodePolicy.caption(name))
+                JoinCodeCard(size: 240, compact: true)
+                Text("Point another iPhone's camera here. The first person who scans joins \(name), so show it only to family.")
                     .phoneFont(.body, 14, weight: 500)
                     .foregroundStyle(Theme.muted)
                     .multilineTextAlignment(.center)
-                JoinCodeJoiners(compact: true)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
