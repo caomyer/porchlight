@@ -33,6 +33,10 @@ struct MealIllustration: View {
         PhotoView(photo.flatMap(request)) { isMissing in
             if isMissing {
                 PlateArt(emoji: entry.emoji ?? DishIllustration.fallbackEmoji, tint: tint, plate: plate, emojiSize: emojiSize)
+            } else if let photo, preferFullPhoto, let thumbnail = store.thumbnail(of: photo) {
+                // The whole shot is still loading (or still arriving by sync): its square's
+                // thumbnail, which is already small and decoded, stands in until it's here.
+                PhotoView(PhotoRequest(thumbnail)) { _ in tint }
             } else {
                 // Still loading: the tablecloth, so the plate never flashes up before the photo.
                 tint

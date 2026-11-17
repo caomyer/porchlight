@@ -51,6 +51,8 @@ Debug-only launch arguments:
 - `-sampleCompanions 2|3` with `-sampleHousehold`: also Miso the cat, then a fiddle fig watered every three days (due today), for the phone's grid of companions
 - `-calendarAccess notDetermined|denied` with `-sampleHousehold`: start the sample calendars without access, to see how the phone asks for it
 - `-notificationAccess notDetermined|denied|allowed` on a phone: pretend that notification permission state, so the Notifications page can be seen in each state without the system prompt (asking then allows)
+- `-debugCamera sample` on a phone: the simulator has no camera, so "Snap a meal" shows a generated dish in the viewfinder and the shutter takes it (each shot a little different), through the same photo path as a real shot; `-cameraAccess notDetermined|denied|allowed` pretends the camera permission state the same way as `-notificationAccess`
+- `-debugFoodView snap|details|detail` on a phone (with `-startScreen food`): open the camera, the details of a new meal, or today's first meal; `-sampleFood none` with `-sampleHousehold` leaves the diary empty, and `-samplePhotoMeals` gives every meal of the sample week two photos (the first launch draws and caches them, which takes a while)
 - `-debugReminderIn N` on a phone with notifications really allowed: the day's first care reminder arrives N seconds after launch, to try delivery and its actions by hand; `TEST_RUNNER_PORCHLIGHT_DELIVERY=1` with `-only-testing:PorchlightUITests/PhoneRemindersTests/testDeliveryByHand` runs that check
 - `-me NAME` on a phone: this phone belongs to the person called NAME, so it skips "Which one is you?" (for example `-sampleHousehold -me James`)
 - `-debugCompanionNow yyyy-MM-ddTHH:mm` pins "now" for care, for example `2026-11-16T17:20` so Yo-Yo's evening walk and dinner are open; the phone's writes use it too
@@ -105,7 +107,7 @@ An install signed with a paid Apple Developer team lasts a year; with a free App
 ## On iPhone
 
 The app is universal.
-The iPad keeps the wall, landscape only; an iPhone gets the pocket shell, portrait only: Today (with a companion's week, Pitch in and the next 7 days), Lists, Glow, a Food tab still to come, and the You sheet with this phone's calendars.
+The iPad keeps the wall, landscape only; an iPhone gets the pocket shell, portrait only: Today (with a companion's week, Pitch in and the next 7 days), Food (the week's plates, the diary and snapping a meal), Lists, Glow, and the You sheet with this phone's calendars and notifications.
 It joins a household from an invite link or the code on the shared screen, and You lists the household's people and their devices and invites more (see [docs/design/households.md](docs/design/households.md)).
 The layout follows the available width, and whether logging asks "who did it?" follows the device's role (shared screen or personal), kept on the device.
 See [docs/design/phone-shell.md](docs/design/phone-shell.md).

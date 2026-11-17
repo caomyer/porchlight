@@ -170,12 +170,11 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["Hi, Mia"].waitForExistence(timeout: 5))
     }
 
-    func testFoodIsCalm() {
+    func testYouOnEveryTab() {
         let app = launch()
         XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
         app.tabBars.buttons["Food"].tap()
-        XCTAssertTrue(app.staticTexts["Coming to the phone soon"].waitForExistence(timeout: 5), "Food comes next")
-        snapshot("phone-70-coming-soon")
+        XCTAssertTrue(app.staticTexts["What we ate"].waitForExistence(timeout: 5), "Food is on the phone (PhoneFoodTests covers it)")
         for tab in ["Food", "Lists", "Glow"] {
             app.tabBars.buttons[tab].tap()
             XCTAssertTrue(app.buttons["you"].waitForExistence(timeout: 5), "You is on every tab: \(tab)")

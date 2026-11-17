@@ -77,6 +77,8 @@ enum FoodSamples {
         let householdId = household.id
         let calendar = household.calendar
         let journal = try database.ensureFoodJournal(householdId: householdId)
+        // `-sampleFood none`: the diary is on, with nothing in it yet.
+        if UserDefaults.standard.string(forKey: "sampleFood") == "none" { return }
         let journalId = journal.id
         let today = DayKey(.now, calendar: calendar)
         let slots = MealSlot.defaultNames
@@ -109,9 +111,11 @@ enum FoodSamples {
             for (slot, dish) in meals.enumerated() {
                 guard let dish else { continue }
                 let entry = try add(dish, day: day, slot: slot)
-                // Today's breakfast has two photos; yesterday's dinner three.
+                // Today's breakfast has two photos; yesterday's dinner three. With
+                // `-samplePhotoMeals`, every meal of the week has two, to check memory.
                 if index == 6 && slot == 0 { try photograph(entry, count: 2, palette: 0) }
-                if index == 5 && slot == 2 { try photograph(entry, count: 3, palette: 2) }
+                else if index == 5 && slot == 2 { try photograph(entry, count: 3, palette: 2) }
+                else if ProcessInfo.processInfo.arguments.contains("-samplePhotoMeals") { try photograph(entry, count: 2, palette: index + slot) }
             }
             let lines = notes[index].map { text, writer, ink in
                 (text, ink ?? PageInk.defaultInk(for: people[min(writer, people.count - 1)].color))

@@ -1,8 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// The phone's four tabs. Today is built; Food, Lists and Glow come to the phone
-/// later and say so. "You" is the avatar at the top right of every tab.
+/// The phone's four tabs. "You" is the avatar at the top right of every tab.
 enum PocketTab: String, CaseIterable, Hashable {
     case today, food, lists, glow
 
@@ -70,7 +69,7 @@ struct PocketShell: View {
         case .today: PocketTodayScreen()
         case .lists: PocketListsScreen()
         case .glow: PocketGlowScreen()
-        case .food: ComingSoonScreen(title: tab.title)
+        case .food: PocketFoodScreen()
         }
     }
 
@@ -134,26 +133,5 @@ struct PocketYouButton: View {
         .accessibilityValue(me?.name ?? "")
         .accessibilityHint("Who you are, your household and this \(DeviceWords.this)")
         .accessibilityIdentifier("you")
-    }
-}
-
-/// A tab that hasn't come to the phone yet: its header and one calm line.
-private struct ComingSoonScreen: View {
-    let title: String
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                PocketHeader(title: title)
-                Text("Coming to the phone soon")
-                    .phoneFont(.body, 15, weight: 600)
-                    .foregroundStyle(Theme.muted)
-                    .padding(.top, 4)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-        }
-        .background(Theme.background)
-        .paperUnderStatusBar()
     }
 }

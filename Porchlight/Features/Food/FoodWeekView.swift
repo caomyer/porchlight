@@ -263,12 +263,21 @@ private struct MemoryCard: View {
     }
 
     private func sentence(_ memory: FoodMemory) -> AttributedString {
+        FoodMemoryWords.sentence(memory, store: store, handSize: 20)
+    }
+}
+
+/// "A year ago you had practice turkey, home-cooked dinner. Verdict: 🤩", with the dish in
+/// the hand of the diary's captions. The wall's card and the phone's say it the same way.
+enum FoodMemoryWords {
+    @MainActor
+    static func sentence(_ memory: FoodMemory, store: FoodStore, handSize: CGFloat) -> AttributedString {
         let entry = memory.entry
         let people = store.eaters(of: entry)
         let who = store.ateTogether(entry) || people.isEmpty ? "you" : ListFormat.join(people.map(\.name))
         var text = AttributedString("\(memory.whenText) \(who) had ")
         var dish = AttributedString(entry.title.lowercased())
-        dish.font = .hand(20, weight: 700)
+        dish.font = .hand(handSize, weight: 700)
         dish.foregroundColor = Theme.ink
         text += dish
         let slot = entry.slot.lowercased()

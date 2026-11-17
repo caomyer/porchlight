@@ -107,6 +107,32 @@ A segmented control picks Yours (today's, then what I did earlier this week), Op
 Someone else's chore is shown, not checkable: it is theirs to check off on their phone or the wall.
 "+ Add a chore" opens the wall's `ChoreEditor` in a phone sheet (`PhoneEditorSheet`), with its repeat picker and start day; the editor now stacks its time hints and buttons at a compact width, and starts a new chore as mine.
 
+## Food (B5)
+
+The Food tab (`PocketFoodScreen`) is the wall's week of plates at phone size (`b5week`).
+Its header says the week and how many meals it holds ("Nov 10 to 16 · 20 meals"), and the week is the wall's: the seven days ending today.
+The grid has a column per day and a row per meal; a logged meal is its cover's thumbnail (a "+1" when the slot has more dishes), and an empty slot up to today is a dashed square that opens the camera for that meal.
+"On this day" follows, as on the wall, then the diary: the week's days newest first, each meal with its cover, its name in the diary's hand, where it came from, who ate it ("You and Mia") and who added it ("added by you", from the device stamped on the row).
+"Snap a meal" stays at the bottom of the tab, above the tab bar.
+When the household hasn't turned the diary on, the tab says so and turns it on (rule 6).
+
+Snapping (`PocketSnap`) opens the camera first (`b5cam`): a polaroid whose photo is the live camera, captioned with the meal it is for ("Sunday dinner", guessed from the time), the shutter, and "From Photos" and "No photo" as the other ways in.
+A shot or a pick goes straight to the details (`b5details`): the new polaroid, what it was, when and which meal, where it came from (and the restaurant, with the wall's `RestaurantField`), who ate it and "Would eat again?", then "Save to Sunday dinner".
+Who ate starts as me (rule 1), and "Another photo" goes back to the camera for up to the wall's six.
+Photos are made by `MealPhotoImaging.prepare` off the main actor and held in memory until Save; the meal is written by `FoodStore.addMeal`, which stamps this device, so the rows are the wall's: one 2048 px whole shot and a 360 px square thumbnail per photo.
+Back on the tab, the toast says where it went ("Saved to Sunday dinner · Pho Huynh · you and Mia") with Open, and the new plate is ringed for a moment (`b5saved`).
+
+The camera says what it is for before iOS asks ("Allow camera"), and with access off it says how to turn it on, with Open Settings; Photos and saving without a photo work either way.
+`-cameraAccess notDetermined|denied|allowed` pretends a state, and `-debugCamera sample` stands a generated dish in for the camera, which the simulator doesn't have; its shots go through `MealPhotoImaging.prepare` like a real one.
+
+A meal's page (`PocketMealDetail`, `b5entry`) is the big polaroid, swiped for its other photos and tapped for the whole shot, then where it came from, the verdict with who ate and who added it, the day's handwritten page when anyone wrote on it, and the slot's other dishes.
+Edit opens the same fields in a sheet, with the photos to take off or make the cover; Add photo takes one or picks from Photos; Remove asks first, since a meal's photos can't come back.
+All three go through `FoodStore` (`updateMeal`, `addPhotos`, `deleteMeal`), as on the wall.
+
+Lists never decode a whole shot: the grid, the diary and "On this day" ask `PhotoImages` for thumbnails, and only a meal's own page asks for the whole shot.
+While that loads, or before it has arrived by sync (thumbnails can arrive first), the polaroid shows the thumbnail, which is already decoded; this is `MealIllustration`'s, so the wall's big polaroids do the same.
+Measured on the iPhone 15 simulator with every meal of the sample week photographed (`-samplePhotoMeals`, 20 meals, two photos each): the app's footprint is 35 MB on Today, 46 MB on the Food tab and 58 MB on a meal's page with two whole shots.
+
 ## Lists and dinners (B6)
 
 The Lists tab picks a list, or this week's dinners, with chips at the top.
@@ -226,12 +252,28 @@ Where the atlas was silent, or didn't fit the code:
 - **No "When someone asks you".** That is C2, later; the page doesn't list it.
 - **The async notification delegate methods aren't used.** UIKit asserts when the async form of `didReceive` completes off the main thread, which it does when iOS launched the app for an action; the completion-handler forms call back on the main actor.
 - **Notification settings link.** Open Settings goes to Porchlight's notification settings (`openNotificationSettingsURLString`).
+- **Food's week is the wall's.** The atlas heads the grid "Nov 9 to 15", a Monday-to-Sunday week; the wall shows the seven days ending today, so today is always the last column and the week is always full. The phone follows the wall, so both screens show the same plates.
+- **A diary under the grid.** `b5week` shows only the grid, whose cells are too small for names; who ate a meal and who added it, and its name in the diary's hand, are in a day-by-day list under it, the newest day first. Only days with meals are listed.
+- **No "This week" stats card.** The wall's card (the split, the theme, the streak) isn't in `b5week`, so the phone leaves it out; the header's meal count is the week's summary. "On this day" is in the atlas and is shown.
+- **"Snap a meal" floats.** The atlas puts it under "On this day"; with the diary below, it would scroll away, so it sits at the bottom of the tab above the tab bar.
+- **No Food on Today.** The atlas's Today frames (`b1due` and the rest) have no meals, so Today has no entry point.
+- **Nearby restaurants aren't first.** `b5details` lists restaurants "40 ft" away, which needs the phone's location, a permission the app doesn't ask for anywhere else. The phone uses the wall's restaurant search (Apple Maps around home, and places eaten at before); nearby-first is a later improvement.
+- **The wall's words.** The verdict is "Would eat again?" with the wall's four faces (😐 🙂 😋 🤩), and where it came from is the wall's four (home-cooked, delivery, dine out, company), not the atlas's 😬 and its home and delivery pills.
+- **No writing on the day's page.** Handwriting is the wall's (Apple Pencil on paper); a meal's page on the phone shows the day's page, read-only, when anyone wrote on it.
+- **Reframing stays on the wall.** The phone's edit takes photos off and makes one the cover; choosing which square of a photo shows needs the wall's reframe sheet.
+- **Remove asks first.** Logging never asks (rule 2), but a removed meal takes its photos with it and Undo couldn't bring them back, so Remove confirms, as on the wall.
+- **The back camera.** The wall's viewfinder starts on the front camera, which faces the room; a phone points at the plate, so it starts on the back one, with no switch.
+- **One shot, then the details.** The wall's camera stays live for more angles; the phone goes to the details after each shot, which is where "Another photo" brings it back for more.
+- **Small grid cells.** Seven days across a phone leaves cells of about 36 pt, under the 44 pt target (rule 8). Every meal in them is also a full-width row in the diary below, so nothing is reachable only through a small cell.
+- **The week's grid grows only so far.** Its day letters and meal names stop growing at the extra-large text size; at accessibility sizes they squeezed the plates to slivers. Every meal in the grid is also a row in the diary, whose words grow all the way.
+- **The wall's restaurant field and time pill keep their fixed sizes.** They are shared with the wall and don't grow with Dynamic Type; everything else on the Food tab does.
 - **"Just me" is stored, not yet enforced.** Nothing leaves the phone today, so it can't change what others see; the choice is kept so it's right when calendar mappings sync.
 
 ## Fixed on the wall along the way
 
 Nothing on the wall looked broken while working here.
-Wall code changed only to share it: the care form's logic and the time pill's day math, `Color.wash` resolving its colors explicitly, the companion page's week line, the grocery sections, `HomeStore.cashIn` returning the cash-in, and the chore editor's compact layout (its regular layout is unchanged).
+A big polaroid used to show its bare tablecloth while the whole shot loaded; it now shows the photo's thumbnail until then, on the wall too.
+Wall code changed only to share it: "On this day"'s sentence (`FoodMemoryWords`), the care form's logic and the time pill's day math, `Color.wash` resolving its colors explicitly, the companion page's week line, the grocery sections, `HomeStore.cashIn` returning the cash-in, and the chore editor's compact layout (its regular layout is unchanged).
 The wall's UI tests cover all of them.
 
 Seeding the sample household used to spend about 4 seconds (6.4 the first time, on a loaded Mac) on the sample day pages: each line of sample text is rendered at 5x, thinned pixel by pixel and traced into PencilKit strokes, which is slow in a debug build, and it ran on every sample launch before the first frame.
