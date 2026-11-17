@@ -348,7 +348,7 @@ struct HouseholdSearchTests {
     func timesOut() async throws {
         let harness = try SyncHarness()
         await harness.device.answer(after: .seconds(10))
-        var timing = SyncController.Timing()
+        var timing = SyncController.Timing.tests
         timing.householdSearch = .milliseconds(100)
         let controller = SyncController(
             .sync(harness.database.writer, device: harness.device), preferences: harness.preferences, hasHousehold: false,
@@ -410,7 +410,7 @@ struct HouseholdSearchTests {
 @MainActor
 struct SyncAttentionTests {
     private static func timing() -> SyncController.Timing {
-        var timing = SyncController.Timing()
+        var timing = SyncController.Timing.tests
         timing.attention = .milliseconds(150)
         return timing
     }

@@ -64,7 +64,7 @@ struct PocketSyncNotice: Equatable {
                 tone: .info, emoji: "📴", title: ["Offline", since].compactMap { $0 }.joined(separator: " "),
                 detail: "Everything you log saves here and sends later."
             )
-        case .waiting, .off, .upToDate, .syncing:
+        case .waiting, .notChecked, .off, .upToDate, .syncing:
             return nil
         }
     }

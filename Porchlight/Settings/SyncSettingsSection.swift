@@ -36,6 +36,7 @@ struct SyncSettingsSection: View {
                     .disabled(!sync.isAvailable)
                     .accessibilityIdentifier("sync-switch")
                     LastChangeLine()
+                    SyncDetails()
                 }
                 .card(padding: 16)
                 .frame(maxWidth: 980)
@@ -146,6 +147,8 @@ extension SyncStatus {
             "This iPad isn't signed in to iCloud. Sign in in the Settings app to sync again; everything stays here meanwhile."
         case let .upToDate(lastSynced):
             "Up to date\(Self.lastSyncedText(lastSynced, verb: "checked"))."
+        case let .notChecked(lastSynced):
+            "Checking with iCloud\(Self.lastSyncedText(lastSynced, verb: "last checked"))…"
         case .syncing:
             "Syncing…"
         case let .waiting(lastSynced):

@@ -35,6 +35,29 @@ final class SyncSettingsTests: XCTestCase {
         XCTAssertTrue(element.isHittable, "The sync section should scroll into view")
     }
 
+    /// The wall asks iCloud for changes every 15 seconds while it stays open and untouched.
+    /// `-debugSyncPoll` runs the real schedule against a stand-in for iCloud, and Sync
+    /// details counts the checks.
+    func testChecksTickOnAnUntouchedWall() {
+        let app = launch(["-sampleHousehold", "-startScreen", "settings", "-debugSyncPoll"])
+        let details = app.descendants(matching: .any)["sync-details"]
+        XCTAssertTrue(details.waitForExistence(timeout: 20), "Settings has Sync details")
+        for _ in 0..<8 where !details.isHittable {
+            app.swipeUp()
+        }
+        details.buttons.firstMatch.exists ? details.buttons.firstMatch.tap() : details.tap()
+        let checks = app.descendants(matching: .any)["sync-details-checks"]
+        XCTAssertTrue(checks.waitForExistence(timeout: 5), "The details open")
+        XCTAssertTrue((checks.label).contains("Checks"), "got \(checks.label)")
+        // One check on coming to the front, then one each 15 seconds: three within 40.
+        let three = NSPredicate(format: "label MATCHES %@", ".*Checks, ([3-9]|[1-9][0-9]+),.*")
+        let ticked = expectation(for: three, evaluatedWith: checks)
+        wait(for: [ticked], timeout: 45)
+        let last = app.descendants(matching: .any)["sync-details-last-check"]
+        XCTAssertTrue(last.label.contains("answered"), "got \(last.label)")
+        snapshot("73-sync-details")
+    }
+
     func testADifferentAccountAsksWhatToDo() {
         let app = launch(["-sampleHousehold", "-startScreen", "settings", "-debugSyncStatus", "needsDecision"])
         showSyncSection(app, title: "A different iCloud account signed in")

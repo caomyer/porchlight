@@ -1,5 +1,6 @@
 import CloudKit
 import Foundation
+import GRDB
 import Observation
 import SQLiteData
 import SwiftData
@@ -50,6 +51,11 @@ final class SyncController {
         var quietCheckRecord: TimeInterval = 5 * 60
         /// Checks failing this many times in a row show as waiting for iCloud.
         var failedChecks = 3
+        /// The longest one check may take before it counts as failed.
+        var checkTimeout: Duration = .seconds(60)
+        /// "Up to date" only within this long of a check that iCloud answered; nil leaves the
+        /// status alone (tests of other things, which never check).
+        var checkFreshness: TimeInterval? = 3 * 60
     }
 
     private(set) var isEnabled: Bool
@@ -98,6 +104,15 @@ final class SyncController {
     @ObservationIgnored private var quietFetches = 0
     /// Checks keep failing (`Timing.failedChecks`), so sync says it is waiting.
     private var checksFailing = false
+    /// iCloud answered a check within `Timing.checkFreshness`.
+    private var checkedRecently = false
+    @ObservationIgnored private var freshnessTask: Task<Void, Never>?
+    /// What sync is doing, for "Sync details" and the sync log.
+    @ObservationIgnored let trace = SyncTrace()
+    @ObservationIgnored private let role: @MainActor () -> DeviceRole
+    /// Whether it follows the app coming to the front and leaving it; tests drive that
+    /// themselves (`appActivityChanged`), since the test host is always in front.
+    @ObservationIgnored private let followsApplication: Bool
     @ObservationIgnored private var lifecycle: [NSObjectProtocol] = []
 
     /// - Parameters:
@@ -110,11 +125,14 @@ final class SyncController {
     init(
         _ setup: Setup, preferences: SyncPreferences, hasHousehold: Bool, timing: Timing = Timing(),
         role: @escaping @MainActor () -> DeviceRole = SyncController.storedRole,
+        followsApplication: Bool = true,
         removeFiles: @escaping () -> Void
     ) {
         self.preferences = preferences
         self.removeFiles = removeFiles
         self.timing = timing
+        self.role = role
+        self.followsApplication = followsApplication
         #if DEBUG
         var debugStatus: SyncDebugStatus?
         #endif
@@ -150,22 +168,32 @@ final class SyncController {
         lastSynced = preferences.lastSynced
         userName = preferences.accountName
         events.controller = self
+        trace.role = role()
         #if DEBUG
         if let debugStatus {
             show(debugStatus)
             watchStatus()
             return
         }
+        // `-debugSyncPoll`: the checks run on their real schedule against a stand-in for
+        // iCloud, so a UI test can watch them tick on an untouched screen.
+        if engine == nil, ProcessInfo.processInfo.arguments.contains("-debugSyncPoll") {
+            trace.engineRunning = true
+            poller = makePoller { .checked }
+            followLifecycle()
+            return
+        }
         #endif
-        guard engine != nil else { return }
-        poller = SyncPoller(
-            policy: .init(
-                interval: { role() == .sharedScreen ? timing.sharedScreenPoll : timing.personalPoll },
-                maxBackoff: timing.pollBackoff
-            ),
-            fetch: { [weak self] in try await self?.quietFetch() ?? .skipped },
-            onOutcome: { [weak self] outcome, failures in self?.checked(outcome, failures: failures) }
-        )
+        guard engine != nil else {
+            trace.note("sync unavailable: \(unavailable.map { "\($0)" } ?? "unknown")")
+            return
+        }
+        trace.note("launch: role \(role().rawValue), \(UIDevice.current.systemName) \(UIDevice.current.systemVersion), switch \(isEnabled ? "on" : "off")")
+        // CloudKit registers for pushes itself once an engine exists; asking again is
+        // harmless (UIKit hands back the same token) and makes the app delegate hear whether
+        // a token arrived, which is the first thing to know when pushes don't come.
+        UIApplication.shared.registerForRemoteNotifications()
+        poller = makePoller { [weak self] in try await self?.quietFetch() ?? .skipped }
         listenForChanges()
         watchActivity()
         watchStatus()
@@ -201,12 +229,14 @@ final class SyncController {
             setup = .sync(database.writer, device: LiveSyncDevice(container: CKContainer(identifier: containerIdentifier)))
         }
         let hasHousehold = (try? database.snapshot().household) != nil
-        return SyncController(
+        let controller = SyncController(
             setup,
             preferences: SyncPreferences(defaults: .standard),
             hasHousehold: hasHousehold,
             removeFiles: AppFiles.removeHouseholdFiles
         )
+        current = controller
+        return controller
     }
 
     /// Whether this build is signed with the household's iCloud container. SwiftData reads
@@ -236,6 +266,7 @@ final class SyncController {
         if isFull { return .iCloudFull }
         if isSynchronizing { return .syncing }
         if !isOnline || checksFailing { return .waiting(lastSynced: lastSynced) }
+        if timing.checkFreshness != nil, poller != nil, !checkedRecently { return .notChecked(lastSynced: lastSynced) }
         if unsentCount > 0 { return .notAccepted(count: unsentCount) }
         return .upToDate(lastSynced: lastSynced)
     }
@@ -359,6 +390,11 @@ final class SyncController {
         let status = try? await device.accountStatus()
         guard !Task.isCancelled else { return }
         hasAccount = status == .available
+        let account = status.map { $0 == .available ? "available" : "not available (\($0.rawValue))" } ?? "couldn't check"
+        if trace.account != account {
+            trace.account = account
+            trace.note("iCloud account \(account)")
+        }
         guard status == .available else {
             engine.stop()
             return
@@ -376,8 +412,13 @@ final class SyncController {
         do {
             try await engine.start()
             startFailure = nil
-            // Sync was just turned on, or the app launched: look for changes now.
-            poller?.checkNow()
+            trace.engineRunning = true
+            trace.note("engine started")
+            // Sync was just turned on, or the app launched: look for changes now. The app's
+            // state is read directly too, in case the notification that it came to the
+            // front went by before anything listened.
+            followApplicationState(source: "state after start")
+            poller?.checkNow(.turnedOn)
             // Rows iCloud turned down in an earlier launch go again: SQLiteData only queues
             // them by itself when the account signs in.
             await resendUnsent()
@@ -414,7 +455,9 @@ final class SyncController {
     }
 
     func networkChanged(isOnline: Bool) {
+        if isOnline != self.isOnline { trace.note(isOnline ? "online" : "offline") }
         self.isOnline = isOnline
+        trace.isOnline = isOnline
         poller?.setOnline(isOnline)
     }
 
@@ -423,6 +466,8 @@ final class SyncController {
         if isSynchronizing, !active, isOnline {
             lastSynced = date
             preferences.lastSynced = date
+            // A round the engine ran by itself talked to iCloud too.
+            markChecked()
         }
         if isSynchronizing, !active {
             checkUnsentSoon()
@@ -596,51 +641,210 @@ final class SyncController {
             ?? .standard(for: UIDevice.current.userInterfaceIdiom)
     }
 
+    private func makePoller(fetch: @escaping @MainActor @Sendable () async throws -> SyncPoller.Outcome) -> SyncPoller {
+        let timing = timing, role = role
+        return SyncPoller(
+            policy: .init(
+                interval: { role() == .sharedScreen ? timing.sharedScreenPoll : timing.personalPoll },
+                maxBackoff: timing.pollBackoff,
+                timeout: timing.checkTimeout
+            ),
+            fetch: fetch,
+            onOutcome: { [weak self] outcome, failures, error, trigger in
+                self?.checked(outcome, failures: failures, error: error, trigger: trigger)
+            },
+            onWait: { [weak self] delay in
+                self?.trace.nextCheckAt = Date.now.addingTimeInterval(TimeInterval(delay.components.seconds))
+            }
+        )
+    }
+
     /// Checks while the app is in front, and sends what is pending when it leaves, inside
     /// a background task, so a log made just before locking the phone still goes up.
     private func followLifecycle() {
+        guard followsApplication else { return }
         let center = NotificationCenter.default
         lifecycle = [
             center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.appActivityChanged(isActive: true) }
+                MainActor.assumeIsolated { self?.appActivityChanged(isActive: true, source: "became active") }
             },
             center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.appActivityChanged(isActive: false) }
+                MainActor.assumeIsolated { self?.appActivityChanged(isActive: false, source: "resigned active") }
             },
             center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.sendBeforeSuspending() }
             },
         ]
+        // Not only from notifications: the app may already be in front by now.
+        followApplicationState(source: "state at launch")
+        Task { @MainActor [weak self] in self?.followApplicationState(source: "state after launch") }
     }
 
-    func appActivityChanged(isActive: Bool) {
-        poller?.setActive(isActive)
+    /// Reads whether the app is in front from the app itself.
+    private func followApplicationState(source: String) {
+        guard poller != nil, followsApplication else { return }
+        appActivityChanged(isActive: UIApplication.shared.applicationState == .active, source: source)
     }
 
-    /// One check, as the poller's: nothing to ask while the engine isn't running.
+    struct Counts: Equatable, Sendable {
+        /// Rows iCloud has no record of yet.
+        var unconfirmed: Int
+        /// Changes the engine queued while it was stopped.
+        var queued: Int
+    }
+
+    func counts() async -> Counts? {
+        guard let writer else { return nil }
+        return try? await writer.read { db in
+            Counts(
+                unconfirmed: try SyncUnsent.count(db),
+                queued: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM sqlitedata_icloud_pendingRecordZoneChanges") ?? 0
+            )
+        }
+    }
+
+    /// This launch's controller, for the app delegate's push callbacks.
+    static var current: SyncController?
+
+    func pushToken(arrived: Bool, detail: String) {
+        trace.pushToken = arrived ? "arrived (\(detail))" : "failed: \(detail)"
+        readPushState()
+        trace.note("push token \(trace.pushToken)")
+    }
+
+    /// A push came: noted, then one check of our own. True when iCloud answered it.
+    func pushArrived(_ kind: PushKind) async -> Bool {
+        trace.pushes += 1
+        trace.lastPush = .now
+        trace.note("push arrived: \(kind)")
+        guard kind.isCloudKit, poller != nil else { return false }
+        await checkNow(.push)
+        return trace.lastCheck?.outcome == "answered"
+    }
+
+    /// "Check now" in Sync details, and a push: one check at once, also in the background.
+    func checkNow(_ trigger: SyncPoller.Trigger) async {
+        guard let poller else { return }
+        trace.note("check asked for: \(trigger.rawValue)")
+        await poller.checkOnce(trigger)
+    }
+
+    /// The system's push state, read for "Sync details" and the log.
+    func readPushState() {
+        let application = UIApplication.shared
+        trace.registeredForPushes = application.isRegisteredForRemoteNotifications
+        trace.backgroundRefresh = switch application.backgroundRefreshStatus {
+        case .available: "on"
+        case .denied: "off"
+        case .restricted: "restricted"
+        @unknown default: "unknown"
+        }
+        trace.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
+
+    func appActivityChanged(isActive: Bool, source: String = "test") {
+        guard let poller, poller.isActive != isActive else { return }
+        trace.isActive = isActive
+        trace.activitySource = source
+        trace.role = role()
+        readPushState()
+        trace.note("\(isActive ? "active" : "inactive") (\(source)), role \(role().rawValue), pushes \(trace.registeredForPushes ? "registered" : "not registered"), background refresh \(trace.backgroundRefresh), low power \(trace.lowPowerMode ? "on" : "off")")
+        if !isActive { trace.nextCheckAt = nil }
+        poller.setActive(isActive)
+    }
+
+    /// One check, as the poller's. When asking for everything fails, it asks for the
+    /// household's own zone alone: SQLiteData fetches the private and shared databases
+    /// together and one failing cancels the other, and an owner's shared database (or a
+    /// member's private one) holds nothing of the household, so it must never stand in the
+    /// way (docs/design/sync-icloud.md, "Seeing what sync does").
     private func quietFetch() async throws -> SyncPoller.Outcome {
-        guard let engine, engine.isRunning, isEnabled, decision == nil else { return .skipped }
+        guard let engine else { return .skipped }
+        guard engine.isRunning, isEnabled, decision == nil else {
+            let reason = !isEnabled ? "switch off" : decision != nil ? "waiting for a decision" : "engine not running"
+            if trace.lastError != "skipped: \(reason)" {
+                trace.lastError = "skipped: \(reason)"
+                trace.note("check skipped: \(reason)")
+            }
+            return .skipped
+        }
         quietFetches += 1
         defer { quietFetches -= 1 }
-        try await engine.fetchChanges()
-        return .checked
+        do {
+            try await engine.fetchChanges()
+            return .checked
+        } catch {
+            if Task.isCancelled { throw error }
+            let everything = error.syncDescription
+            guard let zone = await householdZone() else {
+                trace.note("check failed: everything \(everything); no household zone known")
+                throw error
+            }
+            do {
+                try await engine.fetchChanges(CKSyncEngine.FetchChangesOptions(scope: .zoneIDs([zone])))
+                trace.note("check: everything failed (\(everything)), the household's zone answered")
+                trace.lastError = "everything: \(everything); household zone fine"
+                return .checked
+            } catch {
+                trace.note("check failed: everything \(everything); household zone \(error.syncDescription)")
+                throw error
+            }
+        }
+    }
+
+    /// The zone the household's row lives in, as the engine knows it.
+    private func householdZone() async -> CKRecordZone.ID? {
+        guard let writer else { return nil }
+        let names = try? await writer.read { db -> [String]? in
+            guard let row = try Row.fetchOne(db, sql: """
+                SELECT zoneName, ownerName FROM sqlitedata_icloud_metadata WHERE recordType = 'household' LIMIT 1
+                """), let zone = row["zoneName"] as String?, let owner = row["ownerName"] as String? else { return nil }
+            return [zone, owner]
+        }
+        guard let names = names ?? nil, let zone = names.first, let owner = names.last else { return nil }
+        return CKRecordZone.ID(zoneName: zone, ownerName: owner)
     }
 
     /// After each check: a success is the last-synced time (at most every
-    /// `Timing.quietCheckRecord` when nothing else happened), and checks that keep failing
-    /// say so.
-    func checked(_ outcome: SyncPoller.Outcome, failures: Int, at date: Date = .now) {
+    /// `Timing.quietCheckRecord` when nothing else happened) and keeps "Up to date" true,
+    /// and checks that keep failing say so.
+    func checked(_ outcome: SyncPoller.Outcome, failures: Int, error: (any Error)? = nil, trigger: SyncPoller.Trigger = .timer, at date: Date = .now) {
+        trace.checks += 1
+        trace.lastTrigger = trigger.rawValue
+        trace.failuresInRow = failures
         switch outcome {
         case .checked:
+            trace.lastCheck = .init(at: date, outcome: "answered", milliseconds: 0)
+            if trace.lastError?.hasPrefix("everything:") != true { trace.lastError = nil }
             if checksFailing { checksFailing = false }
             if lastSynced.map({ date.timeIntervalSince($0) >= timing.quietCheckRecord }) ?? true {
                 lastSynced = date
                 preferences.lastSynced = date
             }
+            markChecked(at: date)
+            // Every check, but tersely: the log shows the checks keep coming.
+            trace.note("check answered (\(trigger.rawValue), \(trace.checks) so far)")
         case .failed:
+            let text = error?.syncDescription ?? "unknown"
+            trace.lastCheck = .init(at: date, outcome: "failed", milliseconds: 0)
+            trace.lastError = text
+            trace.note("check failed (\(trigger.rawValue), \(failures) in a row): \(text)")
             if failures >= timing.failedChecks && !checksFailing { checksFailing = true }
         case .skipped:
-            break
+            trace.lastCheck = .init(at: date, outcome: "skipped", milliseconds: 0)
+        }
+    }
+
+    /// iCloud answered: "Up to date" holds for `Timing.checkFreshness`.
+    private func markChecked(at date: Date = .now) {
+        if !checkedRecently { checkedRecently = true }
+        freshnessTask?.cancel()
+        guard let freshness = timing.checkFreshness else { return }
+        freshnessTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(freshness))
+            guard !Task.isCancelled, let self else { return }
+            self.checkedRecently = false
+            self.trace.note("no check answered for \(Int(freshness))s")
         }
     }
 
@@ -648,6 +852,7 @@ final class SyncController {
     /// for, so iOS doesn't suspend it mid-send. With nothing pending it returns at once.
     private func sendBeforeSuspending() {
         guard let engine, engine.isRunning else { return }
+        trace.note("sending before suspending")
         let application = UIApplication.shared
         let task = BackgroundTaskID()
         task.id = application.beginBackgroundTask(withName: "Porchlight sync") {

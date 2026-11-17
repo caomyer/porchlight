@@ -192,11 +192,10 @@ The engine only fetches by itself when a push arrives, at launch, or when asked,
 ### Pushes, the fast path
 
 SQLiteData adds no push handling of its own: its guide asks only for the "Remote notifications" background mode (SQLiteData 1.13.0, `Sources/SQLiteData/Documentation.docc/Articles/CloudKitSync.md`, lines 41 to 43), and nothing in its sources registers for or receives remote notifications.
-`CKSyncEngine` subscribes to the databases and takes CloudKit's pushes itself, then fetches.
-The app has the background mode, so in a TestFlight or App Store build, which is signed for production push and talks to CloudKit's Production environment, pushes are expected to work.
-A Release build installed by cable is signed for development push (`aps-environment` is `development`, the only value a development profile allows) but talks to Production, whose pushes go through production APNs, so it is expected to get none.
-That is the most likely reason the wall heard nothing, and it can't be fixed in code: only a distribution-signed build (TestFlight, ad hoc) gets production pushes.
-And even where pushes arrive, iOS delivers silent pushes at its discretion and throttles them, so they can't be what keeps the wall current.
+`CKSyncEngine` subscribes to the databases and takes CloudKit's pushes itself, then fetches; creating an engine makes CloudKit register the app for remote notifications (Apple's answer in the developer forums, thread 807047).
+The app also calls `registerForRemoteNotifications()` once an engine exists: UIKit hands back the same token, so it changes nothing for the engine, and it makes the app delegate hear whether a token arrived.
+On the first two devices the phone (iOS 27) got the wall's changes in seconds, by push as far as anyone could tell, and the wall (iPadOS 17) got the phone's never, so cable-installed Release builds do get pushes at least on one side; why the wall doesn't is still open (see "Seeing what sync does" for what to look at).
+Even where pushes arrive, iOS delivers silent pushes at its discretion and throttles them, so they can't be the only thing that keeps the wall current.
 
 ### Asking on a schedule
 
@@ -223,7 +222,67 @@ Whatever still didn't go goes at the next launch; nothing is lost.
 ### What to expect
 
 On the cable-installed builds, a log on the phone reaches the wall within about 20 seconds while the wall is open: the phone sends within a few seconds, and the wall's next check is at most 15 seconds away.
-A TestFlight build should usually be faster, by push.
+Where pushes reach the device it is usually faster, a few seconds.
+
+## Seeing what sync does
+
+A wall that silently stops hearing the phone is the worst kind of bug: nothing on screen says so.
+So sync tells the truth, and says what it is doing to whoever asks.
+
+### The status
+
+"Up to date" needs a check iCloud answered in the last three minutes (a poll, a push's fetch, or a round the engine ran itself).
+Without one, sync is on but says "Checking with iCloud, last checked at 10:41 PM…", a stuck state, so the gear's dot comes after an hour.
+Checks that fail three times in a row say "Can't reach iCloud right now".
+
+### Sync details
+
+Under the switch, on the wall's iCloud Sync section and on the phone's sync row, "Sync details" folds open to:
+
+- the role (shared screen or personal), whether the app is in front and what said so (a notification, or the state read at launch), online, the engine running, the iCloud account;
+- the last check: when, how it ended, and what started it (launch, came to front, timer, network back, sync turned on, push, check now); checks so far and failures in a row; the last error as its CloudKit code; when the next check is due;
+- pushes received and the last one's time, whether a push token arrived (its length, never the token) or registration failed with which error, whether the app is registered for remote notifications, Background App Refresh, Low Power Mode;
+- rows iCloud has no record of yet, and changes queued while the engine was stopped;
+- "Check now", which runs one check at once.
+
+It reads its own observable object (`SyncTrace`), so nothing else redraws when a check ends.
+
+### The log
+
+The same events go to `os.Logger` (subsystem `com.mingyucao.porchlight`, category `sync`) and to a rolling file, `sync-log.txt` in the data folder, which keeps about the last 400 lines.
+Lines carry states, counts, record types and CloudKit error codes, never anything the family wrote.
+Copy it off a device with:
+
+```
+xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
+  --domain-identifier com.mingyucao.porchlight \
+  --source "Library/Application Support/Porchlight/sync-log.txt" --destination wall-sync-log.txt
+```
+
+### Pushes, made visible
+
+`AppDelegate` implements the three push callbacks (`PushReceipt.swift`): a token arriving (its length is logged), registration failing (its error), and a remote notification arriving (whether it is CloudKit's, database or zone, which database, which subscription).
+SQLiteData implements none of them and has no way to be handed a notification, and the engine takes its pushes through CloudKit itself, so implementing them only watches; a push also starts one check of our own, so a push the engine somehow ignored still brings the change in.
+
+When pushes don't reach a device, Sync details tells the causes apart:
+
+- No push token, or "failed: …": the device never registered with APNs (no network to Apple, an entitlement problem).
+- A token, but "Pushes 0" while the other device changes things: APNs isn't delivering. On Wi-Fi that blocks Apple's push port (TCP 5223, falling back to 443), pushes stall; try the same device on cellular or another network. The CloudKit subscription for this device may also be missing, which only a fresh engine (sign out and in, or a reinstall) recreates.
+- Pushes counted, but the change still missing: the push's own check failed; its error is under "Last error".
+- Background App Refresh off, or Low Power Mode on: silent pushes are held back while the app is in the background; in front they still come.
+- No pushes and no checks either, with "In front: no": the app doesn't think it is in front, so it isn't polling; the source says what last told it so.
+
+### Fetching both databases
+
+SQLiteData's `fetchChanges` asks the private and the shared database together and throws if either throws, and the throw cancels the other's fetch.
+An owner's household lives in the private database and a member's in the shared one; the other database holds nothing of it and may fail for reasons of its own.
+So when asking for everything fails, the check asks again for the household's own zone alone (`FetchChangesOptions(scope: .zoneIDs(...))`, the zone read from the engine's metadata), and counts as answered when that does.
+The failure of "everything" stays visible under "Last error", and never backs off the household's own checks.
+SQLiteData doesn't expose its two engines, so the two databases can't be asked separately without changing the library.
+
+### Checks that hang
+
+A check that takes more than a minute counts as failed; the fetch is cancelled and left to finish on its own, so it can never stop the checks that follow.
 
 ## A fresh install looks for a household first
 

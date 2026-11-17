@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import Testing
 @testable import Porchlight
@@ -61,14 +62,53 @@ private func settle() async {
 @Suite("Staying current")
 @MainActor
 struct SyncPollerTests {
-    private func poller(_ clock: TestClock, _ fetch: FakeFetch, role: DeviceRole = .sharedScreen, outcomes: ((SyncPoller.Outcome, Int) -> Void)? = nil) -> SyncPoller {
+    private func poller(
+        _ clock: TestClock, _ fetch: FakeFetch, role: DeviceRole = .sharedScreen,
+        timeoutSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        outcomes: ((SyncPoller.Outcome, Int) -> Void)? = nil,
+        triggers: ((SyncPoller.Trigger) -> Void)? = nil
+    ) -> SyncPoller {
         let timing = SyncController.Timing()
         return SyncPoller(
             policy: .init(interval: { role == .sharedScreen ? timing.sharedScreenPoll : timing.personalPoll }, maxBackoff: timing.pollBackoff),
             fetch: { try await fetch.run() },
             sleep: { try await clock.sleep($0) },
-            onOutcome: { outcomes?($0, $1) }
+            timeoutSleep: timeoutSleep,
+            onOutcome: { outcome, failures, _, trigger in
+                outcomes?(outcome, failures)
+                triggers?(trigger)
+            }
         )
+    }
+
+    @Test("Each check says what started it: coming to the front, then the timer, a push, Check now")
+    func triggers() async {
+        let clock = TestClock(), fetch = FakeFetch()
+        var seen: [SyncPoller.Trigger] = []
+        let poller = poller(clock, fetch, triggers: { seen.append($0) })
+        poller.setActive(true)
+        await settle()
+        clock.advance()
+        await settle()
+        await poller.checkOnce(.push)
+        await poller.checkOnce(.manual)
+        #expect(seen == [.cameToFront, .timer, .push, .manual])
+        poller.stop()
+    }
+
+    @Test("A check that never returns times out as a failure, so the checks go on")
+    func timesOut() async {
+        let clock = TestClock(), fetch = FakeFetch()
+        fetch.holds = true
+        var seen: [Int] = []
+        let poller = poller(clock, fetch, timeoutSleep: { _ in }, outcomes: { _, failures in seen.append(failures) })
+        poller.setActive(true)
+        await settle()
+        #expect(seen == [1])
+        #expect(!poller.isFetching)
+        #expect(clock.waits == [.seconds(30)], "backed off, not stuck")
+        poller.stop()
+        fetch.release()
     }
 
     @Test("Coming to the front checks at once, then every 15 seconds on a shared screen")
@@ -115,7 +155,7 @@ struct SyncPollerTests {
         let clock = TestClock(), fetch = FakeFetch()
         fetch.fails = true
         var seen: [Int] = []
-        let poller = poller(clock, fetch) { _, failures in seen.append(failures) }
+        let poller = poller(clock, fetch, outcomes: { _, failures in seen.append(failures) })
         poller.setActive(true)
         await settle()
         for _ in 0..<5 {
@@ -246,5 +286,66 @@ struct SyncCheckStatusTests {
         #expect(controller.poller == nil)
         controller.appActivityChanged(isActive: true)
         #expect(controller.poller == nil)
+    }
+
+    @Test("Up to date only while a check was answered lately; before and after, it says it is checking")
+    func upToDateNeedsARecentCheck() async throws {
+        let harness = try SyncHarness()
+        var timing = SyncController.Timing()
+        timing.checkFreshness = 0.3
+        let controller = await harness.controller(timing: timing)
+        #expect(controller.status == .notChecked(lastSynced: controller.lastSynced))
+        #expect(controller.status.summary.hasPrefix("Checking with iCloud"))
+        #expect(controller.status.isStuck)
+        controller.checked(.checked, failures: 0)
+        #expect(controller.status == .upToDate(lastSynced: controller.lastSynced))
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(controller.status == .notChecked(lastSynced: controller.lastSynced))
+    }
+
+    @Test("Each check is in the trace: what started it, how it ended, and the error")
+    func traced() async throws {
+        let harness = try SyncHarness()
+        let controller = await harness.controller()
+        controller.checked(.failed, failures: 1, error: CKError(.networkFailure), trigger: .push)
+        #expect(controller.trace.lastTrigger == "push")
+        #expect(controller.trace.lastCheck?.outcome == "failed")
+        #expect(controller.trace.lastError == "CKError 4")
+        #expect(controller.trace.failuresInRow == 1)
+        controller.checked(.checked, failures: 0, trigger: .timer)
+        #expect(controller.trace.lastError == nil)
+        #expect(controller.trace.checks == 2)
+    }
+
+    @Test("A push is counted and starts a check of its own")
+    func pushStartsCheck() async throws {
+        let harness = try SyncHarness()
+        let controller = await harness.controller()
+        let push: [AnyHashable: Any] = ["ck": ["ce": 2, "cid": "iCloud.com.mingyucao.porchlight", "nid": UUID().uuidString, "met": ["dbs": 1, "sid": "private-changes"]]]
+        let kind = PushKind(push)
+        _ = await controller.pushArrived(kind)
+        #expect(controller.trace.pushes == 1)
+        #expect(controller.trace.lastTrigger == "push")
+    }
+}
+
+@Suite("Sync log")
+struct SyncLogTests {
+    @Test("The log file keeps the last lines, codes only")
+    func rolls() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("sync-log-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let log = SyncLog(testFile: file, keep: 20)
+        for index in 0..<200 { log.write("check answered (\(index))") }
+        log.flush()
+        let lines = try String(contentsOf: file, encoding: .utf8).split(separator: "\n")
+        #expect(lines.count <= 70, "trimmed back now and then to the kept number of lines")
+        #expect(lines.last?.hasSuffix("check answered (199)") == true)
+    }
+
+    @Test("Errors are written as their codes")
+    func errorCodes() {
+        #expect(CKError(.networkFailure).syncDescription == "CKError 4")
+        #expect(CancellationError().syncDescription == "cancelled")
     }
 }

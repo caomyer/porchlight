@@ -85,6 +85,8 @@ struct YouSheet: View {
                         .padding(.vertical, 8)
                         .frame(minHeight: 44)
                         .accessibilityIdentifier("sync-switch")
+                        SyncDetails(compact: true)
+                            .padding(.bottom, 8)
                     }
                 }
                 .padding(.horizontal, 16)
