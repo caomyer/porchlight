@@ -5,6 +5,16 @@ import Testing
 import UIKit
 @testable import Porchlight
 
+extension SyncController.Timing {
+    /// The app's timing, without "Up to date" waiting on a check: tests of other things
+    /// never run the checks (`SyncCheckStatusTests` covers that).
+    static var tests: SyncController.Timing {
+        var timing = SyncController.Timing()
+        timing.checkFreshness = nil
+        return timing
+    }
+}
+
 /// A database on disk with its own sync metadata, the device's own preferences, and a
 /// device whose iCloud account a test controls. Sync runs against SQLiteData's stand-in
 /// for iCloud, which it uses whenever it runs under tests.
@@ -34,13 +44,14 @@ final class SyncHarness {
     var preferences: SyncPreferences { SyncPreferences(defaults: defaults) }
 
     /// A controller as the app makes one at launch, settled.
-    func controller(timing: SyncController.Timing = SyncController.Timing()) async -> SyncController {
+    func controller(timing: SyncController.Timing = .tests) async -> SyncController {
         let hasHousehold = try? database.snapshot().household != nil
         let controller = SyncController(
             .sync(database.writer, device: device),
             preferences: preferences,
             hasHousehold: hasHousehold ?? false,
             timing: timing,
+            followsApplication: false,
             removeFiles: { [weak self] in self?.removedFiles += 1 }
         )
         await controller.settle()

@@ -4,7 +4,11 @@ import Foundation
 enum SyncStatus: Equatable, Sendable {
     case off(SyncOffReason)
     case noAccount
+    /// iCloud answered a check in the last few minutes.
     case upToDate(lastSynced: Date?)
+    /// Sync is on and online, but no check has been answered lately: just opened, or the
+    /// checks aren't running. Never shown as up to date.
+    case notChecked(lastSynced: Date?)
     case syncing
     /// Offline, or still checking the account; changes keep saving on the device meanwhile.
     case waiting(lastSynced: Date?)
@@ -38,7 +42,7 @@ extension SyncStatus {
     /// an account, room in iCloud or a decision. Off is a choice, and syncing is progress.
     var isStuck: Bool {
         switch self {
-        case .waiting, .noAccount, .iCloudFull, .notAccepted, .needsDecision: true
+        case .waiting, .notChecked, .noAccount, .iCloudFull, .notAccepted, .needsDecision: true
         case .off, .upToDate, .syncing: false
         }
     }
@@ -124,6 +128,7 @@ extension SyncStatus {
         case .off: "Can't sync on this \(device) now."
         case .noAccount: "Signed out of iCloud."
         case .upToDate, .syncing: "On."
+        case .notChecked: "On, checking with iCloud."
         case .waiting: "On, waiting for iCloud."
         case .iCloudFull: "Paused: iCloud is full."
         case .notAccepted: "On, but iCloud isn't taking changes yet."

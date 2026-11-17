@@ -106,6 +106,8 @@ struct YouSheet: View {
                         .padding(.vertical, 8)
                         .frame(minHeight: 44)
                         .accessibilityIdentifier("sync-switch")
+                        SyncDetails(compact: true)
+                            .padding(.bottom, 8)
                     }
                     if let household = model.household {
                         PhoneList {
