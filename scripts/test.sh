@@ -197,9 +197,17 @@ ui_suite() {
   shift 2
   local clones=()
   (( workers > 1 )) && clones=(-parallel-testing-enabled YES -parallel-testing-worker-count "$workers")
-  rm -rf "$results/$name.xcresult"
-  xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
-    "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult" > "$results/$name.log" 2>&1 || true
+  local attempt
+  for attempt in 1 2; do
+    rm -rf "$results/$name.xcresult"
+    xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
+      "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult" > "$results/$name.log" 2>&1 || true
+    # A freshly booted simulator under memory pressure can fail to start the test runner at
+    # all ("Timed out while loading Accessibility", or the runner crashing before it
+    # connects); no test ran, so once is tried again.
+    grep -qE "failed to initialize for UI testing|crashed before establishing connection" "$results/$name.log" && (( attempt == 1 )) || break
+    echo "[$name] The test runner didn't start; trying once more"
+  done
   summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
 }
 

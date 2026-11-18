@@ -99,11 +99,21 @@ porchlight_shut_down_unheld() {
 # for each 8 GB of memory, or PORCHLIGHT_TEST_SLOTS. Never waiting for a second slot while
 # holding a first means two runs can't each hold one and wait for the other.
 # Test simulators no run holds are shut down first, and every other booted simulator (one
-# opened by hand, another project's) takes a slot of its own.
+# opened by hand, another project's) takes a slot of its own. A run also takes a second
+# slot only when the memory free right now has room for a second simulator (4 GB each, with its app and test runner):
+# the Mac's other apps can leave too little for two, and two then swap each other into
+# timeouts, as two UI suites did on a 16 GB Mac with a browser and chat apps open.
 porchlight_take_slots() {
-  local want=$1 total slots others slot fd waited=0
+  local want=$1 total slots others slot fd waited=0 room
   total=${PORCHLIGHT_TEST_SLOTS:-$(( $(sysctl -n hw.memsize) / (8 * 1024 * 1024 * 1024) ))}
   (( total >= 1 )) || total=1
+  if (( want > 1 )) && [[ -z "${PORCHLIGHT_TEST_SLOTS:-}" ]]; then
+    room=$(( $(porchlight_free_gb) / 4 ))
+    if (( room < want )); then
+      want=$(( room > 1 ? room : 1 ))
+      (( want > 1 )) || echo "Only $(porchlight_free_gb) GB of memory is free: the iPad and the iPhone run one after the other" >&2
+    fi
+  fi
   typeset -g porchlight_slots=0
   mkdir -p "$porchlight_sim_locks"
   while (( porchlight_slots == 0 )); do
@@ -130,6 +140,18 @@ porchlight_take_slots() {
       sleep 5
     fi
   done
+}
+
+# Memory free now, or free to take without swapping (inactive, speculative and purgeable
+# pages), in whole GB.
+porchlight_free_gb() {
+  vm_stat | python3 -c '
+import re, sys
+text = sys.stdin.read()
+page = int(re.search(r"page size of (\d+)", text).group(1))
+pages = sum(int(re.search(name + r":\s+(\d+)", text).group(1)) for name in ("Pages free", "Pages inactive", "Pages speculative", "Pages purgeable"))
+print(pages * page // 2**30)
+'
 }
 
 # Boots `udid` if it isn't booted, and waits until it is ready.
