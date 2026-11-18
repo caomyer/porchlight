@@ -308,6 +308,7 @@ State: to do (app source), needs James for the wording.
 Today the owner cannot delete the household from the app: You says "It's yours, so it stays with you".
 iOS can delete it from Settings, Apple Account, iCloud, Manage Account Storage, Porchlight, Delete Data, which removes the app's private database including the shared household; members then see the household as removed.
 To do: decide between a "Delete household" button for the owner (delete the zone, which ends the share for everyone) and documenting the Settings path in the app and the privacy policy.
+Proposed: `docs/proposals/household-delete.html`, an owner-only row on the phone's household page with the name typed to confirm, the offline and not-owner states, and what members and the wall see; it waits for James's approval before any code.
 
 ## Builds
 
