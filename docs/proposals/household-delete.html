@@ -1,0 +1,611 @@
+<title>Deleting a Household</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Caveat:wght@600&display=swap">
+<style>/* Layout: a proposal in the companion atlas's style. What and why, the storyboard on the phone in the light and night looks, the wall, every state, and the decisions to approve. Styles and frame helpers are the atlas's own. */
+:root {
+  --paper: #F5EFE4;
+  --surface: #FFFCF6;
+  --surface2: #F0E8DA;
+  --rail: #EDE4D4;
+  --ink: #2A2420;
+  --muted: #867A6E;
+  --line: #E6DCCB;
+  --accent: #D9653B;
+  --accent-soft: #F8DDD0;
+  --good: #5B9F72;
+  --good-soft: #E3EFE2;
+  --warn: #B7791F;
+  --warn-soft: #F6E7C8;
+  --blue: #4C7BB0;
+  --coral: #DD7558;
+  --ochre: #C2933A;
+  --sage: #6E9E7E;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+}
+.page { max-width: 1180px; margin: 0 auto; padding-block: 44px 90px; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(32px, 5.4vw, 50px); line-height: 1.08; text-wrap: balance; }
+h2 { font: 600 27px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 20px/1.25 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 5px; }
+a { color: var(--accent); }
+.eyebrow { font: 800 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 18px; max-width: 70ch; }
+.note { font-size: 14.5px; color: var(--muted); max-width: 72ch; }
+button { font-family: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Intro blocks */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.tile b { font: 600 17px/1.3 var(--display); }
+.tile p { font-size: 14.5px; color: var(--muted); }
+.tile .k { font: 800 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+/* Model diagram */
+.model { background: var(--surface); border-radius: 22px; padding: 20px; display: grid; gap: 14px; overflow-x: auto; }
+.mrow { display: grid; grid-template-columns: 130px 1fr; gap: 14px; align-items: center; min-width: 640px; }
+.mrow > span { font: 800 11.5px/1.2 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.mrow .items { display: flex; gap: 10px; flex-wrap: wrap; }
+.node { border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 12px; background: var(--paper); font: 700 14px/1.25 var(--body); display: flex; gap: 8px; align-items: center; }
+.node small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); }
+.node.root { border-color: var(--accent); background: #FDF1EA; }
+.node.dash { border-style: dashed; }
+
+/* Nav maps */
+.maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.map { background: var(--surface); border-radius: 20px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; }
+.map ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+.map ol ul { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.new { font: 800 10.5px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 3px 7px; vertical-align: 2px; margin-left: 4px; }
+
+/* Rules */
+.rules { display: grid; gap: 8px; background: var(--surface); border-radius: 18px; padding: 16px 20px; }
+.rules div { display: grid; grid-template-columns: 28px 1fr; gap: 8px; font-size: 15px; }
+.rules div span:first-child { font: 600 17px/1.4 var(--display); color: var(--accent); }
+
+/* Filter + index */
+.filters { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--paper); padding-block: 10px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--paper); }
+.chipbtn { flex: none; white-space: nowrap; border: 0; background: var(--surface2); color: var(--muted); border-radius: 999px; padding: 8px 13px; font: 800 13px/1 var(--body); }
+.chipbtn[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.index { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.idx { background: var(--surface); border-radius: 16px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.idx b { font: 600 16px/1.25 var(--display); }
+.idx a { font: 600 13.5px/1.35 var(--body); text-decoration: none; color: var(--ink); display: flex; gap: 8px; }
+.idx a span { color: var(--muted); font-weight: 800; width: 26px; flex: none; }
+.idx a:hover { color: var(--accent); }
+
+/* Workstream + journey */
+.ws { display: grid; gap: 22px; }
+.wshead { display: grid; gap: 6px; border-top: 2px solid var(--ink); padding-top: 16px; }
+.journey { background: var(--surface); border-radius: 24px; padding: 20px; display: grid; gap: 16px; min-width: 0; scroll-margin-top: 70px; }
+.jhead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.jid { font: 800 13px/1 var(--body); color: var(--surface); background: var(--ink); border-radius: 8px; padding: 5px 7px; }
+.ph-tag { font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 4px 8px; background: var(--good-soft); color: #3F7A55; }
+.ph-tag.p0 { background: var(--surface2); color: var(--muted); }
+.ph-tag.p2 { background: var(--warn-soft); color: var(--warn); }
+.goal { font-size: 15.5px; max-width: 80ch; }
+.board { display: flex; gap: 18px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; }
+.fr { flex: none; display: grid; gap: 10px; align-content: start; scroll-snap-align: start; }
+.fr .cap { font-size: 13.5px; line-height: 1.4; color: var(--ink); }
+.fr .cap b { display: block; font: 700 13.5px/1.3 var(--body); }
+.fr .cap span { color: var(--muted); }
+.fr.p .cap { width: 286px; }
+.fr.w .cap { width: 600px; max-width: 80vw; }
+.arrow { flex: none; align-self: center; font: 600 24px/1 var(--display); color: var(--line); margin-top: -40px; }
+.specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.spec { background: var(--paper); border-radius: 16px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.spec h4 { margin: 0; font: 800 11.5px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.spec ul { font-size: 14px; }
+
+/* ============ Phone frame (designed at 375 pt, scaled with zoom) ============ */
+.ph { width: 397px; height: 834px; zoom: .72; background: #1d1a18; border-radius: 56px; padding: 11px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.sc { --surface2: #F0E8DA; width: 375px; height: 812px; border-radius: 46px; background: var(--paper); color: var(--ink); overflow: hidden; position: relative; display: flex; flex-direction: column; font-family: var(--body); }
+.sc.dark { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; }
+.notch { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; background: #1d1a18; border-radius: 20px; z-index: 9; }
+.status { height: 54px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 8px 34px 0; font: 700 15px/1 var(--body); }
+.status i { font-style: normal; letter-spacing: 1px; font-size: 11px; }
+.pb { flex: 1; overflow: hidden; padding: 4px 16px 16px; display: grid; gap: 12px; align-content: start; }
+.tabbar { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 10px 28px; background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar span { display: grid; justify-items: center; gap: 3px; font: 700 10.5px/1 var(--body); color: var(--muted); }
+.tabbar span i { font-style: normal; font-size: 20px; line-height: 1; filter: grayscale(1); opacity: .65; }
+.tabbar span.on { color: var(--accent); }
+.tabbar span.on i { filter: none; opacity: 1; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phead small { display: block; font: 700 12.5px/1.2 var(--body); color: var(--muted); }
+.phead b { font: 600 28px/1.15 var(--display); }
+.hh { display: inline-flex; gap: 4px; align-items: center; font: 700 12.5px/1.2 var(--body); color: var(--muted); }
+.back { font: 700 15px/1 var(--body); color: var(--accent); }
+.av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); }
+.av.J { background: var(--blue); } .av.M { background: var(--coral); } .av.A { background: var(--ochre); } .av.R { background: var(--sage); } .av.N { background: #8B6FA8; }
+.av.sm { width: 24px; height: 24px; font-size: 11px; }
+.av.lg { width: 52px; height: 52px; font-size: 20px; }
+.card { background: var(--surface); border-radius: 20px; padding: 14px; display: grid; gap: 10px; box-shadow: 0 1px 2px rgba(60,40,20,.06); }
+.card.warm { background: linear-gradient(160deg, #FBE9DC, var(--surface) 60%); }
+.sc.dark .card.warm { background: linear-gradient(160deg, #3A2A20, var(--surface) 60%); }
+.ch { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ch b { font: 600 17px/1.2 var(--display); }
+.ch span { font: 700 12px/1.2 var(--body); color: var(--muted); }
+.pet { display: flex; gap: 10px; align-items: center; }
+.face { width: 46px; height: 46px; border-radius: 50%; background: #F3D9BE; display: grid; place-items: center; font-size: 26px; flex: none; }
+.face.sm { width: 34px; height: 34px; font-size: 19px; }
+.face.plant { background: #DCEBD8; }
+.face.cat { background: #E6E0F0; }
+/* A household's badge: its first letter on a tint, a rounded square so it never reads as a person. */
+.hbadge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font: 700 16px/1 var(--body); flex: none; }
+.pet b { font: 600 20px/1.1 var(--display); display: block; }
+.pet small { font: 600 12.5px/1.3 var(--body); color: var(--muted); }
+.slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.slot { border-radius: 14px; padding: 8px 10px; font: 700 12.5px/1.25 var(--body); border: 2px dashed var(--line); display: flex; gap: 8px; align-items: center; }
+.slot small { display: block; color: var(--muted); font-weight: 600; }
+.slot.done { border: 0; background: var(--good-soft); }
+.slot.due { border-color: var(--accent); }
+.btn { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 16px/1 var(--body); padding: 14px 16px; width: 100%; text-align: center; display: block; }
+.btn.good { background: var(--good); }
+.btn.ghost { background: var(--surface2); color: var(--ink); }
+.btn.line { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.btn.sm { font-size: 13.5px; padding: 10px 12px; }
+.btn.off { opacity: .45; }
+.withrow { display: flex; gap: 6px; align-items: center; font: 600 12.5px/1.2 var(--body); color: var(--muted); flex-wrap: wrap; }
+.pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px 4px 4px; display: inline-flex; gap: 5px; align-items: center; font: 700 12.5px/1 var(--body); color: var(--ink); }
+.pill.np { padding: 7px 11px; }
+.pill.on { border-color: var(--accent); background: #FDF1EA; }
+.sc.dark .pill.on { background: var(--accent-soft); }
+.pill.dark { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.row { display: flex; gap: 10px; align-items: center; padding: 7px 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.box { width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--accent); flex: none; display: grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); }
+.box.on { background: var(--good); border-color: var(--good); }
+.tx { flex: 1; min-width: 0; font: 700 14px/1.25 var(--body); }
+.tx small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); }
+.row.done .tx b { text-decoration: line-through; color: var(--muted); }
+.star { font: 800 11.5px/1 var(--body); background: var(--surface2); border-radius: 999px; padding: 5px 8px; color: var(--muted); }
+.take { border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 6px 10px; font: 800 12px/1 var(--body); white-space: nowrap; }
+.take.mine { background: var(--accent-soft); border-color: transparent; }
+.time { width: 46px; font: 700 12px/1.2 var(--body); color: var(--muted); flex: none; }
+.chev { color: var(--muted); font: 700 16px/1 var(--body); }
+.seg { display: grid; grid-auto-flow: column; background: var(--surface2); border-radius: 12px; padding: 3px; }
+.seg span { text-align: center; font: 700 13px/1 var(--body); padding: 8px 4px; border-radius: 9px; color: var(--muted); }
+.seg span.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.field { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 11px 12px; font: 600 15px/1.2 var(--body); color: var(--ink); }
+.field.ph-t { color: var(--muted); }
+.label { font: 800 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.list { background: var(--surface); border-radius: 16px; padding: 2px 14px; }
+.list .row { padding: 11px 0; }
+.thumb { width: 34px; height: 34px; border-radius: 6px; flex: none; box-shadow: 0 1px 3px rgba(0,0,0,.18); border: 3px solid #fff; }
+.toast { position: absolute; left: 14px; right: 14px; top: 60px; background: #2A2420; color: #FFFCF6; border-radius: 16px; padding: 12px 14px; font: 700 13.5px/1.3 var(--body); z-index: 8; display: flex; gap: 10px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.toast small { display: block; color: #D8CDBF; font-weight: 600; font-size: 12px; }
+.toast em { margin-left: auto; font-style: normal; color: #F2B59A; font: 800 13px/1 var(--body); }
+.banner { border-radius: 14px; padding: 10px 12px; font: 700 13px/1.35 var(--body); display: flex; gap: 10px; align-items: center; }
+.banner small { display: block; font-weight: 600; font-size: 12px; opacity: .85; }
+.banner.warn { background: var(--warn-soft); color: #7A5214; }
+.banner.info { background: var(--surface2); color: var(--ink); }
+.banner.good { background: var(--good-soft); color: #2F6343; }
+.banner em { margin-left: auto; font-style: normal; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.scrim { position: absolute; inset: 0; background: rgba(30,24,20,.38); z-index: 6; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 26px 26px 0 0; padding: 10px 18px 34px; display: grid; gap: 12px; z-index: 7; box-shadow: 0 -10px 30px rgba(0,0,0,.18); }
+.sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; display: block; }
+.sheet h4 { margin: 0; font: 600 22px/1.2 var(--display); }
+.sheet p { font-size: 14px; color: var(--muted); }
+.center { display: grid; gap: 12px; justify-items: center; text-align: center; }
+.center h4 { margin: 0; font: 600 26px/1.2 var(--display); }
+.center p { font-size: 14.5px; color: var(--muted); max-width: 30ch; }
+.big-emoji { font-size: 46px; line-height: 1; }
+.dots { display: flex; gap: 6px; justify-content: center; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.dots i.on { background: var(--accent); }
+.choice { display: flex; gap: 12px; align-items: center; border: 2px solid var(--line); background: var(--surface); border-radius: 18px; padding: 12px 14px; font: 700 15.5px/1.2 var(--body); text-align: left; }
+.choice small { display: block; font-size: 12.5px; color: var(--muted); font-weight: 600; margin-top: 3px; }
+.choice.on { border-color: var(--accent); background: #FDF1EA; }
+.choice.dim { opacity: .55; }
+.choice .chev { margin-left: auto; }
+.prog { height: 8px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.prog.o i { background: var(--ochre); }
+.grid7 { display: grid; grid-template-columns: 38px repeat(7, 1fr); gap: 4px; align-items: center; font: 700 10.5px/1 var(--body); color: var(--muted); text-align: center; }
+.mini { aspect-ratio: 1; border-radius: 3px; background: #fff; padding: 2px; box-shadow: 0 1px 3px rgba(60,40,20,.15); }
+.mini i { display: block; width: 100%; height: 100%; }
+.mini.empty { background: transparent; box-shadow: none; border: 1.5px dashed var(--line); }
+.pol { background: #fff; padding: 10px 10px 40px; box-shadow: 0 6px 18px rgba(60,40,20,.16); border-radius: 3px; position: relative; }
+.pol .shot { aspect-ratio: 1; }
+.pol .capt { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font: 600 24px/1 var(--hand); color: #5b4c40; }
+.shutter { width: 66px; height: 66px; border-radius: 50%; border: 4px solid var(--ink); display: grid; place-items: center; margin: 0 auto; }
+.shutter i { width: 50px; height: 50px; border-radius: 50%; background: var(--accent); display: block; }
+.food1 { background: radial-gradient(circle at 48% 50%, #F2D49B 0 20%, #D99A57 21% 30%, #7E5434 31% 34%, #F1E7D7 35% 62%, #CDB99B 63%); }
+.food2 { background: radial-gradient(circle at 50% 50%, #E9C77B 0 26%, #B5763D 27% 34%, #F3ECE0 35% 62%, #9FB7C4 63%); }
+.food3 { background: radial-gradient(circle at 50% 50%, #9DBE7C 0 20%, #E06C4A 21% 27%, #F3ECE0 28% 60%, #E8D8B8 61%); }
+.food4 { background: radial-gradient(circle at 50% 50%, #F0B66A 0 24%, #fff 25% 60%, #C9A27E 61%); }
+.ring { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 800 9.5px/1 var(--body); color: #fff; margin: 0 auto; }
+.ring.e { border: 1.5px dashed var(--line); }
+.lamp { width: 112px; height: 112px; border-radius: 50%; background: radial-gradient(circle, #FFE3A6 0 24%, rgba(255,210,140,.55) 25% 45%, rgba(255,210,140,0) 70%); display: grid; place-items: center; font-size: 32px; justify-self: center; }
+.bignum { font: 600 42px/1 var(--display); text-align: center; }
+.fam { display: grid; gap: 8px; }
+.fam div { display: flex; gap: 8px; align-items: center; font: 700 13.5px/1 var(--body); }
+.fam div .prog { flex: 1; }
+.kb { position: absolute; left: 0; right: 0; bottom: 0; height: 250px; background: #D7D2CB; z-index: 7; display: grid; grid-template-rows: repeat(4, 1fr); gap: 8px; padding: 10px 4px 34px; }
+.kb div { display: flex; gap: 5px; justify-content: center; }
+.kb i { background: #fff; border-radius: 5px; width: 32px; box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pad span { background: var(--surface2); border-radius: 12px; padding: 11px 0; text-align: center; font: 700 18px/1 var(--body); }
+.sugg { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Lock and home screens */
+.lock { flex: 1; background: linear-gradient(170deg, #3B4A63, #7D6B83 55%, #D69A7B); color: #fff; display: grid; align-content: start; gap: 10px; padding: 56px 14px 20px; position: relative; }
+.lock .clock { text-align: center; font: 600 76px/1 var(--display); letter-spacing: -0.02em; }
+.lock .date { text-align: center; font: 700 15px/1 var(--body); opacity: .9; }
+.lws { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+.lw { background: rgba(255,255,255,.18); border-radius: 16px; padding: 8px 10px; font: 700 11.5px/1.3 var(--body); min-width: 104px; }
+.lw b { display: block; font-size: 13.5px; }
+.lw.round { min-width: 0; width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; text-align: center; padding: 0; font-size: 10px; }
+.notif { background: rgba(255,252,246,.94); color: #2A2420; border-radius: 20px; padding: 12px 14px; display: grid; gap: 8px; }
+.notif .top { display: flex; gap: 8px; align-items: center; font: 700 12px/1 var(--body); color: #867A6E; }
+.notif .top i { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; font-style: normal; font-size: 12px; color: #fff; }
+.notif .top span { margin-left: auto; }
+.notif b { font: 700 14.5px/1.3 var(--body); }
+.notif p { font-size: 13.5px; line-height: 1.35; }
+.nacts { display: grid; gap: 6px; }
+.nacts span { background: rgba(255,252,246,.94); color: #2A2420; border-radius: 14px; padding: 12px; font: 700 14px/1 var(--body); text-align: center; }
+.nacts span.p { color: var(--accent); }
+.hs { flex: 1; background: linear-gradient(165deg, #C9B39A, #9C8A9E 60%, #6E7C93); padding: 60px 18px 20px; display: grid; gap: 18px; align-content: start; position: relative; }
+.wid { background: #FFFCF6; color: #2A2420; border-radius: 22px; padding: 12px; display: grid; gap: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.wid b { font: 600 15px/1.1 var(--display); }
+.wid small { font: 600 11.5px/1.3 var(--body); color: #867A6E; }
+.wid .btn { font-size: 13px; padding: 9px; }
+.icons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 12px; }
+.icons span { aspect-ratio: 1; border-radius: 15px; background: rgba(255,255,255,.35); display: grid; place-items: center; font-size: 26px; }
+.icons span.app { background: var(--accent); }
+.island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); background: #000; border-radius: 22px; z-index: 10; color: #fff; display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 36px; font: 700 13px/1 var(--body); }
+.siri { position: absolute; left: 12px; right: 12px; bottom: 30px; background: rgba(30,26,24,.88); color: #fff; border-radius: 28px; padding: 14px 16px; display: grid; gap: 8px; z-index: 6; }
+.siri .orb { width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(#E46F9C, #7C7BEA, #49C6E5, #E5A649, #E46F9C); }
+.msgs { flex: 1; display: grid; align-content: end; gap: 8px; padding: 0 12px 16px; }
+.bub { max-width: 78%; border-radius: 18px; padding: 9px 12px; font: 500 14.5px/1.3 var(--body); }
+.bub.in { background: #E9E5DF; justify-self: start; }
+.bub.out { background: #3E86F7; color: #fff; justify-self: end; }
+.linkcard { justify-self: start; width: 240px; border-radius: 18px; overflow: hidden; background: #E9E5DF; }
+.linkcard .img { height: 110px; background: linear-gradient(160deg, #FBE9DC, #F5EFE4); display: grid; place-items: center; font-size: 40px; }
+.linkcard div:last-child { padding: 8px 12px; font: 700 13.5px/1.3 var(--body); }
+.linkcard small { display: block; color: #867A6E; font-weight: 600; font-size: 12px; }
+
+/* ============ Wall frame (1112 x 834, sized with container units) ============ */
+.wl { width: 600px; max-width: 80vw; aspect-ratio: 1112 / 834; background: #2b2724; border-radius: 30px; padding: 10px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.ws-sc { width: 100%; height: 100%; border-radius: 22px; background: var(--paper); overflow: hidden; display: grid; grid-template-columns: 7% 1fr; position: relative; container-type: inline-size; color: var(--ink); }
+.wrail { background: var(--rail); display: grid; align-content: start; justify-items: center; gap: 1.5cqw; padding-top: 1.6cqw; }
+.wrail i { width: 3.4cqw; height: 3.4cqw; border-radius: 1cqw; background: var(--surface2); display: block; font-style: normal; font-size: 1.8cqw; text-align: center; line-height: 3.4cqw; }
+.wrail i.home { background: var(--accent); }
+.wrail i.on { background: var(--surface); box-shadow: 0 0 0 .2cqw var(--line); }
+.wmain { padding: 2cqw 2.2cqw; display: grid; grid-template-rows: auto 1fr; gap: 1.6cqw; min-width: 0; min-height: 0; }
+.whead { display: flex; align-items: baseline; gap: 2cqw; }
+.whead b { font: 600 6cqw/1 var(--display); letter-spacing: -0.02em; }
+.whead b.t { font-size: 4cqw; }
+.whead span { font: 600 2cqw/1.2 var(--display); }
+.whead span small { display: block; font: 600 1.4cqw/1.3 var(--body); color: var(--muted); }
+.whead .ppl { margin-left: auto; display: flex; }
+.whead .ppl .av { width: 3.6cqw; height: 3.6cqw; font-size: 1.5cqw; border: .25cqw solid var(--paper); }
+.whead .ppl .av + .av { margin-left: -.8cqw; }
+.wgrid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 1.6cqw; min-height: 0; }
+.wcard { background: var(--surface); border-radius: 1.8cqw; padding: 1.6cqw 1.8cqw; display: grid; gap: 1cqw; align-content: start; min-height: 0; overflow: hidden; }
+.wcard .ch b { font-size: 2.1cqw; }
+.wcard .ch span { font-size: 1.2cqw; }
+.wrow { display: grid; grid-template-columns: 5cqw 1fr auto; gap: 1cqw; align-items: center; background: var(--paper); border-radius: 1.2cqw; padding: .8cqw 1cqw; font: 700 1.45cqw/1.25 var(--body); }
+.wrow.two { grid-template-columns: 1fr auto; }
+.wrow small { display: block; font-weight: 600; font-size: 1.15cqw; color: var(--muted); }
+.wrow .tm { font: 700 1.3cqw/1 var(--body); color: var(--muted); }
+.wrow .av { width: 2.6cqw; height: 2.6cqw; font-size: 1.1cqw; }
+.wrow.new { background: #FCEBDD; box-shadow: inset 0 0 0 .2cqw var(--accent); }
+.via { display: inline-flex; font: 700 1.05cqw/1 var(--body); color: var(--accent); background: var(--surface); border-radius: 999px; padding: .3cqw .7cqw; margin-left: .5cqw; vertical-align: .1cqw; }
+.nowl { display: flex; align-items: center; gap: 1cqw; font: 800 1.15cqw/1 var(--body); color: var(--accent); }
+.nowl i { flex: 1; height: .2cqw; background: var(--accent); }
+.wpet { display: flex; gap: 1.2cqw; align-items: center; }
+.wpet .face { width: 6cqw; height: 6cqw; font-size: 3.4cqw; }
+.wpet b { font: 600 2.8cqw/1 var(--display); display: block; }
+.wpet small { font: 600 1.4cqw/1.4 var(--body); color: var(--muted); }
+.wslots { display: grid; grid-template-columns: 1fr 1fr; gap: 1cqw; }
+.wslot { border: .2cqw dashed var(--line); border-radius: 1.2cqw; padding: .9cqw 1.1cqw; font: 700 1.4cqw/1.3 var(--body); display: flex; gap: .8cqw; align-items: center; }
+.wslot small { display: block; color: var(--muted); font-weight: 600; font-size: 1.15cqw; }
+.wslot.done { background: var(--good-soft); border-color: transparent; }
+.wslot.fresh { box-shadow: 0 0 0 .3cqw rgba(217,101,59,.35); }
+.wslot .av { width: 2.4cqw; height: 2.4cqw; font-size: 1cqw; }
+.wbtn { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 1.6cqw/1 var(--body); padding: 1.2cqw 2cqw; justify-self: start; display: inline-block; }
+.wbtn.ghost { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 .15cqw var(--line); }
+.wbtn.red { background: #B54A3A; }
+.wtoast { position: absolute; top: 1.6cqw; left: 50%; transform: translateX(-50%); background: #2A2420; color: #FFFCF6; border-radius: 999px; padding: 1cqw 1.8cqw; font: 700 1.5cqw/1 var(--body); display: flex; gap: 1cqw; align-items: center; white-space: nowrap; z-index: 4; }
+.wtoast .av { width: 2.6cqw; height: 2.6cqw; font-size: 1.1cqw; }
+.wscrim { position: absolute; inset: 0; background: rgba(42,36,32,.32); display: grid; place-items: center; z-index: 5; }
+.wsheet { width: 50cqw; background: var(--surface); border-radius: 2.4cqw; padding: 2.4cqw; display: grid; gap: 1.5cqw; box-shadow: 0 2cqw 5cqw rgba(40,25,10,.25); }
+.wsheet h4 { margin: 0; font: 600 2.8cqw/1.15 var(--display); }
+.wsheet .lab { font: 800 1.1cqw/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.wsheet p { font-size: 1.45cqw; line-height: 1.4; color: var(--muted); }
+.wsheet .btns { display: flex; gap: 1cqw; flex-wrap: wrap; }
+.wopt { border: .2cqw solid var(--line); border-radius: 1.6cqw; padding: 1.4cqw 1.6cqw; display: grid; gap: .5cqw; font: 700 1.7cqw/1.2 var(--body); }
+.wopt small { display: block; font: 600 1.3cqw/1.35 var(--body); color: var(--muted); }
+.wopt.on { border-color: var(--accent); background: #FDF1EA; }
+.wonb { grid-column: 1 / -1; display: grid; place-items: center; padding: 3cqw; }
+.wonb .in { width: 62cqw; display: grid; gap: 1.8cqw; }
+.wonb h4 { margin: 0; font: 600 3.6cqw/1.15 var(--display); }
+.wonb p { font-size: 1.6cqw; line-height: 1.45; color: var(--muted); }
+.settingsgrid { display: grid; grid-template-columns: 1fr 22cqw; gap: 2cqw; align-items: start; }
+.prow { display: grid; grid-template-columns: 3.6cqw 1fr auto; gap: 1.2cqw; align-items: center; padding: 1cqw 0; border-top: 1px solid var(--line); font: 700 1.55cqw/1.25 var(--body); }
+.prow:first-of-type { border-top: 0; }
+.prow small { display: block; font: 600 1.2cqw/1.3 var(--body); color: var(--muted); }
+.prow .av { width: 3.6cqw; height: 3.6cqw; font-size: 1.4cqw; }
+.stat { font: 800 1.15cqw/1 var(--body); border-radius: 999px; padding: .6cqw 1cqw; background: var(--good-soft); color: #3F7A55; white-space: nowrap; }
+.stat.wait { background: var(--accent-soft); color: var(--accent); }
+.stat.wall { background: var(--surface2); color: var(--muted); }
+.qr { background: #fff; border-radius: 1.6cqw; padding: 1.4cqw; display: grid; gap: 1cqw; justify-items: center; text-align: center; box-shadow: 0 .4cqw 1.4cqw rgba(60,40,20,.1); }
+.qr canvas { width: 15cqw; height: 15cqw; image-rendering: pixelated; }
+.qr b { font: 600 1.7cqw/1.2 var(--display); }
+.qr small { font: 600 1.15cqw/1.35 var(--body); color: var(--muted); }
+.wmeter { display: flex; height: 1.1cqw; border-radius: .6cqw; overflow: hidden; background: var(--rail); }
+.wmeter i { display: block; height: 100%; }
+.confetti { position: absolute; inset: 0; pointer-events: none; z-index: 3; background:
+  radial-gradient(circle at 12% 18%, var(--accent) 0 .5cqw, transparent .55cqw), radial-gradient(circle at 28% 9%, var(--ochre) 0 .45cqw, transparent .5cqw),
+  radial-gradient(circle at 70% 12%, var(--blue) 0 .5cqw, transparent .55cqw), radial-gradient(circle at 86% 22%, var(--coral) 0 .45cqw, transparent .5cqw),
+  radial-gradient(circle at 52% 6%, var(--sage) 0 .45cqw, transparent .5cqw), radial-gradient(circle at 92% 8%, var(--ochre) 0 .4cqw, transparent .45cqw); }
+
+/* Breakdown */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+th { font: 800 11.5px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 800; }
+code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface2); border-radius: 5px; padding: 1px 5px; }
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .flow { grid-template-columns: minmax(0, 1fr); } }
+.step { background: var(--surface); border-radius: 18px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; border-top: 4px solid var(--line); }
+.step.s0 { border-top-color: var(--muted); } .step.s1 { border-top-color: var(--accent); } .step.s2 { border-top-color: var(--good); } .step.s3 { border-top-color: var(--ochre); }
+.step b { font: 600 17px/1.25 var(--display); }
+.step p, .step ul { font-size: 14px; color: var(--muted); }
+.rec { color: var(--good); font-weight: 800; }
+
+/* This proposal's own pieces. */
+.danger { color: #B54A3A; }
+.btn.red { background: #B54A3A; color: #fff; }
+.btn.off { opacity: .4; }
+.consequences { display: grid; gap: 10px; }
+.consequences div { display: grid; grid-template-columns: 26px 1fr; gap: 8px; font: 600 13.5px/1.4 var(--body); }
+.consequences small { display: block; font-weight: 500; color: var(--muted); }
+.typed { border: 1.5px solid var(--ink); }
+.sc.dark .typed { border-color: var(--ink); }
+.choicecols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.choicecol { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.choicecol b { font: 600 17px/1.3 var(--display); }
+.choicecol p { font-size: 14.5px; color: var(--muted); }
+</style>
+
+<div class="page">
+
+<header style="display:grid;gap:14px">
+  <div class="eyebrow">Porchlight · Proposal · Nov 17, 2026 · for James to approve before any code</div>
+  <h1>Deleting a household for good</h1>
+  <p class="lede">An owner can end a household: everything it holds leaves their iCloud and every device that shared it, and nobody can bring it back.
+  Today the phone only says "It's yours, so it stays with you", and the one way to delete is buried in iOS Settings, where it deletes every household the owner has at once.</p>
+  <p class="note">This is the release checklist's item "Deleting a household from iCloud for good" (docs/design/release-checklist.md).
+  It adds one owner-only action to the phone's household page, and says what everyone else sees.
+  The sample is the atlas's: James owns The Lake House, Mia has an iPhone, Ava uses the hallway iPad, and there are two years of walks and meals with 412 MB of photos.</p>
+</header>
+
+<section>
+  <div class="eyebrow">The rules</div>
+  <h2>Rare, deliberate, and honest about what goes</h2>
+  <div class="rules">
+    <div><span>1</span><span><b>Only the owner, only from their own device.</b> The household lives in the owner's iCloud, and only they can delete it. Members can leave; shared screens, which anyone in the hallway can touch, never offer it.</span></div>
+    <div><span>2</span><span><b>Say exactly what goes, before anything goes.</b> Who loses it, what is deleted, how much, and that nobody can undo it, in plain words, with the real names and numbers.</span></div>
+    <div><span>3</span><span><b>One deliberate step, not a quick tap.</b> Typing the household's name is the confirmation: hard to do by accident, easy to do on purpose, and it reads back what is being deleted.</span></div>
+    <div><span>4</span><span><b>Online or not at all.</b> Deleting is never queued for later. Without iCloud the button explains why it can't, so nothing is deleted at a surprising moment.</span></div>
+    <div><span>5</span><span><b>Everyone else finds out calmly.</b> Members and shared screens see one screen that says what happened, then the welcome. Nothing of the household stays behind on any device.</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Journey</div>
+  <h2>The owner deletes The Lake House</h2>
+  <div class="journey">
+    <div class="jhead"><span class="jid">A7</span><h3>From the household page, on the owner's iPhone</h3><span class="ph-tag">Proposed</span></div>
+    <p class="goal">The last row of You › The Lake House. A sheet says what goes and asks for the name. Then the household is gone from everywhere, and the phone is back at the welcome.</p>
+    <div class="board" id="owner-light"></div>
+  </div>
+  <div class="journey">
+    <div class="jhead"><span class="jid">A7</span><h3>The same, in the night look</h3><span class="ph-tag">Proposed</span></div>
+    <p class="goal">The warm dark palette carries the danger color without turning the sheet into an alarm.</p>
+    <div class="board" id="owner-dark"></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Everyone else</div>
+  <h2>What members and screens see</h2>
+  <div class="journey">
+    <div class="jhead"><span class="jid">A7</span><h3>A member's phone, a member who looks for it, and the wall</h3><span class="ph-tag">Proposed</span></div>
+    <p class="goal">A member never sees a delete button; they learn who can, and how to leave. Afterwards every device shows one calm screen, then the welcome.</p>
+    <div class="board" id="others"></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">States</div>
+  <h2>Every way it can go</h2>
+  <div class="specs">
+    <div class="spec"><h4>Before deleting</h4><ul>
+      <li><b>Offline, or iCloud can't be reached:</b> the button is off and the sheet says "Deleting needs iCloud. Connect to the internet and try again."</li>
+      <li><b>iCloud off for Porchlight, or signed out:</b> the household is only on this iPhone, so the sheet says so, and deleting takes it off this iPhone (nobody else has it).</li>
+      <li><b>The owner's iCloud is full:</b> deleting still works; it frees the room.</li>
+      <li><b>Someone else is logging right now:</b> deleting wins; their change is refused by iCloud and their phone shows the deleted screen.</li>
+      <li><b>Not the owner:</b> no button; "Only James can delete The Lake House" and Leave.</li>
+      <li><b>A shared screen, even the owner's:</b> no button; it says where to do it.</li>
+    </ul></div>
+    <div class="spec"><h4>While deleting</h4><ul>
+      <li><b>Deleting:</b> "Deleting The Lake House…", the sheet can't be swiped away, and the rest of the app waits behind it.</li>
+      <li><b>The connection drops:</b> "Couldn't delete it. Nothing was deleted. Check that this iPhone is online, then try again." iCloud deletes the household's zone in one step, so it is never half deleted.</li>
+      <li><b>The app is closed mid-way:</b> on the next launch it asks iCloud whether the household still exists and shows either the household or the deleted screen.</li>
+    </ul></div>
+    <div class="spec"><h4>Afterwards</h4><ul>
+      <li><b>The owner's phone:</b> "The Lake House is deleted", then the welcome, or the next household when it belongs to more than one (A5).</li>
+      <li><b>Members' phones:</b> the deleted screen once, at their next sync, then the welcome or their next household; reminders for it are withdrawn.</li>
+      <li><b>Shared screens:</b> the same screen at wall size, then the iPad's setup.</li>
+      <li><b>The owner's other devices on the same Apple ID:</b> the same as members.</li>
+      <li><b>Offline devices:</b> keep showing it until they reach iCloud, then the deleted screen; anything logged meanwhile is dropped with it.</li>
+      <li><b>Widgets:</b> "Join or start a household in Porchlight."</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">For James</div>
+  <h2>Decisions to approve</h2>
+  <div class="choicecols">
+    <div class="choicecol"><span class="eyebrow">1 · The confirmation</span><b>Type the household's name <span class="rec">recommended</span></b><p>Deliberate and readable: the field shows what is being deleted. Alternatives: a second alert ("Delete for everyone?"), which people tap through, or press and hold, which is hard with VoiceOver and Switch Control.</p></div>
+    <div class="choicecol"><span class="eyebrow">2 · Where</span><b>The owner's phone only <span class="rec">recommended</span></b><p>The wall is a shared screen anyone can touch, and iPadOS 17 there can't ask "are you the owner" any better than a hallway visitor can answer it. A personal iPad on the owner's Apple ID gets the same row as the phone.</p></div>
+    <div class="choicecol"><span class="eyebrow">3 · A way back</span><b>None, said plainly <span class="rec">recommended</span></b><p>A grace period would mean keeping deleted data in someone's iCloud, which is exactly what the owner asked to stop. A "save a copy first" export is a separate feature, if ever.</p></div>
+    <div class="choicecol"><span class="eyebrow">4 · What members are told</span><b>"James deleted The Lake House, or removed this iPhone from it" <span class="rec">recommended</span></b><p>To a member, iCloud reports a deleted household the same way as being removed from it. The words name both rather than guess; a marker written before deleting could tell them apart, but only for devices that sync in between.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Build notes</div>
+  <h2>How it would work</h2>
+  <ul class="note" style="max-width:none">
+    <li>The household is one record zone in the owner's private iCloud database, with the share at its root. Deleting the zone deletes every record, every photo asset and the share in one operation, and iCloud then reports the share as gone to every participant.</li>
+    <li>On the owner's device: check the account and reachability first (the button's state), delete the zone through the sync engine, then remove the household's local data and files the way leaving does today (`AppModel.removeHouseholdHere`, `AppFiles.removeHouseholdFiles`), and withdraw its reminders and widget summary.</li>
+    <li>On every other device: the existing "removed" path (journey A6, `RemovedHousehold`) already takes the household off and shows one screen; this only changes its words.</li>
+    <li>The phone's household page gains one row for the owner and one line for members (`PocketHousehold`), the leave sheet's owner text points to it, and the wall's Family &amp; devices gains one line for the owner (`FamilySection`).</li>
+    <li>Tests: the owner deletes (sheet, typed name, offline and not-owner states) against the fake sharing service, a member sees the deleted screen, and the wall's line; unit tests that deleting removes every table's rows and files for that household only, and never another household on the same device.</li>
+    <li>The release checklist's privacy policy then says: delete a household from You › the household › Delete; to delete everything Porchlight keeps in your iCloud at once, iOS Settings › your name › iCloud › Manage Account Storage › Porchlight › Delete Data.</li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+(() => {
+  /* ---------- Phone building blocks ---------- */
+  const av = (p, c = '') => `<span class="av ${p} ${c}">${p}</span>`;
+  const status = (t = '6:12') => `<div class="notch"></div><div class="status"><span>${t}</span><i>●●●● ▮▮</i></div>`;
+  const tabs = on => `<div class="tabbar">${[['today','🏠','Today'],['food','🍜','Food'],['lists','📝','Lists'],['glow','✨','Glow']].map(([k,i,l]) => `<span class="${k===on?'on':''}"><i>${i}</i>${l}</span>`).join('')}</div>`;
+  const head = (small, title, right = av('J')) => `<div class="phead"><div><small>${small}</small><b>${title}</b></div>${right}</div>`;
+  const P = (body, o = {}) => `<div class="ph"><div class="sc ${o.dark ? 'dark' : ''}">${status(o.t)}<div class="pb">${body}</div>${o.tab ? tabs(o.tab) : ''}${o.over || ''}</div></div>`;
+  const RAW = (inner, o = {}) => `<div class="ph"><div class="sc ${o.dark ? 'dark' : ''}">${inner}</div></div>`;
+  const sheet = html => `<div class="scrim"></div><div class="sheet"><i class="grab"></i>${html}</div>`;
+  const toast = (icon, t, s, act = 'Undo') => `<div class="toast"><span style="font-size:20px">${icon}</span><span>${t}<small>${s}</small></span><em>${act}</em></div>`;
+  const dots = (n, on) => `<div class="dots">${Array.from({length:n}, (_, i) => `<i class="${i===on?'on':''}"></i>`).join('')}</div>`;
+  const row = (left, title, sub, right = '', cls = '') => `<div class="row ${cls}">${left}<div class="tx"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</div>${right}</div>`;
+  const box = on => `<span class="box ${on?'on':''}">${on?'✓':''}</span>`;
+  const listRow = (title, sub, right = '<span class="chev">›</span>', left = '') => row(left, title, sub, right);
+  const petCard = (o = {}) => `<div class="card warm">
+      <div class="pet"><div class="face">🐶</div><div><b>Yo-Yo</b><small>${o.walked ? 'Walked just now by you' : 'Walked 9h ago by Mia'}</small></div><span class="star" style="margin-left:auto">🔥 3-day streak</span></div>
+      <div class="slots"><div class="slot done">${av('M','sm')}<span>Morning<small>8:40 am</small></span></div>${o.walked ? `<div class="slot done">${av('J','sm')}<span>Evening<small>6:12 pm, just now</small></span></div>` : `<div class="slot due"><span>🐾</span><span>Evening<small>5 to 8 pm · open now</small></span></div>`}</div>
+      ${o.walked ? `<span class="btn good">✓ Logged · +1 star</span>` : `<span class="btn">🐾 I walked Yo-Yo</span>`}
+      ${o.walked ? '' : `<div class="withrow">Also went: <span class="pill">${av('M','sm')}Mia</span><span class="pill">${av('A','sm')}Ava</span><span style="margin-left:auto;color:var(--accent);font-weight:800">More…</span></div>`}
+    </div>`;
+  const yours = (o = {}) => `<div class="card"><div class="ch"><b>Yours today</b><span>${o.done ? '2 of 2 done' : '1 of 2 done'}</span></div><div>
+      ${row(box(true), 'Take out recycling', 'Done 7:05 am', '<span class="star">+2</span>', 'done')}
+      ${row(box(o.done), 'Fix the leaky faucet', o.done ? 'Done just now' : 'this weekend', '<span class="star">+3</span>', o.done ? 'done' : '')}
+    </div></div>`;
+  const anyone = (o = {}) => `<div class="card"><div class="ch"><b>Anyone can take</b><span>2 open</span></div><div>
+      ${row('', 'Vacuum the living room', o.took ? 'Yours now · on the wall under your name' : 'this weekend', `<span class="take ${o.took?'mine':''}">${o.took ? 'Yours' : "I did it"}</span>`)}
+      ${row('', 'Change the sheets', 'this week', '<span class="take">I did it</span>')}
+    </div></div>`;
+  const agenda = `<div class="card"><div class="ch"><b>At home today</b><span>Next 7 days ›</span></div><div>
+      ${row('<span class="time">All day</span>', 'Aunt Rosa visiting', 'Sat to Mon')}
+      ${row('<span class="time">10:00</span>', 'Climbing gym', 'James', av('J','sm'))}
+      ${row('<span class="time">7:00</span>', 'Dinner with Rosa', 'Family')}
+    </div></div>`;
+
+  /* ---------- Wall building blocks ---------- */
+  const railIcons = ['🏠','📅','🐶','🍴','☑️','✨','📝','🖼️'];
+  const rail = on => `<div class="wrail"><i class="home"></i>${railIcons.map((x, i) => `<i class="${on===i?'on':''}">${x}</i>`).join('')}<i class="${on==='s'?'on':''}" style="margin-top:2cqw">⚙️</i></div>`;
+  const W = inner => `<div class="wl"><div class="ws-sc">${inner}</div></div>`;
+  const whead = () => `<div class="whead"><b>6:12</b><span>Sunday<small>November 15</small></span><div class="ppl">${av('J')}${av('M')}${av('A')}</div></div>`;
+  const wallToday = (o = {}) => `${rail(0)}<div class="wmain">${whead()}<div class="wgrid">
+      <div class="wcard"><div class="ch"><b>Today</b><span>4 events</span></div>
+        <div class="wrow"><span class="tm">8:40</span><span>Breakfast · Avocado toast<small>Home-cooked · 2 photos</small></span>${av('M')}</div>
+        <div class="wrow"><span class="tm">10:00</span><span>Climbing gym<small>James</small></span>${av('J')}</div>
+        <div class="wrow"><span class="tm">12:30</span><span>Lunch · Pho${o.food ? '<span class="via">from Mia\'s phone</span>' : ''}<small>Delivery · 1 photo</small></span>${av('M')}</div>
+        <div class="nowl">NOW<i></i></div>
+        ${o.walked ? `<div class="wrow new"><span class="tm">6:12</span><span>Evening walk<span class="via">from James's phone</span><small>James and Mia · +1 star</small></span>${av('J')}</div>` : `<div class="wrow" style="background:transparent;box-shadow:inset 0 0 0 .2cqw var(--line)"><span class="tm">~6:30</span><span>Evening walk<small>Usually 5 to 8 pm</small></span><span>🐾</span></div>`}
+        <div class="wrow"><span class="tm">7:00</span><span>Dinner with Rosa<small>Family</small></span><span></span></div>
+      </div>
+      <div style="display:grid;gap:1.6cqw;align-content:start;min-height:0">
+        <div class="wcard" style="background:linear-gradient(160deg,#FBE9DC,var(--surface) 60%)">
+          <div class="wpet"><div class="face">🐶</div><div><b>Yo-Yo</b><small>${o.walked ? 'Walked just now by James' : 'Walked 9h ago'}</small></div></div>
+          <div class="wslots"><div class="wslot done">${av('M')}<span>Morning<small>8:40 am</small></span></div>${o.walked ? `<div class="wslot done fresh">${av('J')}<span>Evening<small>6:12 pm · from a phone</small></span></div>` : `<div class="wslot" style="border-color:var(--accent)"><span>🐾</span><span>Evening<small>5 to 8 pm</small></span></div>`}</div>
+          <div style="display:flex;gap:1cqw;flex-wrap:wrap">${o.walked ? '<span class="wbtn ghost">See the week</span>' : '<span class="wbtn">🐾 I walked Yo-Yo</span>'}</div>
+        </div>
+        <div class="wcard"><div class="ch"><b>Pitch in</b><span>3 of 5 done</span></div>
+          <div class="wrow two"><span>Fix the leaky faucet<small>${o.walked ? 'Done · from James\'s phone' : 'this weekend'}</small></span>${av('J')}</div>
+          <div class="wrow two"><span>Vacuum the living room<small>${o.walked ? 'James took it · from a phone' : 'Anyone'}</small></span>${o.walked ? av('J') : '<span>♡</span>'}</div>
+        </div>
+      </div>
+    </div></div>`;
+  const settingsShell = (title, sub, body) => `${rail('s')}<div class="wmain"><div class="whead"><b class="t">Settings</b><span>${title}<small>${sub}</small></span></div>${body}</div>`;
+
+
+  /* ---------- This proposal's frames ---------- */
+  const consequences = `<div class="consequences">
+      <div><span>👥</span><span>Mia and the hallway iPad lose it<small>Their screens say it was deleted, and Ava's history goes with it.</small></span></div>
+      <div><span>🗑️</span><span>Everything in it is deleted<small>2 years of walks and meals, 9 chores, 3 lists and 412 MB of photos, from your iCloud and from every device.</small></span></div>
+      <div><span>⛔</span><span>This can't be undone<small>Nobody can bring it back, including us.</small></span></div>
+    </div>`;
+  const hub = (o = {}) => `<div class="phead"><span class="back">‹ You</span></div>${head('The Lake House', 'Household', '')}
+      <div class="list">${listRow('Name', 'The Lake House', '', '<span style="font-size:20px">🏡</span>')}</div>
+      <div class="card" style="gap:2px"><div class="ch"><b>People</b><span>+ Add</span></div>${row(av('J','sm'),'James','Owner · member')}${row(av('M','sm'),'Mia','Member')}${row(av('A','sm'),'Ava','No phone')}</div>
+      <div class="list">${listRow('Companions', 'Yo-Yo', '', '<span style="font-size:20px">🐶</span>')}${listRow('Chores', '9 chores', '', '<span style="font-size:20px">☑️</span>')}${listRow('Lists', 'Groceries · House · Costco', '', '<span style="font-size:20px">📝</span>')}</div>
+      ${o.member
+        ? `<p class="note" style="font-size:12.5px">Only James can delete The Lake House. To take it off this iPhone, leave it from You.</p>`
+        : `<div class="list">${listRow('<span class="danger">Delete The Lake House…</span>', 'For everyone, from your iCloud and every device', '<span class="chev">›</span>', '<span style="font-size:20px">🗑️</span>')}</div>`}`;
+  const deleteSheet = (o = {}) => sheet(`<div class="label">The Lake House · stored in your iCloud</div><h4>Delete The Lake House for everyone?</h4>
+      ${consequences}
+      ${o.offline
+        ? `<div class="banner info"><span>📴</span><span>Deleting needs iCloud<small>Connect to the internet and try again. Nothing is deleted until then.</small></span></div><div class="field ph-t">Household name</div><span class="btn red off">Delete for everyone</span>`
+        : `<div class="label">Type the household's name to delete it</div><div class="field ${o.typed ? 'typed' : 'ph-t'}">${o.typed ? 'The Lake House' : 'Household name'}</div><span class="btn red ${o.typed ? '' : 'off'}">Delete for everyone</span>`}
+      <span class="btn ghost">Keep it</span>`);
+  const deleting = sheet(`<div class="center" style="padding:30px 0"><div class="big-emoji">⏳</div><h4>Deleting The Lake House…</h4><p>Keep Porchlight open. This takes a few seconds.</p></div>`);
+  const gone = (who = 'owner') => `<div class="center" style="padding-top:150px"><div class="big-emoji">🍂</div><h4>${who === 'owner' ? 'The Lake House is deleted' : 'The Lake House is gone'}</h4><p>${who === 'owner'
+      ? "It's gone from your iCloud and from every device that had it. Nobody can see it any more."
+      : "James deleted The Lake House, or removed this iPhone from it. Everything in it is gone from this iPhone."}</p></div>
+      <div style="display:grid;gap:8px;margin-top:180px"><span class="btn">OK</span></div>`;
+  const wallSettings = W(settingsShell('Family & devices', 'The Lake House · stored in James\'s iCloud', `<div class="settingsgrid"><div class="wcard">
+        <div class="ch"><b>Who has the app</b><span>3 people · 2 members</span></div>
+        <div class="prow">${av('J')}<span>James<small>Owner · iPhone 16</small></span><span class="stat">Joined</span></div>
+        <div class="prow">${av('M')}<span>Mia<small>iPhone 15</small></span><span class="stat">Joined</span></div>
+        <div class="prow"><span class="av" style="background:var(--surface2);color:var(--muted)">⌂</span><span>Hallway iPad<small>This iPad · Shared screen · asks who did it</small></span><span class="stat wall">Change</span></div>
+        <div style="font:600 1.3cqw/1.45 var(--body);color:var(--muted)">🗑️ To delete The Lake House for everyone, open Porchlight on James's iPhone: You, The Lake House, Delete.</div>
+      </div></div>`));
+  const wallGone = W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">The Lake House</div><h4>The Lake House was deleted</h4>
+      <p>James deleted it, or removed this iPad from it. Everything in it is gone from this iPad.</p></div>
+      <div style="display:flex;gap:1cqw"><span class="wbtn">Set up this iPad again</span></div></div></div>`);
+
+  const frame = (kind, html, h, c) => `<figure class="fr ${kind}" style="margin:0">${html}<figcaption class="cap"><b>${h}</b><span>${c}</span></figcaption></figure>`;
+  const ownerFrames = dark => [
+    ['p', P(hub(), {dark}), 'The household page', 'The last row, for the owner only, in the danger color and set apart.'],
+    ['p', P(hub(), {dark, over: deleteSheet()}), 'What goes, said first', 'Who loses it, what is deleted with real numbers, and that nobody can undo it. The button stays off until the name is typed.'],
+    ['p', P(hub(), {dark, over: deleteSheet({typed: true})}), 'Typed, and on purpose', 'The typed name reads back what is being deleted. "Keep it" is always there.'],
+    ['p', P(hub(), {dark, over: deleting}), 'Deleting', 'A few seconds; the sheet can\'t be swiped away. iCloud deletes the household in one step, so it is never half gone.'],
+    ['p', P(gone('owner'), {dark}), 'Done', 'Then the welcome, or the next household when there is one.'],
+  ];
+  const board = frames => frames.map(([k, html, h, c], i) => `${i ? '<span class="arrow" aria-hidden="true">›</span>' : ''}${frame(k, html, h, c)}`).join('');
+  document.getElementById('owner-light').innerHTML = board(ownerFrames(false));
+  document.getElementById('owner-dark').innerHTML = board(ownerFrames(true));
+  document.getElementById('others').innerHTML = board([
+    ['p', P(hub(), {over: deleteSheet({offline: true})}), 'Offline', 'Never queued for later: the button is off and says why.'],
+    ['p', P(hub({member: true})), 'A member looks for it', 'No button. Who can delete it, and how to leave instead.'],
+    ['p', P(gone('member')), 'A member, afterwards', 'At their next sync: one calm screen, then the welcome. Reminders for it are withdrawn.'],
+    ['p', P(gone('member'), {dark: true}), 'The same, at night', 'The night look, as on every phone screen.'],
+    ['w', wallSettings, 'The wall says where', 'A shared screen never offers it; Family & devices names the owner\'s phone.'],
+    ['w', wallGone, 'The wall, afterwards', 'The same news at wall size, then the iPad\'s setup.'],
+  ]);
+})();
+</script>
