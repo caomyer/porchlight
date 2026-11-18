@@ -73,6 +73,24 @@ extension PhoneTestHelpers {
     }
 
     /// The first element whose label begins with `part`.
+    /// Waits, up to `timeout`, until the app answers two looks at its screen in a row
+    /// promptly. The first launch after a simulator boots can spend seconds drawing its first
+    /// frame (the color emoji font is read in from the runtime's disk image), and a tap sent
+    /// then times out ("Timed out while synthesizing event"); a look at the screen waits for
+    /// the same main thread, so a prompt answer means a tap will land.
+    func waitUntilResponsive(_ app: XCUIApplication, timeout: TimeInterval = 60) {
+        let deadline = Date.now.addingTimeInterval(timeout)
+        var prompt = 0
+        while Date.now < deadline {
+            let asked = Date.now
+            _ = app.windows.firstMatch.exists
+            prompt = Date.now.timeIntervalSince(asked) < 2 ? prompt + 1 : 0
+            if prompt >= 2 { return }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        XCTFail("The app should answer promptly within \(Int(timeout)) seconds of launching")
+    }
+
     func element(_ app: XCUIApplication, beginningWith part: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch
     }

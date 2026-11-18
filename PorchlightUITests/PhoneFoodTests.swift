@@ -31,6 +31,7 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         if !arguments.contains("-debugFoodView") {
             XCTAssertTrue(app.staticTexts["What we ate"].waitForExistence(timeout: 60))
         }
+        waitUntilResponsive(app)
         return app
     }
 
