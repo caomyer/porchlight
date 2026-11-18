@@ -371,7 +371,9 @@ extension AppDatabase {
     /// Adds people to a log, for "I went too". People already on it stay once.
     func addPeople(_ people: [Person.ID], toCareLog id: CareLog.ID) throws {
         try writer.write { db in
-            guard try CareLog.exists(db, id: id) else { throw CareValidationError.unknownLog }
+            guard let log = try CareLog.fetchOne(db, id: id) else { throw CareValidationError.unknownLog }
+            guard let routine = try CareRoutine.fetchOne(db, id: log.careRoutineId) else { throw CareValidationError.unknownRoutine }
+            _ = try Self.household(of: routine, crediting: people, in: db)
             try Self.replacePeople(of: id, with: people, in: db)
         }
     }
@@ -392,11 +394,7 @@ extension AppDatabase {
     /// The people must live in the routine's household: a log never credits someone from
     /// another household (journey A5).
     private func insertLog(_ draft: CareLogDraft, note: String?, routine: CareRoutine, now: Date, in db: Database) throws -> CareLog {
-        guard let householdId = try Household.ID.fetchOne(db, sql: "SELECT householdId FROM companion WHERE id = ?", arguments: [routine.companionId]) else {
-            throw CareValidationError.unknownRoutine
-        }
-        let residents = try Set(Person.ID.fetchAll(db, sql: "SELECT id FROM person WHERE householdId = ?", arguments: [householdId]))
-        guard draft.people.allSatisfy(residents.contains) else { throw CareValidationError.notInHousehold }
+        let householdId = try Self.household(of: routine, crediting: draft.people, in: db)
         var log = CareLog(careRoutineId: routine.id, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now, deviceId: stamp(in: householdId))
         log.apply(draft, note: note, routine: routine)
         try log.insert(db)
@@ -411,6 +409,7 @@ extension AppDatabase {
         return try writer.write { db in
             guard var log = try CareLog.fetchOne(db, id: id) else { throw CareValidationError.unknownLog }
             guard let routine = try CareRoutine.fetchOne(db, id: log.careRoutineId) else { throw CareValidationError.unknownRoutine }
+            _ = try Self.household(of: routine, crediting: draft.people, in: db)
             log.occurredAt = draft.occurredAt
             log.apply(draft, note: note, routine: routine)
             try log.update(db)
@@ -418,6 +417,18 @@ extension AppDatabase {
             try Self.replacePeople(of: id, with: draft.people, in: db)
             return log
         }
+    }
+
+    /// The routine's household, once everyone credited is checked to live there: adding,
+    /// fixing or joining a log never credits someone from another household (journey A5),
+    /// whichever household the device is showing.
+    private static func household(of routine: CareRoutine, crediting people: [Person.ID], in db: Database) throws -> Household.ID {
+        guard let householdId = try Household.ID.fetchOne(db, sql: "SELECT householdId FROM companion WHERE id = ?", arguments: [routine.companionId]) else {
+            throw CareValidationError.unknownRoutine
+        }
+        let residents = try Set(Person.ID.fetchAll(db, sql: "SELECT id FROM person WHERE householdId = ?", arguments: [householdId]))
+        guard people.allSatisfy(residents.contains) else { throw CareValidationError.notInHousehold }
+        return householdId
     }
 
     private static func replacePeople(of logId: CareLog.ID, with people: [Person.ID], in db: Database) throws {

@@ -65,8 +65,37 @@ struct CareLogFields: Equatable {
     }
 }
 
+/// The care sheet's words for fixing a log, the same on the wall and the phone.
+enum CareLogWording {
+    /// "Edit walk", "Edit feed".
+    static func editTitle(_ routine: CareRoutine) -> String {
+        "Edit " + routine.kind.noun(title: routine.title)
+    }
+
+    static let editSubtitle = "Fix who, when or how it went"
+    static let saveChanges = "Save changes"
+    /// The first tap on removing, which only asks.
+    static let remove = "Remove"
+    /// Backing out of removing.
+    static let keep = "Keep it"
+
+    /// "Remove walk": the second tap, which removes it and the stars it earned.
+    static func confirmRemove(_ routine: CareRoutine) -> String {
+        "Remove " + routine.kind.noun(title: routine.title)
+    }
+}
+
 /// The day a care log belongs to, and the times it can take on it.
 struct CareLogDay {
+    /// The day a care sheet works on: the day of the log being fixed, else a missed slot's
+    /// day, else today.
+    static func forSheet(
+        routine: CareRoutine, editing: CareEntry?, catchUpDay: DayKey?, today: DayKey, now: Date, calendar: Calendar, history: [CareEntry]
+    ) -> CareLogDay {
+        let day = editing.map { DayKey($0.time, calendar: calendar) } ?? catchUpDay ?? today
+        return CareLogDay(routine: routine, day: day, today: today, now: now, calendar: calendar, history: history)
+    }
+
     let routine: CareRoutine
     /// The log's day: the day of the one being fixed, a missed slot's day, or today.
     let day: DayKey

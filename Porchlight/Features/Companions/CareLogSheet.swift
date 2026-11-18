@@ -236,13 +236,13 @@ private struct CareLogForm: View {
         HStack(spacing: 10) {
             if editing != nil {
                 if confirmingDelete {
-                    Button("Keep it") { confirmingDelete = false }
+                    Button(CareLogWording.keep) { confirmingDelete = false }
                         .buttonStyle(SecondaryButtonStyle())
-                    Button("Remove \(noun)", role: .destructive, action: delete)
+                    Button(CareLogWording.confirmRemove(routine), role: .destructive, action: delete)
                         .buttonStyle(PrimaryButtonStyle())
                 } else {
                     Button { confirmingDelete = true } label: {
-                        Label("Remove", systemImage: "trash")
+                        Label(CareLogWording.remove, systemImage: "trash")
                     }
                     .buttonStyle(SecondaryButtonStyle())
                 }
@@ -256,7 +256,7 @@ private struct CareLogForm: View {
                     Button("Cancel", action: onClose).buttonStyle(SecondaryButtonStyle())
                 }
                 Button(action: save) {
-                    Label(editing == nil ? "Save \(noun)" : "Save changes", systemImage: "checkmark")
+                    Label(editing == nil ? "Save \(noun)" : CareLogWording.saveChanges, systemImage: "checkmark")
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(fields.people.isEmpty)
@@ -267,7 +267,7 @@ private struct CareLogForm: View {
     private var noun: String { routine.kind.noun(title: routine.title) }
 
     private var subtitle: String {
-        if editing != nil { return "Fix who, when or how it went" }
+        if editing != nil { return CareLogWording.editSubtitle }
         if let catchUp, let window = routine.effectiveWindows[safe: catchUp.slot] {
             return CareCatchUp.subtitle(window, of: routine, on: catchUp.day, today: report.today, calendar: store.snapshot.calendar)
         }
@@ -276,7 +276,7 @@ private struct CareLogForm: View {
 
     private var title: String {
         guard editing != nil else { return routine.kind.question(name: report.name, title: routine.title) }
-        return "Edit " + noun
+        return CareLogWording.editTitle(routine)
     }
 
     private func label(_ text: String, note: String? = nil) -> some View {
@@ -333,11 +333,9 @@ private struct CareLogForm: View {
 
     /// The log's day and the times it can take.
     private var logDay: CareLogDay {
-        let calendar = store.snapshot.calendar
-        let day = editing.map { DayKey($0.time, calendar: calendar) } ?? catchUp?.day ?? report.today
-        return CareLogDay(
-            routine: routine, day: day, today: report.today, now: report.now, calendar: calendar,
-            history: store.snapshot.entries(of: routine.id)
+        CareLogDay.forSheet(
+            routine: routine, editing: editing, catchUpDay: catchUp?.day, today: report.today, now: report.now,
+            calendar: store.snapshot.calendar, history: store.snapshot.entries(of: routine.id)
         )
     }
 

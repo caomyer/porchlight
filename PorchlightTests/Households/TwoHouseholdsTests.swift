@@ -167,6 +167,41 @@ struct TwoHouseholdsTests {
         #expect(try two.db.writer.read { try CareLog.fetchCount($0) } == 0)
     }
 
+    @Test("Fixing a log works in its own household while the other shows, and never credits the other")
+    func fixingAcrossHouseholds() throws {
+        let two = try TwoHouseholds()
+        let log = try two.db.logCare(routineId: two.yoyoWalk.id, two.walk(by: [two.james], at: two.now.addingTimeInterval(-600)), now: two.now)
+        try two.db.chooseHousehold(two.rosas.id)
+
+        let fixed = try two.db.updateCareLog(id: log.id, two.walk(by: [two.james, two.mia], at: two.now.addingTimeInterval(-1200)), now: two.now)
+        #expect(fixed.deviceId == log.deviceId, "still stamped with this device's row in The Lake House")
+        #expect(fixed.stars == log.stars, "the stars stay as they were, once")
+        #expect(throws: CareValidationError.notInHousehold) {
+            _ = try two.db.updateCareLog(id: log.id, two.walk(by: [two.rosa], at: two.now), now: two.now)
+        }
+        #expect(throws: CareValidationError.notInHousehold) {
+            try two.db.addPeople([two.jamesAtRosas], toCareLog: log.id)
+        }
+        let people = try two.db.writer.read { try CareLogPerson.filter(Column("careLogId") == log.id).fetchAll($0).map(\.personId) }
+        #expect(Set(people) == [two.james, two.mia])
+    }
+
+    @Test("Removing a log takes back its stars from everyone on it")
+    func removingTakesStarsBack() throws {
+        let two = try TwoHouseholds()
+        let log = try two.db.logCare(routineId: two.yoyoWalk.id, two.walk(by: [two.james, two.mia], at: two.now.addingTimeInterval(-600)), now: two.now)
+        func stars(_ person: Person.ID) throws -> Int {
+            try two.db.writer.read {
+                try Int.fetchOne($0, sql: "SELECT COALESCE(SUM(l.stars), 0) FROM careLog l JOIN careLogPerson p ON p.careLogId = l.id WHERE p.personId = ?", arguments: [person]) ?? 0
+            }
+        }
+        #expect(try stars(two.james) == log.stars && stars(two.mia) == log.stars)
+        _ = try two.db.updateCareLog(id: log.id, two.walk(by: [two.mia], at: two.now.addingTimeInterval(-900)), now: two.now)
+        #expect(try stars(two.james) == 0 && stars(two.mia) == log.stars, "taken off, James's stars go; Mia's stay once")
+        try two.db.deleteCareLog(id: log.id)
+        #expect(try stars(two.mia) == 0)
+    }
+
     @Test("Starting a household here shows it; the first stays as it was")
     func startingShowsTheNewOne() throws {
         let two = try TwoHouseholds()
@@ -248,6 +283,31 @@ struct TwoHouseholdsBeyondTests {
         // One household only: nothing is named.
         let alone = ReminderScheduler.plans(for: two.lake, named: false, database: two.db, device: two.settings, choices: choices, now: morning)
         #expect(alone.plan.allSatisfy { $0.household == nil && !$0.title.hasPrefix("The Lake House") })
+    }
+
+    @Test("Fixing or removing a log changes what is due: a slot it leaves reminds again")
+    func fixingChangesReminders() throws {
+        let two = try TwoHouseholds()
+        var choices = ReminderChoices(chores: false)
+        for slot in ReminderSlots.all(try two.db.writer.read { try CompanionSnapshot.fetch($0, householdId: two.lake.id) }) { choices.care[slot.id] = .missed }
+        let early = Calendar.current.date(from: DateComponents(timeZone: two.lake.calendar.timeZone, year: 2026, month: 11, day: 7, hour: 7))!
+        func plan() -> [PlannedReminder] {
+            ReminderScheduler.plans(for: two.lake, named: false, database: two.db, device: two.settings, choices: choices, now: early).plan
+        }
+        let open = plan()
+        let log = try two.db.logCare(routineId: two.yoyoWalk.id, two.walk(by: [two.james], at: early.addingTimeInterval(-600)), now: early)
+        let logged = plan()
+        #expect(logged.count == open.count - 1, "the logged slot no longer reminds")
+
+        // Moved to yesterday, it leaves today's slot open again.
+        let yesterday = early.addingTimeInterval(-86_400)
+        _ = try two.db.updateCareLog(id: log.id, two.walk(by: [two.james], at: yesterday), now: early)
+        #expect(plan().map(\.id) == open.map(\.id))
+
+        _ = try two.db.updateCareLog(id: log.id, two.walk(by: [two.james], at: early.addingTimeInterval(-600)), now: early)
+        #expect(plan().map(\.id) == logged.map(\.id))
+        try two.db.deleteCareLog(id: log.id)
+        #expect(plan().map(\.id) == open.map(\.id), "removed, its slot reminds again")
     }
 
     @Test("A reminder's action logs into its own household, for me there, while the other shows")

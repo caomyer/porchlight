@@ -193,6 +193,111 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.buttons["sharing-Us"].waitForExistence(timeout: 5), "Calendars are in the You sheet")
     }
 
+    // MARK: Fixing a log
+
+    /// Opens Today's done morning walk to fix, as tapping a logged walk does on the wall.
+    private func openMorningWalk(_ app: XCUIApplication) {
+        let tile = app.buttons["slot-Yo-Yo-0"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 10), "A done slot is a button")
+        reveal(tile, in: app)
+        tile.waitToSettle()
+        tile.tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForExistence(timeout: 5), "It opens the walk to fix")
+    }
+
+    /// Mirrors the wall's `LoggedEntryTests.testFixingAWalkFromToday`: fix a walk from
+    /// Today, see it saved, then remove it.
+    func testFixingAWalkFromToday() {
+        let app = launch()
+        openMorningWalk(app)
+        XCTAssertTrue(app.staticTexts["Fix who, when or how it went"].exists)
+        XCTAssertTrue(app.buttons["You"].isSelected, "Who went is filled in as logged")
+        snapshot("edit-10-today")
+        let longer = app.buttons["45 min"]
+        reveal(longer, in: app)
+        longer.tap()
+        app.buttons["save-care"].tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 5), "Saving closes the sheet")
+
+        openMorningWalk(app)
+        XCTAssertTrue(app.buttons["45 min"].isSelected, "The fix was saved")
+        let remove = app.buttons["remove-care"]
+        reveal(remove, in: app)
+        remove.tap()
+        let confirm = app.buttons["Remove walk"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "Removing asks first")
+        XCTAssertTrue(app.buttons["Keep it"].exists)
+        snapshot("edit-11-remove")
+        confirm.tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["slot-Yo-Yo-0"].waitForNonExistence(timeout: 5), "The morning slot is open again")
+    }
+
+    /// Mirrors `LoggedEntryTests.testFixingAWalkFromTheCompanionPage`: a diary row opens
+    /// its walk, and "Keep it" backs out of removing.
+    func testFixingAWalkFromTheWeek() {
+        let app = launch()
+        app.buttons["week-Yo-Yo"].tap()
+        XCTAssertTrue(element(app, beginningWith: "Walk diary").waitForExistence(timeout: 5))
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS ' min'")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "Diary rows are buttons")
+        let before = row.label
+        reveal(row, in: app)
+        row.tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForExistence(timeout: 5))
+        snapshot("edit-20-week")
+        let remove = app.buttons["remove-care"]
+        reveal(remove, in: app)
+        remove.tap()
+        XCTAssertTrue(app.buttons["Remove walk"].waitForExistence(timeout: 5))
+        app.buttons["Keep it"].tap()
+        XCTAssertTrue(app.buttons["save-care"].waitForExistence(timeout: 5), "Keeping it goes back to saving")
+        remove.tap()
+        app.buttons["Remove walk"].tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.buttons[before].exists, "The walk is gone from the diary")
+    }
+
+    /// A shared screen fixes any walk too, crediting whoever is picked, as the wall does.
+    func testFixingAWalkOnASharedScreen() {
+        let app = XCUIApplication.porchlight()
+        app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.evening, "-device.role", "sharedScreen"]
+        app.launch()
+        openMorningWalk(app)
+        XCTAssertTrue(app.buttons["James"].isSelected, "Who went, by name, with no \"You\"")
+        app.buttons["save-care"].tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 5))
+    }
+
+    /// The fix sheet in the night look and at the largest text size.
+    func testFixingAWalkLooks() {
+        XCUIDevice.shared.appearance = .dark
+        var app = launch()
+        openMorningWalk(app)
+        snapshot("edit-30-today-dark")
+        let remove = app.buttons["remove-care"]
+        reveal(remove, in: app)
+        remove.tap()
+        XCTAssertTrue(app.buttons["Remove walk"].waitForExistence(timeout: 5))
+        snapshot("edit-31-remove-dark")
+        app.terminate()
+
+        XCUIDevice.shared.appearance = .light
+        app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        openMorningWalk(app)
+        snapshot("edit-40-today-largest")
+        let save = app.buttons["save-care"]
+        reveal(save, in: app)
+        XCTAssertTrue(save.isHittable, "Save changes is reachable at the largest size")
+        snapshot("edit-41-save-largest")
+        app.terminate()
+
+        XCUIDevice.shared.appearance = .dark
+        app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        openMorningWalk(app)
+        snapshot("edit-42-today-largest-dark")
+    }
+
     // MARK: Looks
 
     func testNightLook() {

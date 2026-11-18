@@ -11,6 +11,8 @@ struct PocketCompanionWeek: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(ToastCenter.self) private var toasts
     @State private var catchUp: PocketCatchUpSheet.Request?
+    /// A diary row opened to fix, as on the wall's companion page.
+    @State private var editing: PocketCareSheet.Request?
     let logging: PocketLogging
 
     var body: some View {
@@ -39,6 +41,7 @@ struct PocketCompanionWeek: View {
         }
         .background(Theme.background)
         .sheet(item: $catchUp, onDismiss: toasts.showPending) { PocketCatchUpSheet(request: $0, logging: logging.inSheet) }
+        .sheet(item: $editing) { PocketCareSheet(request: $0, logging: logging.inSheet) }
     }
 
     // MARK: Hero
@@ -120,6 +123,16 @@ struct PocketCompanionWeek: View {
         if let minutes = entry.log.durationMinutes { head += " · \(minutes) min" }
         let business = CareText.business(entry.log)
         if !business.isEmpty { head += " \(business)" }
+        return Button { editing = .edit(entry, companionId: report.id) } label: {
+            loggedRowContent(item, head: head, report: report)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(CareLogWording.editSubtitle)
+    }
+
+    private func loggedRowContent(_ item: DiaryItem, head: String, report: CompanionReport) -> some View {
+        let entry = item.entry
+        let snapshot = store.snapshot
         return HStack(alignment: .top, spacing: 10) {
             CarerAvatar(carers: Carers(entry.people, snapshot: snapshot), size: 24)
             VStack(alignment: .leading, spacing: 1) {
@@ -137,6 +150,8 @@ struct PocketCompanionWeek: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 8)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 

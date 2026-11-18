@@ -115,7 +115,8 @@ struct PocketTodayScreen: View {
             more: { card, routine, alsoWent in
                 careSheet = PocketCareSheet.Request(companionId: card.id, routineId: routine.id, people: (me.map { [$0.id] } ?? []) + alsoWent)
             },
-            open: { card in path.append(.companion(card.id)) }
+            open: { card in path.append(.companion(card.id)) },
+            edit: { card, entry in careSheet = .edit(entry, companionId: card.id) }
         )
     }
 

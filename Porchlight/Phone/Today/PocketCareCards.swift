@@ -8,6 +8,8 @@ struct PocketCareHandlers {
     let more: (PocketToday.CareCard, CareRoutine, _ alsoWent: [Person.ID]) -> Void
     /// Open the companion's week.
     let open: (PocketToday.CareCard) -> Void
+    /// Open a logged entry to fix, as tapping a done slot does on the wall.
+    let edit: (PocketToday.CareCard, CareEntry) -> Void
 }
 
 /// The companions on Today: a full card each, or a grid of two when there are several
@@ -56,7 +58,7 @@ private struct FullCareCard: View {
             if let shown = card.shown, !shown.slots.isEmpty {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 8) {
                     ForEach(shown.slots) { slot in
-                        CareSlotTile(slot: slot, routine: shown.routine, snapshot: store.snapshot)
+                        slotTile(slot, routine: shown.routine)
                     }
                 }
             }
@@ -143,6 +145,22 @@ private struct FullCareCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(PocketCareWords.logLabel(action, companion: report.name))
+    }
+
+    /// A done slot opens its log to fix, as on the wall; an open one is the big button's.
+    @ViewBuilder
+    private func slotTile(_ slot: CareSlot, routine: CareRoutine) -> some View {
+        if let entry = slot.entry {
+            Button { handlers.edit(card, entry) } label: {
+                CareSlotTile(slot: slot, routine: routine, snapshot: store.snapshot)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(CareLogWording.editSubtitle)
+            .accessibilityIdentifier("slot-\(report.name)-\(slot.index)")
+        } else {
+            CareSlotTile(slot: slot, routine: routine, snapshot: store.snapshot)
+        }
     }
 
     private func alsoWentRow(_ routine: CareRoutine) -> some View {

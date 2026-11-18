@@ -20,6 +20,35 @@ struct CareLogFieldsTests {
         #expect(fields.duration == 30)
     }
 
+    @Test("Fixing a log opens on its own day, with the log as it stands")
+    func fixingALog() {
+        let entry = F.entry(5, day: 5, 7, 40, by: [F.james, F.mia], minutes: 30, pee: true, poo: false, vibe: .squirrel)
+        let logDay = CareLogDay.forSheet(
+            routine: F.walk, editing: entry, catchUpDay: F.key(4), today: F.key(7), now: F.date(18, 0), calendar: F.calendar, history: [entry]
+        )
+        #expect(logDay.day == F.key(5), "the log's day, before a missed slot's or today")
+        #expect(!logDay.isToday)
+        let fields = CareLogFields(editing: entry)
+        #expect(fields.people == [F.james, F.mia])
+        #expect(fields.when == .at(F.date(day: 5, 7, 40)))
+        #expect(fields.duration == 30 && fields.pee && !fields.poo && fields.vibe == .squirrel)
+        #expect(fields.draft(for: logDay).occurredAt == F.date(day: 5, 7, 40), "saving untouched keeps its time")
+
+        let catchUp = CareLogDay.forSheet(routine: F.walk, editing: nil, catchUpDay: F.key(4), today: F.key(7), now: F.date(18, 0), calendar: F.calendar, history: [])
+        #expect(catchUp.day == F.key(4))
+        let new = CareLogDay.forSheet(routine: F.walk, editing: nil, catchUpDay: nil, today: F.key(7), now: F.date(18, 0), calendar: F.calendar, history: [])
+        #expect(new.day == F.key(7))
+    }
+
+    @Test("The wall and the phone say the same when fixing a log")
+    func fixingWords() {
+        #expect(CareLogWording.editTitle(F.walk) == "Edit walk")
+        #expect(CareLogWording.confirmRemove(F.walk) == "Remove walk")
+        #expect(CareLogWording.saveChanges == "Save changes")
+        #expect(CareLogWording.remove == "Remove" && CareLogWording.keep == "Keep it")
+        #expect(CareLogWording.editSubtitle == "Fix who, when or how it went")
+    }
+
     @Test("Catching up starts at the slot's usual time on that day")
     func catchUp() {
         let history = [F.entry(1, day: 5, 7, 30), F.entry(2, day: 6, 7, 30)]

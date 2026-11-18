@@ -91,13 +91,33 @@ Chores do the same with `AppDatabase.completeChore`: a chore someone just checke
 The wall's care form logic moved out of its view into `CareLogFields` and `CareLogDay`, and the time pill's day math into `LogTimeDay`, so the wall's log sheet, the phone's care sheet and the phone's catch-up pad share one implementation.
 The wall's form behaves exactly as before.
 
+### Fixing a log (B2, `b2fix`)
+
+The phone fixes a log as the wall does, so nothing logged is stuck as it was saved.
+A done slot tile on Today's companion card ("Morning 9:39am") and every row of the week page's diary open `PocketCareSheet` on that log.
+The sheet in this mode is the wall's edit form at phone size: "Edit walk" (by the routine's kind: "Edit feed", "Edit water"), "Fix who, when or how it went", every field filled in as logged, "Save changes", and "Remove", which asks once more with "Remove walk" and "Keep it".
+The words live in `CareLogWording` and the log's day in `CareLogDay.forSheet`, which the wall's sheet uses too, so the two can't drift.
+Saving calls `CompanionStore.updateLog` and removing `deleteLog`, the wall's own writes.
+Anyone in the household can fix any log, as on the wall; a shared-screen phone shows names instead of "You".
+
+What follows from the writes, with nothing phone-specific:
+
+- Stars: a log earns its routine's stars once, when it is added, for each person on it. Fixing keeps them on the log; taking someone off takes theirs, adding someone gives them theirs, and removing the log takes them all back.
+- Reminders and widgets watch the store, so an edit or a removal reaches them like any log: a removed log, or one moved to another day, leaves its slot open, and that slot reminds again.
+- Sync sends the change like any write; the log keeps the device that first wrote it.
+- Households: the write checks that everyone credited lives in the log's own household (`CareValidationError.notInHousehold`), whichever household the phone is showing, for fixes and for "I went too" as for new logs.
+
+A slot holds one log; when two logs fall in one slot's window, the slot shows the one it was given (`CareLogic` assigns each log to the nearest free slot) and the tile opens that one, as on the wall.
+Every log is in the week page's diary, so any of them can be fixed from there.
+There is no Undo toast for a fix or a removal, as on the wall: the removal asks first instead.
+
 ## A companion's week (B3)
 
 Tapping a companion's card (its face and name, or the whole card when it is all set) opens `PocketCompanionWeek`.
 It is the wall's companion page in one column, built from the same `CompanionReport`: the hero with the week in a line (`CompanionReport.weekSummary`, moved out of the wall's page so both use it) and the mood, Paw trail, the diary with missed slots in their place, the walker of the week and the little milestones.
 Wording comes from the routine's kind, so a plant gets "who watered" and "Gardener of the week".
 A first week shows "The first week together" and an empty trail of dashed rings, never a zero.
-A missed slot in the diary opens the phone's catch-up sheet.
+A missed slot in the diary opens the phone's catch-up sheet, and a logged one opens it to fix (above).
 
 ## Pitch in (B4)
 
@@ -242,7 +262,9 @@ Star counts always agree in number ("+1 star", "2 stars") through `StarWords`.
 
 ## Tests
 
-- Unit: `PocketTodayTests` (which slot one tap logs, card order, freshness, catch-up, my chores and the shared ones, stars, the words), `PocketWritesTests` (the already-logged path, joining and its undo, undo of a log, chores that are already done), `DeviceSettingsTests` (role defaults, stored role, "me" per household, forgetting) and `CareLogFieldsTests`.
+- Unit: `PocketTodayTests` (which slot one tap logs, card order, freshness, catch-up, my chores and the shared ones, stars, the words), `PocketWritesTests` (the already-logged path, joining and its undo, undo of a log, chores that are already done), `DeviceSettingsTests` (role defaults, stored role, "me" per household, forgetting) and `CareLogFieldsTests` (including fixing a log: its day, its fields and the shared words).
+- Unit, fixing a log: `TwoHouseholdsTests` (a fix in the log's own household while the other shows, never crediting the other household, stars on fixing and removing, a removed or moved log reminding again).
+- UI, fixing a log: `PhoneTabsTests.testFixingAWalkFromToday`, `testFixingAWalkFromTheWeek`, `testFixingAWalkOnASharedScreen` and `testFixingAWalkLooks` (night look and the largest text), mirroring the wall's `LoggedEntryTests`.
 - Unit, everyday screens: `PocketTabsTests` (grocery sections, dinners to groceries, Glow for me and who earned a reward, the next 7 days, Pitch in's week, the calendar choices).
 - Unit, reminders: `ReminderPlannerTests` (only chosen slots, done slots removed, if missed, snooze and hand-off, archived "me", chores the evening before, the 64 cap, pruning).
 - Unit, households: `HouseholdSetupTests` (a household started on a phone is the one the wall's first run makes, drafts, an invalid name, a member leaving on the fake and the owner who can't) and `HouseholdStorageTests` (the sums come from the rows).
