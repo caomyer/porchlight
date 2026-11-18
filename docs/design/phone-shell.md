@@ -138,7 +138,8 @@ When the household hasn't turned the diary on, the tab says so and turns it on (
 
 Snapping (`PocketSnap`) opens the camera first (`b5cam`): a polaroid whose photo is the live camera, captioned with the meal it is for ("Sunday dinner", guessed from the time), the shutter, and "From Photos" and "No photo" as the other ways in.
 A shot or a pick goes straight to the details (`b5details`): the new polaroid, what it was, when and which meal, where it came from (and the restaurant, with the wall's `RestaurantField`), who ate it and "Would eat again?", then "Save to Sunday dinner".
-Who ate starts as me (rule 1), and "Another photo" goes back to the camera for up to the wall's six.
+Who ate starts as me (rule 1).
+Under the polaroid, the new meal's photos sit in the wall's own photo row (`MealPhotoRow`, "Photos · 2 of 6"): tap one for Make cover or Reframe, × to take it off, and the dashed + goes back to the camera for another, up to the wall's limit.
 Photos are made by `MealPhotoImaging.prepare` off the main actor and held in memory until Save; the meal is written by `FoodStore.addMeal`, which stamps this device, so the rows are the wall's: one 2048 px whole shot and a 360 px square thumbnail per photo.
 Back on the tab, the toast says where it went ("Saved to Sunday dinner · Pho Huynh · you and Mia") with Open, and the new plate is ringed for a moment (`b5saved`).
 
@@ -146,7 +147,14 @@ The camera says what it is for before iOS asks ("Allow camera"), and with access
 `-cameraAccess notDetermined|denied|allowed` pretends a state, and `-debugCamera sample` stands a generated dish in for the camera, which the simulator doesn't have; its shots go through `MealPhotoImaging.prepare` like a real one.
 
 A meal's page (`PocketMealDetail`, `b5entry`) is the big polaroid, swiped for its other photos and tapped for the whole shot, then where it came from, the verdict with who ate and who added it, the day's handwritten page when anyone wrote on it, and the slot's other dishes.
-Edit opens the same fields in a sheet, with the photos to take off or make the cover; Add photo takes one or picks from Photos; Remove asks first, since a meal's photos can't come back.
+Edit opens the same fields in a sheet, with the same photo row as the wall's editor: Make cover and Reframe from a tap on a photo, × to take one off, and + to take or pick more, which attach on Save; Add photo on the page takes one or picks from Photos and adds it at once; Remove asks first, since a meal's photos can't come back.
+
+### Photos, the same on the wall and the phone
+
+The photo row (`MealPhotoRow`), the reframe screen (`ReframeSheet`) and the add tile (`AddPhotoTile`) are one implementation for both shells, in `FoodPhotoViews.swift`; what the row does to the photos is `MealPhotoOrder`, unit-tested, and adding them is `MealPhotoAdding`.
+In a compact width they lay out for the phone: the squares, the cover tag and the hint grow with Dynamic Type (the squares up to half again), the × is a 44-point target, Reframe opens as a full-height sheet whose window is the screen's width, with the wall's drag, pinch, zoom row and thirds grid, and the add tile's "Take a photo" opens the phone's camera step.
+Over the wall nothing changed: the same sizes, the reframe sheet over the wall and the wall's camera sheet.
+The reframe sheet can't be swiped away, so a drag on the photo never closes it; Cancel and Done do.
 All three go through `FoodStore` (`updateMeal`, `addPhotos`, `deleteMeal`), as on the wall.
 
 Lists never decode a whole shot: the grid, the diary and "On this day" ask `PhotoImages` for thumbnails, and only a meal's own page asks for the whole shot.
@@ -320,7 +328,6 @@ Where the atlas was silent, or didn't fit the code:
 - **Nearby restaurants aren't first.** `b5details` lists restaurants "40 ft" away, which needs the phone's location, a permission the app doesn't ask for anywhere else. The phone uses the wall's restaurant search (Apple Maps around home, and places eaten at before); nearby-first is a later improvement.
 - **The wall's words.** The verdict is "Would eat again?" with the wall's four faces (😐 🙂 😋 🤩), and where it came from is the wall's four (home-cooked, delivery, dine out, company), not the atlas's 😬 and its home and delivery pills.
 - **No writing on the day's page.** Handwriting is the wall's (Apple Pencil on paper); a meal's page on the phone shows the day's page, read-only, when anyone wrote on it.
-- **Reframing stays on the wall.** The phone's edit takes photos off and makes one the cover; choosing which square of a photo shows needs the wall's reframe sheet.
 - **Remove asks first.** Logging never asks (rule 2), but a removed meal takes its photos with it and Undo couldn't bring them back, so Remove confirms, as on the wall.
 - **The back camera.** The wall's viewfinder starts on the front camera, which faces the room; a phone points at the plate, so it starts on the back one, with no switch.
 - **One shot, then the details.** The wall's camera stays live for more angles; the phone goes to the details after each shot, which is where "Another photo" brings it back for more.

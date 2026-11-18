@@ -562,16 +562,10 @@ private struct MealEditForm: View {
 
     /// Makes new images into photos and adds them to the edit; they attach on Save.
     private func add(_ images: [UIImage]) {
-        let room = AppDatabase.photoLimit - edit.photos.count - edit.savingPhotos
-        for image in images.prefix(max(room, 0)) {
-            edit.savingPhotos += 1
-            Task {
-                defer { edit.savingPhotos -= 1 }
-                if let photo = try? await store.preparePhoto(image) {
-                    edit.photos.append(.added(photo))
-                }
-            }
-        }
+        MealPhotoAdding.add(
+            images, room: AppDatabase.photoLimit - edit.photos.count - edit.savingPhotos, store: store,
+            saving: { edit.savingPhotos += $0 }, append: { edit.photos.append($0) }
+        )
     }
 
     private var timeRange: ClosedRange<Date> {

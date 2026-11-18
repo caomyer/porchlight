@@ -158,7 +158,10 @@ final class MealPhotosTests: XCTestCase {
         let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
         XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
         breakfast.tap()
-        app.buttons["Edit"].tap()
+        // The meal's sheet fades in; on a busy simulator Edit comes a moment after the tap.
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10), "The meal opens")
+        edit.tap()
         let second = photo(app, 1)
         XCTAssertTrue(second.waitForExistence(timeout: 5))
         second.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()

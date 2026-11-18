@@ -11,6 +11,33 @@ extension View {
     }
 }
 
+extension View {
+    /// For a view the wall and the phone share: the phone's type (grown with Dynamic Type)
+    /// in a compact width, the wall's fixed size otherwise.
+    func sharedFont(_ face: Typeface, _ size: CGFloat, weight: CGFloat = 400, relativeTo style: Font.TextStyle = .body) -> some View {
+        modifier(SharedFont(face: face, size: size, weight: weight, style: style))
+    }
+}
+
+private struct SharedFont: ViewModifier {
+    let face: Typeface
+    let weight: CGFloat
+    let base: CGFloat
+    @ScaledMetric private var scaled: CGFloat
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    init(face: Typeface, size: CGFloat, weight: CGFloat, style: Font.TextStyle) {
+        self.face = face
+        self.weight = weight
+        base = size
+        _scaled = ScaledMetric(wrappedValue: size, relativeTo: style)
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.custom(face, size: sizeClass == .compact ? scaled : base, weight: weight))
+    }
+}
+
 private struct PhoneFont: ViewModifier {
     let face: Typeface
     let weight: CGFloat

@@ -233,8 +233,47 @@ enum PhotoPicking {
 
 // MARK: - Photos row
 
-/// A meal's photos as small squares, cover first. Tap one to make it the cover or to
-/// reframe it, × to remove it. `trailing` goes after the photos, e.g. a tile to add more.
+/// What the photo row does to a meal's photos, kept apart so it can be tested.
+enum MealPhotoOrder {
+    /// The photo at `index` becomes the cover; the others keep their order.
+    static func makeCover(_ index: Int, in items: [MealPhotoItem]) -> [MealPhotoItem] {
+        guard index > 0, items.indices.contains(index) else { return items }
+        var reordered = items
+        reordered.insert(reordered.remove(at: index), at: 0)
+        return reordered
+    }
+
+    /// The photos without the one at `index`; the next one up becomes the cover.
+    static func remove(_ index: Int, from items: [MealPhotoItem]) -> [MealPhotoItem] {
+        guard items.indices.contains(index) else { return items }
+        var remaining = items
+        remaining.remove(at: index)
+        return remaining
+    }
+
+    /// The photos with the one reframed, if it is still where it was.
+    static func reframe(_ id: MealPhoto.ID, at index: Int, in items: [MealPhotoItem], crop: PhotoCrop, thumbnail: Data) -> [MealPhotoItem] {
+        guard items.indices.contains(index), items[index].id == id else { return items }
+        var reframed = items
+        reframed[index] = items[index].reframed(crop, thumbnail: thumbnail)
+        return reframed
+    }
+
+    /// "Tap a photo to make it the cover or reframe it", under the row.
+    static func hint(count: Int) -> String {
+        count > 1 ? "Tap a photo to make it the cover or reframe it" : "Tap the photo to reframe it"
+    }
+
+    /// "Photos · 2 of 5", over the row.
+    static func heading(count: Int) -> String {
+        "Photos · \(count) of \(AppDatabase.photoLimit)"
+    }
+}
+
+/// A meal's photos as small squares, cover first, on the wall and the phone alike. Tap one
+/// to make it the cover or to reframe it, × to remove it. `trailing` goes after the photos,
+/// e.g. a tile to add more. In a compact width the squares, words and reframe screen grow
+/// with Dynamic Type, and reframing opens as a sheet instead of over the wall.
 struct MealPhotoRow<Trailing: View>: View {
     @Binding var items: [MealPhotoItem]
     /// Photos still being saved, shown as placeholders.
@@ -246,6 +285,8 @@ struct MealPhotoRow<Trailing: View>: View {
     @ViewBuilder var trailing: () -> Trailing
 
     @Environment(FoodStore.self) private var store
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .body) private var growth: CGFloat = 1
     @State private var reframing: Reframing?
 
     private struct Reframing: Identifiable {
@@ -254,6 +295,9 @@ struct MealPhotoRow<Trailing: View>: View {
         var id: MealPhoto.ID { item.id }
     }
 
+    private var isCompact: Bool { sizeClass == .compact }
+    /// A square's side: the wall's, or on a phone grown with the text, up to half again.
+    private var side: CGFloat { isCompact ? size * min(max(growth, 1), 1.5) : size }
     private var noteColor: Color { onDark ? Color.white.opacity(0.7) : Theme.muted }
     private var badgeRing: Color { onDark ? MealViewfinder<EmptyView>.panel : Theme.surface }
 
@@ -271,27 +315,32 @@ struct MealPhotoRow<Trailing: View>: View {
             }
             if items.isEmpty && pending == 0 {
                 Text(emptyText)
-                    .font(.body(13.5, weight: 600))
+                    .sharedFont(.body, 13.5, weight: 600, relativeTo: .subheadline)
                     .foregroundStyle(noteColor)
                     .fixedSize(horizontal: false, vertical: true)
             } else if !items.isEmpty {
-                Text(items.count > 1 ? "Tap a photo to make it the cover or reframe it" : "Tap the photo to reframe it")
-                    .font(.body(12.5, weight: 600))
+                Text(MealPhotoOrder.hint(count: items.count))
+                    .sharedFont(.body, 12.5, weight: 600, relativeTo: .footnote)
                     .foregroundStyle(noteColor)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: items)
-        .wallCover(item: $reframing) { reframing in
-            ReframeSheet(item: reframing.item) { crop, thumbnail in
-                if items.indices.contains(reframing.index), items[reframing.index].id == reframing.item.id {
-                    items[reframing.index] = items[reframing.index].reframed(crop, thumbnail: thumbnail)
-                }
-                CompanionCover.instantly { self.reframing = nil }
-            } onCancel: {
-                CompanionCover.instantly { self.reframing = nil }
-            }
+        .wallCover(item: isCompact ? .constant(nil) : $reframing) { reframing in
+            reframeSheet(reframing)
+        }
+        .sheet(item: isCompact ? $reframing : .constant(nil)) { reframing in
+            reframeSheet(reframing)
+        }
+    }
+
+    private func reframeSheet(_ reframing: Reframing) -> some View {
+        ReframeSheet(item: reframing.item) { crop, thumbnail in
+            items = MealPhotoOrder.reframe(reframing.item.id, at: reframing.index, in: items, crop: crop, thumbnail: thumbnail)
+            CompanionCover.instantly { self.reframing = nil }
+        } onCancel: {
+            CompanionCover.instantly { self.reframing = nil }
         }
     }
 
@@ -303,7 +352,7 @@ struct MealPhotoRow<Trailing: View>: View {
             ForEach(0..<pending, id: \.self) { _ in
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Theme.surface2)
-                    .frame(width: size, height: size)
+                    .frame(width: side, height: side)
                     .overlay { ProgressView() }
             }
             trailing()
@@ -314,7 +363,7 @@ struct MealPhotoRow<Trailing: View>: View {
         let isCover = index == 0
         return Menu {
             if !isCover {
-                Button { makeCover(index) } label: { Label("Make cover", systemImage: "star") }
+                Button { items = MealPhotoOrder.makeCover(index, in: items) } label: { Label("Make cover", systemImage: "star") }
             }
             // A photo whose whole shot was lost has only its square left to show.
             if store.image(of: item) != nil {
@@ -324,7 +373,7 @@ struct MealPhotoRow<Trailing: View>: View {
             }
         } label: {
             PhotoView(store.thumbnail(of: item).map { PhotoRequest($0) }) { _ in Theme.surface2 }
-                .frame(width: size, height: size)
+                .frame(width: side, height: side)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -335,8 +384,11 @@ struct MealPhotoRow<Trailing: View>: View {
         }
         .overlay(alignment: .bottom) {
             if isCover {
+                // A label, not reading text: the tile already says "the cover" to VoiceOver,
+                // so it stays small enough to fit under the photo at any text size.
                 Text("COVER")
-                    .font(.body(9.5, weight: 800))
+                    .font(.body(isCompact ? 10.5 : 9.5, weight: 800))
+                    .fixedSize()
                     .tracking(0.4)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
@@ -347,34 +399,36 @@ struct MealPhotoRow<Trailing: View>: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            Button { remove(index) } label: {
+            Button { items = MealPhotoOrder.remove(index, from: items) } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .heavy))
-                    .foregroundStyle(.white)
+                    // Paper on ink, so it reads in the night look too, where ink is light.
+                    .foregroundStyle(Theme.surface)
                     .frame(width: 22, height: 22)
                     .background(Theme.ink, in: Circle())
                     .overlay(Circle().stroke(badgeRing, lineWidth: 2))
+                    // The badge is small; the place to tap is bigger, but mostly off the
+                    // photo, so a tap on the photo still opens its menu.
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .offset(x: 7, y: -7)
+            .offset(x: 15, y: -15)
             .accessibilityLabel("Remove photo \(index + 1)")
         }
+        #if DEBUG
+        // Which photo this is and whether it was framed, for UI tests; not in a release.
+        .background {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("photo-\(item.id)-\(item.crop == nil ? "centered" : "framed")")
+        }
+        #endif
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isCover ? "Photo \(index + 1), the cover" : "Photo \(index + 1)")
         .accessibilityHint(isCover ? "Reframe it" : "Make it the cover or reframe it")
         .accessibilityIdentifier("meal-photo-\(index)")
-    }
-
-    private func makeCover(_ index: Int) {
-        guard index > 0, items.indices.contains(index) else { return }
-        var reordered = items
-        reordered.insert(reordered.remove(at: index), at: 0)
-        items = reordered
-    }
-
-    private func remove(_ index: Int) {
-        guard items.indices.contains(index) else { return }
-        items.remove(at: index)
     }
 }
 
@@ -382,7 +436,8 @@ struct MealPhotoRow<Trailing: View>: View {
 
 /// Picks which square of a photo the wall shows: drag the photo in a square window, and
 /// pinch (or use the zoom row) to zoom in. Done makes a thumbnail for the new square and
-/// hands both back; nothing is saved until the meal is.
+/// hands both back; nothing is saved until the meal is. Over the wall it is a sheet of its
+/// own; in a compact width it fills a phone sheet, its window as wide as the screen.
 struct ReframeSheet: View {
     let item: MealPhotoItem
     let onDone: (PhotoCrop, Data) -> Void
@@ -390,6 +445,7 @@ struct ReframeSheet: View {
 
     @Environment(FoodStore.self) private var store
     @Environment(PhotoImages.self) private var images
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var image: UIImage?
     @State private var zoom = 1.0
     @State private var center = CGPoint(x: 0.5, y: 0.5)
@@ -397,36 +453,90 @@ struct ReframeSheet: View {
     @State private var pinchStart: Double?
     @State private var isSaving = false
     @State private var error: String?
+    /// The phone's window: the sheet's width, less its margins.
+    @State private var compactSide: CGFloat = 320
 
     private static let side: CGFloat = 400
     static let maxZoom = 4.0
 
     var body: some View {
         let size = image.map(Self.pixelSize) ?? CGSize(width: 1, height: 1)
-        WallSheet(width: Self.side + 52, onClose: onCancel) {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Reframe")
-                    .font(.display(28))
-                Text("Drag the photo, and pinch to zoom, to choose what the polaroid shows.")
-                    .font(.body(14, weight: 600))
-                    .foregroundStyle(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                window(image, size: size)
-                zoomRow(size: size)
-                if let error {
-                    Text(error).font(.body(13, weight: 600)).foregroundStyle(Theme.accent)
-                }
-                HStack(spacing: 10) {
-                    Spacer()
-                    Button("Cancel", action: onCancel)
-                        .buttonStyle(SecondaryButtonStyle())
-                    Button("Done") { Task { await save(image) } }
-                        .buttonStyle(PrimaryButtonStyle())
-                        .disabled(isSaving || image == nil)
+        if sizeClass == .compact {
+            compact(size: size)
+        } else {
+            WallSheet(width: Self.side + 52, onClose: onCancel) {
+                VStack(alignment: .leading, spacing: 14) {
+                    title
+                    window(image, size: size, side: Self.side)
+                    zoomRow(size: size)
+                    errorLine
+                    HStack(spacing: 10) {
+                        Spacer()
+                        Button("Cancel", action: onCancel)
+                            .buttonStyle(SecondaryButtonStyle())
+                        doneButton
+                            .buttonStyle(PrimaryButtonStyle())
+                    }
                 }
             }
+            .task { await load() }
         }
+    }
+
+    /// The phone's layout: everything in one column that scrolls at large text sizes.
+    private func compact(size: CGSize) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                title
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: 0)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { compactSide = min($0, 520) }
+                window(image, size: size, side: compactSide)
+                zoomRow(size: size)
+                errorLine
+                doneButton
+                    .buttonStyle(PhoneButtonStyle())
+                Button("Cancel", action: onCancel)
+                    .buttonStyle(PhoneButtonStyle(kind: .ghost))
+            }
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 16)
+            .padding(.top, 26)
+            .padding(.bottom, 16)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        // Dragging the photo must not drag the sheet away.
+        .interactiveDismissDisabled()
+        .presentationDetents([.large])
+        .presentationBackground(Theme.background)
         .task { await load() }
+    }
+
+    private var title: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Reframe")
+                .sharedFont(.display, 28, weight: 600, relativeTo: .largeTitle)
+                .accessibilityAddTraits(.isHeader)
+            Text("Drag the photo, and pinch to zoom, to choose what the polaroid shows.")
+                .sharedFont(.body, 14, weight: 600, relativeTo: .subheadline)
+                .foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var errorLine: some View {
+        if let error {
+            Text(error)
+                .sharedFont(.body, 13, weight: 600, relativeTo: .footnote)
+                .foregroundStyle(Theme.accent)
+        }
+    }
+
+    private var doneButton: some View {
+        Button("Done") { Task { await save(image) } }
+            .disabled(isSaving || image == nil)
+            .accessibilityIdentifier("reframe-done")
     }
 
     /// Decodes the whole shot, then starts from the square the photo shows now.
@@ -443,10 +553,10 @@ struct ReframeSheet: View {
         .square(in: size, zoom: zoom, center: center)
     }
 
-    private func window(_ image: UIImage?, size: CGSize) -> some View {
+    private func window(_ image: UIImage?, size: CGSize, side: CGFloat) -> some View {
         let crop = crop(in: size)
         // Points per photo pixel, so the crop's square fills the window.
-        let scale = Self.side / max(crop.width * size.width, 1)
+        let scale = side / max(crop.width * size.width, 1)
         return ZStack(alignment: .topLeading) {
             if let image {
                 Image(uiImage: image)
@@ -455,7 +565,8 @@ struct ReframeSheet: View {
                     .offset(x: -crop.x * size.width * scale, y: -crop.y * size.height * scale)
             }
         }
-        .frame(width: Self.side, height: Self.side, alignment: .topLeading)
+        .frame(width: side, height: side, alignment: .topLeading)
+        .background(Theme.surface2)
         .clipped()
         .overlay { ThirdsGrid() }
         .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -500,11 +611,12 @@ struct ReframeSheet: View {
 
     /// − zoom slider +, for one finger, a mouse or VoiceOver.
     private func zoomRow(size: CGSize) -> some View {
-        HStack(spacing: 12) {
+        let button: CGFloat = sizeClass == .compact ? 44 : 40
+        return HStack(spacing: 12) {
             Button { setZoom(zoom / 1.25, size: size) } label: {
                 Image(systemName: "minus.magnifyingglass")
                     .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 40, height: 40)
+                    .frame(width: button, height: button)
                     .background(Theme.surface2, in: Circle())
             }
             .buttonStyle(.plain)
@@ -518,7 +630,7 @@ struct ReframeSheet: View {
             Button { setZoom(zoom * 1.25, size: size) } label: {
                 Image(systemName: "plus.magnifyingglass")
                     .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 40, height: 40)
+                    .frame(width: button, height: button)
                     .background(Theme.surface2, in: Circle())
             }
             .buttonStyle(.plain)
@@ -571,35 +683,82 @@ private struct ThirdsGrid: View {
 
 // MARK: - Adding photos
 
-/// A dashed + tile that adds photos from the camera or from Photos. Without a camera it
-/// opens Photos directly. New images go to `onAdd`; nothing is attached here.
+/// Makes new images into photos off the main actor, up to the room a meal has left, and
+/// hands each over as it is ready. The wall's and the phone's editors add photos this way;
+/// they attach when the meal is saved.
+@MainActor
+enum MealPhotoAdding {
+    static func add(
+        _ images: [UIImage], room: Int, store: FoodStore,
+        saving: @escaping (Int) -> Void, append: @escaping (MealPhotoItem) -> Void
+    ) {
+        for image in images.prefix(max(room, 0)) {
+            saving(1)
+            Task {
+                defer { saving(-1) }
+                if let photo = try? await store.preparePhoto(image) {
+                    append(.added(photo))
+                }
+            }
+        }
+    }
+}
+
+/// The dashed + square of the photo row, for a tile that adds photos its own way.
+struct AddPhotoTileLabel: View {
+    var size: CGFloat = 60
+
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .body) private var growth: CGFloat = 1
+
+    var body: some View {
+        let side = sizeClass == .compact ? size * min(max(growth, 1), 1.5) : size
+        Image(systemName: "plus")
+            .font(.system(size: 18, weight: .bold))
+            .foregroundStyle(Theme.muted)
+            .frame(width: side, height: side)
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Theme.muted.opacity(0.55), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+            }
+            .contentShape(Rectangle())
+    }
+}
+
+/// A dashed + tile that adds photos from the camera or from Photos. Over the wall, without
+/// a camera it opens Photos directly; on a phone the camera step says what to do when the
+/// camera is off. New images go to `onAdd`; nothing is attached here.
 struct AddPhotoTile: View {
     /// How many more the meal can take.
     let remaining: Int
     var size: CGFloat = 60
     let onAdd: ([UIImage]) -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var showsCamera = false
     @State private var showsPicker = false
     @State private var pickerItems: [PhotosPickerItem] = []
     /// Photos added from the camera sheet while it was open.
     @State private var shotsThisTime = 0
 
+    private var isCompact: Bool { sizeClass == .compact }
+
     var body: some View {
         Group {
-            if MealCamera.hasCamera {
+            if MealCamera.hasCamera || isCompact {
                 Menu {
                     Button { showCamera() } label: { Label("Take a photo", systemImage: "camera") }
                     Button { showsPicker = true } label: { Label("Choose from Photos", systemImage: "photo.on.rectangle") }
-                } label: { tile }
+                } label: { AddPhotoTileLabel(size: size) }
             } else {
-                Button { showsPicker = true } label: { tile }
+                Button { showsPicker = true } label: { AddPhotoTileLabel(size: size) }
                     .buttonStyle(.plain)
             }
         }
         .disabled(remaining == 0)
         .opacity(remaining == 0 ? 0.4 : 1)
         .accessibilityLabel("Add photo")
+        .accessibilityIdentifier("add-photo-tile")
         .photosPicker(isPresented: $showsPicker, selection: $pickerItems, maxSelectionCount: max(remaining, 1), selectionBehavior: .ordered, matching: .images)
         .onChange(of: pickerItems) { _, items in
             guard !items.isEmpty else { return }
@@ -609,13 +768,25 @@ struct AddPhotoTile: View {
                 if !images.isEmpty { onAdd(images) }
             }
         }
-        .wallCover(item: Binding(get: { showsCamera ? CameraRequest() : nil }, set: { if $0 == nil { showsCamera = false } })) { _ in
+        .wallCover(item: Binding(get: { showsCamera && !isCompact ? CameraRequest() : nil }, set: { if $0 == nil { showsCamera = false } })) { _ in
             MealCameraSheet(photoCount: AppDatabase.photoLimit - remaining + shotsThisTime) { image in
                 shotsThisTime += 1
                 onAdd([image])
             } onDone: {
                 CompanionCover.instantly { showsCamera = false }
             }
+        }
+        .fullScreenCover(isPresented: Binding(get: { showsCamera && isCompact }, set: { if !$0 { showsCamera = false } })) {
+            // The phone's own camera step, as when snapping a meal.
+            PocketCameraStep(
+                title: "Add photos", caption: "", remaining: remaining,
+                onImages: { images in
+                    onAdd(images)
+                    showsCamera = false
+                },
+                onClose: { showsCamera = false }
+            )
+            .background(Theme.background.ignoresSafeArea())
         }
     }
 
@@ -625,19 +796,7 @@ struct AddPhotoTile: View {
 
     private func showCamera() {
         shotsThisTime = 0
-        CompanionCover.instantly { showsCamera = true }
-    }
-
-    private var tile: some View {
-        Image(systemName: "plus")
-            .font(.system(size: 18, weight: .bold))
-            .foregroundStyle(Theme.muted)
-            .frame(width: size, height: size)
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Theme.muted.opacity(0.55), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
-            }
-            .contentShape(Rectangle())
+        if isCompact { showsCamera = true } else { CompanionCover.instantly { showsCamera = true } }
     }
 }
 

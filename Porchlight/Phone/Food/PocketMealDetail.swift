@@ -259,8 +259,8 @@ struct PocketMealDetail: View {
     }
 }
 
-/// Fixing a meal from the phone: the same fields as snapping one, and its photos to take
-/// off or make the cover, saved through `FoodStore.updateMeal`.
+/// Fixing a meal from the phone: the same fields as snapping one, and the wall's photo row
+/// to add, take off, make the cover or reframe, saved through `FoodStore.updateMeal`.
 private struct PocketMealEditor: View {
     let entry: JournalEntry
 
@@ -289,6 +289,7 @@ private struct PocketMealEditor: View {
                 }
                 Button("Save") { save() }
                     .buttonStyle(PhoneButtonStyle())
+                    .disabled((edit?.savingPhotos ?? 0) > 0)
                     .accessibilityIdentifier("save-edit")
             }
         }
@@ -298,48 +299,20 @@ private struct PocketMealEditor: View {
         }
     }
 
-    /// The meal's photos, cover first: × takes one off, a long press makes one the cover.
-    @ViewBuilder
+    /// The meal's photos, cover first, as the wall's editor shows them (`MealPhotoRow`): tap
+    /// one to make it the cover or reframe it, × to take it off, + to add more.
     private func photos(_ edit: Binding<MealEdit>) -> some View {
-        let items = edit.wrappedValue.photos
-        if !items.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Photos").phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                FlowLayout(spacing: 12, lineSpacing: 12) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        PhotoView(store.thumbnail(of: item).map { PhotoRequest($0) }) { _ in Theme.surface2 }
-                            .frame(width: 56, height: 56)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .strokeBorder(index == 0 ? Theme.accent : .clear, lineWidth: 3)
-                            }
-                            .overlay(alignment: .topTrailing) {
-                                Button { edit.wrappedValue.photos.remove(at: index) } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 10, weight: .heavy))
-                                        .foregroundStyle(Theme.surface)
-                                        .frame(width: 22, height: 22)
-                                        .background(Theme.ink, in: Circle())
-                                        .frame(width: 44, height: 44)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .offset(x: 16, y: -16)
-                                .accessibilityLabel("Take off photo \(index + 1)")
-                            }
-                            .contextMenu {
-                                if index > 0 {
-                                    Button { edit.wrappedValue.photos.insert(edit.wrappedValue.photos.remove(at: index), at: 0) } label: {
-                                        Label("Make cover", systemImage: "star")
-                                    }
-                                }
-                            }
-                            .accessibilityElement(children: .contain)
-                            .accessibilityLabel(index == 0 ? "Photo \(index + 1), the cover" : "Photo \(index + 1)")
-                    }
+        let value = edit.wrappedValue
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(MealPhotoOrder.heading(count: value.photos.count))
+                .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+            MealPhotoRow(items: edit.photos, pending: value.savingPhotos, size: 56, emptyText: "No photos yet. Add one from the camera or Photos.") {
+                AddPhotoTile(remaining: AppDatabase.photoLimit - value.photos.count - value.savingPhotos, size: 56) { images in
+                    MealPhotoAdding.add(
+                        images, room: AppDatabase.photoLimit - edit.wrappedValue.photos.count - edit.wrappedValue.savingPhotos, store: store,
+                        saving: { edit.wrappedValue.savingPhotos += $0 }, append: { edit.wrappedValue.photos.append($0) }
+                    )
                 }
-                .padding(.top, 6)
             }
         }
     }

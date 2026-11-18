@@ -111,6 +111,142 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         snapshot("b5-24-new-meal")
     }
 
+    // MARK: Cover and reframe, as on the wall
+
+    /// The photo in a tile of the photo row: "photo-<id>-centered" or "photo-<id>-framed".
+    private func photo(_ index: Int, in app: XCUIApplication) -> String {
+        let tile = app.descendants(matching: .any)["meal-photo-\(index)"].firstMatch
+        XCTAssertTrue(tile.waitForExistence(timeout: 10), "Photo \(index + 1) is in the row")
+        let image = tile.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'photo-'")).firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        return image.identifier
+    }
+
+    /// Taps a photo in the row and picks one of its choices.
+    private func choose(_ choice: String, onPhoto index: Int, in app: XCUIApplication) {
+        let tile = app.descendants(matching: .any)["meal-photo-\(index)"].firstMatch
+        reveal(tile, in: app)
+        // The photo's own middle: the tile's frame also holds its × and cover tag.
+        let image = tile.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'photo-'")).firstMatch
+        image.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let button = app.buttons[choice]
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "Tapping a photo offers \(choice)")
+        button.tap()
+    }
+
+    /// Makes the second photo the cover, then reframes it, zoomed in; returns its photo.
+    private func coverAndReframe(_ app: XCUIApplication, shot: String) -> String {
+        let second = photo(1, in: app)
+        choose("Make cover", onPhoto: 1, in: app)
+        XCTAssertEqual(photo(0, in: app), second, "The second photo is the cover now")
+        snapshot("\(shot)-row")
+        choose("Reframe", onPhoto: 0, in: app)
+        let window = app.descendants(matching: .any)["reframe-window"].firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 10), "Reframe opens the photo to frame")
+        app.buttons["Zoom in"].tap()
+        app.buttons["Zoom in"].tap()
+        snapshot("\(shot)-reframe")
+        app.buttons["reframe-done"].tap()
+        XCTAssertTrue(window.waitForNonExistence(timeout: 10))
+        let framed = photo(0, in: app)
+        XCTAssertEqual(framed, second.replacingOccurrences(of: "-centered", with: "-framed"), "The cover is reframed: \(framed)")
+        return framed
+    }
+
+    /// Snapping a meal: two shots, the second made the cover and reframed, saved, and the
+    /// meal's own editor shows that cover, framed.
+    func testCoverAndReframeWhenSnapping() {
+        let app = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"])
+        app.buttons["snap-meal"].tap()
+        XCTAssertTrue(app.buttons["shutter"].waitForExistence(timeout: 5))
+        app.buttons["shutter"].tap()
+        XCTAssertTrue(app.textFields["dish"].waitForExistence(timeout: 5))
+        let another = app.buttons["another-photo"]
+        reveal(another, in: app)
+        another.tap()
+        XCTAssertTrue(app.buttons["shutter"].waitForExistence(timeout: 5))
+        app.buttons["shutter"].tap()
+        XCTAssertTrue(app.textFields["dish"].waitForExistence(timeout: 5))
+        _ = photo(1, in: app)
+        let cover = coverAndReframe(app, shot: "parity-10-new")
+        let dish = app.textFields["dish"]
+        reveal(dish, in: app)
+        type("Pho", into: dish, in: app)
+        let save = app.buttons["save-meal"]
+        reveal(save, in: app)
+        save.tap()
+
+        XCTAssertTrue(app.otherElements["toast"].waitForExistence(timeout: 8))
+        tapToastAction(app)
+        let edit = app.buttons["edit-meal"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5), "Open goes to the new meal")
+        snapshot("parity-12-new-saved")
+        reveal(edit, in: app)
+        edit.tap()
+        XCTAssertEqual(photo(0, in: app), cover, "Saved with that cover, framed")
+    }
+
+    /// Editing a meal: the same row and reframe as the wall's editor, saved and shown again.
+    func testCoverAndReframeWhenEditing() {
+        let app = launch(["-samplePhotoMeals"])
+        let meal = app.buttons["meal-Avocado toast"]
+        XCTAssertTrue(meal.waitForExistence(timeout: 10))
+        meal.tap()
+        let edit = app.buttons["edit-meal"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10))
+        reveal(edit, in: app)
+        edit.tap()
+        XCTAssertTrue(app.staticTexts["Edit meal"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["add-photo-tile"].firstMatch.exists, "More photos can be added while editing, as on the wall")
+        let cover = coverAndReframe(app, shot: "parity-20-edit")
+        let save = app.buttons["save-edit"]
+        reveal(save, in: app)
+        save.tap()
+        XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5))
+        snapshot("parity-22-edit-saved")
+        reveal(edit, in: app)
+        edit.tap()
+        XCTAssertEqual(photo(0, in: app), cover, "Saved with that cover, framed")
+    }
+
+    /// The photo row and the reframe screen in the night look and at the largest size.
+    func testPhotoRowAndReframeLooks() {
+        for (look, appearance, size) in [("dark", XCUIDevice.Appearance.dark, ""), ("largest", .light, "UICTContentSizeCategoryAccessibilityXXXL")] {
+            XCUIDevice.shared.appearance = appearance
+            let app = launch(["-samplePhotoMeals"] + (size.isEmpty ? [] : ["-UIPreferredContentSizeCategoryName", size]))
+            let meal = app.buttons["meal-Avocado toast"]
+            reveal(meal, in: app)
+            meal.tap()
+            let edit = app.buttons["edit-meal"]
+            XCTAssertTrue(edit.waitForExistence(timeout: 10))
+            reveal(edit, in: app)
+            edit.tap()
+            XCTAssertTrue(app.staticTexts["Edit meal"].waitForExistence(timeout: 5))
+            _ = photo(0, in: app)
+            snapshot("parity-30-edit-row-\(look)")
+            choose("Reframe", onPhoto: 0, in: app)
+            XCTAssertTrue(app.descendants(matching: .any)["reframe-window"].firstMatch.waitForExistence(timeout: 10))
+            let done = app.buttons["reframe-done"]
+            reveal(done, in: app)
+            XCTAssertTrue(done.isHittable, "Done is in reach at this size")
+            snapshot("parity-31-reframe-\(look)")
+            app.terminate()
+
+            let snap = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"] + (size.isEmpty ? [] : ["-UIPreferredContentSizeCategoryName", size]))
+            let button = snap.buttons["snap-meal"]
+            reveal(button, in: snap)
+            button.tap()
+            let shutter = snap.buttons["shutter"]
+            XCTAssertTrue(shutter.waitForExistence(timeout: 5))
+            reveal(shutter, in: snap)
+            shutter.tap()
+            _ = photo(0, in: snap)
+            reveal(snap.descendants(matching: .any)["meal-photo-0"].firstMatch, in: snap)
+            snapshot("parity-32-new-row-\(look)")
+            snap.terminate()
+        }
+    }
+
     func testCameraTurnedOff() {
         let app = launch(["-cameraAccess", "denied"])
         app.buttons["snap-meal"].tap()

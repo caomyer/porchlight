@@ -240,17 +240,32 @@ private struct PocketSnapDetails: View {
             .frame(maxWidth: 200)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(form.photos.isEmpty ? "No photo yet" : "The new photo")
-            FlowLayout(spacing: 8, lineSpacing: 4) {
-                if !form.photos.isEmpty {
-                    PhoneTag(text: form.photos.count == 1 ? "📷 1 photo" : "📷 \(form.photos.count) photos")
-                }
+            photoRow
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// The new meal's photos in the wall's photo row: tap one to make it the cover or
+    /// reframe it, × to take it off, + for the camera again.
+    private var photoRow: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(MealPhotoOrder.heading(count: form.photos.count))
+                .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+            MealPhotoRow(
+                items: Binding(get: { form.photos }, set: { form.photos = $0 }),
+                pending: form.savingPhotos, size: 56,
+                emptyText: "No photo yet. Add one from the camera or Photos."
+            ) {
                 if form.photoRoom > 0 {
-                    PhoneChoice(title: form.photos.isEmpty ? "📷 Add a photo" : "📷 Another photo", isOn: false, action: onAddPhoto)
+                    Button(action: onAddPhoto) { AddPhotoTileLabel(size: 56) }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(form.photos.isEmpty ? "Add a photo" : "Another photo")
                         .accessibilityIdentifier("another-photo")
                 }
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
     }
 }
 
