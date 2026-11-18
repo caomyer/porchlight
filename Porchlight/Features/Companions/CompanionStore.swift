@@ -296,8 +296,8 @@ final class CompanionStore: StoredFirstObservable {
 
     /// Saves edits to a log. Returns false, with `lastError` set, when they are rejected.
     @discardableResult
-    func updateLog(id: CareLog.ID, _ draft: CareLogDraft) -> Bool {
-        perform { _ = try database.updateCareLog(id: id, draft) }
+    func updateLog(id: CareLog.ID, _ draft: CareLogDraft, now: Date = CompanionClock.now()) -> Bool {
+        perform { _ = try database.updateCareLog(id: id, draft, now: now) }
     }
 
     func deleteLog(id: CareLog.ID) {

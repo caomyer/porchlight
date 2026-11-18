@@ -45,6 +45,21 @@ struct PocketWritesTests {
         try db.writer.read(CompanionSnapshot.fetch).entries(of: walk.id)
     }
 
+    @Test("A fix or removal saved after its sheet closed says so when it is turned down, and not otherwise")
+    @MainActor
+    func fixAfterTheSheetCloses() throws {
+        let log = try db.logCare(routineId: walk.id, draft([james], at: now.addingTimeInterval(-600)), now: now)
+        let toasts = ToastCenter()
+        let logging = PocketLogging(companions: CompanionStore(database: db), home: HomeStore(database: db), toasts: toasts, me: james)
+        logging.saveFix(log.id, draft([james, mia], at: now.addingTimeInterval(-900)))
+        #expect(toasts.current == nil, "a fix that saves needs no word")
+        #expect(Set(try entries()[0].people) == [james, mia])
+
+        try db.deleteCareLog(id: log.id)
+        logging.saveFix(log.id, draft([james], at: now.addingTimeInterval(-900)))
+        #expect(toasts.current?.title == "That didn't save", "removed on another device meanwhile")
+    }
+
     @Test("Logging an open slot adds the log, credited to who was given")
     func logsAnOpenSlot() throws {
         let result = try db.logCare(routineId: walk.id, slot: 1, on: today, draft([james, mia], at: now), now: now)

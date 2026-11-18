@@ -127,6 +127,18 @@ struct PocketLogging {
         return "With \(CaptionEngine.whoText(others, names: names)) · \(earned)"
     }
 
+    /// Saves a fix made in the care sheet, which closed as soon as Save was tapped; if the
+    /// write is turned down after all, a toast says so.
+    func saveFix(_ id: CareLog.ID, _ draft: CareLogDraft) {
+        if !companions.updateLog(id: id, draft) { failed() }
+    }
+
+    /// Removes a log from the care sheet, which closed as soon as Remove was confirmed.
+    func remove(_ id: CareLog.ID) {
+        companions.deleteLog(id: id)
+        if companions.lastError != nil { failed() }
+    }
+
     private func failed(_ message: String? = nil) {
         present(UndoToast(emoji: "⚠️", title: "That didn't save", detail: message ?? companions.lastError))
     }

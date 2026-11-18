@@ -41,7 +41,7 @@ struct PocketCompanionWeek: View {
         }
         .background(Theme.background)
         .sheet(item: $catchUp, onDismiss: toasts.showPending) { PocketCatchUpSheet(request: $0, logging: logging.inSheet) }
-        .sheet(item: $editing) { PocketCareSheet(request: $0, logging: logging.inSheet) }
+        .sheet(item: $editing, onDismiss: toasts.showPending) { PocketCareSheet(request: $0, logging: logging.inSheet) }
     }
 
     // MARK: Hero

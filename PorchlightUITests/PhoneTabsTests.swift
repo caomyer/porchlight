@@ -205,6 +205,17 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["Edit walk"].waitForExistence(timeout: 5), "It opens the walk to fix")
     }
 
+    /// Taps Save changes, in view and settled, and checks the sheet closes. It closes as soon
+    /// as the fix passes the rules, before the write; a busy simulator can still take a few
+    /// seconds to draw that.
+    private func saveFix(_ app: XCUIApplication) {
+        let save = app.buttons["save-care"]
+        reveal(save, in: app)
+        save.waitToSettle()
+        save.tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 10), "Saving closes the sheet")
+    }
+
     /// Mirrors the wall's `LoggedEntryTests.testFixingAWalkFromToday`: fix a walk from
     /// Today, see it saved, then remove it.
     func testFixingAWalkFromToday() {
@@ -217,8 +228,7 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         let longer = app.buttons["45 min"]
         reveal(longer, in: app)
         longer.tap()
-        app.buttons["save-care"].tap()
-        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 5), "Saving closes the sheet")
+        saveFix(app)
 
         openMorningWalk(app)
         XCTAssertTrue(app.buttons["45 min"].isSelected, "The fix was saved")
@@ -230,7 +240,7 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.buttons["Keep it"].exists)
         snapshot("edit-11-remove")
         confirm.tap()
-        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 10), "Removing closes the sheet")
         XCTAssertTrue(app.buttons["slot-Yo-Yo-0"].waitForNonExistence(timeout: 5), "The morning slot is open again")
     }
 
@@ -266,8 +276,7 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         app.launch()
         openMorningWalk(app)
         XCTAssertTrue(app.buttons["James"].isSelected, "Who went, by name, with no \"You\"")
-        app.buttons["save-care"].tap()
-        XCTAssertTrue(app.staticTexts["Edit walk"].waitForNonExistence(timeout: 5))
+        saveFix(app)
     }
 
     /// The fix sheet in the night look and at the largest text size.

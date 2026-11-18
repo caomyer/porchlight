@@ -98,6 +98,7 @@ A done slot tile on Today's companion card ("Morning 9:39am") and every row of t
 The sheet in this mode is the wall's edit form at phone size: "Edit walk" (by the routine's kind: "Edit feed", "Edit water"), "Fix who, when or how it went", every field filled in as logged, "Save changes", and "Remove", which asks once more with "Remove walk" and "Keep it".
 The words live in `CareLogWording` and the log's day in `CareLogDay.forSheet`, which the wall's sheet uses too, so the two can't drift.
 Saving calls `CompanionStore.updateLog` and removing `deleteLog`, the wall's own writes.
+A fix the rules turn down keeps the sheet open with the reason; one they accept closes the sheet at once and is written right after (`PocketLogging.saveFix`), so a busy moment never holds the sheet up, and a write turned down after all (the log removed on another device meanwhile) says "That didn't save" in a toast.
 Anyone in the household can fix any log, as on the wall; a shared-screen phone shows names instead of "You".
 
 What follows from the writes, with nothing phone-specific:

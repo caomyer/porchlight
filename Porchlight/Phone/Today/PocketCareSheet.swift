@@ -194,13 +194,25 @@ struct PocketCareSheet: View {
     }
 
     /// The log keeps its routine and the stars it earned; only who, when and how change.
+    /// A fix the rules turn down keeps the sheet open with the reason; one they accept
+    /// closes it at once and is written as it goes, so a busy moment never holds it up.
     private func saveChanges(_ editing: CareEntry, day: CareLogDay) {
-        if store.updateLog(id: editing.id, fields.draft(for: day)) { dismiss() }
+        let draft = fields.draft(for: day)
+        do {
+            _ = try CareRules.validatedNote(draft, now: CompanionClock.now())
+        } catch {
+            store.lastError = error.userMessage
+            return
+        }
+        let logging = logging
+        dismiss()
+        DispatchQueue.main.async { logging.saveFix(editing.id, draft) }
     }
 
     /// Removing it takes its stars back too: they belong to the log.
     private func remove(_ editing: CareEntry) {
-        store.deleteLog(id: editing.id)
+        let logging = logging
         dismiss()
+        DispatchQueue.main.async { logging.remove(editing.id) }
     }
 }
