@@ -354,21 +354,53 @@ final class SyncController: StoredFirstObservable {
 
     // MARK: Engine and device events
 
-    /// Sends pending changes now and waits for that, at most `timeout`: a widget or Siri
-    /// log may be all a background launch does, and iOS can suspend the app soon after, so
-    /// it doesn't wait for the engine's own schedule (docs/design/beyond-the-app.md). When
-    /// sync is off, waiting for a decision, signed out or offline, it returns at once or at
-    /// the timeout, and the change stays pending for the next time sync runs.
-    func sendSoon(timeout: Duration = .seconds(10)) async {
-        guard let engine else { return }
-        await settle()
-        guard engine.isRunning else { return }
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { try? await engine.sendChanges() }
-            group.addTask { try? await Task.sleep(for: timeout) }
-            await group.next()
+    /// What `sendSoon` managed.
+    enum SendOutcome: Equatable, Sendable {
+        /// Everything this device has is in iCloud.
+        case sent
+        /// Changes are still waiting: offline, a slow network, or out of time. Worth trying
+        /// again soon (`SyncSendRetry`).
+        case waiting
+        /// Sync can't send now and trying again won't help until someone acts: it is off,
+        /// waits for a decision, or iCloud isn't there. It sends by itself once that's sorted.
+        case off
+    }
+
+    /// Sends pending changes now and waits for that, at most `timeout` in all, the launch's
+    /// account check and engine start included: a widget or Siri log may be all a
+    /// background launch does, and iOS can suspend the app soon after, so it doesn't wait
+    /// for the engine's own schedule (docs/design/beyond-the-app.md, "How a log from a
+    /// widget or Siri reaches iCloud"). Whatever doesn't go stays pending in the engine.
+    @discardableResult
+    func sendSoon(timeout: Duration = .seconds(10)) async -> SendOutcome {
+        guard engine != nil else { return .off }
+        let outcome = await withTaskGroup(of: SendOutcome?.self) { group in
+            group.addTask { await self.sendNow() }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+                return nil
+            }
+            let first = await group.next() ?? nil
             group.cancelAll()
+            return first
         }
+        let result = outcome ?? .waiting
+        trace.note("sent soon: \(result)")
+        return result
+    }
+
+    private func sendNow() async -> SendOutcome {
+        await settle()
+        guard let engine, isEnabled, decision == nil else { return .off }
+        if status.accountBlocker != nil { return .off }
+        guard engine.isRunning else { return .waiting }
+        do {
+            try await engine.sendChanges()
+        } catch {
+            return .waiting
+        }
+        guard let counts = await counts() else { return .waiting }
+        return counts.unconfirmed == 0 && counts.queued == 0 ? .sent : .waiting
     }
 
     /// Brings the engine in line with the switch, the account and any pending decision.

@@ -86,6 +86,9 @@ enum ReminderActions {
 
     private static func log(routine: CareRoutine.ID, slot: Int, day: DayKey, database: AppDatabase, defaults: UserDefaults, now: Date) async {
         guard let confirmation = await logSlot(routine: routine, slot: slot, day: day, database: database, defaults: defaults, now: now) else { return }
+        // As for a widget's button: the widgets update, and the log goes to iCloud before
+        // iOS suspends the app, or is tried again a little later.
+        await IntentRunner.afterWrite()
         let content = UNMutableNotificationContent()
         content.title = confirmation.title
         content.body = confirmation.body

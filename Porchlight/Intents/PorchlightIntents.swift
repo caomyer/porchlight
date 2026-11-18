@@ -5,26 +5,49 @@ import SwiftUI
 // app's process, launching it in the background when it isn't running. The work itself is
 // `IntentWork`, on the database this launch opened (docs/design/beyond-the-app.md).
 
+/// What a background action works on: this launch's database, the widgets' keeper and
+/// sync, or a test's. Launching the app opens all three (`PorchlightApp`), also when iOS
+/// launches it in the background just to run an intent or a reminder's action.
+@MainActor
+struct IntentLaunch {
+    var database: AppDatabase?
+    var settings: DeviceSettings
+    var keeper: WidgetSummaryKeeper?
+    var sync: SyncController?
+    /// Asks for a later try at what didn't reach iCloud (`SyncSendRetry`).
+    var retry: (SyncController.SendOutcome) -> Void
+
+    static var current: IntentLaunch {
+        IntentLaunch(
+            database: AppDatabase.launched, settings: DeviceSettings(), keeper: WidgetSummaryKeeper.shared,
+            sync: SyncController.current, retry: { SyncSendRetry.after($0) }
+        )
+    }
+}
+
 /// Runs an intent's work on this launch's database, then tells the widgets and sync.
 @MainActor
 enum IntentRunner {
     @discardableResult
-    static func run(_ work: (AppDatabase, DeviceSettings, Date) async -> IntentWork.Outcome) async -> IntentWork.Outcome {
-        guard let database = AppDatabase.launched else { return .refused(.notOpen) }
-        let outcome = await work(database, DeviceSettings(), CompanionClock.now())
-        if outcome.wrote { await afterWrite() }
+    static func run(in launch: IntentLaunch = .current, _ work: (AppDatabase, DeviceSettings, Date) async -> IntentWork.Outcome) async -> IntentWork.Outcome {
+        guard let database = launch.database else { return .refused(.notOpen) }
+        let outcome = await work(database, launch.settings, CompanionClock.now())
+        if outcome.wrote { await afterWrite(launch) }
         return outcome
     }
 
-    /// The widgets draw the change at once; sync sends it before iOS suspends the app.
-    static func afterWrite() async {
-        await WidgetSummaryKeeper.shared?.refresh()
-        await SyncController.current?.sendSoon()
+    /// The widgets draw the change at once; sync sends it before iOS suspends the app, and
+    /// what doesn't make it in time is tried again a little later, in the background.
+    static func afterWrite(_ launch: IntentLaunch = .current) async {
+        await launch.keeper?.refresh()
+        guard let sync = launch.sync else { return }
+        launch.retry(await sync.sendSoon())
     }
 
-    static func logSlot(routineId: String, slot: Int, day: String) async {
-        guard let routine = CareRoutine.ID(routineId) else { return }
-        await run { await IntentWork.logSlot(routineId: routine, slot: slot, day: DayKey(rawValue: day), database: $0, settings: $1, now: $2) }
+    @discardableResult
+    static func logSlot(routineId: String, slot: Int, day: String, in launch: IntentLaunch = .current) async -> IntentWork.Outcome? {
+        guard let routine = CareRoutine.ID(routineId) else { return nil }
+        return await run(in: launch) { await IntentWork.logSlot(routineId: routine, slot: slot, day: DayKey(rawValue: day), database: $0, settings: $1, now: $2) }
     }
 
     static func checkChore(choreId: String, day: String) async {

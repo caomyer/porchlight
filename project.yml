@@ -75,6 +75,7 @@ targets:
           - fetch
         BGTaskSchedulerPermittedIdentifiers:
           - com.mingyucao.porchlight.widgets.refresh
+          - com.mingyucao.porchlight.sync.send
         CKSharingSupported: true
         # A widget's tap opens a tab: porchlight://lists, porchlight://today.
         CFBundleURLTypes:

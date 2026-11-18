@@ -99,8 +99,15 @@ Companion names, counts and times stay visible: they are what a Lock Screen glan
 1. The intent runs in the app's process; if the app wasn't running, iOS launches it in the background.
    Launching opens the database the usual way: the restore check, the sync engine, then `AppDatabase.launched`.
 2. The write goes through that instance, so the engine's triggers record it as a pending change.
-3. The engine sends pending changes on its own schedule while the process lives; the intent also asks it to send right away (`SyncController.sendSoon`) and waits a few seconds for that, so a background launch that ends quickly still delivers.
-4. The wall receives it like any other change, by push or by its own check within 15 seconds (`sync-icloud.md`, "Staying current"), and shows "from Mia's phone" with its glow (D1).
+3. The intent asks the engine to send right away and waits for it (`SyncController.sendSoon`), at most ten seconds in all, the launch's account check and engine start included, so the intent always returns in time and a background launch that ends quickly still delivers.
+   The engine also sends on its own schedule for as long as the process lives.
+4. If the send didn't finish (offline, a slow network, out of time), `sendSoon` says the change is still waiting, and `SyncSendRetry` asks iOS for background time a minute later (`BGAppRefreshTask`, `com.mingyucao.porchlight.sync.send`) to send again, then after 5, 15 and 60 minutes while it still waits; a send that gets everything up starts it over.
+   Without it, a log that missed its moment waited until the app next ran for some other reason.
+   When sync is off, waiting for a decision, or iCloud isn't there, nothing is tried again: the change goes up by itself once that is sorted.
+5. The wall receives it like any other change, by push or by its own check within 15 seconds (`sync-icloud.md`, "Staying current"), and shows "from Mia's phone" with its glow (D1).
+
+A reminder's "I fed Yo-Yo" goes the same way (`IntentRunner.afterWrite`).
+`BackgroundLogTests` runs the widget's path with no window: the log is written, credited to this phone's person, in the widgets' summary and in SQLiteData's stand-in for iCloud before the intent returns; out of time it asks for the retry; signed out it doesn't.
 
 When sync waits for a decision, or the phone is offline or signed out, the log is still written and the widget updates; it is pending in the engine and goes up the next time sync runs.
 Nothing is ever lost or doubled: the row's id is stable and the write checked the slot first.
@@ -163,6 +170,7 @@ Automatic signing does most of this on the first signed build; the developer acc
 
 - That a widget's button runs `LogSlotIntent` in the app's process with the app not running, and that the log reaches the wall: the M4 gate, tried on James's iPhone with the wall's glow as the check.
 - How long iOS keeps a background launch alive after an intent, and so whether `sendSoon`'s ten seconds are enough on a slow network.
+- When iOS actually runs the send's retry (`BGAppRefreshTask` is at its discretion, learns from how the phone is used, and never runs with Background App Refresh off or in Low Power Mode).
 - That `BGAppRefreshTask` actually runs near midnight (iOS decides, from how the phone is used), and what the widgets show on mornings it didn't (the "Open Porchlight to see today" state).
 - Lock Screen redaction: which text the system hides when "Allow access when locked" is off for widgets.
 - Siri's handling of the phrases with companion names, its disambiguation between two cats, and the "continue in the app" hand-off without "me".

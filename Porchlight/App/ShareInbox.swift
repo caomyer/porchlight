@@ -28,6 +28,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         UNUserNotificationCenter.current().delegate = ReminderNotifications.shared
         // Before launch ends, as iOS requires: the widgets' turn to the new day.
         WidgetSummaryKeeper.registerBackgroundRefresh()
+        // And a send tried again later, for a log a background launch couldn't get up in time.
+        SyncSendRetry.register()
         return true
     }
 
