@@ -30,7 +30,15 @@ final class ToastCenter {
     /// The last toast whose action ran, so a second tap while it leaves does nothing.
     @ObservationIgnored private var ran: UUID?
 
-    static let seconds: Double = 5
+    /// Five seconds, or `PORCHLIGHT_TOAST_SECONDS` in a Debug build's environment: the UI
+    /// tests set it longer, since a busy simulator can spend five seconds between a tap and
+    /// the test's next look at the screen.
+    static var seconds: Double {
+        #if DEBUG
+        if let seconds = ProcessInfo.processInfo.environment["PORCHLIGHT_TOAST_SECONDS"].flatMap(Double.init) { return seconds }
+        #endif
+        return 5
+    }
     static let voiceOverSeconds: Double = 12
 
     func show(_ toast: UndoToast) {
