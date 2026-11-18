@@ -54,7 +54,8 @@ final class AppModel: StoredFirstObservable {
     /// True when this device belongs to more than one household, so screens say which.
     var isInSeveralHouseholds: Bool { snapshot.households.count > 1 }
     /// "Join or start another" chose to start one: the phone shows setup until it exists.
-    var isStartingAnotherHousehold = false
+    /// The new household arriving from the database clears it, so it is stored first.
+    @ObservationIgnored @StoredFirst var isStartingAnotherHousehold = false
 
     /// Shows another household; every tab follows (journey A5).
     func switchHousehold(to id: Household.ID) {
