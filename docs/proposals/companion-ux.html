@@ -145,6 +145,8 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .face.sm { width: 34px; height: 34px; font-size: 19px; }
 .face.plant { background: #DCEBD8; }
 .face.cat { background: #E6E0F0; }
+/* A household's badge: its first letter on a tint, a rounded square so it never reads as a person. */
+.hbadge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font: 700 16px/1 var(--body); flex: none; }
 .pet b { font: 600 20px/1.1 var(--display); display: block; }
 .pet small { font: 600 12.5px/1.3 var(--body); color: var(--muted); }
 .slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -374,7 +376,7 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
 <div class="page">
 
 <header style="display:grid;gap:14px">
-  <div class="eyebrow">Porchlight · Companion UX atlas · Nov 15, 2026 · for review</div>
+  <div class="eyebrow">Porchlight · Companion UX atlas · Nov 15, 2026 · brought in line with what shipped on Nov 17</div>
   <h1>Every screen of the phone companion, journey by journey</h1>
   <p class="lede">This is the full experience for the iPhone companion and the wall changes that come with it, laid out so the work can be split.
   Each journey has an id, a workstream and a milestone, a storyboard you read left to right, the states it has to handle, and what "done" means.</p>
@@ -433,8 +435,8 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
       <ol>
         <li>Today, Calendar, each companion, Food, Pitch in, Glow, Lists, Photos: as today.</li>
         <li>Settings, which gains:
-          <ul><li><b>Family &amp; devices</b> <span class="new">new</span>: members, invite QR, this device's role</li>
-          <li><b>iCloud storage</b> <span class="new">new</span>: meter and guidance</li></ul></li>
+          <ul><li><b>Family &amp; devices</b> <span class="new">new</span>: members, invite, this device's role; a join code is shown on the owner's iPhone</li>
+          <li><b>iCloud sync</b> <span class="new">new</span>: the switch, a plain status line, and Sync details</li></ul></li>
         <li>New behavior on existing screens: "from Mia's phone" tags, Remind someone, cash-in celebrations.</li>
       </ol>
     </div>
@@ -487,7 +489,7 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
   <table>
     <thead><tr><th style="width:17%">Milestone</th><th style="width:27%">What ships</th><th style="width:16%">Journeys</th><th>Gate to pass</th></tr></thead>
     <tbody>
-      <tr><td><b>M0 · Sync-ready data</b><br>Wall only, nothing visible</td><td>Every table reshaped for sync: UUID ids, one parent per table, people archived instead of deleted. The app moves to its permanent id, <code>com.porchlight.porchlight</code>. iCloud stays off.</td><td>None</td><td>The migration is run on a copy of the wall's real data and every row and link is compared. All tests pass. The wall's idle CPU is unchanged. A backup of the wall is on the Mac before it installs.</td></tr>
+      <tr><td><b>M0 · Sync-ready data</b><br>Wall only, nothing visible</td><td>Every table reshaped for sync: UUID ids, one parent per table, people archived instead of deleted. The app moves to its permanent id, <code>com.mingyucao.porchlight</code> (it was <code>com.porchlight.porchlight</code> for a while during M0). iCloud stays off.</td><td>None</td><td>The migration is run on a copy of the wall's real data and every row and link is compared. All tests pass. The wall's idle CPU is unchanged. A backup of the wall is on the Mac before it installs.</td></tr>
       <tr><td><b>M1 · iCloud on</b><br>Wall only</td><td>The household syncs to its owner's iCloud, with a switch to turn sync off. Photos move into synced tables. Device role, sync status and the paused state.</td><td>A1, D3</td><td>A wiped device signed in to the same Apple ID gets the whole household back. Three days on the wall with no sync error.</td></tr>
       <tr><td><b>M2 · First phones</b><br>The core loop</td><td>The iPhone shell and phone kit, invite and join, Today, one-tap care logging, the "from a phone" tags, the You menu and failure banners.</td><td>A3, A4, B1, B2, D1, D2, E1, E5</td><td>Two parents use it for a week. A phone log shows on the wall within 5 seconds on Wi-Fi. Nothing lost or doubled, including logs made offline.</td></tr>
       <tr><td><b>M3 · Every day</b></td><td>The other tabs and reminders: companion week, Pitch in, Food, Lists, Glow, the agenda, routine reminders and their settings.</td><td>B3 to B8, C1, E2, E3</td><td>A second week of family use. Reminders arrive only for your own routines. Phone screens are covered by UI tests.</td></tr>
@@ -501,7 +503,7 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
   <p class="note">Five small experiments run during M0 and M1. Each answers a question the journeys take for granted, and each has a fallback. A sixth is already done: the app's existing way of writing data works unchanged with the sync library, proven against its stand-in for iCloud.</p>
   <div class="rules">
     <div><span>S1</span><span><b>A widget or Siri log reaches iCloud without opening the app.</b> Settled on paper: only the app itself can sync, so every logging action runs inside the app, woken in the background, and widgets read a small summary the app writes for them. A widget tap that can't wake the app is saved and sent when the app next runs. Still to be confirmed on a real phone in M4.</span></div>
-    <div><span>S2</span><span><b>Invites and removal.</b> Whether a QR code can be a link that works only while the invite screen is open, and that removing someone really ends their access. If not, invites go to named people only.</span></div>
+    <div><span>S2</span><span><b>Invites and removal.</b> Answered: a share open to anyone with its link can't also have people invited by name, and closing that link removes everyone who came through it. So Porchlight never opens a public link: a join code is one private seat, made on the owner's own iPhone (iOS 18 and later) for one person, and removing someone ends only their access (docs/design/households.md, "The join code").</span></div>
     <div><span>S3</span><span><b>The toolchain serves the wall.</b> Done: the sync library's current release builds with the Xcode already on this Mac, for iPadOS 17. No Xcode upgrade is needed.</span></div>
     <div><span>S4</span><span><b>Cable installs and TestFlight installs share one iCloud.</b> Apple keeps development and production data apart, so the wall and the phones must be on the same side.</span></div>
     <div><span>S5</span><span><b>One Apple ID, two roles.</b> The owner's phone and a shared wall signed in to the same Apple ID must behave as one member with two devices.</span></div>
@@ -541,6 +543,7 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
       <tr><td>What time zone is a "day"?</td><td><span class="rec">The household's home time zone</span>, set when it is created and changeable in Settings (rule 9).</td><td>Each device's own time zone.</td></tr>
       <tr><td>A reminder that is out of date?</td><td><span class="rec">Check first, then say what happened</span> (rule 10). iOS can't always withdraw a reminder in time, so the action itself has to be safe.</td><td>Withdrawn on next sync only.</td></tr>
       <tr><td>In what order does it ship?</td><td><span class="rec">Six milestones with gates</span>, core loop on two real phones first.</td><td>Three phases, most journeys in Phase 1.</td></tr>
+      <tr><td>How does someone join with a code?</td><td><span class="rec">One private seat per showing</span>, made on the owner's own iPhone (iOS 18 and later) and good for one person. The iPadOS 17 wall and members' phones say where to find it. Never a public link.</td><td>A QR code of the household's link on the wall.</td></tr>
       <tr><td>Siri and Shortcuts?</td><td><span class="rec">With widgets, in M4</span>, since the App Intents behind the widget and notification actions give Siri for free.</td><td>Not in the proposal.</td></tr>
     </tbody>
   </table>
@@ -575,8 +578,8 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
       ${row(box(o.done), 'Fix the leaky faucet', o.done ? 'Done just now' : 'this weekend', '<span class="star">+3</span>', o.done ? 'done' : '')}
     </div></div>`;
   const anyone = (o = {}) => `<div class="card"><div class="ch"><b>Anyone can take</b><span>2 open</span></div><div>
-      ${row('', 'Vacuum the living room', o.took ? 'Yours now · on the wall under your name' : 'this weekend', `<span class="take ${o.took?'mine':''}">${o.took ? 'Yours' : "I'll do it"}</span>`)}
-      ${row('', 'Change the sheets', 'this week', '<span class="take">I\'ll do it</span>')}
+      ${row('', 'Vacuum the living room', o.took ? 'Yours now · on the wall under your name' : 'this weekend', `<span class="take ${o.took?'mine':''}">${o.took ? 'Yours' : "I did it"}</span>`)}
+      ${row('', 'Change the sheets', 'this week', '<span class="take">I did it</span>')}
     </div></div>`;
   const agenda = `<div class="card"><div class="ch"><b>At home today</b><span>Next 7 days ›</span></div><div>
       ${row('<span class="time">All day</span>', 'Aunt Rosa visiting', 'Sat to Mon')}
@@ -602,7 +605,7 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
         <div class="wcard" style="background:linear-gradient(160deg,#FBE9DC,var(--surface) 60%)">
           <div class="wpet"><div class="face">🐶</div><div><b>Yo-Yo</b><small>${o.walked ? 'Walked just now by James' : 'Walked 9h ago'}</small></div></div>
           <div class="wslots"><div class="wslot done">${av('M')}<span>Morning<small>8:40 am</small></span></div>${o.walked ? `<div class="wslot done fresh">${av('J')}<span>Evening<small>6:12 pm · from a phone</small></span></div>` : `<div class="wslot" style="border-color:var(--accent)"><span>🐾</span><span>Evening<small>5 to 8 pm</small></span></div>`}</div>
-          <div style="display:flex;gap:1cqw;flex-wrap:wrap">${o.walked ? '<span class="wbtn ghost">See the week</span>' : '<span class="wbtn">🐾 I walked Yo-Yo</span><span class="wbtn ghost">Remind someone</span>'}</div>
+          <div style="display:flex;gap:1cqw;flex-wrap:wrap">${o.walked ? '<span class="wbtn ghost">See the week</span>' : '<span class="wbtn">🐾 I walked Yo-Yo</span>'}</div>
         </div>
         <div class="wcard"><div class="ch"><b>Pitch in</b><span>3 of 5 done</span></div>
           <div class="wrow two"><span>Fix the leaky faucet<small>${o.walked ? 'Done · from James\'s phone' : 'this weekend'}</small></span>${av('J')}</div>
@@ -615,36 +618,36 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
   /* ---------- Frames ---------- */
   const F = {
     /* A1 */
-    a1role: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 2 of 6</div><h4>How will this iPad be used?</h4><p>You can change this later in Settings.</p></div>
+    a1role: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 2 of 8</div><h4>How will this iPad be used?</h4><p>You can change this later in Settings.</p></div>
       <div class="wopt on">🖼️ A shared screen<small>On a wall or a counter. Anyone in the family can tap, so it asks who did something.</small></div>
       <div class="wopt">🙋 Just me<small>Your own iPad. What you log is credited to you, like on your phone.</small></div>
       <span class="wbtn">Continue</span></div></div>`),
-    a1cloud: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 6 of 6</div><h4>The Lake House lives in your iCloud</h4>
+    a1cloud: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 8 of 8</div><h4>The Lake House lives in your iCloud</h4>
       <p>Everyone you invite uses it through your iCloud, so it is backed up and works on their phones. Photos are most of it: a busy family adds about 300 MB a year. Nobody else, including us, can see it.</p></div>
-      <div class="wopt" style="grid-template-columns:auto 1fr;align-items:center;gap:1.4cqw"><span style="font-size:3cqw">☁️</span><span>Signed in as James<small>Use a different Apple ID by changing it in iPad Settings first.</small></span></div>
+      <div class="wopt" style="grid-template-columns:auto 1fr;align-items:center;gap:1.4cqw"><span style="font-size:3cqw">☁️</span><span>Uses the iCloud account on this iPad<small>To use a different Apple ID, change it in iPad Settings first.</small></span></div>
       <div style="display:flex;gap:1cqw"><span class="wbtn">Finish</span><span class="wbtn ghost">Invite phones now</span></div></div></div>`),
-    a1signedout: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 6 of 6</div><h4>Keep it on this iPad for now?</h4>
-      <p>This iPad isn't signed in to iCloud, so phones can't join yet and nothing is backed up. Everything works here. Sign in later and Porchlight moves the household into iCloud.</p></div>
+    a1signedout: W(`<div class="wonb"><div class="in"><div class="wsheet" style="width:auto;box-shadow:none;background:transparent;padding:0"><div class="lab">Set up · 8 of 8</div><h4>Keep it on this iPad for now?</h4>
+      <p>This iPad isn't signed in to iCloud, or iCloud is off for Porchlight, so phones can't join yet and nothing is backed up. Everything works here. Turn it on later and Porchlight moves the household into iCloud.</p></div>
       <div style="display:flex;gap:1cqw"><span class="wbtn">Keep going on this iPad</span><span class="wbtn ghost">Open iPad Settings</span></div></div></div>`),
     /* A2 */
     a2welcome: P(`<div class="center" style="padding-top:110px"><div class="big-emoji">🏡</div><h4>Porchlight</h4><p>Your family's day in one place: who walked the dog, what's for dinner, who pitched in.</p></div>
-      <div style="display:grid;gap:10px;margin-top:150px"><span class="btn">Start a household</span><span class="btn ghost">Join one</span><p class="note" style="text-align:center;font-size:12.5px">To join, open the invite someone sent you or scan the code on your family's screen.</p></div>`, {t:'9:41'}),
+      <div style="display:grid;gap:10px;margin-top:150px"><span class="btn">Start a household</span><span class="btn ghost">Join one</span><p class="note" style="text-align:center;font-size:12.5px">To join, open the invite someone sent you or scan the code on the household owner's iPhone.</p></div>`, {t:'9:41'}),
     a2you: P(`${dots(4,0)}<div class="center" style="padding-top:8px"><h4>Let's start with you</h4></div>
       <div class="label">Household name</div><div class="field">The Lake House</div>
       <div class="label">Your name</div><div class="field">James</div>
       <div class="label">Your color</div><div style="display:flex;gap:10px">${['var(--blue)','var(--coral)','var(--sage)','var(--ochre)','#8B6FA8','#3E8A8A'].map((c,i)=>`<span style="width:34px;height:34px;border-radius:50%;background:${c};${i===0?'box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)':''}"></span>`).join('')}</div>
       <div style="margin-top:auto"></div><span class="btn" style="margin-top:150px">Continue</span>`, {t:'9:41'}),
-    a2people: P(`${dots(4,1)}<div class="center" style="padding-top:8px"><h4>Who else lives here?</h4><p>Anyone you'll credit for walks, chores or meals. They don't need the app.</p></div>
-      <div class="list">${listRow('Mia', 'Has an iPhone · invite after setup', `<span class="star">📱</span>`, av('M'))}${listRow('Ava', 'No phone needed · uses a shared screen', '', av('A'))}${row('<span class="av" style="background:var(--surface2);color:var(--accent)">+</span>', 'Add someone', '')}</div>
+    a2people: P(`${dots(4,1)}<div class="center" style="padding-top:8px"><h4>Who else lives here?</h4><p>Anyone you'll credit for walks, chores or meals. They don't need the app, and anyone with a phone can be invited when you're done.</p></div>
+      <div class="list">${listRow('Mia', 'Name and color', '<span class="chev">✕</span>', av('M'))}${listRow('Ava', 'Name and color', '<span class="chev">✕</span>', av('A'))}${row('<span class="av" style="background:var(--surface2);color:var(--accent)">+</span>', 'Add someone', '')}</div>
       <span class="btn" style="margin-top:170px">Continue</span>`, {t:'9:41'}),
-    a2companion: P(`${dots(4,2)}<div class="center" style="padding-top:8px"><h4>Anyone to look after?</h4><p>Pets, plants, a baby's feeds. Each gets its own routines and reminders.</p></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${[['🐶','Dog',true],['🐱','Cat'],['🪴','Plant'],['🍼','Baby'],['🐠','Fish'],['🐰','Other']].map(([e,l,on])=>`<div class="choice ${on?'on':''}" style="padding:12px"><span style="font-size:24px">${e}</span>${l}</div>`).join('')}</div>
+    a2companion: P(`${dots(4,2)}<div class="center" style="padding-top:8px"><h4>Anyone to look after?</h4><p>Pets and plants. Each gets its own routines and reminders.</p></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${[['🐶','Dog',true],['🐱','Cat'],['🐦','Bird'],['🐰','Rabbit'],['🐠','Fish'],['🪴','Plant']].map(([e,l,on])=>`<div class="choice ${on?'on':''}" style="padding:12px"><span style="font-size:24px">${e}</span>${l}</div>`).join('')}</div>
       <div class="field">Yo-Yo</div>
       <p class="note" style="font-size:12.5px">Suggested routines: walk twice a day, feed twice a day. Change them any time.</p>
       <div style="display:grid;gap:8px;margin-top:40px"><span class="btn">Continue</span><span class="btn ghost">Skip for now</span></div>`, {t:'9:41'}),
     a2done: P(`${dots(4,3)}<div class="center" style="padding-top:40px"><div class="big-emoji">✨</div><h4>The Lake House is ready</h4><p>It's stored in your iCloud. Invite Mia so her phone shows the same day.</p></div>
       <div class="card"><div class="ch"><b>Invite</b><span>1 person has a phone</span></div>${row(av('M'), 'Mia', 'Send an invite by Messages or AirDrop', '<span class="take">Invite</span>')}</div>
-      <div class="card" style="gap:6px"><div class="ch"><b>Got a spare iPad?</b><span></span></div><p class="note" style="font-size:13px">Open Porchlight on it, choose "Join one", and pick "A shared screen" to put the whole family's day on the wall.</p></div>
+      <div class="card" style="gap:6px"><div class="ch"><b>Got a spare iPad?</b><span></span></div><p class="note" style="font-size:13px">Open Porchlight on it, choose "Join one", and scan the code from You › Invite someone › Show a code on this iPhone. Then make it a shared screen to put the whole family's day on the wall.</p></div>
       <span class="btn" style="margin-top:40px">Go to Today</span>`, {t:'9:41'}),
     /* A3 */
     a3wall: W(settingsShell('Family & devices', 'The Lake House · stored in James\'s iCloud', `<div class="settingsgrid"><div class="wcard">
@@ -652,12 +655,19 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
         <div class="prow">${av('J')}<span>James<small>Owner · iPhone 16 · synced just now</small></span><span class="stat">Joined</span></div>
         <div class="prow">${av('M')}<span>Mia<small>Invited 2 days ago</small></span><span class="stat wait">Invited</span></div>
         <div class="prow">${av('A')}<span>Ava<small>Pitches in on this screen</small></span><span class="stat wall">No phone</span></div>
-        <div class="prow"><span class="av" style="background:var(--surface2);color:var(--muted)">⌂</span><span>This iPad<small>Shared screen · asks who did it</small></span><span class="stat wall">Change</span></div>
-      </div><div class="qr"><canvas class="qrc" width="25" height="25"></canvas><b>Scan to join</b><small>Point an iPhone camera here. Anyone who scans joins The Lake House, so show it only to family.</small></div></div>`)),
+        <div class="prow"><span class="av" style="background:var(--surface2);color:var(--muted)">⌂</span><span>Hallway iPad<small>This iPad · Shared screen · asks who did it</small></span><span class="stat wall">Change</span></div>
+        <div style="display:flex;gap:1cqw;padding-top:1cqw"><span class="wbtn">Invite someone</span></div>
+        <div style="font:600 1.3cqw/1.45 var(--body);color:var(--muted)">📷 To show a join code, open Porchlight on James's iPhone: You, Invite someone, Show a code.</div>
+      </div></div>`)),
     a3pick: P(`<div class="phead"><span class="back">‹ You</span>${av('J')}</div>${head('The Lake House', 'Invite someone', '')}
       <p class="note" style="font-size:13.5px">They join with their own Apple ID and use your iCloud for the household. It uses almost none of their storage.</p>
       <div class="list">${listRow('Mia', 'Hasn\'t joined yet', '<span class="take">Invite</span>', av('M'))}${listRow('Ava', 'No phone yet', '<span class="take">Invite</span>', av('A'))}${listRow('Someone new', 'Add them, then invite', '<span class="chev">›</span>', '<span class="av" style="background:var(--surface2);color:var(--accent)">+</span>')}</div>
-      <div class="card" style="gap:6px"><div class="ch"><b>Show a code instead</b><span>›</span></div><p class="note" style="font-size:13px">For someone standing next to you. Same as the code on a shared screen.</p></div>`, {tab:'today'}),
+      <div class="card" style="gap:6px"><div class="ch"><b>Show a code instead</b><span>›</span></div><p class="note" style="font-size:13px">For someone standing next to you: one code, one person.</p></div>`, {tab:'today'}),
+    a3code: P(`<div class="phead"><span class="back">‹ Invite someone</span>${av('J')}</div>${head('The Lake House', 'Join The Lake House', '')}
+      <div class="card" style="justify-items:center;gap:10px"><canvas class="qrc" width="25" height="25" style="width:200px;height:200px;image-rendering:pixelated;border-radius:8px"></canvas><small style="font:600 13px/1.4 var(--body);color:var(--muted);text-align:center">One person can join with this code. It works until you close this.</small></div>
+      <p class="note" style="font-size:13px">Point another iPhone's camera here. The first person who scans joins The Lake House, so show it only to family.</p>`, {t:'6:05'}),
+    a3member: P(`<div class="phead"><div></div><span class="back">Done</span></div><div class="center" style="gap:6px">${av('M','lg')}<b style="font:600 24px/1.1 var(--display)">Mia</b><small style="font:600 13px/1 var(--body);color:var(--muted)">The Lake House · this iPhone credits you</small></div>
+      <div class="list">${listRow('The Lake House', 'People, companions, chores, rewards, lists', '', '<span style="font-size:20px">🏡</span>')}${listRow('iCloud storage', 'Stored in James\'s iCloud', '', '<span style="font-size:20px">☁️</span>')}${row('<span style="font-size:20px">✉️</span>', 'Invite someone', 'Only James can add people', '')}</div>`),
     a3share: P(`<div class="phead"><span class="back">‹ You</span>${av('J')}</div>${head('The Lake House', 'Invite someone', '')}<div class="list">${listRow('Mia', 'Sending…', '', av('M'))}</div>`, {over: sheet(`<div style="display:flex;gap:10px;align-items:center"><div class="face sm">🏡</div><div class="tx"><b>Join The Lake House on Porchlight</b><small>Invite link · works once Mia installs the app</small></div></div>
       <div style="display:flex;gap:16px;justify-content:space-around;padding:6px 0">${[['💬','Messages'],['📡','AirDrop'],['✉️','Mail'],['🔗','Copy link']].map(([e,l])=>`<div style="display:grid;gap:6px;justify-items:center;font:600 11.5px/1 var(--body);color:var(--muted)"><span style="width:56px;height:56px;border-radius:14px;background:var(--surface2);display:grid;place-items:center;font-size:26px">${e}</span>${l}</div>`).join('')}</div>
       <p style="font-size:12.5px">The link only works for people you send it to. You can see who joined and remove anyone in You › Household.</p>`)}),
@@ -676,29 +686,28 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
       <span class="btn" style="margin-top:80px">Allow reminders</span><span class="btn ghost">Not now</span>`, {t:'6:05'}),
     a4sync: P(`${dots(3,2)}<div class="center" style="padding-top:40px"><div class="big-emoji">📦</div><h4>Bringing everything in</h4><p>You can start now. Photos fill in as they arrive.</p></div>
       <div class="card" style="gap:12px">
-        <div><div class="ch"><b style="font-size:15px">People, chores, routines</b><span>✓ Done</span></div></div>
-        <div><div class="ch"><b style="font-size:15px">Two years of walks and meals</b><span>✓ Done</span></div></div>
+        <div><div class="ch"><b style="font-size:15px">People, chores, routines</b><span>✓ Here</span></div></div>
+        <div><div class="ch"><b style="font-size:15px">Walks and meals</b><span>2,310 so far</span></div></div>
         <div style="display:grid;gap:6px"><div class="ch"><b style="font-size:15px">Meal photos</b><span>120 of 412</span></div><div class="prog"><i style="width:29%"></i></div></div>
       </div>
-      <p class="note" style="font-size:12.5px;text-align:center">Thumbnails come first; full-size photos load when you open one.</p>
       <span class="btn" style="margin-top:110px">Go to Today</span>`, {t:'6:06'}),
     /* A5 */
     a5switch: P(`${head('You', 'Mia', av('M'))}`, {tab:'today', over: sheet(`<h4>Your households</h4>
-      <div class="list">${listRow('The Lake House', 'You are Mia · 3 people', '<span style="color:var(--accent);font-weight:800">✓</span>', '<div class="face sm">🏡</div>')}${listRow('Grandma Rosa\'s', 'You are Mia · 2 people', '', '<div class="face sm plant">🪴</div>')}</div>
+      <div class="list">${listRow('The Lake House', 'You are Mia · 3 people', '<span style="color:var(--accent);font-weight:800">✓</span>', '<span class="hbadge" style="background:#DCE6F4;color:#2F5E9E">L</span>')}${listRow('Grandma Rosa\'s', 'You are Mia · 2 people', '', '<span class="hbadge" style="background:#F6DDD3;color:#B5563A">G</span>')}</div>
       <span class="btn ghost">Join or start another</span>
-      <p>Today, Food, Lists and Glow show one household at a time. Reminders come from both, each named.</p>`)}),
+      <p>Today, Food, Lists and Glow show one household at a time. Reminders come from all of them, each named.</p>`)}),
     a5today: P(`${head('Sunday · <span class="hh">Grandma Rosa\'s ▾</span>', 'Hi, Mia', av('M'))}
       <div class="card warm"><div class="pet"><div class="face plant">🪴</div><div><b>Tomatoes</b><small>Watered Thursday by Rosa</small></div></div><div class="slots"><div class="slot due"><span>💧</span><span>Water<small>every 3 days · due today</small></span></div><div class="slot"><span>🌱</span><span>Feed<small>Sunday</small></span></div></div><span class="btn">💧 I watered the tomatoes</span></div>
       <div class="card"><div class="ch"><b>Yours today</b><span>0 of 1</span></div>${row(box(false), 'Call Rosa about Thanksgiving', 'today', '<span class="star">+1</span>')}</div>`, {tab:'today', t:'4:02'}),
     a5notif: RAW(`<div class="notch"></div><div class="lock"><div class="date">Sunday, November 15</div><div class="clock">4:02</div>
-      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT · GRANDMA ROSA'S<span>now</span></div><b>Water the tomatoes</b><p>Due today. Rosa watered them Thursday.</p></div>
-      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT · THE LAKE HOUSE<span>1h ago</span></div><b>Yo-Yo's evening walk</b><p>Opens at 5. You're on evenings this week.</p></div></div>`),
+      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT<span>now</span></div><b>Grandma Rosa's · Water the tomatoes</b><p>Due today. Rosa watered them Thursday.</p></div>
+      <div class="notif"><div class="top"><i>🏠</i>PORCHLIGHT<span>1h ago</span></div><b>The Lake House · Yo-Yo's evening walk</b><p>Opens at 5. You're on evenings this week.</p></div></div>`),
     /* A6 */
-    a6wall: W(settingsShell('Family & devices', 'The Lake House · stored in James\'s iCloud', `<div class="wcard"><div class="prow">${av('J')}<span>James<small>Owner</small></span><span class="stat">Joined</span></div><div class="prow">${av('M')}<span>Mia<small>iPhone 15</small></span><span class="stat">Joined</span></div></div>`) + `<div class="wscrim"><div class="wsheet"><div class="lab">Mia · iPhone 15</div><h4>Remove Mia's iPhone?</h4><p>It stops seeing The Lake House. Mia stays in the household, keeps her color and her history, and can still pitch in on this screen. You can invite her again any time.</p><div class="btns"><span class="wbtn red">Remove</span><span class="wbtn ghost">Cancel</span></div></div></div>`),
+    a6wall: W(settingsShell('Family & devices', 'The Lake House · stored in James\'s iCloud', `<div class="wcard"><div class="prow">${av('J')}<span>James<small>Owner</small></span><span class="stat">Joined</span></div><div class="prow">${av('M')}<span>Mia<small>iPhone 15</small></span><span class="stat">Joined</span></div></div>`) + `<div class="wscrim"><div class="wsheet"><div class="lab">Mia · iPhone 15</div><h4>Remove Mia's iPhone?</h4><p>It stops seeing The Lake House. Mia stays in the household with the same color and history, and can still pitch in on a shared screen. You can invite Mia again any time.</p><div class="btns"><span class="wbtn red">Remove</span><span class="wbtn ghost">Cancel</span></div></div></div>`),
     a6removed: P(`<div class="center" style="padding-top:150px"><div class="big-emoji">🚪</div><h4>You're no longer in The Lake House</h4><p>James removed this iPhone from the household, or stopped sharing it. What you logged stays with the household.</p></div>
-      <div style="display:grid;gap:8px;margin-top:160px"><span class="btn">OK</span><span class="btn ghost">Start a household</span></div>`),
+      <div style="display:grid;gap:8px;margin-top:160px"><span class="btn">OK</span></div>`),
     a6leave: P(`${head('You', 'Mia', av('M'))}`, {over: sheet(`<h4>Leave The Lake House?</h4><p>It disappears from this iPhone and your reminders for it stop. Everything you logged stays with the household, and James can invite you back.</p><span class="btn" style="background:#B54A3A">Leave</span><span class="btn ghost">Cancel</span>`)}),
-    a6owner: P(`${head('You', 'James')}`, {over: sheet(`<h4>You own The Lake House</h4><p>It's stored in your iCloud, so leaving would delete it for Mia and everyone else. To stop sharing with one person, remove them in Household.</p><span class="btn ghost">Manage members</span><span class="btn line">Delete The Lake House for everyone…</span>`)}),
+    a6owner: P(`${head('You', 'James')}`, {over: sheet(`<h4>You own The Lake House</h4><p>It's stored in your iCloud, so leaving would delete it for Mia and everyone else. To stop sharing with one person, remove their phone in Household.</p><span class="btn ghost">Manage members</span><span class="btn line">Close</span>`)}),
     /* B1 */
     b1due: P(`${head('Sunday, November 15', 'Hi, James')}${petCard()}${yours()}${anyone()}`, {tab:'today'}),
     b1clear: P(`${head('Sunday, November 15', 'Hi, James')}
@@ -845,36 +854,41 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
     d1arrive: W(wallToday({walked:true}) + `<div class="wtoast">${av('J')}James walked Yo-Yo · from his phone</div>`),
     d1meal: W(wallToday({food:true})),
     /* D2 covered by a3wall; storage */
-    d2storage: W(settingsShell('iCloud storage', 'The Lake House is stored in James\'s iCloud', `<div class="wcard" style="gap:1.4cqw"><div style="font:600 2.6cqw/1.2 var(--display)">This household uses 412 MB of James's iCloud</div>
-      <div class="wmeter"><i style="width:78%;background:var(--coral)"></i><i style="width:15%;background:var(--ochre)"></i><i style="width:7%;background:var(--blue)"></i></div>
-      <div style="font:600 1.3cqw/1.4 var(--body);color:var(--muted)">Photos 322 MB · Pencil pages 61 MB · Everything else 29 MB · growing about 30 MB a month</div>
-      <div class="prow" style="grid-template-columns:1fr auto"><span>Shrink photos older than a year<small>Saves about 180 MB. Thumbnails stay sharp.</small></span><span class="stat wall">Review</span></div>
-      <div class="prow" style="grid-template-columns:1fr auto"><span>Sync status<small>Up to date · last change 2 min ago from Mia's phone</small></span><span class="stat">Synced</span></div></div>`)),
+    d2storage: W(settingsShell('iCloud sync', 'The Lake House · stored in James\'s iCloud', `<div class="wcard" style="gap:1.4cqw">
+      <div class="prow" style="grid-template-columns:1fr auto"><span>Sync with iCloud<small>Up to date, checked at 6:10 PM.</small></span><span class="stat">On</span></div>
+      <div class="prow" style="grid-template-columns:1fr auto"><span>Sync details<small>Checks, pushes and the last answer from iCloud, for when something seems off</small></span><span class="stat wall">Show</span></div>
+      <div style="font:600 1.3cqw/1.4 var(--body);color:var(--muted)">How much of the owner's iCloud the household uses is on the phone, in You › iCloud storage (E4).</div></div>`)),
     /* D3 */
-    d3pause: W(settingsShell('iCloud storage', 'The Lake House is stored in James\'s iCloud', `<div class="wcard" style="gap:1.4cqw"><div class="banner warn" style="font-size:1.5cqw;border-radius:1.2cqw;padding:1.2cqw 1.4cqw"><span>⏸️</span><span>Sync is paused: James's iCloud is full<small style="font-size:1.2cqw">Everything still works on this iPad. Changes send as soon as there's room.</small></span></div>
-      <div style="font:600 1.4cqw/1.45 var(--body);color:var(--muted)">James can free space from his phone (You › iCloud storage) or upgrade his iCloud plan. Nothing is lost while it's paused.</div></div>`)),
+    d3pause: W(settingsShell('iCloud sync', 'The Lake House · stored in James\'s iCloud', `<div class="wcard" style="gap:1.4cqw"><div class="banner warn" style="font-size:1.5cqw;border-radius:1.2cqw;padding:1.2cqw 1.4cqw"><span>⏸️</span><span>Sync is paused: iCloud is full<small style="font-size:1.2cqw">Everything still works on this iPad. Changes send as soon as there's room.</small></span></div>
+      <div style="font:600 1.4cqw/1.45 var(--body);color:var(--muted)">Free up space, or choose a bigger iCloud plan, on any iPhone or iPad signed in to this account. Nothing is lost while it's paused.</div></div>`)),
     /* E1 */
     e1you: P(`<div class="phead"><div></div><span class="back">Done</span></div><div class="center" style="gap:6px">${av('J','lg')}<b style="font:600 24px/1.1 var(--display)">James</b><small style="font:600 13px/1 var(--body);color:var(--muted)">The Lake House · owner · this iPhone credits you</small></div>
-      <div class="list">${listRow('Household', 'People, companions, chores, rewards', '', '<span style="font-size:20px">🏡</span>')}${listRow('Invite someone', 'Mia hasn\'t joined yet', '', '<span style="font-size:20px">✉️</span>')}${listRow('Switch household', '2 households', '', '<span style="font-size:20px">🔁</span>')}</div>
-      <div class="list">${listRow('Notifications', 'Your routines · chores', '', '<span style="font-size:20px">🔔</span>')}${listRow('Calendars', '2 shown on Today', '', '<span style="font-size:20px">📅</span>')}${listRow('iCloud storage', '412 MB of your iCloud', '', '<span style="font-size:20px">☁️</span>')}${listRow('This iPhone is me', 'Change who you are here', '', '<span style="font-size:20px">🙋</span>')}</div>
-      <div class="list">${listRow('<span style="color:#B54A3A">Leave The Lake House</span>', '', '')}</div>`),
+      <div class="list">${listRow('The Lake House', 'People, companions, chores, rewards, lists', '', '<span style="font-size:20px">🏡</span>')}${listRow('iCloud storage', 'Stored in your iCloud', '', '<span style="font-size:20px">☁️</span>')}${listRow('Invite someone', 'Mia hasn\'t joined yet', '', '<span style="font-size:20px">✉️</span>')}</div>
+      <div class="list">${listRow('James\'s iPhone', 'Personal · credits you', '', '<span style="font-size:20px">📱</span>')}${listRow('This iPhone is James', 'Change who you are here', '', '<span style="font-size:20px">🙋</span>')}${listRow('Calendars', '2 shown on Today', '', '<span style="font-size:20px">📅</span>')}${listRow('Notifications', 'Your routines · chores', '', '<span style="font-size:20px">🔔</span>')}</div>
+      <div class="list">${listRow('Sync with iCloud', 'Up to date', '<span class="pill np on">On</span>', '<span style="font-size:20px">☁️</span>')}${listRow('<span style="color:#B54A3A">Leave The Lake House</span>', 'It\'s yours, so it stays with you', '')}</div>`),
     e2notif: P(`<div class="phead"><span class="back">‹ You</span></div>${head('The Lake House', 'Notifications', '')}
       <div class="card" style="gap:2px"><div class="label">Your routines</div>${row('<span style="font-size:18px">🐾</span>','Yo-Yo · evening walk','5 to 8 pm · when it opens','<span class="pill np on">On</span>')}${row('<span style="font-size:18px">🐾</span>','Yo-Yo · morning walk','Mia\'s this week','<span class="pill np">Off</span>')}${row('<span style="font-size:18px">🍽️</span>','Yo-Yo · dinner','Only if missed by 7','<span class="pill np on">On</span>')}</div>
-      <div class="card" style="gap:2px"><div class="label">Chores</div>${row('<span style="font-size:18px">☑️</span>','Your chores','The evening before · 7 pm','<span class="pill np on">On</span>')}${row('<span style="font-size:18px">🙋</span>','When someone asks you','From a shared screen','<span class="pill np on">On</span>')}</div>
+      <div class="card" style="gap:2px"><div class="label">Chores</div>${row('<span style="font-size:18px">☑️</span>','Your chores','The evening before · 7 pm','<span class="pill np on">On</span>')}</div>
       <p class="note" style="font-size:12.5px">Porchlight never notifies you about what others did.</p>`),
     e3cal: P(`<div class="phead"><span class="back">‹ You</span></div>${head('On this iPhone', 'Calendars', '')}
       <p class="note" style="font-size:13.5px">Pick which of your calendars belong on Today. Shared screens in the household show them too once you turn on "share with the household".</p>
       <div class="card" style="gap:2px">${row(box(true),'Family','iCloud · shared with Mia','<span class="pill np on">Household</span>')}${row(box(true),'James','Google','<span class="pill np">Busy only</span>')}${row(box(false),'Work','Google','<span class="pill np">Just me</span>')}</div>
       <p class="note" style="font-size:12.5px">Calendar events never leave your devices through Porchlight unless you share them, and "Busy only" hides titles.</p>`),
     e4storage: P(`<div class="phead"><span class="back">‹ You</span></div>${head('The Lake House', 'iCloud storage', '')}
-      <div class="card"><b style="font:600 20px/1.2 var(--display)">Stored in James's iCloud</b><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface2)"><i style="width:78%;background:var(--coral)"></i><i style="width:15%;background:var(--ochre)"></i><i style="width:7%;background:var(--blue)"></i></div><small style="font:600 12.5px/1.4 var(--body);color:var(--muted)">412 MB · Photos 322 · Pencil 61 · Other 29</small><p class="note" style="font-size:13px">The household uses almost none of your own iCloud.</p></div>
-      <div class="list">${listRow('Your photos here', '96 MB · the ones you added', '', '<span style="font-size:20px">🖼️</span>')}${listRow('Keep originals on this iPhone', 'Synced copies are 2048 px', '<span class="pill np on">On</span>', '<span style="font-size:20px">📐</span>')}</div>`),
+      <div class="card"><b style="font:600 20px/1.2 var(--display)">Stored in James's iCloud</b><small style="font:600 12.5px/1.4 var(--body);color:var(--muted)">412 MB · Photos 322 MB · Pencil pages 61 MB · Everything else 29 MB</small><small style="font:600 12.5px/1.4 var(--body);color:var(--muted)">Photos added in the last 30 days: 28 MB.</small><p class="note" style="font-size:13px">It counts toward James's iCloud storage, and uses almost none of yours.</p></div>
+      <div class="list">${listRow('Your photos here', '96 MB · the meal photos you added', '', '<span style="font-size:20px">🖼️</span>')}</div>
+      <p class="note" style="font-size:12.5px">Every device in the household keeps every photo, at 2048 pixels on its long side, which is the photo itself. A busy family adds about 300 MB a year.</p>`),
     e5states: P(`${head('Sunday, November 15', 'Hi, Mia', av('M'))}
       <div class="banner info"><span>📴</span><span>Offline since 2:10<small>Everything you log saves here and sends later.</small></span></div>
       <div class="banner warn"><span>⏸️</span><span>Sync paused: James's iCloud is full<small>Your changes are safe on this iPhone.</small></span></div>
-      <div class="banner warn"><span>👤</span><span>You're signed out of iCloud<small>The Lake House stays on this iPhone but can't sync.</small></span><em>Settings</em></div>
-      <div class="banner info"><span>⬆️</span><span>James's iPad has a newer Porchlight<small>Update to see everything it adds.</small></span><em>Update</em></div>
+      <div class="banner warn"><span>👤</span><span>iCloud is off for Porchlight<small>Sign in to iCloud, or turn it on for Porchlight, in Settings. The Lake House stays on this iPhone meanwhile.</small></span><em>Settings</em></div>
       <p class="note" style="font-size:12.5px">One banner at a time, most urgent first, at the top of Today only. Offline shows only after an hour without sync.</p>`, {tab:'today'}),
+    e5account: P(`${head('Sunday, November 15', 'Hi, Mia', av('M'))}
+      <div class="banner warn"><span>🔒</span><span>iCloud isn't allowed on this iPhone<small>Screen Time, or whoever manages this iPhone, has turned it off. The Lake House stays here but can't sync.</small></span><em>Settings</em></div>
+      <div class="banner warn"><span>🔑</span><span>iCloud needs you to sign in again<small>Sign in to your Apple Account in Settings. The Lake House stays on this iPhone meanwhile.</small></span><em>Settings</em></div>
+      <div class="banner info"><span>☁️</span><span>Can't check iCloud<small>Everything you log saves here and sends once iCloud answers.</small></span></div>
+      <div class="banner warn"><span>✋</span><span>Sync is waiting for you<small>Choose what to do with The Lake House on this iPhone.</small></span><em>You</em></div>
+      <p class="note" style="font-size:12.5px">"Can't check" waits an hour, like offline: the next check may well pass.</p>`, {tab:'today'}),
     /* F */
     f1hub: P(`<div class="phead"><span class="back">‹ You</span></div>${head('The Lake House', 'Household', '')}
       <div class="list">${listRow('Name', 'The Lake House', '', '<span style="font-size:20px">🏡</span>')}</div>
@@ -905,42 +919,44 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
       ['w','a1role','New step: device role','A shared screen asks who did things; "Just me" credits its member. Defaults to shared on iPad.'],
       ['w','a1cloud','New last step: where it lives','Names the iCloud account and sets storage expectations. "Invite phones now" jumps to A3.'],
       ['w','a1signedout','Variant: no iCloud','Never blocks. The household is created locally and moved into iCloud when the person signs in.']],
-      states:['Signed out of iCloud: local-only household, banner in Settings (E5)','iCloud restricted by Screen Time: same as signed out, different wording','Existing household on upgrade: skip both steps; role defaults to shared, the household is moved into iCloud in the background'],
+      states:['Signed out of iCloud, or iCloud off for Porchlight: local-only household, said in Settings (E5)','iCloud not allowed (Screen Time, a managed iPad): "iCloud isn\'t allowed on this iPad", and the household stays here','iCloud needs signing in again: says so, and moves the household into iCloud once it can','Existing household on upgrade: skip both steps; role defaults to shared, the household is moved into iCloud in the background'],
       done:['Role stored per device, never synced','Household record created as the share root','Works offline end to end'] },
     { id:'A2', ws:'A', ph:1, t:'Start a household on an iPhone', goal:'A phone-only family gets the same household as a wall family, set up in four short steps.', frames:[
       ['p','a2welcome','Welcome','Two doors: start or join. iPhone defaults to the personal role, with no question.'],
       ['p','a2you','You and the household','The creator is the first person and the owner.'],
       ['p','a2people','Who else lives here','People are added freely. Phones are invited after setup, so nobody waits on anyone.'],
-      ['p','a2companion','Anyone to look after','Optional. Presets fill sensible routines that the editor (F) can change.'],
+      ['p','a2companion','Anyone to look after','Optional. Dog, cat, bird, rabbit, fish, plant or other; presets fill sensible routines that the editor (F) can change.'],
       ['p','a2done','Ready, invite','Invite is the natural next step. Mentions a spare iPad as a shared screen.']],
       states:['Skips everything: the household still works with just its creator','Same name as an existing household: allowed; households are known by id','No iCloud: works locally like A1'],
       done:['Under a minute for a family of three','Uses the same people and companion editors as the wall'] },
-    { id:'A3', ws:'A', ph:1, t:'Invite someone', goal:'Invite from where you are: a QR code on a shared screen for someone standing there, or a link by Messages for someone who isn\'t.', frames:[
-      ['w','a3wall','Wall: Family & devices','Everyone, their state, this device\'s role, and a QR code that joins the household.'],
+    { id:'A3', ws:'A', ph:1, t:'Invite someone', goal:'Only the household\'s owner adds people: a link by Messages for someone who isn\'t there, or a one-time code on the owner\'s iPhone for someone standing next to them. The household is never open to whoever has a link.', frames:[
+      ['w','a3wall','Wall: Family & devices','Everyone, their state, this device\'s role, and Invite. The iPadOS 17 wall can\'t make a code, so it says where the code is.'],
       ['p','a3pick','Phone: pick who to invite','People who haven\'t joined come first. "Someone new" adds a person first.'],
-      ['p','a3share','Phone: send the link','The system share sheet with a rich link preview.']],
-      states:['Invitee never installs the app: stays "Invited" with resend and cancel','QR seen by a visitor: the code is the household key, so Settings is behind the existing parent-only gesture','More than one pending invite: each is listed'],
-      done:['Joining works from a link and from the QR code','Invite state is visible on every device'] },
+      ['p','a3share','Phone: send the link','The system share sheet with a rich link preview.'],
+      ['p','a3code','Owner\'s iPhone: a code for one person','One private seat for one person, iOS 18 and later. Putting the code away removes the seat if nobody took it.'],
+      ['p','a3member','A member\'s phone','No invite button: only the owner can add people, and the row says who.']],
+      states:['Invitee never installs the app: stays "Invited" and can be sent the invite again','Someone takes the seat: the code page says who joined','Code put away unused: its seat is removed; people who already joined stay','The owner\'s iPhone is on iOS 17: no code, a line says how to invite by link','A share left open to anyone by the earlier code: if nobody joined through it, it is closed at once; if someone did, the owner sees who and chooses "Close the link…"'],
+      done:['Joining works from a link and from a code','Invite state is visible on every device','Porchlight never opens a public link'] },
     { id:'A4', ws:'A', ph:1, t:'Join a household', goal:'From tapping a link to seeing Today in under thirty seconds, with no account to create.', frames:[
       ['p','a4msg','The invite arrives','A normal Messages link with a preview.'],
       ['p','a4preview','Join?','Who invited you, who\'s in it, and whose iCloud it uses.'],
       ['p','a4who','Which one is you','People who haven\'t joined come first; people with a phone are dimmed; "I\'m new here" adds you.'],
-      ['p','a4remind','Reminders, only yours','Notification permission is asked last, with exactly what you\'ll get.'],
-      ['p','a4sync','First sync','Usable immediately; photos stream in, thumbnails first.']],
+      ['p','a4remind','Reminders, only yours','Asked from You › Notifications, never in the join flow, with exactly what you\'ll get.'],
+      ['p','a4sync','First sync','Usable immediately; photos stream in behind it.']],
       states:['App not installed: the link opens the App Store, then resumes the join','Already a member on another device: skip "which one is you" and use the same person','Two phones pick the same person: allowed (one person, two devices)','Join fails offline: retry banner, nothing half-joined'],
       done:['Member row links the iCloud user to the person','First Today renders before photos finish'] },
     { id:'A5', ws:'A', ph:1, t:'Belong to two households', goal:'Co-parents, grandparents and neighbors\' pets: one app, several households, never mixed up.', frames:[
-      ['p','a5switch','Switch from You','A short list, one tap to switch. The tabs show one household at a time.'],
+      ['p','a5switch','Switch from You','A short list, one tap to switch. Each household has a badge: the first letter of its name on a tint drawn from its id, a rounded square so it never looks like a person.'],
       ['p','a5today','Header names the household','A tappable household name appears only when you\'re in more than one.'],
-      ['p','a5notif','Notifications say which','Reminders come from every household, each prefixed with its name.']],
-      states:['Different person in each household: "You are Mia" per household','A widget shows the household it was set up for'],
+      ['p','a5notif','Notifications say which','Reminders come from every household, each titled with its name, and stack by household.']],
+      states:['Different person in each household: "You are Mia" per household','Widgets follow the household showing, and the medium widget names it; choosing a household per widget is left out','Another household from You: start one with the same setup, or join with an invite or a code from its owner'],
       done:['No screen ever mixes two households','Switching keeps your place in each tab'] },
     { id:'A6', ws:'A', ph:1, t:'Leave or remove someone', goal:'Removing a phone never removes a person or their history. Owners are protected from deleting everyone\'s data by accident.', frames:[
       ['w','a6wall','Remove a phone from the wall','Says exactly what changes and what stays.'],
       ['p','a6removed','The removed phone','One calm screen, then the household is gone from that device.'],
       ['p','a6leave','Leave, as a member','Your history stays with the household.'],
-      ['p','a6owner','Leave, as the owner','Explains why leaving deletes it for everyone. A future handoff fits here without schema changes.']],
-      states:['Owner deletes the household: every member sees A6 removed','Removed while offline: applies on next sync'],
+      ['p','a6owner','Leave, as the owner','Explains why leaving would delete it for everyone, and points to removing one person. Deleting a household for good is a separate proposal (household-delete.html).']],
+      states:['Owner deletes the household: proposed in household-delete.html, not built; every member would see A6 removed','Removed while offline: applies on next sync','Removed and joining again: the removed screen, then "OK", then the welcome; joining again keeps the person chosen before'],
       done:['Removing a member revokes their share participation','People are archived, never deleted'] },
 
     { id:'B1', ws:'B', ph:1, t:'Today', goal:'Mine first, then ours: what is due for me now, what I can take, and what is happening at home.', frames:[
@@ -1004,7 +1020,7 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
     { id:'C3', ws:'C', ph:1, t:'Widgets', goal:'Log without opening the app; glance without unlocking.', frames:[
       ['p','c3home','Home Screen','Small: one companion with a button. Medium: today for you. Groceries with add.'],
       ['p','c3lock','Lock Screen','Time since the last walk, the family goal, chores left.']],
-      states:['Several companions: a widget is configured for one','Two households: configured per widget'],
+      states:['Several companions: a widget is configured for one','Two households: the widgets follow the household showing (A5)'],
       done:['Interactive via App Intents on iOS 17'] },
     { id:'C4', ws:'C', ph:1, t:'Siri and Shortcuts', goal:'The same intents as the widget and notifications, available to Siri, Shortcuts and later Control Center.', frames:[
       ['p','c4siri','"I walked Yo-Yo"','Logs for you with undo, without opening the app.'],
@@ -1024,31 +1040,32 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
       done:['No looping animation; respects the wall\'s rest mode'] },
     { id:'D2', ws:'D', ph:1, t:'Family & devices, storage and sync', goal:'One Settings page answers who has the app, how to add someone, and whether everything is in sync.', frames:[
       ['w','a3wall','Family & devices','Shared with A3.'],
-      ['w','d2storage','iCloud storage and sync','The owner\'s meter, guidance, and a plain sync line.']],
-      states:['This device is personal: the page shows You instead of a role switch','Owner looking: actions to free space are live; members see them read-only'],
-      done:['Same numbers as E4 on the phone'] },
+      ['w','d2storage','iCloud sync','The switch, a plain status line and Sync details. Storage lives on the phone (E4).']],
+      states:['This device is personal: the page shows You instead of a role switch','A member\'s device: no Invite, and a line says only the owner can add people'],
+      done:['The status line says the same as the phone\'s banners (E5)'] },
     { id:'D3', ws:'D', ph:1, t:'When sync stops on the wall', goal:'The wall keeps working and says so in one place, without alarming a hallway full of visitors.', frames:[
       ['w','d3pause','Paused: owner\'s iCloud full','Explains in Settings only; Today shows a small dot on the gear.']],
-      states:['Offline: nothing until an hour passes, then the gear dot','Signed out on the owner\'s wall: Settings explains how to sign back in'],
+      states:['Offline: nothing until an hour passes, then the gear dot','iCloud not there, in four honest wordings (E5): off for Porchlight, not allowed on this iPad, needs signing in again, or, after an hour, can\'t check'],
       done:['No sync errors ever appear on Today'] },
     { id:'D4', ws:'D', ph:2, t:'Ask someone from the wall', goal:'See C2: the wall half of the remind journey.', frames:[
       ['w','c2wall','Ask sheet','Shared with C2.']],
       states:['No members with phones: the button is hidden'], done:['Ships with C2'] },
 
     { id:'E1', ws:'E', ph:1, t:'The You menu', goal:'Everything about you and the household, one tap from any tab.', frames:[
-      ['p','e1you','You','Household, invite, switch, notifications, calendars, storage, who you are, leave.']],
-      states:['Member (not owner): no delete; storage shows the owner\'s name'], done:['Reachable from the avatar on every tab'] },
+      ['p','e1you','You','The household, storage and invite, the people, this device and who you are, calendars, notifications, the sync switch, leave, and the app\'s version last. Your households sit at the top when there are several (A5).']],
+      states:['Member (not owner): no invite button (A3); storage shows the owner\'s name','A shared screen: no "this is me", and logging asks who did it'], done:['Reachable from the avatar on every tab'] },
     { id:'E2', ws:'E', ph:1, t:'Notification choices', goal:'Per-routine control in plain words, with a promise about what never notifies.', frames:[
       ['p','e2notif','Notifications','Each routine and chore type, on or off, with when it fires.']],
-      states:['Notifications denied in iOS: one row linking to iOS Settings'], done:['Stored per device'] },
+      states:['Notifications denied in iOS: one row linking to iOS Settings','Each routine slot: when it opens, only if missed, or off','"When someone asks you" comes with C2, later'], done:['Stored per device'] },
     { id:'E3', ws:'E', ph:1, t:'Calendars on this iPhone', goal:'Choose which of your calendars appear, and whether shared screens may show them.', frames:[
       ['p','e3cal','Calendars','Household, busy only, or just me, per calendar.']],
       states:['Calendar access denied: explain and link to iOS Settings'], done:['Calendar ids stay on the device; only the mapping syncs'] },
     { id:'E4', ws:'E', ph:1, t:'Storage on the phone', goal:'Members see whose iCloud it uses and what they added. Owners get the full meter from D2.', frames:[
-      ['p','e4storage','Member view','Your photos, and keeping originals on the phone.']],
-      states:['Owner view: same as the wall\'s meter, with the shrink action'], done:['Sizes summed locally from the data tables'] },
+      ['p','e4storage','Member view','Whose iCloud, what it holds, and the photos you added.']],
+      states:['Owner view: "It counts toward your iCloud storage", and when it is full, how to free space or choose a bigger plan','The owner\'s iCloud full, seen by a member: says whose, and that changes are safe'], done:['Sizes summed locally from the data tables'] },
     { id:'E5', ws:'E', ph:1, t:'Every failure, designed', goal:'One banner at a time at the top of Today, in plain words with one fix.', frames:[
-      ['p','e5states','The banners','Offline, paused by a full iCloud, signed out, newer version elsewhere. Shown stacked here; only one appears at a time.']],
+      ['p','e5states','Offline, full, off','Offline, paused by a full iCloud, and iCloud off for Porchlight. Shown stacked here; only one appears at a time.'],
+      ['p','e5account','The other ways iCloud is missing','Not allowed (Screen Time or a managed iPhone), needs signing in again, can\'t check, and a choice waiting after an account change. CloudKit can\'t tell signed out from iCloud off for Porchlight, so those share one wording.']],
       states:['Removed from a household: A6','Concurrent edits: merged by field, never a banner'], done:['Each banner has a test that triggers it with the iCloud stand-in'] },
 
     { id:'F1', ws:'F', ph:1, t:'Household setup from the phone', goal:'Everything the wall can set up, reachable from You › Household.', frames:[
