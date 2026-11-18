@@ -318,10 +318,11 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         device.tap()
         let name = app.textFields["device-name"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
-        name.tap()
-        name.typeText("Work phone\n")
+        // Key by key and checked: on a busy simulator a fast typeText drops keys ("W").
+        type("Work Phone", into: name, in: app)
+        app.buttons["Save"].tap()
         XCTAssertTrue(app.buttons["this-device"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["this-device"].label.hasPrefix("Work phone"), app.buttons["this-device"].label)
+        XCTAssertTrue(app.buttons["this-device"].label.hasPrefix("Work Phone"), app.buttons["this-device"].label)
     }
 
     // MARK: Looks

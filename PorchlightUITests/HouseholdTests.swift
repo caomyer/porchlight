@@ -4,7 +4,7 @@ import XCTest
 /// A6), setup's role and iCloud steps (A1), rows arriving from phones (D1), and a restored
 /// database waiting for a choice. Sharing is the fake (`-debugSharing`), on sample data.
 @MainActor
-final class HouseholdTests: XCTestCase {
+final class HouseholdTests: XCTestCase, PhoneTestHelpers {
     override func setUp() {
         continueAfterFailure = false
     }
@@ -104,8 +104,8 @@ final class HouseholdTests: XCTestCase {
         change.tap()
         let name = app.textFields["device-name"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
-        name.tap()
-        name.typeText("Hallway iPad")
+        // Key by key and checked: on a busy simulator a fast typeText drops keys.
+        type("Hallway iPad", into: name, in: app)
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         snapshot("84-this-ipad-keyboard")
         let save = app.buttons["save-device"]
