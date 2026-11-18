@@ -14,7 +14,6 @@
 #   scripts/test.sh --runtime <id>  another iOS, e.g. com.apple.CoreSimulator.SimRuntime.iOS-26-5
 #   scripts/test.sh --workers N     each UI suite on N clones of its simulator
 #   scripts/test.sh --no-build      reuse the last build
-#   scripts/test.sh --keep-booted   leave the simulators running afterwards
 #   scripts/test.sh <udid>          the given simulator instead of this checkout's own (one suite)
 #
 # Each checkout makes its own simulators ("Porchlight <checkout> ipad" and "... iphone"), so
@@ -37,7 +36,6 @@ serial=0
 smoke=0
 tour=0
 build=1
-keep=0
 workers=1
 udid=""
 only=()
@@ -52,11 +50,10 @@ while (( $# )); do
     --smoke) smoke=1 ;;
     --tour) tour=1 ;;
     --no-build) build=0 ;;
-    --keep-booted) keep=1 ;;
     --workers) shift; workers="$1" ;;
     --runtime) shift; porchlight_sim_runtime="$1" ;;
     --only) shift; while (( $# )) && [[ "$1" != -* ]]; do only+=("$1"); shift; done; continue ;;
-    -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) udid="$1" ;;
   esac
   shift
@@ -136,20 +133,15 @@ fi
 for sim in $ipad $iphone; do porchlight_hold_simulator "$sim"; done
 both=$(( ${#ipad} && ${#iphone} ))
 
-# Shut down what this run boots, to give the memory back, unless asked to keep it.
-already=$(xcrun simctl list devices booted)
-booted_here=()
-for sim in $ipad $iphone; do [[ "$already" == *"$sim"* ]] || booted_here+=("$sim"); done
+# Shut the simulators down on every way out this shell sees, to give the memory back. A run
+# killed outright leaves its simulators booted but no longer held, and the next run's
+# `porchlight_take_slots` shuts them down.
 cleanup() {
-  (( keep )) && return
-  for sim in $booted_here; do xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true; done
+  for sim in $ipad $iphone; do xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true; done
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT INT TERM HUP
 boot() { porchlight_boot_simulator "$1"; }
-shut() {
-  (( keep )) && return
-  if (( ${booted_here[(Ie)$1]} )); then xcrun simctl shutdown "$1" >/dev/null 2>&1 || true; fi
-}
+shut() { xcrun simctl shutdown "$1" >/dev/null 2>&1 || true; }
 
 if (( build )); then
   step=$SECONDS
