@@ -115,7 +115,7 @@ Nothing is ever lost or doubled: the row's id is stable and the write checked th
 | Glow | Lock Screen rectangular | My stars this week and the family goal ("✨ Glow 23 · Pizza 72/80"). |
 | Chores left | Lock Screen circular | How many of my chores are left today ("☑️ 1"). |
 
-Two households and per-widget household choice are for M5's switcher; the summary is for the household on screen.
+With two or more households (journey A5) the widgets follow the household showing, and the medium widget's title is its name; per-widget household choice is left out (`households.md`, "Two households").
 
 ## Tests
 

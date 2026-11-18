@@ -58,6 +58,8 @@ struct WidgetMoment: Equatable, Sendable {
     var glow: WidgetSummary.Glow?
     var groceries: WidgetSummary.Groceries?
     var householdName: String?
+    /// The phone belongs to several households: widgets name the one they show.
+    var isOneOfSeveral = false
 
     /// How long a summary is trusted before a widget says when it is from.
     static let staleAfter: TimeInterval = 6 * 3600
@@ -78,7 +80,7 @@ struct WidgetMoment: Equatable, Sendable {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: household.timeZone) ?? .current
         let day = dayKey(date, calendar: calendar)
-        var moment = WidgetMoment(date: date, availability: .ready, day: day, householdName: household.name)
+        var moment = WidgetMoment(date: date, availability: .ready, day: day, householdName: household.name, isOneOfSeveral: household.isOneOfSeveral == true)
         guard let me = summary.me else {
             moment.availability = .noMe
             return moment

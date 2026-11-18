@@ -26,6 +26,9 @@ struct WidgetSummary: Codable, Equatable, Sendable {
     struct HouseholdInfo: Codable, Equatable, Sendable {
         var name: String
         var timeZone: String
+        /// True when this phone belongs to more than one household, so widgets name the one
+        /// they show (journey A5). Optional, so summaries from before still read.
+        var isOneOfSeveral: Bool?
     }
 
     struct Me: Codable, Equatable, Sendable {

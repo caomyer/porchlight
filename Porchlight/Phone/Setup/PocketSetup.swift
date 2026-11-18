@@ -25,6 +25,8 @@ struct PocketStart: View {
 struct PocketSetupView: View {
     /// A household already exists but setup didn't finish: start at the companion step.
     var resumes = false
+    /// Starting another household from a phone that has one: a way back (journey A5).
+    var onCancel: (() -> Void)?
 
     @Environment(AppModel.self) private var model
     @Environment(DeviceSettings.self) private var device
@@ -88,6 +90,11 @@ struct PocketSetupView: View {
         didStart = true
         model.lastError = nil
         if resumes { step = .companion }
+        // Another household: you are probably you there too.
+        if onCancel != nil, let household = model.household, let me = model.people.person(device.me(in: household.id)) {
+            setup.people[0].name = me.name
+            setup.people[0].color = me.color
+        }
         #if DEBUG
         if let name = DebugLaunch.setupStep, let debugStep = Step.allCases.first(where: { "\($0)" == name }) {
             if setup.householdName.isEmpty {
@@ -239,6 +246,11 @@ struct PocketSetupView: View {
                     .buttonStyle(PhoneButtonStyle())
                     .disabled(!setup.hasName || setup.people[0].name.trimmingCharacters(in: .whitespaces).isEmpty)
                     .accessibilityIdentifier("setup-continue")
+                if let onCancel {
+                    Button("Cancel", action: onCancel)
+                        .buttonStyle(PhoneButtonStyle(kind: .ghost))
+                        .accessibilityIdentifier("setup-cancel")
+                }
             case .people:
                 Button("Continue", action: create)
                     .buttonStyle(PhoneButtonStyle())

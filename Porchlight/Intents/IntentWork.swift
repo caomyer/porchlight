@@ -53,26 +53,43 @@ enum IntentWork {
         var snapshot: CompanionSnapshot
         var household: Household
         var me: Person?
+        /// This phone belongs to more than one household, so answers say which.
+        var isOneOfSeveral = false
+
+        /// "At Grandma Rosa's · ", before an answer's detail, when it could be either.
+        var place: String { isOneOfSeveral ? "At \(household.name) · " : "" }
     }
 
     /// Who is acting. `needsMe` is false for answers that only read the household.
-    static func who(database: AppDatabase, settings: DeviceSettings, needsMe: Bool = true) async -> Result<Who, Refusal> {
-        guard let snapshot = try? await database.writer.read(CompanionSnapshot.fetch),
+    /// - Parameter householdId: The household the action is about (a widget's routine, a
+    ///   chore); nil means the one on screen.
+    static func who(database: AppDatabase, settings: DeviceSettings, needsMe: Bool = true, householdId: Household.ID? = nil) async -> Result<Who, Refusal> {
+        guard let (snapshot, count) = try? await database.writer.read({ db -> (CompanionSnapshot, Int) in
+                  let snapshot = try householdId.map { try CompanionSnapshot.fetch(db, householdId: $0) } ?? CompanionSnapshot.fetch(db)
+                  return (snapshot, try Household.fetchCount(db))
+              }),
               let household = snapshot.household else { return .failure(.noHousehold) }
         let me = settings.me(in: household.id).flatMap { id in snapshot.people.first { $0.id == id } }
         if needsMe {
             guard settings.role == .personal else { return .failure(.sharedScreen) }
             guard me != nil else { return .failure(.noMe) }
         }
-        return .success(Who(snapshot: snapshot, household: household, me: me))
+        return .success(Who(snapshot: snapshot, household: household, me: me, isOneOfSeveral: count > 1))
     }
 
     // MARK: Care
 
     /// Logs one slot of one day: the companion widget's button.
     static func logSlot(routineId: CareRoutine.ID, slot: Int, day: DayKey, database: AppDatabase, settings: DeviceSettings, now: Date) async -> Outcome {
+        // The routine's own household: a widget drawn before a switch still logs where it said.
+        let householdId = try? await database.writer.read { db in
+            try Household.ID.fetchOne(db, sql: """
+                SELECT companion.householdId FROM careRoutine JOIN companion ON companion.id = careRoutine.companionId
+                WHERE careRoutine.id = ?
+                """, arguments: [routineId])
+        }
         let who: Who
-        switch await self.who(database: database, settings: settings) {
+        switch await self.who(database: database, settings: settings, householdId: householdId ?? nil) {
         case let .success(found): who = found
         case let .failure(refusal): return .refused(refusal)
         }
@@ -123,7 +140,7 @@ enum IntentWork {
         let calendar = who.snapshot.calendar
         let day = DayKey(now, calendar: calendar)
         guard routine.occurs(on: day, calendar: calendar) else {
-            return .answer(Answer(text: "\(companion.name)'s \(routine.kind.noun(title: routine.title)) isn't due today.", wrote: false))
+            return .answer(Answer(text: "\(companion.name.possessive) \(routine.kind.noun(title: routine.title)) isn't due today.", wrote: false))
         }
         let slot = CareLogic.windowIndex(forMinute: CareLogic.minuteOfDay(now, calendar: calendar), in: routine.effectiveWindows)
         return log(routine: routine, companion: companion, slot: slot, day: day, me: me, who: who, database: database, now: now)
@@ -137,8 +154,8 @@ enum IntentWork {
         case .logged:
             let stars = routine.stars > 0 ? " · +\(StarWords.count(routine.stars))" : ""
             return .answer(Answer(
-                text: "Logged \(companion.name)'s \(slotName)",
-                detail: "For \(me.name) at \(CareText.timeWithPeriod(now, calendar: calendar))\(stars)",
+                text: "Logged \(companion.name.possessive) \(slotName)",
+                detail: "\(who.place)For \(me.name) at \(CareText.timeWithPeriod(now, calendar: calendar))\(stars)",
                 wrote: true
             ))
         case let .alreadyLogged(entry):
@@ -148,7 +165,7 @@ enum IntentWork {
                 wrote: false
             ))
         case nil:
-            return .answer(Answer(text: "That didn't save. Open Porchlight to log \(companion.name)'s \(slotName).", wrote: false))
+            return .answer(Answer(text: "That didn't save. Open Porchlight to log \(companion.name.possessive) \(slotName).", wrote: false))
         }
     }
 
@@ -156,19 +173,23 @@ enum IntentWork {
 
     /// Checks a chore off for me on a day.
     static func checkChore(choreId: Chore.ID, day: DayKey, database: AppDatabase, settings: DeviceSettings, now: Date) async -> Outcome {
+        guard let chore = try? await database.writer.read({ try Chore.fetchOne($0, id: choreId) }), !chore.archived else {
+            return .answer(Answer(text: "That chore isn't in Porchlight anymore.", wrote: false))
+        }
+        // The chore's own household, and "me" there: never someone from another household.
         let who: Who
-        switch await self.who(database: database, settings: settings) {
+        switch await self.who(database: database, settings: settings, householdId: chore.householdId) {
         case let .success(found): who = found
         case let .failure(refusal): return .refused(refusal)
         }
-        guard let me = who.me, let chore = try? await database.writer.read({ try Chore.fetchOne($0, id: choreId) }), !chore.archived else {
+        guard let me = who.me else {
             return .answer(Answer(text: "That chore isn't in Porchlight anymore.", wrote: false))
         }
         let calendar = who.snapshot.calendar
         switch try? database.completeChore(id: choreId, day: day, personId: me.id, now: now) {
         case let .done(completion):
             let stars = completion.stars > 0 ? "+\(StarWords.count(completion.stars)) for \(completion.personId == me.id ? "you" : who.snapshot.names[completion.personId ?? me.id] ?? "them")" : nil
-            return .answer(Answer(text: "Checked off \(chore.title)", detail: stars, wrote: true))
+            return .answer(Answer(text: "Checked off \(chore.title)", detail: stars.map { who.place + $0 } ?? (who.isOneOfSeveral ? "At \(who.household.name)" : nil), wrote: true))
         case let .alreadyDone(completion):
             let by = PocketToday.who(completion.personId.map { [$0] } ?? [], me: me.id, names: who.snapshot.names)
             let name = by == "you" ? "You" : by.prefix(1).uppercased() + by.dropFirst()
@@ -223,7 +244,7 @@ enum IntentWork {
         guard (try? database.addListItem(title: trimmed, to: list.id, addedBy: me.id, now: now)) != nil else {
             return .answer(Answer(text: "That didn't save. Open Porchlight to add \(trimmed).", wrote: false))
         }
-        return .answer(Answer(text: "Added \(trimmed) to \(list.title)", detail: "\(items.count + 1) on the list", wrote: true))
+        return .answer(Answer(text: "Added \(trimmed) to \(list.title)", detail: "\(who.place)\(items.count + 1) on the list", wrote: true))
     }
 
     static func lists(database: AppDatabase) async -> [HomeList] {
@@ -252,9 +273,9 @@ enum IntentWork {
             switch lead.slot.state {
             case .open, .due:
                 let until = lead.slot.window.isAllDay ? "today" : "until \(CareTime.hour(lead.slot.window.end))"
-                sentences.append("\(card.report.name)'s \(name) is open \(until).")
+                sentences.append("\(card.report.name.possessive) \(name) is open \(until).")
             default:
-                sentences.append("\(card.report.name)'s \(name) opens at \(CareTime.hour(lead.slot.window.start)).")
+                sentences.append("\(card.report.name.possessive) \(name) opens at \(CareTime.hour(lead.slot.window.start)).")
             }
         }
         if settings.role == .personal, let me = who.me,
@@ -270,7 +291,8 @@ enum IntentWork {
                 sentences.append("You have \(left.count) chores left: \(ListFormatter.localizedString(byJoining: left)).")
             }
         }
-        guard !sentences.isEmpty else { return .answer(Answer(text: "Nothing is waiting at home right now.", wrote: false)) }
-        return .answer(Answer(text: sentences.joined(separator: " "), wrote: false))
+        let home = who.isOneOfSeveral ? "at \(who.household.name)" : "at home"
+        guard !sentences.isEmpty else { return .answer(Answer(text: "Nothing is waiting \(home) right now.", wrote: false)) }
+        return .answer(Answer(text: sentences.joined(separator: " "), detail: who.isOneOfSeveral ? who.household.name : nil, wrote: false))
     }
 }

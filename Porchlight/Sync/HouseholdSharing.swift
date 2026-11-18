@@ -169,7 +169,7 @@ enum JoinCodeAvailability: Equatable, Sendable {
     /// Only the household's owner can add people to its share, and a code is a seat only a
     /// device with iOS 18 can make.
     static func decide(isOwner: Bool, supportsSeats: Bool, ownerName: String?) -> JoinCodeAvailability {
-        let owners = ownerName.map { "\($0)'s iPhone" } ?? "the owner's iPhone"
+        let owners = ownerName.map { "\($0.possessive) iPhone" } ?? "the owner's iPhone"
         let way = "To show a join code, open Porchlight on \(owners): You, Invite someone, Show a code."
         if isOwner { return supportsSeats ? .available : .elsewhere(way) }
         return .elsewhere("Only \(ownerName ?? "the household's owner") can add people to the household. \(way)")

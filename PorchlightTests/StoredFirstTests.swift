@@ -133,7 +133,7 @@ struct StoredFirstTests {
         let sync = SyncController(.unavailable(.sampleData), preferences: SyncPreferences(defaults: try #require(UserDefaults(suiteName: "stored-first-\(UUID().uuidString)"))), hasHousehold: true, removeFiles: {})
         #expect(notStoredFirst(sync, [
             "isEnabled", "accountDecision", "restoredCopy", "lastSynced", "userName", "unavailable", "startFailure",
-            "hasAccount", "isOnline", "isFull", "isSynchronizing", "isLookingForHousehold", "needsAttention",
+            "account", "isOnline", "isFull", "isSynchronizing", "isLookingForHousehold", "needsAttention",
             "unsentCount", "checksFailing", "checkedRecently",
         ]).isEmpty)
         #expect(notStoredFirst(SchemaSeeder(deleteZone: { _ in }), ["phase"]).isEmpty)

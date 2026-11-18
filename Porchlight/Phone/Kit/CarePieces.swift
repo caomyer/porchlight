@@ -44,8 +44,7 @@ struct CareSlotTile: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(PocketToday.slotTitle(slot, of: routine))
                     .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
-                Text(PocketToday.slotDetail(slot, calendar: snapshot.calendar))
-                    .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                SlotDetail(parts: PocketToday.slotDetailParts(slot, calendar: snapshot.calendar))
                     .foregroundStyle(isCalling ? Theme.accent : Theme.muted)
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -66,6 +65,32 @@ struct CareSlotTile: View {
 
     /// Open now, or past its window: the slot is asking for someone.
     private var isCalling: Bool { [.open, .due, .late].contains(slot.state) }
+}
+
+/// "5-8pm · open now" on one line where it fits, and otherwise the status on a line of
+/// its own under the time, never a dot left hanging at either end.
+private struct SlotDetail: View {
+    let parts: (time: String, status: String?)
+
+    var body: some View {
+        if let status = parts.status {
+            ViewThatFits(in: .horizontal) {
+                line("\(parts.time) · \(status)").lineLimit(1)
+                VStack(alignment: .leading, spacing: 0) {
+                    line(parts.time)
+                    line(status)
+                }
+            }
+        } else {
+            line(parts.time)
+        }
+    }
+
+    private func line(_ text: String) -> some View {
+        Text(text)
+            .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+            .fixedSize(horizontal: false, vertical: true)
+    }
 }
 
 /// Someone who came along, toggled on before logging. The pill is small; the place

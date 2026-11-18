@@ -117,6 +117,36 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         snapshot("c1-12-logged")
     }
 
+    /// Two households' reminders arrive, each named (journey A5, `a5notif`). Delivery by hand,
+    /// like `testDeliveryByHand`: `TEST_RUNNER_PORCHLIGHT_DELIVERY=1` with
+    /// `-only-testing:PorchlightUITests/PhoneRemindersTests/testNamedRemindersByHand`, after
+    /// notifications were allowed once. `TEST_RUNNER_PORCHLIGHT_DARK=1` shoots the night look.
+    func testNamedRemindersByHand() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["PORCHLIGHT_DELIVERY"] == "1", "Run by hand")
+        let dark = ProcessInfo.processInfo.environment["PORCHLIGHT_DARK"] == "1"
+        XCUIDevice.shared.appearance = dark ? .dark : .light
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let app = XCUIApplication.porchlight()
+        app.launchArguments = ["-sampleHousehold", "-sampleSecondHousehold", "-debugCompanionNow", Self.evening, "-me", "James", "-debugReminderIn", "15"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
+        sleep(6)
+        app.terminate()
+        XCUIDevice.shared.press(.home)
+        let lake = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'The Lake House ·'")).firstMatch
+        let rosas = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS \"Grandma Rosa's ·\"")).firstMatch
+        // In DEBUG each household's comes ten seconds after the one before, so each has its own banner.
+        let shown = NSPredicate(format: "exists == true AND hittable == true")
+        expectation(for: shown, evaluatedWith: lake)
+        waitForExpectations(timeout: 40)
+        sleep(1)
+        snapshot(dark ? "a5-41-named-reminder-dark" : "a5-40-named-reminder")
+        expectation(for: shown, evaluatedWith: rosas)
+        waitForExpectations(timeout: 40)
+        XCTAssertFalse(lake.isHittable, "Grandma Rosa's banner is the one showing")
+        snapshot(dark ? "a5-43-named-reminder-other-dark" : "a5-42-named-reminder-other")
+    }
+
     func testNightLook() {
         XCUIDevice.shared.appearance = .dark
         let app = openNotifications("allowed")

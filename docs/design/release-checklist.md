@@ -31,8 +31,8 @@ The list is checked again before every release that goes beyond TestFlight.
 | Store | App Review notes and a demo path | To do |
 | iCloud | No iCloud account | Done |
 | iCloud | iCloud full | Done |
-| iCloud | The app's iCloud switched off, iCloud Drive off | To do |
-| iCloud | A restricted account (Screen Time, managed) | To do |
+| iCloud | The app's iCloud switched off, iCloud Drive off | To do (one device check) |
+| iCloud | A restricted account (Screen Time, managed) | Done |
 | iCloud | CloudKit production schema before each release | Done |
 | First run | A stranger with no household, on iPhone and iPad | Done |
 | First run | Nothing from our family in a stranger's app | Done |
@@ -160,7 +160,7 @@ The notes should say how to start a household on one device, what the wall is fo
 
 Why: a stranger may not be signed in to iCloud, and the app must still work on that one device.
 State: done.
-Evidence: sync stays off and the app keeps working on the device; Settings and the phone's banner say "You're signed out of iCloud" (`SyncSettingsTests`, `PhoneHouseholdTests.testSyncBannersOnToday`, `HouseholdTests` with `-debugSyncStatus noAccount`).
+Evidence: sync stays off and the app keeps working on the device; Settings and the phone's banner say "iCloud is off for Porchlight", which is true whether the device is signed out or only Porchlight's switch is off (`SyncSettingsTests.testEachMissingICloudSaysWhy`, `PhoneHouseholdTests.testSyncBannersOnToday`, `HouseholdTests` with `-debugSyncStatus noAccount`, `SyncControllerTests`).
 
 ### iCloud full
 
@@ -171,17 +171,17 @@ Evidence: sync pauses and says whose iCloud is full (`SyncSettingsTests.testAFul
 ### The app's iCloud switched off, iCloud Drive off
 
 Why: people turn iCloud off per app in Settings, or turn iCloud Drive off, and CloudKit then answers differently from "signed out".
-State: to do (app source).
-Evidence: `SyncController.reconcile` treats every account status other than `.available` as "signed out", so a person who switched only Porchlight off is told they're signed out of iCloud, which they aren't.
-CloudKit doesn't need iCloud Drive, so iCloud Drive off should change nothing; that needs one check on a real device.
-To do: check on James's iPhone what `accountStatus` returns with Porchlight's iCloud switch off, and give it its own words ("iCloud is off for Porchlight in Settings").
+State: done in the app; one check on a real device is left.
+Evidence: each of CloudKit's account answers has its own state and words (`ICloudAccountProblem`, docs/design/sync-icloud.md, "When iCloud isn't there"); `noAccount` says "iCloud is off for Porchlight: sign in to iCloud, or turn it on for Porchlight, in Settings", which is true for a device signed out and for Porchlight's switch off alike, so it never tells someone signed in that they are signed out (`SyncControllerTests.accountProblems`, `ArrivalsTests`, `HouseholdHomeTests`).
+CloudKit doesn't need iCloud Drive, so iCloud Drive off should change nothing.
+To do: on James's iPhone, turn Porchlight's iCloud switch off and confirm the phone shows "iCloud is off for Porchlight" (if CloudKit answers anything other than `noAccount` there, the matching state shows instead, which is still honest); then turn iCloud Drive off and confirm sync carries on.
 
 ### A restricted account
 
 Why: Screen Time or a managed device can forbid iCloud, which CloudKit reports as `restricted`, and an account needing a new password reports `temporarilyUnavailable`.
-State: to do (app source).
-Evidence: both show as "signed out" today (`SyncController.reconcile`); neither is covered by a test.
-To do: words for each ("iCloud isn't allowed on this device", "iCloud needs you to sign in again in Settings"), a `-debugSyncStatus` value for each, and a UI test.
+State: done.
+Evidence: `restricted` says "iCloud isn't allowed on this iPhone" (Screen Time, or whoever manages it), `temporarilyUnavailable` says "iCloud needs you to sign in again", and an account that can't be checked says nothing until it has lasted an hour, then "Can't check iCloud", without claiming the household is on this device only (`SyncControllerTests.accountProblems`, `SyncControllerTests.checkFails`, `ArrivalsTests`, `HouseholdHomeTests`).
+Each has a `-debugSyncStatus` value (`restricted`, `needsSignIn`, `couldNotCheck`) and a UI test on both shells (`PhoneHouseholdTests.testSyncBannersOnToday`, `SyncSettingsTests.testEachMissingICloudSaysWhy`).
 
 ### CloudKit production schema before each release
 
@@ -300,6 +300,7 @@ To do: run the phone's UI suite on the newest iOS simulator before each release 
 The first run of the phone's smoke set on iOS 26.5 (November 17) passed 4 of 6: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` failed typing a name and `PhoneFoodTests.testSnappingAMeal` timed out waiting for the camera page.
 Neither is the app: typing "Maple" a key at a time on iOS 26.5, with a moment between keys, kept the focus and the text every time, and the snapping failure's spindump shows the app's main thread stopped in the kernel, paging the iOS 26.5 runtime's disk image in, after a ten-minute launch.
 On a slow simulator the field reports its focus a moment after each key, and a tap computed from a new layout can land on what is still drawn there, so the phone tests' `type` now waits for the focus before each key and leaves a field the app focused itself untapped.
+With that, both tests passed on iOS 17.5 and twice in a row on iOS 26.5 on a quiet Mac.
 
 ### UI suites fast enough to run before every release
 
@@ -311,8 +312,8 @@ Evidence: `scripts/test.sh` runs everything in 26 minutes on the 16 GB M4 with t
 
 For us, in the repository, without a decision first:
 
-- The phone's UI suite on iOS 26 on a quiet Mac, then fix what it finds ("What is tested on which OS versions").
-- Words and a test for the app's iCloud switched off, a restricted account and an account needing a new password (`SyncController`, app source).
+- The phone's whole UI suite on iOS 26 on a quiet Mac, then fix what it finds ("What is tested on which OS versions").
+- Confirm on a real iPhone that Porchlight's iCloud switch off shows "iCloud is off for Porchlight", and that iCloud Drive off changes nothing.
 - A VoiceOver pass and an Accessibility Inspector audit, contrast included, on each phone tab and the wall's screens.
 - App Store screenshots from a sample household that reads as any family.
 - App Review notes and a short recording of the wall and a phone.

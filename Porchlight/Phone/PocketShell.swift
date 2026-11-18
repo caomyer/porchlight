@@ -104,11 +104,32 @@ struct PocketShell: View {
 struct PocketHeader: View {
     var small: String?
     let title: String
+    /// The household's name, tappable to switch, on a phone in more than one (journey A5,
+    /// `a5today`); nil otherwise.
+    var household: String?
+
+    @Environment(\.openYou) private var openYou
+    /// The switcher's chevron grows with the household's name.
+    @ScaledMetric(relativeTo: .footnote) private var chevron: CGFloat = 9
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 0) {
-                if let small {
+                if let household {
+                    // "Sunday · Grandma Rosa's ▾" on one line where it fits; at large text
+                    // the household goes under the date, whole, with no dot left hanging.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 0) {
+                            if let small { smallText(small + " · ") }
+                            switcher(household)
+                        }
+                        .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 0) {
+                            if let small { smallText(small).fixedSize(horizontal: false, vertical: true) }
+                            switcher(household)
+                        }
+                    }
+                } else if let small {
                     Text(small)
                         .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
                         .foregroundStyle(Theme.muted)
@@ -120,6 +141,31 @@ struct PocketHeader: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             PocketYouButton()
         }
+    }
+
+    private func smallText(_ text: String) -> some View {
+        Text(text)
+            .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
+            .foregroundStyle(Theme.muted)
+    }
+
+    private func switcher(_ household: String) -> some View {
+        Button { openYou?() } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(household)
+                    .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: chevron, weight: .heavy))
+            }
+            .foregroundStyle(Theme.accent)
+            .frame(minHeight: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(household)
+        .accessibilityHint("Shows your households, to switch")
+        .accessibilityIdentifier("household-switcher")
     }
 }
 

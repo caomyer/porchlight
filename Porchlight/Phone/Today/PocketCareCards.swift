@@ -93,7 +93,7 @@ private struct FullCareCard: View {
     private var header: some View {
         Button { handlers.open(card) } label: { headerContent.contentShape(Rectangle()) }
             .buttonStyle(.plain)
-            .accessibilityHint("Opens \(report.name)'s week")
+            .accessibilityHint("Opens \(report.name.possessive) week")
             .accessibilityIdentifier("week-\(report.name)")
     }
 
@@ -168,7 +168,7 @@ private struct FullCareCard: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("More details for \(report.name)'s \(routine.kind.noun(title: routine.title))")
+            .accessibilityLabel("More details for \(report.name.possessive) \(routine.kind.noun(title: routine.title))")
             .accessibilityIdentifier("more-\(report.name)")
         }
     }
@@ -185,7 +185,7 @@ private struct AllSetCard: View {
     var body: some View {
         Button(action: onOpen) { content.contentShape(Rectangle()) }
             .buttonStyle(.plain)
-            .accessibilityHint("Opens \(card.report.name)'s week")
+            .accessibilityHint("Opens \(card.report.name.possessive) week")
             .accessibilityIdentifier("week-\(card.report.name)")
             .phoneCard(tint: card.report.look.tint)
     }
@@ -235,7 +235,7 @@ private struct SmallCareCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
-            .accessibilityHint("Opens \(card.report.name)'s week")
+            .accessibilityHint("Opens \(card.report.name.possessive) week")
             .accessibilityIdentifier("week-\(card.report.name)")
             Spacer(minLength: 0)
             if let lead = card.lead {
@@ -280,7 +280,7 @@ private struct SmallCareCard: View {
 enum PocketCareWords {
     /// "Log Yo-Yo's evening walk": what VoiceOver reads for a care button.
     static func logLabel(_ action: PocketToday.CareAction, companion: String) -> String {
-        "Log \(companion)'s \(CareCatchUp.slotName(action.slot.window, of: action.routine))"
+        "Log \(companion.possessive) \(CareCatchUp.slotName(action.slot.window, of: action.routine))"
     }
 
     static func capitalized(_ text: String) -> String {

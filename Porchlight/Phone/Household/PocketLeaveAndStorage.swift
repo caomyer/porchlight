@@ -187,7 +187,7 @@ struct PocketStoragePage: View {
     private func whoseLine(_ home: HouseholdHome, owner: String?) -> String {
         switch home {
         case .yourICloud: "It counts toward your iCloud storage. Everyone you invite uses it through yours, at no cost to theirs."
-        case .ownersICloud: "It counts toward \(owner.map { "\($0)'s" } ?? "its owner's") iCloud storage, and uses almost none of yours."
+        case .ownersICloud: "It counts toward \(owner.map { $0.possessive } ?? "its owner's") iCloud storage, and uses almost none of yours."
         default: "Nothing is in iCloud yet, so it takes room only on this \(DeviceWords.this)."
         }
     }
@@ -206,7 +206,7 @@ struct PocketStoragePage: View {
                 }
                 .buttonStyle(PhoneButtonStyle(kind: .ghost))
             } else {
-                StatusBanner(tone: .warn, emoji: "⏸️", title: "Sync is paused: \(owner.map { "\($0)'s" } ?? "the owner's") iCloud is full", detail: "Your changes are safe on this \(DeviceWords.this), and send once \(owner ?? "they") free up space or choose a bigger plan.")
+                StatusBanner(tone: .warn, emoji: "⏸️", title: "Sync is paused: \(owner.map { $0.possessive } ?? "the owner's") iCloud is full", detail: "Your changes are safe on this \(DeviceWords.this), and send once \(owner ?? "they") free up space or choose a bigger plan.")
             }
         }
         .accessibilityElement(children: .contain)

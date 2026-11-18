@@ -86,7 +86,7 @@ enum DebugSharing {
         let now = Date.now
         return Device(
             id: Device.id(householdId: householdId, install: "debug-\(user)"), householdId: householdId,
-            name: "\(name)'s iPhone", role: .personal, model: "iPhone",
+            name: "\(name.possessive) iPhone", role: .personal, model: "iPhone",
             personId: people.first { $0.name == name }?.id, userName: user, createdAt: now, seenAt: now
         )
     }

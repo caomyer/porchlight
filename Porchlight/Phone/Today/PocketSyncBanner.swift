@@ -38,13 +38,32 @@ struct PocketSyncNotice: Equatable {
                 tone: .warn, emoji: "✋", title: "Sync is waiting for you",
                 detail: "Choose what to do with \(householdName) on this \(device).", fix: .openYou
             )
-        case .noAccount:
+        case .account(.signedOut):
             return PocketSyncNotice(
-                tone: .warn, emoji: "👤", title: "You're signed out of iCloud",
-                detail: "\(householdName) stays on this \(device) but can't sync.", fix: .openSettings
+                tone: .warn, emoji: "👤", title: "iCloud is off for Porchlight",
+                detail: "Sign in to iCloud, or turn it on for Porchlight, in Settings. \(householdName) stays on this \(device) meanwhile.",
+                fix: .openSettings
+            )
+        case .account(.restricted):
+            return PocketSyncNotice(
+                tone: .warn, emoji: "🔒", title: "iCloud isn't allowed on this \(device)",
+                detail: "Screen Time, or whoever manages this \(device), has turned it off. \(householdName) stays here but can't sync.",
+                fix: .openSettings
+            )
+        case .account(.needsSignIn):
+            return PocketSyncNotice(
+                tone: .warn, emoji: "🔑", title: "iCloud needs you to sign in again",
+                detail: "Sign in to your Apple Account in Settings. \(householdName) stays on this \(device) meanwhile.",
+                fix: .openSettings
+            )
+        case .account(.couldNotCheck) where stuckLong:
+            // Like being offline: worth a word only once it has lasted.
+            return PocketSyncNotice(
+                tone: .info, emoji: "☁️", title: "Can't check iCloud",
+                detail: "Everything you log saves here and sends once iCloud answers."
             )
         case .iCloudFull:
-            let whose = ownerName.map { "\($0)'s" } ?? "your"
+            let whose = ownerName.map { $0.possessive } ?? "your"
             return PocketSyncNotice(
                 tone: .warn, emoji: "⏸️", title: "Sync paused: \(whose) iCloud is full",
                 detail: "Your changes are safe on this \(device)."
@@ -64,7 +83,7 @@ struct PocketSyncNotice: Equatable {
                 tone: .info, emoji: "📴", title: ["Offline", since].compactMap { $0 }.joined(separator: " "),
                 detail: "Everything you log saves here and sends later."
             )
-        case .waiting, .notChecked, .off, .upToDate, .syncing:
+        case .waiting, .notChecked, .off, .upToDate, .syncing, .account(.couldNotCheck):
             return nil
         }
     }

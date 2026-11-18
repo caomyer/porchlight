@@ -38,6 +38,10 @@ struct YouSheet: View {
                     if sync.decision != nil {
                         SyncDecisionCard()
                     }
+                    // Only a person's own phone belongs to several households (journey A5).
+                    if device.role == .personal && model.isInSeveralHouseholds {
+                        PocketHouseholds(onSwitch: { dismiss() }, onAnother: { path.append(.another) })
+                    }
                     PhoneList {
                         if let household = model.household {
                             Button { path.append(.household) } label: {
@@ -63,6 +67,10 @@ struct YouSheet: View {
                         } else {
                             InfoRow(emoji: "✉️", title: "Invite someone", detail: onlyOwnerLine)
                                 .accessibilityIdentifier("invite-someone")
+                        }
+                        if device.role == .personal && !model.isInSeveralHouseholds && model.household != nil {
+                            RowDivider()
+                            AnotherHouseholdRow { path.append(.another) }
                         }
                     }
                     PeopleCard(roster: roster)
@@ -169,6 +177,11 @@ struct YouSheet: View {
                         PocketNotifications()
                     case .household:
                         PocketHouseholdHub()
+                    case .another:
+                        AnotherHouseholdPage {
+                            model.isStartingAnotherHousehold = true
+                            dismiss()
+                        }
                     case let .person(id):
                         PocketPersonPage(personId: id)
                     case .companions:
@@ -297,6 +310,8 @@ enum YouPage: Hashable {
     /// Household setup (F1, F2) and storage (E4).
     case household, person(Person.ID), companions, companion(Companion.ID?), chores, chore(Chore.ID?)
     case rewards, reward(Reward.ID?), lists, storage
+    /// "Join or start another" household (journey A5).
+    case another
 }
 
 /// A list card in the You sheet.

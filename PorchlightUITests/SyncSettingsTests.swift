@@ -83,6 +83,27 @@ final class SyncSettingsTests: XCTestCase {
         snapshot("72-sync-gear-dot")
     }
 
+    /// Each way iCloud can be missing says which, in Settings, with the gear's dot.
+    func testEachMissingICloudSaysWhy() {
+        let states: [(String, String, String)] = [
+            ("noAccount", "iCloud is off for Porchlight: this iPad isn't signed in to iCloud, or iCloud is turned off for Porchlight. Turn it on in the Settings app to sync again; everything stays here meanwhile.", "74-sync-icloud-off"),
+            ("restricted", "iCloud isn't allowed on this iPad: Screen Time, or whoever manages it, has turned it off. Everything stays here.", "75-sync-icloud-restricted"),
+            ("needsSignIn", "iCloud needs you to sign in again. Sign in to your Apple Account in the Settings app to sync again; everything stays here meanwhile.", "76-sync-icloud-sign-in"),
+        ]
+        for (status, summary, shot) in states {
+            let app = launch(["-sampleHousehold", "-startScreen", "settings", "-debugSyncStatus", status])
+            // Too long to look up by its whole text, so by how it starts, then checked whole.
+            let line = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", String(summary.prefix(40)))).firstMatch
+            XCTAssertTrue(line.waitForExistence(timeout: 20), "\(status): Settings says why")
+            XCTAssertEqual(line.label, summary)
+            for _ in 0..<8 where !line.isHittable { app.swipeUp() }
+            XCTAssertTrue(line.isHittable, "\(status): the sync section scrolls into view")
+            XCTAssertEqual(app.buttons["Settings"].value as? String, "Sync needs a look", "\(status): the gear shows a dot")
+            snapshot(shot)
+            app.terminate()
+        }
+    }
+
     func testAFreshInstallLooksForItsHouseholdFirst() {
         let app = launch(["-resetData", "-debugSyncStatus", "lookingForHousehold"])
         XCTAssertTrue(app.staticTexts["Looking for your household in iCloud"].waitForExistence(timeout: 20))

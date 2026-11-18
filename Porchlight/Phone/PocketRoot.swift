@@ -14,6 +14,10 @@ struct PocketRoot: View {
                 JoinFlowView(invitation: invitation)
             } else if let removed = model.removedHousehold {
                 RemovedHouseholdView(removed: removed)
+            } else if model.isStartingAnotherHousehold, model.household?.setupCompleted == true {
+                // "Join or start another": setup over the household showing, until the new
+                // one exists and becomes the one showing (journey A5).
+                PocketSetupView(onCancel: { model.isStartingAnotherHousehold = false })
             } else if let household = model.household, household.setupCompleted {
                 let me = device.me(in: household.id).flatMap(model.people.person)
                 if device.role == .personal && me == nil {
@@ -28,6 +32,8 @@ struct PocketRoot: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .foregroundStyle(Theme.ink)
+        // A new household showing ends "start another"; setup carries on in it.
+        .onChange(of: model.household?.id) { model.isStartingAnotherHousehold = false }
     }
 }
 

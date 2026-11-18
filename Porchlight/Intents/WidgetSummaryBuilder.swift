@@ -7,12 +7,14 @@ enum WidgetSummaryBuilder {
     /// How many grocery items a widget lists by name.
     static let groceryNames = 3
 
-    static func make(companions: CompanionSnapshot, home: HomeSnapshot, me meId: Person.ID?, role: DeviceRole, now: Date) -> WidgetSummary {
+    /// - Parameter households: How many households this phone belongs to; widgets follow
+    ///   the one on screen and name it when there is more than one.
+    static func make(companions: CompanionSnapshot, home: HomeSnapshot, me meId: Person.ID?, role: DeviceRole, now: Date, households: Int = 1) -> WidgetSummary {
         guard role == .personal else { return WidgetSummary(writtenAt: now, isSharedScreen: true) }
         guard let household = companions.household else { return WidgetSummary(writtenAt: now) }
         var summary = WidgetSummary(
             writtenAt: now,
-            household: .init(name: household.name, timeZone: household.timeZoneIdentifier)
+            household: .init(name: household.name, timeZone: household.timeZoneIdentifier, isOneOfSeveral: households > 1 ? true : nil)
         )
         // "Me" must still live here: someone removed from the household is nobody's phone.
         guard let meId, let me = companions.people.first(where: { $0.id == meId }) else { return summary }

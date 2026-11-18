@@ -50,7 +50,10 @@ struct PocketTodayScreen: View {
             let cards = PocketToday.cards(reports, calendar: companions.snapshot.calendar)
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    PocketHeader(small: now.formatted(dateStyle), title: me.map { "Hi, \($0.name)" } ?? "Today")
+                    PocketHeader(
+                        small: now.formatted(dateStyle), title: me.map { "Hi, \($0.name)" } ?? "Today",
+                        household: model.isInSeveralHouseholds ? model.household?.name : nil
+                    )
                     // One banner at a time: sync's, when it is stuck, comes first.
                     PocketSyncBanner { catchUpBanner(reports) }
                     if !cards.isEmpty {
@@ -126,7 +129,7 @@ struct PocketTodayScreen: View {
             let when = missed.day == report.today ? "" : " " + PocketCareWords.dayWord(missed.day, today: report.today, calendar: calendar)
             StatusBanner(
                 tone: .warn, emoji: missed.routine.emoji,
-                title: "\(report.name)'s \(slot) wasn't logged\(when)",
+                title: "\(report.name.possessive) \(slot) wasn't logged\(when)",
                 detail: missed.slot.window.isAllDay ? nil : "Usually \(missed.slot.window.rangeText)",
                 action: ("Log it", { catchUp = PocketCatchUpSheet.Request(companionId: report.id, missed: missed) }),
                 onDismiss: { dismiss(missed) }

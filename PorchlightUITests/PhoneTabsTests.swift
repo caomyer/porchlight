@@ -187,6 +187,8 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         let calendars = app.buttons["calendars"]
         XCTAssertTrue(calendars.waitForExistence(timeout: 5))
         calendars.waitToSettle()
+        // Below the fold on a small phone: a tap there would land outside the sheet.
+        reveal(calendars, in: app)
         calendars.tap()
         XCTAssertTrue(app.buttons["sharing-Us"].waitForExistence(timeout: 5), "Calendars are in the You sheet")
     }

@@ -18,6 +18,8 @@ struct PlannedReminder: Equatable, Sendable {
     var body: String
     /// The log action's title on a care reminder: "I walked Yo-Yo".
     var logTitle: String?
+    /// The household's name, set when the phone is in more than one; the title starts with it.
+    var household: String?
 
     static let prefix = "porchlight.reminder."
 }
@@ -60,6 +62,15 @@ enum ReminderPlanner {
 
     /// Reminders that may already be showing (yesterday's and today's) for something that
     /// has since been done, so they can be taken off the Lock Screen too.
+    /// The same reminder, prefixed with its household's name: "Grandma Rosa's · Water the
+    /// tomatoes", for a phone in more than one household (journey A5's `a5notif`).
+    static func named(_ reminder: PlannedReminder, household: String) -> PlannedReminder {
+        var named = reminder
+        named.household = household
+        named.title = "\(household) · \(reminder.title)"
+        return named
+    }
+
     static func settledIDs(companions: CompanionSnapshot, now: Date) -> Set<String> {
         let calendar = companions.calendar
         let today = DayKey(now, calendar: calendar)
@@ -104,7 +115,7 @@ enum ReminderPlanner {
                         id: PlannedReminder.prefix + "care.\(dayKey)",
                         kind: .care(routine: routine.id, slot: index, day: day),
                         fireDate: fireDate,
-                        title: "\(companion.name)'s \(CareCatchUp.slotName(window, of: routine))",
+                        title: "\(companion.name.possessive) \(CareCatchUp.slotName(window, of: routine))",
                         body: careBody(window, timing: timing, snoozed: snooze != nil),
                         logTitle: routine.kind.buttonTitle(name: companion.name, title: routine.title)
                     )
@@ -142,7 +153,8 @@ enum ReminderPlanner {
             let weekday = day.formatted(.dateTime.weekday(.wide), calendar: calendar)
             let titles = due.map(\.title)
             return PlannedReminder(
-                id: PlannedReminder.prefix + "chores.\(day.rawValue)",
+                // Per household: two households' chores on the same day are two reminders.
+                id: PlannedReminder.prefix + "chores.\(due[0].householdId).\(day.rawValue)",
                 kind: .chores(day: day),
                 fireDate: fireDate,
                 title: due.count == 1 ? "Tomorrow: \(titles[0])" : "Tomorrow: \(due.count) chores",

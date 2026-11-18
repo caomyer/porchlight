@@ -123,7 +123,7 @@ final class WallArrivals: StoredFirstObservable {
             let kind = devices.first?.kindWord ?? "phone"
             return Toast(text: "\(first.sentence(who: firstPerson.name)) · from their \(kind)", person: firstPerson)
         }
-        let whose = ListFormatter.localizedString(byJoining: people.map { "\($0.name)'s" })
+        let whose = ListFormatter.localizedString(byJoining: people.map { $0.name.possessive })
         let kinds = Set(devices.map(\.kindWord))
         let word = kinds.count == 1 ? kinds.first! : "device"
         return Toast(

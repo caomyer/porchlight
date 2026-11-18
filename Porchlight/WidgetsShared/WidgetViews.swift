@@ -278,7 +278,9 @@ struct TodayMediumView: View {
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Today at home")
+                    Text(moment.isOneOfSeveral ? moment.householdName ?? "Today at home" : "Today at home")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .widgetFont(.display, 17, weight: 600)
                         .foregroundStyle(Theme.ink)
                     Spacer()
@@ -317,7 +319,7 @@ struct TodayMediumView: View {
         ForEach(care, id: \.routineId) { item in
             HStack(spacing: 8) {
                 Text(item.emoji).font(.system(size: 15))
-                Text("\(item.0.name)'s \(item.name)")
+                Text("\(item.0.name.possessive) \(item.name)")
                     .widgetFont(.body, 13.5, weight: 600)
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)

@@ -131,7 +131,14 @@ final class HomeStore: StoredFirstObservable {
         observation = Task { [weak self, database] in
             do {
                 for try await snapshot in database.homeUpdates(since: since) {
-                    self?.snapshot = snapshot
+                    guard let self else { return }
+                    // Another household may keep another time zone: today follows it at once.
+                    let switched = snapshot.household?.id != self.snapshot.household?.id
+                    self.snapshot = snapshot
+                    if switched {
+                        let today = DayKey(.now, calendar: self.calendar)
+                        if today != self.today { self.today = today }
+                    }
                 }
             } catch is CancellationError {
             } catch {
