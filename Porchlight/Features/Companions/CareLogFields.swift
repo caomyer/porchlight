@@ -14,6 +14,22 @@ struct CareLogFields: Equatable {
     /// The lengths offered for a walk.
     static let durations = [10, 20, 30, 45, 60]
 
+    /// "20 min", "1 hr+" for the hour choice; a saved length past it says its minutes.
+    static func durationTitle(_ minutes: Int) -> String {
+        minutes == 60 ? "1 hr+" : "\(minutes) min"
+    }
+
+    /// The length a log being fixed was saved with, when it isn't one of `durations`.
+    var savedDuration: Int?
+
+    /// The lengths to offer: the usual ones, plus the one a log being fixed was saved with
+    /// when it isn't among them ("12 min"), in order, so the form shows what is saved and
+    /// can go back to it.
+    var durationChoices: [Int] {
+        guard let savedDuration, !Self.durations.contains(savedDuration) else { return Self.durations }
+        return (Self.durations + [savedDuration]).sorted()
+    }
+
     /// A new log by `people`: at the slot's usual time when catching up, else just now,
     /// lasting about as long as the routine's recent logs.
     static func new(people: [Person.ID], for day: CareLogDay, catchUpSlot: Int?) -> CareLogFields {
@@ -35,6 +51,7 @@ struct CareLogFields: Equatable {
         people = draft.people
         when = .at(draft.occurredAt)
         duration = draft.durationMinutes ?? duration
+        savedDuration = draft.durationMinutes
         pee = draft.pee ?? false
         poo = draft.poo ?? false
         vibe = draft.vibe ?? vibe

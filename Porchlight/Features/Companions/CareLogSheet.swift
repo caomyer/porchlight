@@ -196,8 +196,8 @@ private struct CareLogForm: View {
             if routine.tracks(.duration) {
                 label("How long")
                 FlowLayout(spacing: 8) {
-                    ForEach(CareLogFields.durations, id: \.self) { minutes in
-                        ChoicePill(title: minutes >= 60 ? "1 hr+" : "\(minutes) min", isSelected: fields.duration == minutes) { fields.duration = minutes }
+                    ForEach(fields.durationChoices, id: \.self) { minutes in
+                        ChoicePill(title: CareLogFields.durationTitle(minutes), isSelected: fields.duration == minutes) { fields.duration = minutes }
                     }
                 }
             }

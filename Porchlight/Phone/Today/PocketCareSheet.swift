@@ -79,8 +79,8 @@ struct PocketCareSheet: View {
             }
             if routine.tracks(.duration) {
                 group("How long") {
-                    ForEach(CareLogFields.durations, id: \.self) { minutes in
-                        PhoneChoice(title: minutes >= 60 ? "1 hr+" : "\(minutes) min", isOn: fields.duration == minutes) { fields.duration = minutes }
+                    ForEach(fields.durationChoices, id: \.self) { minutes in
+                        PhoneChoice(title: CareLogFields.durationTitle(minutes), isOn: fields.duration == minutes) { fields.duration = minutes }
                     }
                 }
             }

@@ -40,6 +40,20 @@ struct CareLogFieldsTests {
         #expect(new.day == F.key(7))
     }
 
+    @Test("A saved length that isn't a choice still shows, picked, and stays to go back to")
+    func savedLength() {
+        var fields = CareLogFields(editing: F.entry(5, 7, 40, minutes: 12))
+        #expect(fields.durationChoices == [10, 12, 20, 30, 45, 60])
+        #expect(fields.duration == 12)
+        fields.duration = 20
+        #expect(fields.durationChoices.contains(12), "picking another length keeps the saved one on offer")
+        #expect(CareLogFields(editing: F.entry(6, 7, 40, minutes: 30)).durationChoices == CareLogFields.durations)
+        #expect(CareLogFields(people: [F.james]).durationChoices == CareLogFields.durations, "a new log offers the usual lengths")
+        #expect(CareLogFields.durationTitle(60) == "1 hr+")
+        #expect(CareLogFields.durationTitle(90) == "90 min", "a long saved walk says its length, not a second \"1 hr+\"")
+        #expect(CareLogFields.durationTitle(12) == "12 min")
+    }
+
     @Test("The wall and the phone say the same when fixing a log")
     func fixingWords() {
         #expect(CareLogWording.editTitle(F.walk) == "Edit walk")
