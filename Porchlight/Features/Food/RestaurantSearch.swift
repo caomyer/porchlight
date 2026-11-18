@@ -8,7 +8,7 @@ import Observation
 /// saved location when there is one.
 @MainActor
 @Observable
-final class RestaurantSearch {
+final class RestaurantSearch: StoredFirstObservable {
     struct Suggestion: Identifiable, Equatable {
         let id: Int
         let title: String
@@ -32,10 +32,10 @@ final class RestaurantSearch {
         }
     }
 
-    private(set) var suggestions: [Suggestion] = []
-    private(set) var isSearching = false
+    @ObservationIgnored @StoredFirst private(set) var suggestions: [Suggestion] = []
+    @ObservationIgnored @StoredFirst private(set) var isSearching = false
     /// The last lookup failed (offline, rate-limited); typed names still save.
-    private(set) var isOffline = false
+    @ObservationIgnored @StoredFirst private(set) var isOffline = false
 
     @ObservationIgnored private let completer = MKLocalSearchCompleter()
     @ObservationIgnored private let relay = CompleterRelay()

@@ -48,10 +48,10 @@ struct ReminderChoices: Codable, Equatable, Sendable {
 /// This phone's reminder choices, observed by the Notifications page and the scheduler.
 @MainActor
 @Observable
-final class ReminderSettings {
+final class ReminderSettings: StoredFirstObservable {
     static let key = "reminders.choices"
 
-    private(set) var choices: ReminderChoices
+    @ObservationIgnored @StoredFirst private(set) var choices: ReminderChoices
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {

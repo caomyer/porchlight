@@ -22,8 +22,10 @@ struct UndoToast: Identifiable {
 /// later when VoiceOver is reading them.
 @MainActor
 @Observable
-final class ToastCenter {
-    private(set) var current: UndoToast?
+final class ToastCenter: StoredFirstObservable {
+    /// The toast on screen. Its own timer takes it away, from outside any tap, so it is
+    /// stored before observers hear (`StoredFirst`).
+    @ObservationIgnored @StoredFirst private(set) var current: UndoToast? = nil
     /// A toast waiting for the sheet it came from to finish closing.
     @ObservationIgnored private var pending: UndoToast?
     @ObservationIgnored private var timer: Task<Void, Never>?

@@ -4,7 +4,7 @@ import Observation
 /// Live app state for the UI. Mirrors the database and forwards edits to it.
 @MainActor
 @Observable
-final class AppModel {
+final class AppModel: StoredFirstObservable {
     /// What the database says now. Stored before observers are told, unlike a plain
     /// `@Observable` property: SwiftUI hears of a change in `willSet` and may redraw right
     /// there, and a screen redrawn then would read the old value and never hear the change
@@ -22,7 +22,7 @@ final class AppModel {
     }
 
     @ObservationIgnored private var storedSnapshot: HouseholdSnapshot = .empty
-    var lastError: String?
+    @ObservationIgnored @StoredFirst var lastError: String? = nil
 
     let database: AppDatabase
     @ObservationIgnored private var observation: Task<Void, Never>?

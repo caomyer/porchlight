@@ -4,7 +4,7 @@ import Observation
 /// Live chores, lists, meals and ambient photos. Mirrors the database and forwards edits to it.
 @MainActor
 @Observable
-final class HomeStore {
+final class HomeStore: StoredFirstObservable {
     let database: AppDatabase
     let photoLibrary: AmbientPhotoLibrary
 
@@ -21,10 +21,11 @@ final class HomeStore {
     }
 
     @ObservationIgnored private var storedSnapshot: HomeSnapshot = .empty
-    /// Today in the household's time zone. Rolls over at midnight.
-    private(set) var today: DayKey
+    /// Today in the household's time zone. Rolls over at midnight, from a timer, so it is
+    /// stored before observers hear (`StoredFirst`).
+    @ObservationIgnored @StoredFirst private(set) var today: DayKey
     /// The last failed edit, shown near the control that caused it.
-    var lastError: String?
+    @ObservationIgnored @StoredFirst var lastError: String? = nil
 
     @ObservationIgnored private var observation: Task<Void, Never>?
     /// The earliest day a screen asked for (the calendar paging back), when before the usual window.

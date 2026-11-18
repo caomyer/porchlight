@@ -171,14 +171,14 @@ enum SchemaSeed {
 /// household shared, then the zone deleted from iCloud and the database from the device.
 @MainActor
 @Observable
-final class SchemaSeeder {
+final class SchemaSeeder: StoredFirstObservable {
     enum Phase: Equatable {
         case running(String)
         case done(SchemaSeed.Report, cleanedUp: String?)
         case failed(String)
     }
 
-    private(set) var phase: Phase = .running("Starting")
+    @ObservationIgnored @StoredFirst private(set) var phase: Phase = .running("Starting")
 
     @ObservationIgnored private let folder: URL
     @ObservationIgnored private let deleteZone: (CKRecordZone.ID) async throws -> Void

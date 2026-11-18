@@ -9,11 +9,11 @@ import UserNotifications
 /// shared place both can reach.
 @MainActor
 @Observable
-final class ShareInbox {
+final class ShareInbox: StoredFirstObservable {
     static let shared = ShareInbox()
 
     /// The invite on screen, if any. A newer one replaces it.
-    var invitation: HouseholdInvitation?
+    @ObservationIgnored @StoredFirst var invitation: HouseholdInvitation? = nil
 
     func receive(_ metadata: CKShare.Metadata) {
         invitation = HouseholdInvitation(metadata: metadata)

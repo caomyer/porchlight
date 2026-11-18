@@ -14,7 +14,7 @@ import UIKit
 /// account waits for the owner to choose (docs/design/sync-icloud.md, "Account changes").
 @MainActor
 @Observable
-final class SyncController {
+final class SyncController: StoredFirstObservable {
     nonisolated static let containerIdentifier = "iCloud.com.mingyucao.porchlight"
 
     enum Setup {
@@ -58,35 +58,35 @@ final class SyncController {
         var checkFreshness: TimeInterval? = 3 * 60
     }
 
-    private(set) var isEnabled: Bool
+    @ObservationIgnored @StoredFirst private(set) var isEnabled: Bool
     /// A different account signed in, until the owner chooses.
-    private var accountDecision: Bool
+    @ObservationIgnored @StoredFirst private var accountDecision: Bool
     /// A restored copy of the database, until the owner chooses (`DatabaseIdentity`).
-    private var restoredCopy: RestoredCopy?
-    private(set) var lastSynced: Date?
+    @ObservationIgnored @StoredFirst private var restoredCopy: RestoredCopy? = nil
+    @ObservationIgnored @StoredFirst private(set) var lastSynced: Date? = nil
     /// The iCloud user's record name, once read: this device's row carries it, so the
     /// household can match the device to a participant of its share.
-    private(set) var userName: String?
-    private var unavailable: SyncOffReason?
-    private var startFailure: String?
+    @ObservationIgnored @StoredFirst private(set) var userName: String? = nil
+    @ObservationIgnored @StoredFirst private var unavailable: SyncOffReason? = nil
+    @ObservationIgnored @StoredFirst private var startFailure: String? = nil
     /// Nil until the account has been checked.
-    private var hasAccount: Bool?
-    private var isOnline = true
-    private var isFull = false
-    private var isSynchronizing = false
+    @ObservationIgnored @StoredFirst private var hasAccount: Bool? = nil
+    @ObservationIgnored @StoredFirst private var isOnline = true
+    @ObservationIgnored @StoredFirst private var isFull = false
+    @ObservationIgnored @StoredFirst private var isSynchronizing = false
     /// True while a launch with no household looks for one in iCloud before onboarding
     /// (docs/design/sync-icloud.md, "A fresh install looks for a household first").
-    private(set) var isLookingForHousehold = false
+    @ObservationIgnored @StoredFirst private(set) var isLookingForHousehold = false
     /// Sync has been stuck (see `SyncStatus.isStuck`) for `Timing.attention`, so the gear on
     /// the wall's rail shows a dot (journey D3). Nothing about sync shows on Today itself.
-    private(set) var needsAttention = false
+    @ObservationIgnored @StoredFirst private(set) var needsAttention = false
 
     /// Nil when sync can't run in this launch or build.
     @ObservationIgnored let engine: SyncEngine?
     /// The database the engine syncs, to find rows iCloud never took.
     @ObservationIgnored private let writer: (any DatabaseWriter)?
     /// Rows iCloud turned down and that wait here to be sent again (`SyncUnsent`).
-    private(set) var unsentCount = 0
+    @ObservationIgnored @StoredFirst private(set) var unsentCount = 0
     @ObservationIgnored private var unsentTask: Task<Void, Never>?
     @ObservationIgnored private let device: (any SyncDevice)?
     @ObservationIgnored private let preferences: SyncPreferences
@@ -103,9 +103,9 @@ final class SyncController {
     /// Fetches the poller is running, which never show as syncing.
     @ObservationIgnored private var quietFetches = 0
     /// Checks keep failing (`Timing.failedChecks`), so sync says it is waiting.
-    private var checksFailing = false
+    @ObservationIgnored @StoredFirst private var checksFailing = false
     /// iCloud answered a check within `Timing.checkFreshness`.
-    private var checkedRecently = false
+    @ObservationIgnored @StoredFirst private var checkedRecently = false
     @ObservationIgnored private var freshnessTask: Task<Void, Never>?
     /// What sync is doing, for "Sync details" and the sync log.
     @ObservationIgnored let trace = SyncTrace()
