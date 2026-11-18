@@ -120,8 +120,7 @@ final class WallTourTests: XCTestCase {
         var app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
         let dish = app.textFields["What was it? e.g. Dan dan noodles"]
         XCTAssertTrue(dish.waitForExistence(timeout: 20))
-        dish.tap()
-        dish.typeText("Dan dan noodles")
+        type("Dan dan noodles", into: dish)
         assertOnScreen(dish, in: app, "The dish field should stay on screen")
         snapshot("25-capture-keyboard")
         app.terminate()
@@ -129,10 +128,22 @@ final class WallTourTests: XCTestCase {
         app = launch(["-startScreen", "today", "-debugCompanionSheet", "log"])
         let note = app.textFields.firstMatch
         XCTAssertTrue(note.waitForExistence(timeout: 20))
-        note.tap()
-        note.typeText("Met a corgi")
+        type("Met a corgi", into: note)
         assertOnScreen(note, in: app, "The walk note should stay above the keyboard")
         snapshot("26-walk-note-keyboard")
+    }
+
+    /// Taps a field and types once it holds the keyboard focus: a busy simulator reports
+    /// the focus a moment after the tap, and typing before then fails ("Neither element nor
+    /// any descendant has keyboard focus").
+    private func type(_ text: String, into field: XCUIElement) {
+        field.tap()
+        let deadline = Date.now.addingTimeInterval(10)
+        while (field.value(forKey: "hasKeyboardFocus") as? Bool) != true, Date.now < deadline {
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        XCTAssertEqual(field.value(forKey: "hasKeyboardFocus") as? Bool, true, "The field should take the keyboard focus")
+        field.typeText(text)
     }
 
     private func assertOnScreen(_ element: XCUIElement, in app: XCUIApplication, _ message: String) {
