@@ -299,6 +299,37 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         snapshot("edit-42-today-largest-dark")
     }
 
+    /// The time pill grows with the text beside it, and at the largest size goes under
+    /// "Started" instead of squeezing it, on the fix sheet and the new-log sheet alike.
+    func testTheTimePillGrowsWithText() {
+        for (look, appearance) in [("light", XCUIDevice.Appearance.light), ("dark", .dark)] {
+            XCUIDevice.shared.appearance = appearance
+            let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+            openMorningWalk(app)
+            checkTimePill(app)
+            snapshot("pill-1\(look == "light" ? 0 : 1)-edit-largest-\(look)")
+            app.terminate()
+        }
+        XCUIDevice.shared.appearance = .light
+        let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let more = app.buttons["more-Yo-Yo"]
+        reveal(more, in: app)
+        more.tap()
+        XCTAssertTrue(app.staticTexts["Log a walk"].waitForExistence(timeout: 5))
+        checkTimePill(app)
+        snapshot("pill-12-new-largest-light")
+    }
+
+    /// The pill's time is set large enough to read at this size, and it sits clear of its label.
+    private func checkTimePill(_ app: XCUIApplication) {
+        let pill = app.buttons["exact-time"]
+        let started = app.staticTexts["Started"]
+        XCTAssertTrue(pill.waitForExistence(timeout: 5) && started.exists)
+        XCTAssertGreaterThan(pill.frame.height, 60, "the pill grows with the text: \(pill.frame)")
+        XCTAssertFalse(pill.frame.intersects(started.frame), "and never overlaps \"Started\"")
+        XCTAssertLessThanOrEqual(pill.frame.maxX, app.windows.firstMatch.frame.maxX, "nor runs off the screen")
+    }
+
     // MARK: Looks
 
     func testNightLook() {

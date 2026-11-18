@@ -97,26 +97,36 @@ struct TimeFieldPill: View {
     let identifier: String
     let action: () -> Void
 
+    /// The phone's compact layout follows Dynamic Type; the wall's type is fixed, as
+    /// everywhere on the wall (`PhoneType.swift`).
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .title3) private var timeSize: CGFloat = 19
+    @ScaledMetric(relativeTo: .footnote) private var periodSize: CGFloat = 12
+    @ScaledMetric(relativeTo: .caption2) private var nextDaySize: CGFloat = 10
+    @ScaledMetric(relativeTo: .title3) private var inset: CGFloat = 14
+
+    private var scales: Bool { sizeClass == .compact }
+
     var body: some View {
         let parts = clock.parts(minute)
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(parts.time)
-                    .font(.display(19))
+                    .font(.display(scales ? timeSize : 19))
                     .monospacedDigit()
                     .foregroundStyle(Theme.ink)
                 if let period = parts.period {
                     Text(period)
-                        .font(.body(12, weight: 700))
+                        .font(.body(scales ? periodSize : 12, weight: 700))
                         .foregroundStyle(Theme.muted)
                 }
                 if nextDay {
                     Text("+1")
-                        .font(.body(10, weight: 800))
+                        .font(.body(scales ? nextDaySize : 10, weight: 800))
                         .foregroundStyle(Theme.accent)
                 }
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, scales ? inset : 14)
             .padding(.top, 6)
             .padding(.bottom, 7)
             .background(Theme.surface, in: Capsule())
@@ -424,16 +434,28 @@ struct LogTimeField<Leading: View>: View {
     private var day: LogTimeDay { LogTimeDay(range: range, calendar: calendar, clock: clock) }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            leading()
-            Spacer(minLength: 8)
-            TimeFieldControl(
-                minute: day.minute(day.resolved(time, now: now, lasting: lasting)), clock: clock,
-                suggestions: day.suggestions(suggestions, selected: time, now: now, lasting: lasting) { time = $0 },
-                accessibilityLabel: accessibilityLabel, identifier: identifier,
-                apply: apply
-            )
+        // Beside its label where both fit; at large text sizes, under it.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 8) {
+                leading()
+                    .fixedSize()
+                Spacer(minLength: 8)
+                control
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                leading()
+                control
+            }
         }
+    }
+
+    private var control: some View {
+        TimeFieldControl(
+            minute: day.minute(day.resolved(time, now: now, lasting: lasting)), clock: clock,
+            suggestions: day.suggestions(suggestions, selected: time, now: now, lasting: lasting) { time = $0 },
+            accessibilityLabel: accessibilityLabel, identifier: identifier,
+            apply: apply
+        )
     }
 
     private func apply(_ minute: Int) -> String? {
