@@ -167,9 +167,26 @@ actor FakeSyncDevice: SyncDevice {
         (stream, continuation) = AsyncStream.makeStream()
     }
 
-    func accountStatus() async -> CKAccountStatus {
+    /// True while checking the account fails outright, as offline.
+    private var checkFails = false
+
+    func accountStatus() async throws -> CKAccountStatus {
         if let delay { try? await Task.sleep(for: delay) }
+        if checkFails { throw URLError(.notConnectedToInternet) }
         return status
+    }
+
+    /// The account's next answer, as iCloud gives it, announced as an account change.
+    func answer(_ status: CKAccountStatus) {
+        self.status = status
+        checkFails = false
+        continuation.yield(.account)
+    }
+
+    /// Checking the account fails until the next answer.
+    func failChecks() {
+        checkFails = true
+        continuation.yield(.account)
     }
 
     func answer(after delay: Duration) {

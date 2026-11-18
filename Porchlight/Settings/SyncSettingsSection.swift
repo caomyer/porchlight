@@ -143,8 +143,14 @@ extension SyncStatus {
             #else
             if case .failed = reason { "Off: sync couldn't start. Everything stays on this iPad." } else { "Off. Everything stays on this iPad." }
             #endif
-        case .noAccount:
-            "This iPad isn't signed in to iCloud. Sign in in the Settings app to sync again; everything stays here meanwhile."
+        case .account(.signedOut):
+            "iCloud is off for Porchlight: this iPad isn't signed in to iCloud, or iCloud is turned off for Porchlight. Turn it on in the Settings app to sync again; everything stays here meanwhile."
+        case .account(.restricted):
+            "iCloud isn't allowed on this iPad: Screen Time, or whoever manages it, has turned it off. Everything stays here."
+        case .account(.needsSignIn):
+            "iCloud needs you to sign in again. Sign in to your Apple Account in the Settings app to sync again; everything stays here meanwhile."
+        case .account(.couldNotCheck):
+            "Can't check this iPad's iCloud account right now. Changes keep saving here and go up once iCloud answers."
         case let .upToDate(lastSynced):
             "Up to date\(Self.lastSyncedText(lastSynced, verb: "checked"))."
         case let .notChecked(lastSynced):

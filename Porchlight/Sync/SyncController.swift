@@ -69,8 +69,17 @@ final class SyncController {
     private(set) var userName: String?
     private var unavailable: SyncOffReason?
     private var startFailure: String?
-    /// Nil until the account has been checked.
-    private var hasAccount: Bool?
+    /// What the last check of the account said; nil until it has been checked.
+    private var account: AccountCheck?
+
+    private enum AccountCheck: Equatable {
+        case available
+        case problem(ICloudAccountProblem)
+
+        init(_ problem: ICloudAccountProblem?) {
+            self = problem.map(AccountCheck.problem) ?? .available
+        }
+    }
     private var isOnline = true
     private var isFull = false
     private var isSynchronizing = false
@@ -259,10 +268,10 @@ final class SyncController {
         if let decision { return .needsDecision(decision) }
         if !isEnabled { return .off(.switchedOff) }
         if let startFailure { return .off(.failed(startFailure)) }
-        switch hasAccount {
+        switch account {
         case nil: return .waiting(lastSynced: lastSynced)
-        case false?: return .noAccount
-        case true?: break
+        case let .problem(problem)?: return .account(problem)
+        case .available?: break
         }
         if isFull { return .iCloudFull }
         if isSynchronizing { return .syncing }
@@ -386,11 +395,11 @@ final class SyncController {
         }
         let status = try? await device.accountStatus()
         guard !Task.isCancelled else { return }
-        hasAccount = status == .available
-        let account = status.map { $0 == .available ? "available" : "not available (\($0.rawValue))" } ?? "couldn't check"
-        if trace.account != account {
-            trace.account = account
-            trace.note("iCloud account \(account)")
+        account = AccountCheck(ICloudAccountProblem(status))
+        let answer = status.map { $0 == .available ? "available" : "not available (\($0.rawValue))" } ?? "couldn't check"
+        if trace.account != answer {
+            trace.account = answer
+            trace.note("iCloud account \(answer)")
         }
         guard status == .available else {
             engine.stop()
@@ -432,7 +441,7 @@ final class SyncController {
             // The data stays and the wall keeps working; signing back in resumes.
             refreshTask?.cancel()
             engine?.stop()
-            hasAccount = false
+            account = .problem(.signedOut)
         case .switchAccounts:
             accountSwitched()
         @unknown default:
@@ -561,9 +570,9 @@ final class SyncController {
     /// Sets the state behind a `-debugSyncStatus` status. A stuck one shows the dot at once.
     private func show(_ debug: SyncDebugStatus) {
         isEnabled = debug != .off
-        hasAccount = debug != .noAccount
+        account = AccountCheck(debug.accountProblem)
         switch debug {
-        case .off, .upToDate, .noAccount: break
+        case .off, .upToDate, .noAccount, .restricted, .needsSignIn, .couldNotCheck: break
         case .syncing: isSynchronizing = true
         case .waiting: isOnline = false
         case .iCloudFull: isFull = true

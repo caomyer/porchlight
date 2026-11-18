@@ -172,11 +172,8 @@ struct OnboardingView: View {
     @ViewBuilder
     private var iCloudStep: some View {
         let name = model.household?.name ?? "Your household"
-        if sync.status == .noAccount {
-            heading(
-                "Keep it on this \(device.model) for now?",
-                "This \(device.model) isn't signed in to iCloud, so phones can't join yet and nothing is backed up. Everything works here. Sign in later and Porchlight moves the household into iCloud."
-            )
+        if let problem = sync.status.accountBlocker {
+            heading("Keep it on this \(device.model) for now?", Self.noICloudText(problem, device: device.model))
         } else {
             VStack(alignment: .leading, spacing: 22) {
                 heading(
@@ -197,6 +194,18 @@ struct OnboardingView: View {
                 .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.line, lineWidth: 2))
                 .accessibilityElement(children: .combine)
             }
+        }
+    }
+
+    /// Why the household stays on this device for now, by what keeps iCloud away.
+    static func noICloudText(_ problem: ICloudAccountProblem, device: String) -> String {
+        switch problem {
+        case .signedOut, .couldNotCheck:
+            "This \(device) isn't signed in to iCloud, or iCloud is off for Porchlight, so phones can't join yet and nothing is backed up. Everything works here. Turn it on later and Porchlight moves the household into iCloud."
+        case .restricted:
+            "iCloud isn't allowed on this \(device), so phones can't join from it and nothing is backed up. Everything works here."
+        case .needsSignIn:
+            "iCloud needs you to sign in again on this \(device), so phones can't join yet and nothing is backed up. Everything works here. Sign in later and Porchlight moves the household into iCloud."
         }
     }
 
@@ -241,7 +250,7 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private var lastButtons: some View {
-        if sync.status == .noAccount {
+        if sync.status.accountBlocker != nil {
             Button("Open \(device.model) Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
             }

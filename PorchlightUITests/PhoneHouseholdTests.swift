@@ -89,8 +89,10 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         snapshot("a5-22-today-header-largest")
         // Too narrow for "5-8pm · open now": the status sits under the time, dot and all gone.
         // The tile reads as one element: its title, time and status.
-        let evening = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "open now")).firstMatch
-        XCTAssertTrue(evening.waitForExistence(timeout: 5), "The evening slot says it is open now")
+        let evening = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Evening, 5-8pm, open now")).firstMatch
+        // Today builds its cards as they come near the screen, so scroll down to it first.
+        for _ in 0..<8 where !evening.exists { app.swipeUp() }
+        XCTAssertTrue(evening.waitForExistence(timeout: 5), "The evening slot's time and status read without a separator dot")
         reveal(evening, in: app)
         snapshot("a5-23-today-slots-largest")
     }
@@ -207,7 +209,9 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
     func testSyncBannersOnToday() {
         let states: [(String, String)] = [
             ("iCloudFull", "Sync paused: James's iCloud is full"),
-            ("noAccount", "You're signed out of iCloud"),
+            ("noAccount", "iCloud is off for Porchlight"),
+            ("restricted", "iCloud isn't allowed on this iPhone"),
+            ("needsSignIn", "iCloud needs you to sign in again"),
             ("waiting", "Offline since"),
             ("restoredCopy", "Sync is waiting for you"),
         ]
@@ -220,7 +224,7 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
             if status == "restoredCopy" {
                 banner.tap()
                 XCTAssertTrue(app.buttons["Use what is in iCloud"].waitForExistence(timeout: 5), "Choose opens the choice")
-                snapshot("phone-115-restored-choice")
+                snapshot("phone-119-restored-choice")
             }
             app.terminate()
         }

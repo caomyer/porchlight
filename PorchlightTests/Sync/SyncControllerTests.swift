@@ -170,7 +170,7 @@ struct SyncAccountTests {
         await harness.device.signOut()
         controller.accountChanged(.ownerSignedOut)
         await controller.settle()
-        #expect(controller.status == .noAccount)
+        #expect(controller.status == .account(.signedOut))
         #expect(!engine.isRunning)
         #expect(try harness.counts() == counts)
 
@@ -263,8 +263,57 @@ struct SyncAccountTests {
         harness.preferences.isEnabled = true
         await harness.device.signOut()
         let controller = await harness.controller()
-        #expect(controller.status == .noAccount)
+        #expect(controller.status == .account(.signedOut))
         #expect(controller.engine?.isRunning == false)
+    }
+
+    @Test("Each answer about the account has its own state, and none starts the engine", arguments: [
+        (CKAccountStatus.noAccount, ICloudAccountProblem.signedOut),
+        (.restricted, .restricted),
+        (.temporarilyUnavailable, .needsSignIn),
+        (.couldNotDetermine, .couldNotCheck),
+    ])
+    func accountProblems(_ answer: CKAccountStatus, _ problem: ICloudAccountProblem) async throws {
+        let harness = try SyncHarness()
+        try harness.fill()
+        harness.preferences.isEnabled = true
+        await harness.device.answer(answer)
+        let controller = await harness.controller()
+        try await eventually { controller.status == .account(problem) }
+        #expect(controller.engine?.isRunning == false)
+        #expect(controller.status.isStuck)
+
+        // Once iCloud is there again, sync starts by itself and sends what waited.
+        await harness.device.answer(.available)
+        let engine = try #require(controller.engine)
+        try await eventually { engine.isRunning }
+        await controller.settle()
+        #expect(controller.status == .upToDate(lastSynced: nil))
+        try await engine.syncChanges()
+        #expect(try harness.unsynced() == [])
+    }
+
+    @Test("A check that fails outright is \"couldn't check\", never \"signed out\"")
+    func checkFails() async throws {
+        let harness = try SyncHarness()
+        try harness.fill()
+        harness.preferences.isEnabled = true
+        await harness.device.failChecks()
+        let controller = await harness.controller()
+        try await eventually { controller.status == .account(.couldNotCheck) }
+        #expect(controller.status.accountBlocker == nil, "it may pass on its own, so nothing is blocked for sure")
+    }
+
+    @Test("CloudKit's account answers, in the person's terms")
+    func accountProblemFromStatus() {
+        #expect(ICloudAccountProblem(.available) == nil)
+        #expect(ICloudAccountProblem(.noAccount) == .signedOut)
+        #expect(ICloudAccountProblem(.restricted) == .restricted)
+        #expect(ICloudAccountProblem(.temporarilyUnavailable) == .needsSignIn)
+        #expect(ICloudAccountProblem(.couldNotDetermine) == .couldNotCheck)
+        #expect(ICloudAccountProblem(nil) == .couldNotCheck, "no answer at all")
+        #expect(SyncStatus.account(.restricted).accountBlocker == .restricted)
+        #expect(SyncStatus.account(.couldNotCheck).accountBlocker == nil)
     }
 
     @Test("A full iCloud pauses sync until there is room; changes keep saving")
@@ -381,7 +430,7 @@ struct HouseholdSearchTests {
         await harness.device.signOut()
         let signedOut = await harness.controller()
         try await eventually { !signedOut.isLookingForHousehold }
-        #expect(signedOut.status == .noAccount)
+        #expect(signedOut.status == .account(.signedOut))
     }
 
     @Test("A device that has a household, or has sync switched off, never looks")
@@ -450,7 +499,7 @@ struct SyncAttentionTests {
         controller.statusChanged(to: .waiting(lastSynced: nil), at: start)
         controller.statusChanged(to: .iCloudFull, at: start.addingTimeInterval(1))
         try await eventually { controller.needsAttention }
-        #expect(SyncStatus.needsDecision(.accountChanged).isStuck && SyncStatus.noAccount.isStuck)
+        #expect(SyncStatus.needsDecision(.accountChanged).isStuck && SyncStatus.account(.signedOut).isStuck)
         #expect(!SyncStatus.off(.switchedOff).isStuck && !SyncStatus.syncing.isStuck)
     }
 }

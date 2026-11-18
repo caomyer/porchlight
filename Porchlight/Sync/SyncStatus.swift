@@ -1,9 +1,11 @@
+import CloudKit
 import Foundation
 
 /// What the UI can say about sync (docs/design/sync-icloud.md, "Status the UI can show").
 enum SyncStatus: Equatable, Sendable {
     case off(SyncOffReason)
-    case noAccount
+    /// iCloud can't be used with this device's account, and why.
+    case account(ICloudAccountProblem)
     /// iCloud answered a check in the last few minutes.
     case upToDate(lastSynced: Date?)
     /// Sync is on and online, but no check has been answered lately: just opened, or the
@@ -18,6 +20,43 @@ enum SyncStatus: Equatable, Sendable {
     case notAccepted(count: Int)
     /// Nothing syncs until the owner chooses what to do.
     case needsDecision(SyncDecision)
+}
+
+/// Why iCloud can't be used with this device's account: CloudKit's account status, in the
+/// person's terms (docs/design/sync-icloud.md, "When iCloud isn't there").
+enum ICloudAccountProblem: Equatable, Sendable {
+    /// No iCloud account for Porchlight. CloudKit answers alike for a device signed out of
+    /// iCloud and for iCloud turned off for Porchlight in Settings, so the words cover both.
+    case signedOut
+    /// Screen Time, or whoever manages the device, doesn't allow iCloud.
+    case restricted
+    /// The account is there but needs signing in again: a new password, or new terms.
+    case needsSignIn
+    /// iCloud couldn't say: offline, or a passing error. Checked again on the next change of
+    /// network or account; nothing about the account is assumed meanwhile.
+    case couldNotCheck
+
+    /// The problem in CloudKit's answer, nil when the account is available. No answer at
+    /// all (the check threw) is `couldNotCheck`.
+    init?(_ status: CKAccountStatus?) {
+        switch status {
+        case .available?: return nil
+        case .noAccount?: self = .signedOut
+        case .restricted?: self = .restricted
+        case .temporarilyUnavailable?: self = .needsSignIn
+        case .couldNotDetermine?, nil: self = .couldNotCheck
+        @unknown default: self = .couldNotCheck
+        }
+    }
+}
+
+extension SyncStatus {
+    /// What keeps this device's account from iCloud for sure: everything but "couldn't
+    /// check", which may well pass on its own.
+    var accountBlocker: ICloudAccountProblem? {
+        if case let .account(problem) = self, problem != .couldNotCheck { return problem }
+        return nil
+    }
 }
 
 /// Why sync waits for the owner.
@@ -42,7 +81,7 @@ extension SyncStatus {
     /// an account, room in iCloud or a decision. Off is a choice, and syncing is progress.
     var isStuck: Bool {
         switch self {
-        case .waiting, .notChecked, .noAccount, .iCloudFull, .notAccepted, .needsDecision: true
+        case .waiting, .notChecked, .account, .iCloudFull, .notAccepted, .needsDecision: true
         case .off, .upToDate, .syncing: false
         }
     }
@@ -114,9 +153,21 @@ struct SyncPreferences {
 /// `-debugSyncStatus <name>` shows the sync section in one state, with no engine, for
 /// screenshots and UI tests. `needsDecision` is a different account, `restoredCopy` a
 /// restored backup. `lookingForHousehold` (with `-resetData`) holds the first-launch search
-/// screen until "Start fresh instead".
+/// screen until "Start fresh instead". `noAccount`, `restricted`, `needsSignIn` and
+/// `couldNotCheck` are the account's answers (`ICloudAccountProblem`).
 enum SyncDebugStatus: String, CaseIterable, Sendable {
-    case off, upToDate, syncing, waiting, noAccount, iCloudFull, needsDecision, restoredCopy, lookingForHousehold
+    case off, upToDate, syncing, waiting, noAccount, restricted, needsSignIn, couldNotCheck, iCloudFull, needsDecision, restoredCopy, lookingForHousehold
+
+    /// The account problem this status shows, if it is one.
+    var accountProblem: ICloudAccountProblem? {
+        switch self {
+        case .noAccount: .signedOut
+        case .restricted: .restricted
+        case .needsSignIn: .needsSignIn
+        case .couldNotCheck: .couldNotCheck
+        default: nil
+        }
+    }
 }
 #endif
 
@@ -126,7 +177,10 @@ extension SyncStatus {
         switch self {
         case .off(.switchedOff): "Off. Everything stays on this \(device)."
         case .off: "Can't sync on this \(device) now."
-        case .noAccount: "Signed out of iCloud."
+        case .account(.signedOut): "iCloud is off for Porchlight."
+        case .account(.restricted): "iCloud isn't allowed on this \(device)."
+        case .account(.needsSignIn): "iCloud needs you to sign in again."
+        case .account(.couldNotCheck): "On, checking with iCloud."
         case .upToDate, .syncing: "On."
         case .notChecked: "On, checking with iCloud."
         case .waiting: "On, waiting for iCloud."

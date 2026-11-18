@@ -45,9 +45,16 @@ struct HouseholdHomeTests {
 
     @Test("Signed out, or waiting for a choice: here until that is sorted, and inviting says how")
     func stuck() {
-        let signedOut = home(.noAccount)
-        #expect(signedOut.whereText(device: "iPad") == "on this iPad until you sign in to iCloud")
-        #expect(signedOut.inviteBlocker(device: "iPad") == "Sign in to iCloud in the Settings app to invite phones.")
+        let signedOut = home(.account(.signedOut))
+        #expect(signedOut.whereText(device: "iPad") == "on this iPad until iCloud is on for Porchlight")
+        #expect(signedOut.inviteBlocker(device: "iPad") == "Sign in to iCloud, or turn it on for Porchlight, in the Settings app to invite phones.")
+        let restricted = home(.account(.restricted))
+        #expect(restricted.whereText(device: "iPad") == "on this iPad only, since iCloud isn't allowed here")
+        #expect(restricted.inviteBlocker(device: "iPad") == "iCloud isn't allowed on this iPad, so phones can't be invited from it.")
+        let signIn = home(.account(.needsSignIn))
+        #expect(signIn.whereText(device: "iPad") == "on this iPad until you sign in to iCloud again")
+        #expect(signIn.inviteBlocker(device: "iPad") == "Sign in to iCloud again in the Settings app to invite phones.")
+        #expect(home(.account(.couldNotCheck)) == .yourICloud, "not knowing the account says nothing about where the household is")
         for decision in [SyncDecision.accountChanged, .restoredCopy] {
             let waiting = home(.needsDecision(decision))
             #expect(waiting.whereText(device: "iPad") == "on this iPad until you choose what to do about iCloud sync")

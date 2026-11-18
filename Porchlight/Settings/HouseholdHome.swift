@@ -13,8 +13,8 @@ enum HouseholdHome: Equatable {
     /// Syncing, in its owner's iCloud, named: someone else's, or the owner's own as a
     /// shared screen says it ("James's iCloud" on the hallway wall). Nil when unknown.
     case ownersICloud(String?)
-    /// Signed out of iCloud: here only until someone signs in.
-    case signedOut
+    /// iCloud can't be used with this device's account: here only until that changes.
+    case noICloud(ICloudAccountProblem)
     /// Sync waits for a choice (a different account, a restored copy).
     case waitingForChoice
 
@@ -28,9 +28,10 @@ enum HouseholdHome: Equatable {
         switch status {
         case .off(.switchedOff): .thisDeviceOnly
         case .off: .syncUnavailable
-        case .noAccount: .signedOut
+        case let .account(problem) where problem != .couldNotCheck: .noICloud(problem)
         case .needsDecision: .waitingForChoice
-        case .upToDate, .notChecked, .syncing, .waiting, .iCloudFull, .notAccepted:
+        // Not knowing the account says nothing about where the household is.
+        case .upToDate, .notChecked, .syncing, .waiting, .iCloudFull, .notAccepted, .account:
             isOwner && (!onSharedScreen || ownerName == nil) ? .yourICloud : .ownersICloud(ownerName)
         }
     }
@@ -41,7 +42,9 @@ enum HouseholdHome: Equatable {
         case .thisDeviceOnly, .syncUnavailable: "on this \(device) only"
         case .yourICloud: "stored in your iCloud"
         case let .ownersICloud(name): "stored in \(name.map { $0.possessive } ?? "its owner's") iCloud"
-        case .signedOut: "on this \(device) until you sign in to iCloud"
+        case .noICloud(.signedOut), .noICloud(.couldNotCheck): "on this \(device) until iCloud is on for Porchlight"
+        case .noICloud(.restricted): "on this \(device) only, since iCloud isn't allowed here"
+        case .noICloud(.needsSignIn): "on this \(device) until you sign in to iCloud again"
         case .waitingForChoice: "on this \(device) until you choose what to do about iCloud sync"
         }
     }
@@ -52,7 +55,9 @@ enum HouseholdHome: Equatable {
         case .yourICloud, .ownersICloud: nil
         case .thisDeviceOnly: "Turn on iCloud sync to invite phones."
         case .syncUnavailable: "Inviting needs iCloud sync, which can't run on this \(device) now."
-        case .signedOut: "Sign in to iCloud in the Settings app to invite phones."
+        case .noICloud(.signedOut), .noICloud(.couldNotCheck): "Sign in to iCloud, or turn it on for Porchlight, in the Settings app to invite phones."
+        case .noICloud(.restricted): "iCloud isn't allowed on this \(device), so phones can't be invited from it."
+        case .noICloud(.needsSignIn): "Sign in to iCloud again in the Settings app to invite phones."
         case .waitingForChoice: "Choose what to do about iCloud sync to invite phones."
         }
     }

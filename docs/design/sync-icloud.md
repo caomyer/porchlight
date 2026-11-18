@@ -178,9 +178,26 @@ That is wrong for a wall that must keep working, so `SyncController` is the engi
 | A different account signs in | The data on the device belongs to the earlier account's household. Sync stays off and Settings asks what to do: keep using it here without sync, or remove it from this device. Nothing is uploaded to the new account without that choice. |
 | The owner's iCloud is full | Changes keep saving locally. Status becomes "paused: iCloud is full" until the engine reports room again. |
 
+### When iCloud isn't there
+
+CloudKit's account status has five answers, and only "available" lets sync run.
+Each of the other four has its own state (`ICloudAccountProblem`) and its own words, because each asks something different of the person:
+
+| CloudKit says | State | What the phone's banner and the wall's Settings say |
+|---|---|---|
+| `noAccount` | signed out | "iCloud is off for Porchlight": sign in to iCloud, or turn it on for Porchlight, in Settings. |
+| `restricted` | restricted | "iCloud isn't allowed on this iPhone": Screen Time, or whoever manages the device, has turned it off. |
+| `temporarilyUnavailable` | needs sign-in | "iCloud needs you to sign in again": sign in to your Apple Account in Settings. |
+| `couldNotDetermine`, or the check fails | couldn't check | Nothing at first, as for being offline; after an hour, "Can't check iCloud". |
+
+CloudKit gives the same `noAccount` for a device signed out of iCloud and for iCloud switched off for Porchlight in Settings, so the words name both rather than guess which; that the per-app switch really answers `noAccount` is still to be checked on a device (docs/design/release-checklist.md).
+CloudKit doesn't use iCloud Drive, so iCloud Drive off changes nothing.
+"Couldn't check" assumes nothing about the account: the household isn't said to be on this device only, and inviting isn't blocked, since the next check may well pass.
+Every one of them keeps the data and the app working on the device, and sync starts by itself once the account answers "available".
+
 ## Status the UI can show
 
-`SyncStatus` is one of: off, no iCloud account, up to date (with the last time iCloud answered), syncing, waiting (offline, or checks keep failing, with the last time iCloud answered), paused because iCloud is full, not accepted (changes iCloud turned down), or needs a decision (account changed).
+`SyncStatus` is one of: off, iCloud not there (with why, above), up to date (with the last time iCloud answered), syncing, waiting (offline, or checks keep failing, with the last time iCloud answered), paused because iCloud is full, not accepted (changes iCloud turned down), or needs a decision (account changed).
 The wall shows it only in Settings, plus a dot on the gear when it has been stuck for an hour (journey D3).
 "Up to date" means iCloud answered recently: Settings says "Up to date, checked at 10:41 PM", and three failed checks in a row turn it into "Can't reach iCloud right now, last reached at 10:41 PM".
 
@@ -426,12 +443,12 @@ Choices made while building M1, where the design above left room or did not fit 
 - "Syncing" follows the engine's `isSynchronizing`.
   The end of a round of syncing while online is the last-synced time, kept in UserDefaults.
 - "Waiting" covers both being offline (from `NWPathMonitor`) and the moment at launch before the account has been checked.
-- Stuck means waiting, no account, iCloud full or needs a decision (`SyncStatus.isStuck`).
+- Stuck means waiting, iCloud not there, iCloud full or needs a decision (`SyncStatus.isStuck`).
   The controller starts a clock when the status becomes stuck and stops it when it no longer is; going from one stuck state to another keeps the clock.
   After an hour the gear on the rail shows a small ochre dot (`Theme.warn`), which VoiceOver reads as "Sync needs a look".
   The clock is kept in memory, so a relaunch starts it again.
 - A full iCloud also shows a paused banner in Settings, like the `d3pause` frame, without the owner's name, which M1 doesn't know.
-- `-debugSyncStatus off|upToDate|syncing|waiting|noAccount|iCloudFull|needsDecision|lookingForHousehold` runs a controller with no engine in that state, with its own throwaway preferences, for screenshots and UI tests.
+- `-debugSyncStatus off|upToDate|syncing|waiting|noAccount|restricted|needsSignIn|couldNotCheck|iCloudFull|needsDecision|lookingForHousehold` runs a controller with no engine in that state, with its own throwaway preferences, for screenshots and UI tests.
   It works only on sample data: on real data a launch without the engine would leave its writes unrecorded.
   A stuck one shows the gear's dot at once.
 
