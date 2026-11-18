@@ -93,19 +93,39 @@ extension PhoneTestHelpers {
     /// Types into a field a key at a time and checks it all arrived, trying again from a
     /// cleared field if not: on a busy simulator a fast `typeText` can drop keys, and so
     /// can typing while a field that focuses itself is still taking focus.
+    ///
+    /// Each key waits for the field to hold the keyboard focus, which on a slow simulator
+    /// (iOS 26 especially) it reports a moment after each key, and a field the app focused
+    /// itself is not tapped again: a tap computed from the new layout can land on what the
+    /// screen still shows there, like the "Add someone" a new row is replacing.
     func type(_ text: String, into field: XCUIElement, in app: XCUIApplication) {
+        XCTAssertTrue(field.waitForExistence(timeout: 10), "The field should be there to type into")
         for _ in 0..<3 {
-            field.tap()
-            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+            if !hasFocus(field, within: 1) {
+                field.tap()
+                XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+                guard hasFocus(field, within: 10) else { continue }
+            }
             let current = field.value as? String ?? ""
             if !current.isEmpty, current != field.placeholderValue {
-                field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+                app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
             }
             for character in text {
-                field.typeText(String(character))
+                guard hasFocus(field, within: 10) else { break }
+                app.typeText(String(character))
             }
             if field.value as? String == text { return }
         }
         XCTFail("Every key of \"\(text)\" should arrive in the field")
+    }
+
+    /// Whether `field` holds the keyboard focus, or comes to within `seconds`.
+    private func hasFocus(_ field: XCUIElement, within seconds: TimeInterval) -> Bool {
+        let deadline = Date.now.addingTimeInterval(seconds)
+        repeat {
+            if field.exists, (field.value(forKey: "hasKeyboardFocus") as? Bool) == true { return true }
+            Thread.sleep(forTimeInterval: 0.2)
+        } while Date.now < deadline
+        return false
     }
 }

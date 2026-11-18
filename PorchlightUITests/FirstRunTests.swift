@@ -36,7 +36,7 @@ final class FirstRunTests: XCTestCase {
         app.launchArguments = ["-resetData"]
         app.launch()
 
-        let household = app.textFields["e.g. The Lake House"]
+        let household = app.textFields["household-name"]
         XCTAssertTrue(household.waitForExistence(timeout: 30))
         type("Test House", into: household)
         household.typeText("\n")

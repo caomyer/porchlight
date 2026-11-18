@@ -5,12 +5,12 @@ import SwiftUI
 /// always kept in page coordinates; canvases convert at their own zoom.
 @MainActor
 @Observable
-final class PageEditor {
+final class PageEditor: StoredFirstObservable {
     let day: DayKey
-    private(set) var drawing: PKDrawing
+    @ObservationIgnored @StoredFirst private(set) var drawing: PKDrawing
     /// Bumped when the drawing changes from outside a canvas (undo), so canvases reload.
     private(set) var revision = 0
-    private(set) var hasChanges = false
+    @ObservationIgnored @StoredFirst private(set) var hasChanges = false
     private var history: [PKDrawing] = []
 
     init(day: DayKey, drawing: PKDrawing) {

@@ -14,7 +14,6 @@
 #   scripts/test.sh --runtime <id>  another iOS, e.g. com.apple.CoreSimulator.SimRuntime.iOS-26-5
 #   scripts/test.sh --workers N     each UI suite on N clones of its simulator
 #   scripts/test.sh --no-build      reuse the last build
-#   scripts/test.sh --keep-booted   leave the simulators running afterwards
 #   scripts/test.sh <udid>          the given simulator instead of this checkout's own (one suite)
 #
 # Each checkout makes its own simulators ("Porchlight <checkout> ipad" and "... iphone"), so
@@ -27,6 +26,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+# When tests fail, xcodebuild collects diagnostics with `xcrun simctl` in an environment
+# without DEVELOPER_DIR; on a Mac whose xcode-select points at the Command Line Tools, xcrun
+# then finds simctl only on the PATH.
+export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 source scripts/lib/simulators.sh
 
 unit=1
@@ -37,7 +40,6 @@ serial=0
 smoke=0
 tour=0
 build=1
-keep=0
 workers=1
 udid=""
 only=()
@@ -52,11 +54,10 @@ while (( $# )); do
     --smoke) smoke=1 ;;
     --tour) tour=1 ;;
     --no-build) build=0 ;;
-    --keep-booted) keep=1 ;;
     --workers) shift; workers="$1" ;;
     --runtime) shift; porchlight_sim_runtime="$1" ;;
     --only) shift; while (( $# )) && [[ "$1" != -* ]]; do only+=("$1"); shift; done; continue ;;
-    -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) udid="$1" ;;
   esac
   shift
@@ -109,10 +110,9 @@ mkdir -p "$results"
 # Simulators on this Mac are arm64; a generic destination would build Intel too.
 flags=(-derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO -skipMacroValidation ARCHS=arm64)
 
-# Keep only results, failures and the summary from xcodebuild's output. xcodebuild ends each
-# test run by asking xcrun for simctl without our developer folder, which fails harmlessly.
+# Keep only results, failures and the summary from xcodebuild's output.
 summarize() {
-  grep -E "error:|passed \(|failed \(|\*\* (TEST|BUILD)|✘" | grep -v "Run script\|appintents\|strip-bitcode\|unable to find utility \"simctl\"" || true
+  grep -E "error:|passed \(|failed \(|\*\* (TEST|BUILD)|✘" | grep -v "Run script\|appintents\|strip-bitcode" || true
 }
 
 started=$SECONDS
@@ -136,20 +136,15 @@ fi
 for sim in $ipad $iphone; do porchlight_hold_simulator "$sim"; done
 both=$(( ${#ipad} && ${#iphone} ))
 
-# Shut down what this run boots, to give the memory back, unless asked to keep it.
-already=$(xcrun simctl list devices booted)
-booted_here=()
-for sim in $ipad $iphone; do [[ "$already" == *"$sim"* ]] || booted_here+=("$sim"); done
+# Shut the simulators down on every way out this shell sees, to give the memory back. A run
+# killed outright leaves its simulators booted but no longer held, and the next run's
+# `porchlight_take_slots` shuts them down.
 cleanup() {
-  (( keep )) && return
-  for sim in $booted_here; do xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true; done
+  for sim in $ipad $iphone; do xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true; done
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT INT TERM HUP
 boot() { porchlight_boot_simulator "$1"; }
-shut() {
-  (( keep )) && return
-  if (( ${booted_here[(Ie)$1]} )); then xcrun simctl shutdown "$1" >/dev/null 2>&1 || true; fi
-}
+shut() { xcrun simctl shutdown "$1" >/dev/null 2>&1 || true; }
 
 if (( build )); then
   step=$SECONDS
@@ -177,7 +172,8 @@ xctestrun() {
   print -r -- "${found[1]}"
 }
 
-# Prints "<name>: passed/total" from a result bundle, and fails unless it passed.
+# Prints "<name>: passed/total", and how many failed, from a result bundle, and fails unless
+# it passed; "did not finish" only when the run left no results.
 report() {
   local summary
   summary=$(xcrun xcresulttool get test-results summary --path "$2" 2>/dev/null) || true
@@ -189,7 +185,8 @@ report() {
 import json, sys
 d = json.load(sys.stdin)
 skipped = " (%d skipped)" % d["skippedTests"] if d["skippedTests"] else ""
-print("%s: %d/%d passed%s" % (sys.argv[1], d["passedTests"], d["totalTestCount"], skipped))
+failed = ", %d failed" % d["failedTests"] if d["failedTests"] else ""
+print("%s: %d/%d passed%s%s" % (sys.argv[1], d["passedTests"], d["totalTestCount"], failed, skipped))
 sys.exit(0 if d["result"] == "Passed" else 1)
 ' "$1"
 }

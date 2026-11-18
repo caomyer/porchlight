@@ -7,7 +7,7 @@ import SwiftUI
 /// whatever range the Calendar screen is looking at).
 @MainActor
 @Observable
-final class CalendarStore {
+final class CalendarStore: StoredFirstObservable {
     let database: AppDatabase
     /// Whether this device lets Porchlight read its calendars. Stored before observers are
     /// told, like the snapshot: a screen redrawn as access is granted must already read it,
@@ -64,7 +64,7 @@ final class CalendarStore {
     }
 
     @ObservationIgnored private var storedEvents: [CalendarEvent] = []
-    var lastError: String?
+    @ObservationIgnored @StoredFirst var lastError: String? = nil
 
     @ObservationIgnored private let provider: any CalendarProvider
     @ObservationIgnored private let now: () -> Date

@@ -66,7 +66,7 @@ struct ArrivedRow: Equatable, Sendable {
 /// gives one toast that sums it up. Nothing loops, and nothing shows while the wall rests.
 @MainActor
 @Observable
-final class WallArrivals {
+final class WallArrivals: StoredFirstObservable {
     struct Toast: Equatable, Identifiable {
         let id = UUID()
         var text: String
@@ -75,8 +75,8 @@ final class WallArrivals {
     }
 
     /// Rows that just arrived, glowing once.
-    private(set) var fresh: Set<String> = []
-    private(set) var toast: Toast?
+    @ObservationIgnored @StoredFirst private(set) var fresh: Set<String> = []
+    @ObservationIgnored @StoredFirst private(set) var toast: Toast? = nil
     /// The wall is resting (the photo frame): rows are noted, quietly.
     @ObservationIgnored var isResting = false
 

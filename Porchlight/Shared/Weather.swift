@@ -10,7 +10,7 @@ import SwiftUI
 /// rounded coordinates are sent to api.open-meteo.com.
 @MainActor
 @Observable
-final class WeatherStore {
+final class WeatherStore: StoredFirstObservable {
     struct Day: Equatable, Sendable {
         var day: DayKey
         var code: Int
@@ -24,9 +24,9 @@ final class WeatherStore {
         var isDay = true
     }
 
-    private(set) var now: Now?
-    private(set) var days: [DayKey: Day] = [:]
-    private(set) var unitSymbol = "°"
+    @ObservationIgnored @StoredFirst private(set) var now: Now? = nil
+    @ObservationIgnored @StoredFirst private(set) var days: [DayKey: Day] = [:]
+    @ObservationIgnored @StoredFirst private(set) var unitSymbol = "°"
 
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private let locator = OneShotLocator()

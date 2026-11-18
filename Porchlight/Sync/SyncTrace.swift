@@ -9,7 +9,7 @@ import os
 /// a check every 15 seconds never redraws the status anywhere else.
 @MainActor
 @Observable
-final class SyncTrace {
+final class SyncTrace: StoredFirstObservable {
     enum Activity: String, Sendable {
         case active, inactive
     }
@@ -21,36 +21,36 @@ final class SyncTrace {
         var milliseconds: Int
     }
 
-    var role: DeviceRole?
-    var isActive = false
+    @ObservationIgnored @StoredFirst var role: DeviceRole? = nil
+    @ObservationIgnored @StoredFirst var isActive = false
     /// What last said the app is in front or not: a notification, or the state read directly.
-    var activitySource = "not yet"
-    var isOnline = true
-    var engineRunning = false
+    @ObservationIgnored @StoredFirst var activitySource = "not yet"
+    @ObservationIgnored @StoredFirst var isOnline = true
+    @ObservationIgnored @StoredFirst var engineRunning = false
     /// "available", "none", or "not checked yet".
-    var account = "not checked yet"
-    var lastCheck: Check?
+    @ObservationIgnored @StoredFirst var account = "not checked yet"
+    @ObservationIgnored @StoredFirst var lastCheck: Check? = nil
     /// What started the last check: a push, the timer, coming to the front…
-    var lastTrigger: String?
+    @ObservationIgnored @StoredFirst var lastTrigger: String? = nil
     /// What the last check brought: "nothing new (timer)", "push, engine fetch, 149 to 150 rows".
-    var received: String?
+    @ObservationIgnored @StoredFirst var received: String? = nil
     /// What the last probe of iCloud said, database by database.
-    var lastProbe: String?
+    @ObservationIgnored @StoredFirst var lastProbe: String? = nil
     /// Engine restarts because a fetch brought nothing iCloud said was there.
-    var restarts = 0
+    @ObservationIgnored @StoredFirst var restarts = 0
     /// Times this launch asked for a push token.
-    var tokenRequests = 0
-    var pushes = 0
-    var lastPush: Date?
+    @ObservationIgnored @StoredFirst var tokenRequests = 0
+    @ObservationIgnored @StoredFirst var pushes = 0
+    @ObservationIgnored @StoredFirst var lastPush: Date? = nil
     /// "arrived (length 32)", "failed: …", or "not yet".
-    var pushToken = "not yet"
-    var registeredForPushes = false
-    var backgroundRefresh = "unknown"
-    var lowPowerMode = false
-    var checks = 0
-    var failuresInRow = 0
-    var lastError: String?
-    var nextCheckAt: Date?
+    @ObservationIgnored @StoredFirst var pushToken = "not yet"
+    @ObservationIgnored @StoredFirst var registeredForPushes = false
+    @ObservationIgnored @StoredFirst var backgroundRefresh = "unknown"
+    @ObservationIgnored @StoredFirst var lowPowerMode = false
+    @ObservationIgnored @StoredFirst var checks = 0
+    @ObservationIgnored @StoredFirst var failuresInRow = 0
+    @ObservationIgnored @StoredFirst var lastError: String? = nil
+    @ObservationIgnored @StoredFirst var nextCheckAt: Date? = nil
 
     @ObservationIgnored let log: SyncLog
 

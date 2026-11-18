@@ -6,7 +6,7 @@ import SwiftUI
 /// Live food diary state: mirrors the database and forwards edits to it.
 @MainActor
 @Observable
-final class FoodStore {
+final class FoodStore: StoredFirstObservable {
     let database: AppDatabase
 
     /// What the database says now, stored before observers are told (see `AppModel.snapshot`).
@@ -22,7 +22,7 @@ final class FoodStore {
     }
 
     @ObservationIgnored private var storedSnapshot: FoodSnapshot = .empty
-    var lastError: String?
+    @ObservationIgnored @StoredFirst var lastError: String? = nil
 
     // MARK: Pen state, shared by the month tool bar, the day editor and the note strip
 

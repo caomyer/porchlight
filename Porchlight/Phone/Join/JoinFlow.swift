@@ -7,7 +7,7 @@ import Observation
 /// coming in. Nothing is half joined: until the household is here, the preview stays.
 @MainActor
 @Observable
-final class JoinFlow {
+final class JoinFlow: StoredFirstObservable {
     enum Step: Equatable {
         case preview
         case joining
@@ -16,9 +16,9 @@ final class JoinFlow {
     }
 
     let invitation: HouseholdInvitation
-    private(set) var step: Step = .preview
+    @ObservationIgnored @StoredFirst private(set) var step: Step = .preview
     /// Why the last try didn't join, in plain words, with "Try again".
-    private(set) var failure: String?
+    @ObservationIgnored @StoredFirst private(set) var failure: String? = nil
 
     @ObservationIgnored private let database: AppDatabase
     @ObservationIgnored private let sharing: any HouseholdSharing

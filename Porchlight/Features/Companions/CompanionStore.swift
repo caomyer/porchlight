@@ -137,7 +137,7 @@ enum CompanionClock {
 /// Live companion state: mirrors the database and forwards edits to it.
 @MainActor
 @Observable
-final class CompanionStore {
+final class CompanionStore: StoredFirstObservable {
     let database: AppDatabase
     /// What the database says now, stored before observers are told (see `AppModel.snapshot`).
     private(set) var snapshot: CompanionSnapshot {
@@ -152,7 +152,7 @@ final class CompanionStore {
     }
 
     @ObservationIgnored private var storedSnapshot: CompanionSnapshot = .empty
-    var lastError: String?
+    @ObservationIgnored @StoredFirst var lastError: String? = nil
 
     @ObservationIgnored private var observation: Task<Void, Never>?
     @ObservationIgnored private var reportCache: [String: CompanionReport] = [:]

@@ -11,7 +11,7 @@ struct CaptureRequest: Identifiable, Equatable {
 /// Everything the capture form edits, with smart defaults.
 @MainActor
 @Observable
-final class CaptureForm {
+final class CaptureForm: StoredFirstObservable {
     let day: DayKey
     var slot: String {
         didSet { slotWasPicked = true }
@@ -32,9 +32,9 @@ final class CaptureForm {
     var place: PlaceDraft?
     var title = ""
     /// Photos taken or picked so far, held in memory until Save. Cover first.
-    var photos: [MealPhotoItem] = []
+    @ObservationIgnored @StoredFirst var photos: [MealPhotoItem] = []
     /// Photos still being made from a shot or a pick.
-    var savingPhotos = 0
+    @ObservationIgnored @StoredFirst var savingPhotos = 0
 
     /// The photos this capture would save.
     var newPhotos: [NewMealPhoto] {

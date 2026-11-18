@@ -35,7 +35,7 @@ The list is checked again before every release that goes beyond TestFlight.
 | iCloud | A restricted account (Screen Time, managed) | Done |
 | iCloud | CloudKit production schema before each release | Done |
 | First run | A stranger with no household, on iPhone and iPad | Done |
-| First run | Nothing from our family in a stranger's app | To do |
+| First run | Nothing from our family in a stranger's app | Done |
 | Accessibility | Dynamic Type on the phone | Done |
 | Accessibility | Text size on the wall | To do |
 | Accessibility | VoiceOver labels | To do |
@@ -101,10 +101,10 @@ The choices are Open-Meteo's paid API (a key and its customer endpoint), Apple's
 
 Why: a missing usage string crashes the app the moment it asks, and App Review rejects vague ones.
 State: done.
-Evidence: `project.yml` sets `NSCalendarsFullAccessUsageDescription`, `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription` and `NSLocationWhenInUseUsageDescription`, each saying what the app does with it.
+Evidence: `project.yml` sets `NSCalendarsFullAccessUsageDescription`, `NSCameraUsageDescription` and `NSLocationWhenInUseUsageDescription`, each saying what the app does with it.
 Notifications need no string.
 Siri and Shortcuts use App Intents, which need no `NSSiriUsageDescription`.
-Every photo comes through `PhotosPicker`, which needs no permission, so `NSPhotoLibraryUsageDescription` is never shown; keeping it is harmless, and removing it is a small cleanup.
+Every photo comes through `PhotosPicker`, which runs outside the app and needs no permission, so the app asks for no photo library string; nothing in the code reads the library itself (no `PHPhotoLibrary`, `PHAsset` or `UIImagePickerController`), and the photo flows pass without it (`CompanionEditorTests`, which opens the system picker, `MealPhotosTests`, `PhotoFrameTests`, `PhoneFoodTests.testSnappingAMeal`).
 
 ### No permission asked before it is needed
 
@@ -200,10 +200,9 @@ Evidence: the iPad's onboarding (`FirstRunTests`, `HouseholdTests.testSetupAsksH
 ### Nothing from our family in a stranger's app
 
 Why: a stranger must never see our names, our dog or our household.
-State: to do (small).
+State: done.
 Evidence: the sample household (James, Mia, Ava, Yo-Yo, The Lake House) is only reachable through `-sampleHousehold` and the other debug launch arguments, which exist in Debug builds only (`DebugLaunch` and `DebugSharing` are wrapped in `#if DEBUG`, as are their callers in `PorchlightApp`); a Release build cannot load it.
-What remains is the text people do see: the placeholders "e.g. The Lake House" and "e.g. Yo-Yo" on the household and companion names (`OnboardingView`, `PocketSetup`).
-They are fine as examples, but a neutral pair ("e.g. The Parks", "e.g. Biscuit") reads less like someone else's family.
+The examples people see in empty fields name a place and a pet that could be anyone's: "e.g. The Maple Street house" for the household on the iPad and the phone (`OnboardingView`, `PocketSetup`), "e.g. Sam" for your name, and "e.g. Biscuit" or "e.g. Fiddle-leaf fig" for a companion, as the wall's companion editor already said.
 Doc comments mention our names only as examples in code, which ship nowhere.
 
 ## Accessibility
@@ -298,9 +297,10 @@ State: to do.
 Evidence: the unit tests and both UI suites run on iOS 17.5 simulators (`scripts/test.sh`); real-device checks are the wall (iPadOS 17) and James's iPhone.
 Code paths that differ by version are the join code (iOS 18 and later, `LiveHouseholdSharing.supportsJoinSeats`) and restaurant details (iOS 18 and 26, `RestaurantSearch`).
 To do: run the phone's UI suite on the newest iOS simulator before each release (`scripts/test.sh --phone --ui-only --runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5`, which makes this checkout's simulator for that iOS), and one pass of the join code between two real devices on iOS 18 or later.
-The first run of the phone's smoke set on iOS 26.5 (November 17) passed 4 of 6.
-`PhoneSetupTests.testStartingAHouseholdOnThisPhone` lost the household name field's focus after its first letter ("M"), and `PhoneFoodTests.testSnappingAMeal` did not show "allow-camera", the page that says what the camera is for before iOS asks.
-Both need a look on iOS 26, in the app or the tests, before strangers on new phones use these paths.
+The first run of the phone's smoke set on iOS 26.5 (November 17) passed 4 of 6: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` failed typing a name and `PhoneFoodTests.testSnappingAMeal` timed out waiting for the camera page.
+Neither is the app: typing "Maple" a key at a time on iOS 26.5, with a moment between keys, kept the focus and the text every time, and the snapping failure's spindump shows the app's main thread stopped in the kernel, paging the iOS 26.5 runtime's disk image in, after a ten-minute launch.
+On a slow simulator the field reports its focus a moment after each key, and a tap computed from a new layout can land on what is still drawn there, so the phone tests' `type` now waits for the focus before each key and leaves a field the app focused itself untapped.
+With that, both tests passed on iOS 17.5 and twice in a row on iOS 26.5 on a quiet Mac.
 
 ### UI suites fast enough to run before every release
 
@@ -312,9 +312,8 @@ Evidence: `scripts/test.sh` runs everything in 26 minutes on the 16 GB M4 with t
 
 For us, in the repository, without a decision first:
 
-- The phone's UI suite on iOS 26, then fix what it finds ("What is tested on which OS versions").
+- The phone's whole UI suite on iOS 26 on a quiet Mac, then fix what it finds ("What is tested on which OS versions").
 - Confirm on a real iPhone that Porchlight's iCloud switch off shows "iCloud is off for Porchlight", and that iCloud Drive off changes nothing.
-- Neutral placeholders instead of "e.g. The Lake House" and "e.g. Yo-Yo" (`OnboardingView`, `PocketSetup`, app source).
 - A VoiceOver pass and an Accessibility Inspector audit, contrast included, on each phone tab and the wall's screens.
 - App Store screenshots from a sample household that reads as any family.
 - App Review notes and a short recording of the wall and a phone.

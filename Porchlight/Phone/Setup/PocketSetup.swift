@@ -116,7 +116,7 @@ struct PocketSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             heading("Let's start with you", "You'll be the first person in the household, and its owner.")
             field("Household name") {
-                TextField("e.g. The Lake House", text: $setup.householdName)
+                TextField("e.g. The Maple Street house", text: $setup.householdName)
                     .textContentType(.organizationName)
                     .focused($focused, equals: .household)
                     .submitLabel(.next)
@@ -124,7 +124,7 @@ struct PocketSetupView: View {
                     .accessibilityIdentifier("household-name")
             }
             field("Your name") {
-                TextField("e.g. James", text: $setup.people[0].name)
+                TextField("e.g. Sam", text: $setup.people[0].name)
                     .textContentType(.givenName)
                     .focused($focused, equals: .myName)
                     .submitLabel(.done)
@@ -208,7 +208,7 @@ struct PocketSetupView: View {
                 }
             }
             field("Name") {
-                TextField(companion.species == .plant ? "e.g. Fiddle fig" : "e.g. Yo-Yo", text: $companion.name)
+                TextField(companion.species == .plant ? "e.g. Fiddle-leaf fig" : "e.g. Biscuit", text: $companion.name)
                     .textInputAutocapitalization(.words)
                     .focused($focused, equals: .companion)
                     .submitLabel(.done)

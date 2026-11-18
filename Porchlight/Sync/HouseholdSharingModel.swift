@@ -6,16 +6,16 @@ import Observation
 /// screen shows them at once and offline.
 @MainActor
 @Observable
-final class HouseholdSharingModel {
+final class HouseholdSharingModel: StoredFirstObservable {
     @ObservationIgnored let service: any HouseholdSharing
     @ObservationIgnored private let database: AppDatabase
 
-    private(set) var members: HouseholdMembers = .none
+    @ObservationIgnored @StoredFirst private(set) var members: HouseholdMembers = .none
     /// People who joined through the share's old public link, which is still open: the
     /// owner is shown who they are and chooses (docs/design/households.md, "The join code").
-    private(set) var linkJoiners: [HouseholdParticipant] = []
+    @ObservationIgnored @StoredFirst private(set) var linkJoiners: [HouseholdParticipant] = []
     /// This device's iCloud user record name, once read.
-    private(set) var userName: String?
+    @ObservationIgnored @StoredFirst private(set) var userName: String? = nil
 
     init(service: any HouseholdSharing, database: AppDatabase) {
         self.service = service

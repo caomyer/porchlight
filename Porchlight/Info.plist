@@ -45,8 +45,6 @@
 	<string>Porchlight uses the camera to snap photos of your meals for the food diary.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Porchlight uses your approximate location once to show local weather.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Porchlight adds the photos you pick to your meals, your companions and the wall's photo frame.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Fraunces.ttf</string>

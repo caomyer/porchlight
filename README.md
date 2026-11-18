@@ -101,7 +101,7 @@ scripts/test.sh --only PhoneTests/testCheckingChores FirstRunTests   # just thes
 ```
 
 It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
-`--serial` runs the iPad and then the iPhone even with room for both, `--runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5` runs on another installed iOS, `--no-build` reuses the last build, and `--keep-booted` leaves the simulators running.
+`--serial` runs the iPad and then the iPhone even with room for both, `--runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5` runs on another installed iOS, and `--no-build` reuses the last build.
 Results and logs are in `$TMPDIR/porchlight-tests-<checkout>`: `unit`, `ui-wall` and `ui-phone`, each an `.xcresult` and a `.log`.
 
 How it stays fast and out of everyone's way:
@@ -109,7 +109,8 @@ How it stays fast and out of everyone's way:
 - **Its own simulators.** Each checkout makes its own iPad and iPhone simulators the first time ("Porchlight <checkout> ipad", "... iphone"), so runs from different worktrees never share or wait on one, and nobody passes a simulator id.
 - **Locks that cannot go stale.** A run holds its simulators with kernel file locks in `/private/tmp/porchlight-simulator-locks`, which the system releases the moment the run ends, however it ends; the old lock folder (`/private/tmp/porchlight-sim.lock`) could outlive a killed run and stall every other run for hours, and the script no longer uses it.
 - **Test slots for memory.** A booted simulator under test takes 1.5 to 3 GB, and with more of them than the Mac can hold everything swaps: queries time out, the test runner fails to start ("Timed out while loading Accessibility"), and tests fail that pass alone.
-  So the Mac has one test slot per 8 GB of memory (two on a 16 GB Mac, or `PORCHLIGHT_TEST_SLOTS`), a run boots simulators only into slots, and it shuts them down when it finishes.
+  So the Mac has one test slot per 8 GB of memory (two on a 16 GB Mac, or `PORCHLIGHT_TEST_SLOTS`), a run boots simulators only into slots, and it shuts them down however it ends.
+  Before taking a slot it shuts down any test simulator that is booted but held by no run (one a run killed outright left behind), and every other booted simulator, one opened by hand or another project's, takes a slot of its own.
   A run takes two slots when both are free and runs the iPad and the iPhone side by side; with one free it runs them one after the other; with none it waits, and says for whom.
   It never holds one slot while waiting for a second, so two runs can't wait on each other.
 - **One build.** `build-for-testing` once, then `test-without-building` for each suite, so the suites never rebuild.
