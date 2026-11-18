@@ -100,7 +100,8 @@ struct OnboardingView: View {
             heading("Welcome home", "Porchlight turns this iPad into your household's wall calendar. First, what should we call your home?")
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel("Household name")
-                TextField("e.g. The Lake House", text: $setup.householdName)
+                TextField("e.g. The Maple Street house", text: $setup.householdName)
+                    .accessibilityIdentifier("household-name")
                     .font(.body(20, weight: 600))
                     .textInputAutocapitalization(.words)
                     .submitLabel(.next)
