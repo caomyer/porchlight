@@ -32,6 +32,10 @@ protocol HouseholdSharing: AnyObject {
     /// Closes the public link, which removes everyone who joined through it; only called
     /// when nobody did, or when the owner chose it after being told who.
     func closePublicLink(_ household: Household) async throws
+    /// Why this device can't join a household now, before anything is accepted: accepting
+    /// takes a join code's one seat, so a device whose sync can't run must say so first.
+    /// Waits for this launch's first look at the account. Nil when it can join.
+    func joinBlocker() async -> String?
     /// Accepts an invite that opened the app; the household syncs in.
     func accept(_ invitation: HouseholdInvitation) async throws
     /// Removes someone from the share, for the owner. Their history stays.
@@ -158,6 +162,31 @@ enum SeatState: Equatable, Sendable {
     case claimed(userName: String?)
     /// The seat isn't on the share anymore.
     case gone
+}
+
+/// Why a device can't join a household now, from its sync status, in the words of the
+/// iCloud states (`ICloudAccountProblem`). The invite or code is left as it was, so "Try
+/// again" works once it is sorted.
+enum JoinBlocker {
+    static func reason(_ status: SyncStatus, device: String) -> String? {
+        switch status {
+        case .off(.switchedOff):
+            "iCloud sync is off on this \(device). Turn on Sync with iCloud under You, then try again."
+        case .off:
+            "Joining needs iCloud sync, which can't run on this \(device) now."
+        case .account(.signedOut):
+            "iCloud is off for Porchlight. Sign in to iCloud, or turn it on for Porchlight, in Settings, then try again."
+        case .account(.restricted):
+            "iCloud isn't allowed on this \(device), so it can't join a household."
+        case .account(.needsSignIn):
+            "iCloud needs you to sign in again. Sign in to your Apple Account in Settings, then try again."
+        case .needsDecision:
+            "Sync is waiting for your choice under You. Choose, then try again."
+        // Not knowing the account, offline or full: accepting may still work, and says so if not.
+        case .account(.couldNotCheck), .upToDate, .notChecked, .syncing, .waiting, .iCloudFull, .notAccepted:
+            nil
+        }
+    }
 }
 
 /// Where a join code can be shown (docs/design/households.md, "The join code").

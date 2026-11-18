@@ -270,6 +270,9 @@ Choices made while building M2's sharing half, where the design above left room 
   Nothing else about launching, the kiosk mode or the wall's look changes.
 - The preview reads the household's name, the owner's name and the household's id from the share's metadata before anything is accepted; the household's people aren't in the metadata, so the preview shows no avatars.
 - `JoinFlow` accepts, then waits up to a minute for the household's row before choosing it, so a join that fails at any point leaves nothing chosen; "Try again" accepts again.
+- Before accepting, it asks whether this device's sync can run at all (`HouseholdSharing.joinBlocker`, words from `JoinBlocker`): sync switched off, signed out of iCloud or Porchlight's iCloud off, iCloud not allowed, needing to sign in again, or waiting for a choice.
+  Accepting takes a join code's one seat, so a phone whose household could never come in says why and accepts nothing; once it is sorted in Settings, "Try again" joins, as long as the owner's code is still showing.
+- Both steps first wait for this launch's look at the account and its engine start (`SyncController.settle`): an invite can open a fresh install before sync has started, and SQLiteData fetches the shared zone right after accepting only when the engine runs, so accepting earlier left the household to the engine's own first fetch and the minute could run out.
 - The reminders step (`a4remind`) is left out, as reminders don't exist yet, so the flow has two dots.
 - "Bringing everything in" counts what has arrived from the database (people, walks and meals, photos whose thumbnail is here out of photos known), so it never guesses a total; it has no spinner.
 - An iPad that joins is a shared screen by default and skips "Which one is you?".

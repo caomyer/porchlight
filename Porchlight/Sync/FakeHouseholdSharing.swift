@@ -83,6 +83,11 @@ final class FakeHouseholdSharing: HouseholdSharing {
         members.participants.removeAll { $0.joinedByLink }
     }
 
+    /// Why "this device" can't join, as `JoinBlocker` says it.
+    var joinBlockerText: String?
+
+    func joinBlocker() async -> String? { joinBlockerText }
+
     func accept(_ invitation: HouseholdInvitation) async throws {
         calls.append("accept")
         if acceptFailures > 0 {

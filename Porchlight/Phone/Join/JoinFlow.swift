@@ -44,6 +44,11 @@ final class JoinFlow: StoredFirstObservable {
         failure = nil
         do {
             if !invitation.isAlreadyIn {
+                // Accepting takes a join code's one seat: never when the household couldn't come in.
+                if let blocker = await sharing.joinBlocker() {
+                    fail(blocker)
+                    return
+                }
                 try await sharing.accept(invitation)
             }
             guard let id = try await arrivedHousehold() else {

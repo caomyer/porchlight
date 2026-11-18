@@ -118,6 +118,34 @@ struct JoinFlowTests {
         if case .who = flow.step {} else { Issue.record("The second try should join, got \(flow.step)") }
     }
 
+    @Test("A phone whose iCloud can't sync says why and accepts nothing, so the code's seat stays for Try again")
+    func blocked() async throws {
+        let fake = sharing()
+        fake.joinBlockerText = JoinBlocker.reason(.account(.signedOut), device: "iPhone")
+        let (flow, _) = flow(fake)
+        await flow.join()
+        #expect(fake.calls.isEmpty, "nothing accepted, so the one-time seat is still free")
+        #expect(flow.step == .preview)
+        #expect(flow.failure?.hasPrefix("iCloud is off for Porchlight") == true)
+        #expect(try db.snapshot().household == nil)
+
+        fake.joinBlockerText = nil
+        await flow.join()
+        #expect(fake.calls == ["accept"], "fixed in Settings, Try again joins")
+        if case .who = flow.step {} else { Issue.record("Expected to join, got \(flow.step)") }
+    }
+
+    @Test("What keeps a phone from joining, in the iCloud states' words")
+    func blockerWords() {
+        #expect(JoinBlocker.reason(.off(.switchedOff), device: "iPhone") == "iCloud sync is off on this iPhone. Turn on Sync with iCloud under You, then try again.")
+        #expect(JoinBlocker.reason(.account(.restricted), device: "iPhone") == "iCloud isn't allowed on this iPhone, so it can't join a household.")
+        #expect(JoinBlocker.reason(.account(.needsSignIn), device: "iPhone")?.hasPrefix("iCloud needs you to sign in again") == true)
+        #expect(JoinBlocker.reason(.needsDecision(.accountChanged), device: "iPhone")?.hasPrefix("Sync is waiting for your choice") == true)
+        #expect(JoinBlocker.reason(.account(.couldNotCheck), device: "iPhone") == nil, "not knowing, accepting may still work")
+        #expect(JoinBlocker.reason(.waiting(lastSynced: nil), device: "iPhone") == nil, "offline, accepting says so itself")
+        #expect(JoinBlocker.reason(.upToDate(lastSynced: nil), device: "iPhone") == nil)
+    }
+
     @Test("An invite that is accepted but whose household never arrives can be tried again")
     func neverArrives() async throws {
         let fake = FakeHouseholdSharing(userName: "_mia")

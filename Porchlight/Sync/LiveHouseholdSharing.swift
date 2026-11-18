@@ -129,9 +129,20 @@ final class LiveHouseholdSharing: HouseholdSharing {
         SyncLog.shared.write("share: \(event); link \(link); participants \(summary)")
     }
 
+    func joinBlocker() async -> String? {
+        // An invite can open a fresh install before its first look at the account is done.
+        await sync.settle()
+        return JoinBlocker.reason(sync.status, device: DeviceWords.this)
+    }
+
+    /// Accepts with the engine running: SQLiteData fetches the shared zone right after
+    /// accepting only when it is, so an invite that opened the app before sync had started
+    /// would otherwise wait for the engine's own first fetch.
     func accept(_ invitation: HouseholdInvitation) async throws {
-        guard let engine = sync.engine, let metadata = invitation.metadata else { throw SharingFailure.noEngine }
+        await sync.settle()
+        guard let engine = sync.engine, engine.isRunning, let metadata = invitation.metadata else { throw SharingFailure.noEngine }
         try await engine.acceptShare(metadata: metadata)
+        SyncLog.shared.write("share: accepted; fetching the household")
     }
 
     func remove(_ participant: HouseholdParticipant, from household: Household) async throws {
