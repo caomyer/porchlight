@@ -26,6 +26,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+# When tests fail, xcodebuild collects diagnostics with `xcrun simctl` in an environment
+# without DEVELOPER_DIR; on a Mac whose xcode-select points at the Command Line Tools, xcrun
+# then finds simctl only on the PATH.
+export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 source scripts/lib/simulators.sh
 
 unit=1
@@ -106,10 +110,9 @@ mkdir -p "$results"
 # Simulators on this Mac are arm64; a generic destination would build Intel too.
 flags=(-derivedDataPath "$derived" CODE_SIGNING_ALLOWED=NO -skipMacroValidation ARCHS=arm64)
 
-# Keep only results, failures and the summary from xcodebuild's output. xcodebuild ends each
-# test run by asking xcrun for simctl without our developer folder, which fails harmlessly.
+# Keep only results, failures and the summary from xcodebuild's output.
 summarize() {
-  grep -E "error:|passed \(|failed \(|\*\* (TEST|BUILD)|✘" | grep -v "Run script\|appintents\|strip-bitcode\|unable to find utility \"simctl\"" || true
+  grep -E "error:|passed \(|failed \(|\*\* (TEST|BUILD)|✘" | grep -v "Run script\|appintents\|strip-bitcode" || true
 }
 
 started=$SECONDS
@@ -169,7 +172,8 @@ xctestrun() {
   print -r -- "${found[1]}"
 }
 
-# Prints "<name>: passed/total" from a result bundle, and fails unless it passed.
+# Prints "<name>: passed/total", and how many failed, from a result bundle, and fails unless
+# it passed; "did not finish" only when the run left no results.
 report() {
   local summary
   summary=$(xcrun xcresulttool get test-results summary --path "$2" 2>/dev/null) || true
@@ -181,7 +185,8 @@ report() {
 import json, sys
 d = json.load(sys.stdin)
 skipped = " (%d skipped)" % d["skippedTests"] if d["skippedTests"] else ""
-print("%s: %d/%d passed%s" % (sys.argv[1], d["passedTests"], d["totalTestCount"], skipped))
+failed = ", %d failed" % d["failedTests"] if d["failedTests"] else ""
+print("%s: %d/%d passed%s%s" % (sys.argv[1], d["passedTests"], d["totalTestCount"], failed, skipped))
 sys.exit(0 if d["result"] == "Passed" else 1)
 ' "$1"
 }
