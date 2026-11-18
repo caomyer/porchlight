@@ -28,7 +28,7 @@ The list is checked again before every release that goes beyond TestFlight.
 | Store | Support URL and contact | Needs James |
 | Store | Name, subtitle, description, keywords, category, age rating | Needs James |
 | Store | Screenshots for iPhone and iPad | To do |
-| Store | App Review notes and a demo path | To do |
+| Store | App Review notes and a demo path | Done (text); the recording is to do |
 | iCloud | No iCloud account | Done |
 | iCloud | iCloud full | Done |
 | iCloud | The app's iCloud switched off, iCloud Drive off | To do (one device check) |
@@ -40,7 +40,7 @@ The list is checked again before every release that goes beyond TestFlight.
 | Accessibility | Text size on the wall | To do |
 | Accessibility | VoiceOver labels | To do |
 | Accessibility | Contrast | To do |
-| Localisation | Ready to translate | To do |
+| Localisation | Ready to translate | Planned; to do when a second language is planned |
 | Localisation | Dates, times, units and first weekday follow the region | Done |
 | Reliability | Crash and error reporting stance | Needs James |
 | Data | Leaving a household and removing it from a device | Done |
@@ -151,8 +151,29 @@ The UI tests already draw every screen with sample data (`WallTourTests` with `-
 ### App Review notes and a demo path
 
 Why: a reviewer has one device and no household; the iPad wall and sharing between two Apple IDs are hard to see in a review.
-State: to do.
-The notes should say how to start a household on one device, what the wall is for, and that sharing needs a second Apple ID; a short screen recording of the wall and a phone helps.
+State: done for the text below; the screen recording is to do.
+The notes, to paste into App Store Connect's "Notes" for review:
+
+> Porchlight is a household's shared day: care for pets and plants, chores and stars, meals, lists and calendars.
+> It runs on an iPhone, and on an iPad that can hang on a wall as a shared screen for the whole family.
+> There is no account and no server: a household lives in its owner's iCloud and is shared through iCloud sharing.
+>
+> To try it on one device: open Porchlight, tap "Start a household", give it a name and your name, add someone if you like (they don't need the app), add a pet or skip, and tap "Go to Today".
+> Tap "I walked Biscuit" (or whatever you named your pet) to log a walk; the toast's Undo takes it back.
+> Food › "Snap a meal" takes a photo of a meal; Lists has groceries; Glow shows stars from chores and care.
+> The avatar at the top right opens You: the household's people, companions, chores, rewards and lists, notifications, calendars and iCloud storage.
+>
+> On an iPad, the same steps make the wall: choose "A shared screen" when asked how the iPad is used.
+> It then asks "Who did it?" when someone logs, since anyone in the family can tap it.
+>
+> Sharing needs a second Apple ID: on the owner's iPhone, You › Invite someone sends an iCloud invite by Messages or Mail, and "Show a code instead" shows a one-time code for someone standing next to you (iOS 18 and later).
+> The other person opens the invite or scans the code with the Camera app, taps "Join", and picks who they are.
+> Without a second Apple ID, everything except joining works on one device.
+>
+> Permissions are asked only when used: calendars from the Calendars page, notifications from the Notifications page, the camera from "Snap a meal", and location once for the local weather.
+> Siri and Shortcuts: "I walked Biscuit in Porchlight" logs a walk; the widgets log care and show today.
+
+The demo path for the recording, about two minutes: start a household on an iPhone, log a walk and undo it, snap a meal, check off a chore and see the star on Glow; then the same household on an iPad as a shared screen after joining with the code, showing the walk logged from the phone with its "from James's phone" tag.
 
 ## iCloud situations
 
@@ -237,9 +258,24 @@ To do: an Accessibility Inspector contrast audit of `Theme`'s muted and accent c
 ### Ready to translate
 
 Why: a release outside our family may be in other languages; it is far cheaper to keep strings translatable than to retrofit.
-State: to do (only when a second language is planned).
-Evidence: there is no string catalog, and many sentences are built with string interpolation outside `Text`, which SwiftUI cannot pick up for translation.
-English-only is a fine first release; this item becomes work when a second language is planned.
+State: planned; to do only when a second language is planned.
+English-only is a fine first release.
+The plan, from a count of the sources on November 17 (debug and sample code left out):
+
+- **How many strings.** About 1,040 distinct user-facing strings in 119 files: 272 `Text`, 118 `Button`, 66 fields, labels, toggles and pickers, 110 VoiceOver labels, hints and values, 10 navigation titles, and about 800 more passed as `title:`, `detail:` and the like or returned from the words helpers.
+  About 430 of them interpolate values ("\(name) walked \(companion)"), which a String Catalog handles as format strings with the arguments in the translator's order.
+- **What Xcode extracts for free.** Literals written straight into `Text`, `Button`, `Label`, `TextField`, `Toggle` and `navigationTitle` become `LocalizedStringKey`s and land in the catalog when the project gets a `Localizable.xcstrings` and "Use Compiler to Extract Swift Strings" is on: roughly 480 of them.
+- **What needs a change of type.** Strings built in Swift and passed around as `String`: the `title:` and `detail:` arguments of the phone kit (`StatusBanner`, `InfoRow`, `UndoToast`, `PocketSyncNotice`), and every helper that returns words (`CareText`, `DeviceWords`, `EventText`, `FoodMemoryWords`, `HomeText`, `PocketCareWords`, `PocketChoreWords`, `PocketWeekWords`, `StarWords`, `StorageWords`, `WidgetWords`, `RemoveDevicesWords`, `CaptionEngine`, `SyncStatus.summary`).
+  Each literal there becomes `String(localized:)` with a comment for the translator, and the views keep taking `String`.
+- **What has to be rebuilt, not just marked.** English grammar done in code, which translation can't fix by itself:
+  - 74 places concatenate sentence pieces with `+`, in 44 files (most in `HomeLogic`, `ChoresViews`, `GlowViews`, `RepeatPicker`, `FoodLogic`, `CompanionModels`, `Recurrence` and `ReminderPlanner`); each becomes one whole sentence with arguments.
+  - 68 `joined(separator:)` calls make lists and "a · b · c" lines; lists of names move to `ListFormatter` (9 places use it already), and the "·" lines stay as they are, being punctuation.
+  - 75 hand-made plurals (`count == 1 ? "1 person" : "\(count) people"`) move to the catalog's plural variants.
+  - 34 uses of the `.possessive` helper ("James's", "Rosa's") add an English "'s"; each sentence that uses one becomes its own format string, so a language can say "the walk of James" instead.
+  - The cheeky walk captions (`CompanionCaptions`) are English wordplay; they need writing anew per language, or plain captions only outside English.
+- **Outside the app's views.** The Info.plist usage strings (an `InfoPlist.xcstrings`), the App Intents' titles, dialogs and Siri phrases (`AppShortcuts.xcstrings`, which Siri needs per language), the widgets' gallery names and descriptions, and the notification titles and actions.
+- **What doesn't change.** Dates, times, units and the first weekday already follow the region (below), and the household's own names never translate.
+- **Order of work.** Turn on the catalog and extraction first (no behaviour change, about a day); then the words helpers and kit arguments; then the concatenations, plurals and possessives, one area at a time with its UI tests; then pseudo-localisation (Xcode's double-length and right-to-left schemes) over the UI suites to catch truncation and layout, before any translator sees it.
 
 ### Dates, times, units and first weekday
 
@@ -316,7 +352,7 @@ For us, in the repository, without a decision first:
 - Confirm on a real iPhone that Porchlight's iCloud switch off shows "iCloud is off for Porchlight", and that iCloud Drive off changes nothing.
 - A VoiceOver pass and an Accessibility Inspector audit, contrast included, on each phone tab and the wall's screens.
 - App Store screenshots from a sample household that reads as any family.
-- App Review notes and a short recording of the wall and a phone.
+- A short screen recording of the wall and a phone, following the demo path in "App Review notes and a demo path".
 
 For James:
 
