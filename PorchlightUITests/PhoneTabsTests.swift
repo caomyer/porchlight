@@ -211,7 +211,8 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         let app = launch()
         openMorningWalk(app)
         XCTAssertTrue(app.staticTexts["Fix who, when or how it went"].exists)
-        XCTAssertTrue(app.buttons["You"].isSelected, "Who went is filled in as logged")
+        // "You" is also the avatar button behind the sheet; the pill is the selected one.
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label == 'You' AND selected == true")).firstMatch.exists, "Who went is filled in as logged")
         snapshot("edit-10-today")
         let longer = app.buttons["45 min"]
         reveal(longer, in: app)
