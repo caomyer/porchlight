@@ -67,7 +67,6 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSCalendarsFullAccessUsageDescription: Porchlight shows the calendars you choose on Today and on your household's wall. It only reads them and never changes them.
         NSCameraUsageDescription: Porchlight uses the camera to snap photos of your meals for the food diary.
-        NSPhotoLibraryUsageDescription: Porchlight adds the photos you pick to your meals, your companions and the wall's photo frame.
         NSLocationWhenInUseUsageDescription: Porchlight uses your approximate location once to show local weather.
         # iCloud sync: the engine is woken by pushes, and the household is shared in M2.
         # Widgets turn over to the new day in background time (docs/design/beyond-the-app.md).
