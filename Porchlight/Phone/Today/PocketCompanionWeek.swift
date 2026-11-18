@@ -47,7 +47,7 @@ struct PocketCompanionWeek: View {
         HStack(spacing: 12) {
             CompanionBadge(report, size: 64)
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(report.name)'s week")
+                Text("\(report.name.possessive) week")
                     .phoneFont(.display, 24, weight: 600, relativeTo: .title)
                     .accessibilityAddTraits(.isHeader)
                 Text(report.weekStats.count == 0 ? "The first week together" : report.weekSummary)

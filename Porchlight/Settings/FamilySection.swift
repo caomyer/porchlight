@@ -214,7 +214,7 @@ private struct FamilyRowView: View {
                     .font(.body(14, weight: 700))
                     .foregroundStyle(Theme.accent)
                     .frame(minHeight: 44)
-                    .accessibilityLabel("Remove \(row.title)'s devices")
+                    .accessibilityLabel("Remove \(row.title.possessive) devices")
             }
             FamilyStatePill(state: row.state)
         }
@@ -312,7 +312,7 @@ struct RemoveDevicesWords {
 
     /// "Mia's iPhone", or "Mia's devices" for more than one.
     var what: String {
-        row.devices.count == 1 ? row.devices[0].name : "\(row.title)'s devices"
+        row.devices.count == 1 ? row.devices[0].name : "\(row.title.possessive) devices"
     }
 
     /// "Mia · Mia's iPhone", over the title.

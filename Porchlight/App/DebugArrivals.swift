@@ -26,7 +26,7 @@ enum DebugArrivals {
         func phone(_ person: Person) -> Device {
             Device(
                 id: Device.id(householdId: household.id, install: "debug-\(person.name)"), householdId: household.id,
-                name: "\(person.name)'s iPhone", role: .personal, model: "iPhone", personId: person.id,
+                name: "\(person.name.possessive) iPhone", role: .personal, model: "iPhone", personId: person.id,
                 userName: "_\(person.name.lowercased())", createdAt: now, seenAt: now
             )
         }

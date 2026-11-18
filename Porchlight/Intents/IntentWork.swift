@@ -140,7 +140,7 @@ enum IntentWork {
         let calendar = who.snapshot.calendar
         let day = DayKey(now, calendar: calendar)
         guard routine.occurs(on: day, calendar: calendar) else {
-            return .answer(Answer(text: "\(companion.name)'s \(routine.kind.noun(title: routine.title)) isn't due today.", wrote: false))
+            return .answer(Answer(text: "\(companion.name.possessive) \(routine.kind.noun(title: routine.title)) isn't due today.", wrote: false))
         }
         let slot = CareLogic.windowIndex(forMinute: CareLogic.minuteOfDay(now, calendar: calendar), in: routine.effectiveWindows)
         return log(routine: routine, companion: companion, slot: slot, day: day, me: me, who: who, database: database, now: now)
@@ -154,7 +154,7 @@ enum IntentWork {
         case .logged:
             let stars = routine.stars > 0 ? " · +\(StarWords.count(routine.stars))" : ""
             return .answer(Answer(
-                text: "Logged \(companion.name)'s \(slotName)",
+                text: "Logged \(companion.name.possessive) \(slotName)",
                 detail: "\(who.place)For \(me.name) at \(CareText.timeWithPeriod(now, calendar: calendar))\(stars)",
                 wrote: true
             ))
@@ -165,7 +165,7 @@ enum IntentWork {
                 wrote: false
             ))
         case nil:
-            return .answer(Answer(text: "That didn't save. Open Porchlight to log \(companion.name)'s \(slotName).", wrote: false))
+            return .answer(Answer(text: "That didn't save. Open Porchlight to log \(companion.name.possessive) \(slotName).", wrote: false))
         }
     }
 
@@ -273,9 +273,9 @@ enum IntentWork {
             switch lead.slot.state {
             case .open, .due:
                 let until = lead.slot.window.isAllDay ? "today" : "until \(CareTime.hour(lead.slot.window.end))"
-                sentences.append("\(card.report.name)'s \(name) is open \(until).")
+                sentences.append("\(card.report.name.possessive) \(name) is open \(until).")
             default:
-                sentences.append("\(card.report.name)'s \(name) opens at \(CareTime.hour(lead.slot.window.start)).")
+                sentences.append("\(card.report.name.possessive) \(name) opens at \(CareTime.hour(lead.slot.window.start)).")
             }
         }
         if settings.role == .personal, let me = who.me,

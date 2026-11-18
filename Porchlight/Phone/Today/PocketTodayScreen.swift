@@ -129,7 +129,7 @@ struct PocketTodayScreen: View {
             let when = missed.day == report.today ? "" : " " + PocketCareWords.dayWord(missed.day, today: report.today, calendar: calendar)
             StatusBanner(
                 tone: .warn, emoji: missed.routine.emoji,
-                title: "\(report.name)'s \(slot) wasn't logged\(when)",
+                title: "\(report.name.possessive) \(slot) wasn't logged\(when)",
                 detail: missed.slot.window.isAllDay ? nil : "Usually \(missed.slot.window.rangeText)",
                 action: ("Log it", { catchUp = PocketCatchUpSheet.Request(companionId: report.id, missed: missed) }),
                 onDismiss: { dismiss(missed) }

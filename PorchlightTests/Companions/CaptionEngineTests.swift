@@ -48,7 +48,7 @@ struct CaptionEngineTests {
             name: "Yo-Yo", kind: .walk, noun: "walk", who: "James", together: false, nthThisWeek: 6, minutes: 18, vibe: .smooth
         )
         let pace = CaptionEngine.templates(for: .cheeky).first { $0.key == "c.pace" }!
-        #expect(pace.make(context) == "James' 6th walk this week. Yo-Yo has notes about the pace.")
+        #expect(pace.make(context) == "James's 6th walk this week. Yo-Yo has notes about the pace.")
 
         let plant = CareRoutine(
             id: 1, companionId: 1, kind: .water, title: "Water", emoji: "💧", everyDays: 3, windows: [.anyTime],

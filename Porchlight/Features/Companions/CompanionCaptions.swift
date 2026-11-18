@@ -127,12 +127,8 @@ enum CaptionEngine {
         }
     }
 
-    private static func possessive(_ who: String) -> String {
-        who.hasSuffix("s") ? "\(who)'" : "\(who)'s"
-    }
-
     private static let wholesome: [Template] = [
-        Template(key: "w.nth") { c in c.together ? nil : "\(possessive(c.who)) \(ordinal(c.nthThisWeek)) \(c.noun) this week. \(c.name) feels very loved." },
+        Template(key: "w.nth") { c in c.together ? nil : "\(c.who.possessive) \(ordinal(c.nthThisWeek)) \(c.noun) this week. \(c.name) feels very loved." },
         Template(key: "w.home", walkOnly: true) { c in "\(c.name) came home happy. Thank you, \(c.who)." },
         Template(key: "w.lovely") { c in "Another lovely \(c.noun) with \(c.who)." },
         Template(key: "w.cared") { c in "\(c.name) is looking very well cared for." },
@@ -145,8 +141,8 @@ enum CaptionEngine {
     ]
 
     private static let cheeky: [Template] = [
-        Template(key: "c.nth") { c in c.together || c.kind == .walk ? nil : "\(possessive(c.who)) \(ordinal(c.nthThisWeek)) \(c.noun) this week. \(c.name) has notes about the technique." },
-        Template(key: "c.pace", walkOnly: true) { c in c.together ? nil : "\(possessive(c.who)) \(ordinal(c.nthThisWeek)) walk this week. \(c.name) has notes about the pace." },
+        Template(key: "c.nth") { c in c.together || c.kind == .walk ? nil : "\(c.who.possessive) \(ordinal(c.nthThisWeek)) \(c.noun) this week. \(c.name) has notes about the technique." },
+        Template(key: "c.pace", walkOnly: true) { c in c.together ? nil : "\(c.who.possessive) \(ordinal(c.nthThisWeek)) walk this week. \(c.name) has notes about the pace." },
         Template(key: "c.rate") { c in "\(c.name) rates this \(c.noun) a solid 7/10. Points off for no snacks." },
         Template(key: "c.gracious") { c in "\(c.who) showed up. \(c.name) is choosing to be gracious about the timing." },
         Template(key: "c.service") { c in "\(c.name) acknowledges your service. Barely." },

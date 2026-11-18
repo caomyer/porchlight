@@ -128,7 +128,7 @@ enum ReminderActions {
                 body: "Already logged, so nothing was added."
             )
         case nil:
-            return Confirmation(title: "That didn't save", body: "Open Porchlight to log \(companion.name)'s \(slotName).")
+            return Confirmation(title: "That didn't save", body: "Open Porchlight to log \(companion.name.possessive) \(slotName).")
         }
     }
 }

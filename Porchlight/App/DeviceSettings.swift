@@ -59,7 +59,7 @@ final class DeviceSettings {
     /// owner gave the device, so the app makes its own.
     func name(me person: Person?) -> String {
         if let customName { return customName }
-        if role == .personal, let person { return "\(person.name)'s \(model)" }
+        if role == .personal, let person { return "\(person.name.possessive) \(model)" }
         return "Shared \(model)"
     }
 

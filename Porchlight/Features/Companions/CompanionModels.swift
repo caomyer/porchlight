@@ -142,7 +142,7 @@ enum CareKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible
         switch self {
         case .walk: "\(who) walked \(name)"
         case .feed: "\(who) fed \(name)"
-        case .litter: "\(who) did \(name)'s litter"
+        case .litter: "\(who) did \(name.possessive) litter"
         case .water: "\(who) watered \(name)"
         case .groom: "\(who) groomed \(name)"
         case .meds: "\(who) gave \(name) meds"
@@ -170,12 +170,12 @@ enum CareKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible
         switch self {
         case .walk: "When did \(name) go out?"
         case .feed: "When did \(name) eat?"
-        case .litter: "When was \(name)'s litter done?"
+        case .litter: "When was \(name.possessive) litter done?"
         case .water: "When was \(name) watered?"
         case .groom: "When was \(name) groomed?"
         case .meds: "When did \(name) get meds?"
         case .play: "When did \(name) play?"
-        case .clean: "When was \(name)'s cleanup?"
+        case .clean: "When was \(name.possessive) cleanup?"
         case .custom: "When was \(title.lowercased())?"
         }
     }

@@ -87,7 +87,7 @@ private struct JoinPreview: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, flow.failure == nil ? 44 : 8)
                 VStack(spacing: 0) {
-                    row("☁️", "Stored in \(invitation.ownerName.map { "\($0)'s" } ?? "their") iCloud", "Uses almost none of your storage")
+                    row("☁️", "Stored in \(invitation.ownerName.map { $0.possessive } ?? "their") iCloud", "Uses almost none of your storage")
                     RowDivider()
                     row("🔒", "Private to the household", "No account to create. Porchlight can't see it.")
                 }

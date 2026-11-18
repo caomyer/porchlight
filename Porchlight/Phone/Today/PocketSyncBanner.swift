@@ -44,7 +44,7 @@ struct PocketSyncNotice: Equatable {
                 detail: "\(householdName) stays on this \(device) but can't sync.", fix: .openSettings
             )
         case .iCloudFull:
-            let whose = ownerName.map { "\($0)'s" } ?? "your"
+            let whose = ownerName.map { $0.possessive } ?? "your"
             return PocketSyncNotice(
                 tone: .warn, emoji: "⏸️", title: "Sync paused: \(whose) iCloud is full",
                 detail: "Your changes are safe on this \(device)."

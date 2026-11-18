@@ -45,7 +45,7 @@ struct CompanionScreen: View {
 
     private func header(_ report: CompanionReport) -> some View {
         HStack(alignment: .lastTextBaseline, spacing: 18) {
-            Text("\(report.name)'s week")
+            Text("\(report.name.possessive) week")
                 .font(.display(40))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

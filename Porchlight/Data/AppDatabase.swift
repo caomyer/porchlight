@@ -361,7 +361,7 @@ struct HouseholdSnapshot: Equatable, Sendable {
     func tag(for deviceId: Device.ID?) -> String? {
         guard let device = deviceId.flatMap({ id in devices.first { $0.id == id } }),
               let person = everyone.person(device.owner) else { return nil }
-        return "from \(person.name)'s \(device.kindWord)"
+        return "from \(person.name.possessive) \(device.kindWord)"
     }
 }
 

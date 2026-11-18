@@ -76,6 +76,9 @@ The screens:
 
 - You lists "Your households" when there are two or more: each with "You are James · 2 people", a tick on the one showing, one tap to switch (the You sheet closes, so the tabs show it), and "Join or start another".
   With one household, You keeps its usual rows and adds "Join or start another" under them.
+  Each household in the list has its own badge, so two read apart at a glance: the first letter of its name (after a leading "The") on a soft rounded square tinted with a color drawn from its id.
+  Nothing is stored for it, so it is the same on every device, and a later household whose color is taken moves to the next free one (`HouseholdLook`).
+  The mock gave each household an emoji face, which we don't store; a rounded square also keeps households from looking like people, who are solid circles.
 - Today's header names the household, tappable to switch, only when there are two or more ("Sunday · Grandma Rosa's ▾").
 - Today, Food, Lists, Glow and the rest show one household at a time; the tab you were on stays.
 - "Join or start another" offers starting one here (the phone's own setup, with "Cancel" and your name filled in) or joining one, by an invite or the owner's code.
@@ -85,6 +88,14 @@ The screens:
 
 Reminders come from every household this phone belongs to, for "me" in each, and, when there are two or more, each title starts with its household's name ("Grandma Rosa's · Water the tomatoes"), with one notification thread per household.
 A reminder's action logs into its own household, for "me" there, whichever household is showing.
+
+Every possessive the app builds from a name goes through one helper, `String.possessive`, in reminders, widgets, Siri's answers and the screens.
+Names take "'s", the app's style, singular names ending in "s" included ("James's", "Iris's").
+A name that is a plural noun ("Tomatoes") should take the apostrophe alone, but nothing on the device tells the two apart reliably, so for now it takes "'s" too ("Tomatoes's water").
+We tried the system's English lemmatizer, which on a Mac tells "tomatoes" (lemma "tomato") from "lucas" (lemma "Luca", capitalized as a name); on the iOS simulator it returned nothing, because its model is a downloadable asset, so a widget or a fresh phone can't count on it.
+Suffix rules can't do it either: "Tomatoes" and "James" both end in "es", "Hens" and "Wes" in a consonant and "s".
+The simplest honest rule is one the person makes: a companion's editor could ask "Is this name plural?" only when the name ends in "s", stored with the companion, and `possessive` would read it.
+That needs a column, so it waits for a decision.
 
 The audit (every read and write, checked for the household it touches) found these, all fixed with tests in `TwoHouseholdsTests`:
 

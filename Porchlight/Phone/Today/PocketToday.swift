@@ -179,15 +179,22 @@ enum PocketToday {
         slot.window.isAllDay ? routine.title : slot.window.label
     }
 
-    /// "5-8pm · open now", "8:40am": a slot's line on its tile.
+    /// "5-8pm · open now", "8:40am": a slot's line on its tile, read as one.
     static func slotDetail(_ slot: CareSlot, calendar: Calendar) -> String {
-        if let entry = slot.entry { return CareText.timeWithPeriod(entry.time, calendar: calendar) }
+        let parts = slotDetailParts(slot, calendar: calendar)
+        return parts.status.map { "\(parts.time) · \($0)" } ?? parts.time
+    }
+
+    /// A slot's line in its two parts, "5-8pm" and "open now", so a narrow tile can put
+    /// the status under the time instead of breaking after the dot.
+    static func slotDetailParts(_ slot: CareSlot, calendar: Calendar) -> (time: String, status: String?) {
+        if let entry = slot.entry { return (CareText.timeWithPeriod(entry.time, calendar: calendar), nil) }
         let range = slot.window.isAllDay ? "Today" : slot.window.rangeText
         switch slot.state {
-        case .open: return "\(range) · open now"
-        case .due: return "\(range) · due now"
-        case .late: return "\(range) · not logged"
-        case .upcoming, .done, .missed, .future: return range
+        case .open: return (range, "open now")
+        case .due: return (range, "due now")
+        case .late: return (range, "not logged")
+        case .upcoming, .done, .missed, .future: return (range, nil)
         }
     }
 }

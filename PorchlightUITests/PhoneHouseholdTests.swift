@@ -80,6 +80,21 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         snapshot("a5-21-your-households-dark")
     }
 
+    /// At the largest text: the household under the date, whole, and the slots' times and
+    /// statuses. (Queries of the You sheet at this size take half a minute each, so the
+    /// switcher's list is left to the eye.)
+    func testHeaderAndSlotsLargestText() {
+        let app = twoHouseholds(Self.largestText)
+        XCTAssertEqual(app.buttons["household-switcher"].label, "The Lake House")
+        snapshot("a5-22-today-header-largest")
+        // Too narrow for "5-8pm · open now": the status sits under the time, dot and all gone.
+        // The tile reads as one element: its title, time and status.
+        let evening = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "open now")).firstMatch
+        XCTAssertTrue(evening.waitForExistence(timeout: 5), "The evening slot says it is open now")
+        reveal(evening, in: app)
+        snapshot("a5-23-today-slots-largest")
+    }
+
     /// With one household, nothing names it and You has no list, only "Join or start another".
     func testOneHouseholdHasNoSwitcher() {
         let app = launch(["-sampleHousehold", "-me", "James", "-debugCompanionNow", Self.evening])

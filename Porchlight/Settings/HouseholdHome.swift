@@ -40,7 +40,7 @@ enum HouseholdHome: Equatable {
         switch self {
         case .thisDeviceOnly, .syncUnavailable: "on this \(device) only"
         case .yourICloud: "stored in your iCloud"
-        case let .ownersICloud(name): "stored in \(name.map { "\($0)'s" } ?? "its owner's") iCloud"
+        case let .ownersICloud(name): "stored in \(name.map { $0.possessive } ?? "its owner's") iCloud"
         case .signedOut: "on this \(device) until you sign in to iCloud"
         case .waitingForChoice: "on this \(device) until you choose what to do about iCloud sync"
         }

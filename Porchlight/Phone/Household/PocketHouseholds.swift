@@ -35,6 +35,10 @@ struct PocketHouseholds: View {
         }
     }
 
+    private var colors: [Household.ID: PersonColor] {
+        HouseholdLook.colors(for: model.households.map(\.id))
+    }
+
     private func row(_ choice: HouseholdChoice) -> some View {
         let isCurrent = choice.id == model.household?.id
         return Button {
@@ -42,11 +46,7 @@ struct PocketHouseholds: View {
             onSwitch()
         } label: {
             HStack(spacing: 12) {
-                Text("🏡")
-                    .phoneFont(.body, 18)
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(Theme.surface2))
-                    .accessibilityHidden(true)
+                HouseholdBadge(name: choice.household.name, color: colors[choice.id] ?? .blue)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(choice.household.name)
                         .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
@@ -71,6 +71,58 @@ struct PocketHouseholds: View {
         .accessibilityValue(isCurrent ? "Showing now" : "")
         .accessibilityHint(isCurrent ? "" : "Shows this household")
         .accessibilityIdentifier("household-\(choice.household.name)")
+    }
+}
+
+/// How a household looks in the list, so two read apart at a glance with nothing stored:
+/// the first letter of its name on a tint of a color drawn from its id. People are solid
+/// circles; a household is a soft rounded square, so the two never look alike.
+enum HouseholdLook {
+    /// A color for each household, drawn from its id so it is the same on every device and
+    /// every launch. When two in the list would share one, the later moves to the next free
+    /// color, so households differ while there are colors to go round.
+    static func colors(for ids: [Household.ID]) -> [Household.ID: PersonColor] {
+        let palette = PersonColor.allCases
+        var taken = Set<PersonColor>()
+        var colors: [Household.ID: PersonColor] = [:]
+        for id in ids {
+            let start = Int(stableHash(id.description) % UInt64(palette.count))
+            let free = (0..<palette.count).map { palette[(start + $0) % palette.count] }.first { !taken.contains($0) }
+            let color = free ?? palette[start]
+            taken.insert(color)
+            colors[id] = color
+        }
+        return colors
+    }
+
+    /// "L" for The Lake House, "G" for Grandma Rosa's: the first letter after a leading "The".
+    static func initial(_ name: String) -> String {
+        var words = name.split(separator: " ")
+        if words.count > 1, words[0].lowercased() == "the" { words.removeFirst() }
+        return words.first?.first.map { String($0).uppercased() } ?? "?"
+    }
+
+    /// FNV-1a, which unlike `hashValue` is the same in every process.
+    private static func stableHash(_ text: String) -> UInt64 {
+        text.utf8.reduce(14_695_981_039_346_656_037) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
+    }
+}
+
+/// A household's initial on a soft tint of its color, a rounded square beside its name.
+struct HouseholdBadge: View {
+    let name: String
+    let color: PersonColor
+
+    @Environment(\.colorScheme) private var scheme
+    @PhoneMetric private var side: CGFloat = 36
+
+    var body: some View {
+        Text(HouseholdLook.initial(name))
+            .phoneFont(.display, 18, weight: 700, relativeTo: .headline)
+            .foregroundStyle(color.color)
+            .frame(width: side, height: side)
+            .background(color.color.opacity(scheme == .dark ? 0.26 : 0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 

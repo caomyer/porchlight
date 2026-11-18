@@ -115,7 +115,7 @@ enum ReminderPlanner {
                         id: PlannedReminder.prefix + "care.\(dayKey)",
                         kind: .care(routine: routine.id, slot: index, day: day),
                         fireDate: fireDate,
-                        title: "\(companion.name)'s \(CareCatchUp.slotName(window, of: routine))",
+                        title: "\(companion.name.possessive) \(CareCatchUp.slotName(window, of: routine))",
                         body: careBody(window, timing: timing, snoozed: snooze != nil),
                         logTitle: routine.kind.buttonTitle(name: companion.name, title: routine.title)
                     )

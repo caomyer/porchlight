@@ -319,7 +319,7 @@ struct TodayMediumView: View {
         ForEach(care, id: \.routineId) { item in
             HStack(spacing: 8) {
                 Text(item.emoji).font(.system(size: 15))
-                Text("\(item.0.name)'s \(item.name)")
+                Text("\(item.0.name.possessive) \(item.name)")
                     .widgetFont(.body, 13.5, weight: 600)
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)

@@ -114,7 +114,7 @@ struct CompanionTodayCard: View {
                     }
                 }
             } else {
-                Text("Add a care routine in Settings to track \(report.name)'s day.")
+                Text("Add a care routine in Settings to track \(report.name.possessive) day.")
                     .font(.body(14, weight: 600))
                     .foregroundStyle(Theme.muted)
                     .padding(.top, 12)
