@@ -61,20 +61,23 @@ final class FirstRunTests: XCTestCase {
         snapshot("30-calendars-before-access")
         allow.tap()
 
-        // The system prompt belongs to SpringBoard, not the app.
+        // The system prompt belongs to SpringBoard, not the app, and comes once the system's
+        // privacy service has answered, which on a busy Mac has taken more than 15 seconds.
+        // Wait for whichever button it shows, for up to a minute: no prompt by then is a real
+        // failure, and the calendars must still be listed below.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let fullAccess = springboard.alerts.buttons["Allow Full Access"]
-        if fullAccess.waitForExistence(timeout: 10) {
-            snapshot("31-calendar-permission-prompt")
-            fullAccess.tap()
-        } else {
-            let ok = springboard.alerts.buttons["OK"]
-            XCTAssertTrue(ok.waitForExistence(timeout: 5), "iPadOS should ask for calendar access")
-            ok.tap()
+        let ok = springboard.alerts.buttons["OK"]
+        let deadline = Date.now.addingTimeInterval(60)
+        while !(fullAccess.exists || ok.exists), Date.now < deadline {
+            Thread.sleep(forTimeInterval: 0.5)
         }
+        XCTAssertTrue(fullAccess.exists || ok.exists, "iPadOS should ask for calendar access")
+        snapshot("31-calendar-permission-prompt")
+        (fullAccess.exists ? fullAccess : ok).tap()
 
         let owner = app.buttons.matching(NSPredicate(format: "label CONTAINS ' belongs to '")).firstMatch
-        XCTAssertTrue(owner.waitForExistence(timeout: 15), "The iPad's calendars should be listed after access is granted")
+        XCTAssertTrue(owner.waitForExistence(timeout: 30), "The iPad's calendars should be listed after access is granted")
         let calendarName = String(owner.label.components(separatedBy: " belongs to ").first ?? "")
         snapshot("32-calendars-listed")
 
