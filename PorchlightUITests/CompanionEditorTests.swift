@@ -3,7 +3,7 @@ import XCTest
 /// Editing a companion from Settings: the sheet must respond to touches, and its
 /// "Add routine" button must open the routine editor on top of it.
 @MainActor
-final class CompanionEditorTests: XCTestCase {
+final class CompanionEditorTests: XCTestCase, PhoneTestHelpers {
     private func snapshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
@@ -45,10 +45,8 @@ final class CompanionEditorTests: XCTestCase {
 
         let title = app.textFields["e.g. Brush teeth"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
-        title.tap()
-        title.typeText("Brush teeth")
-        let titled = expectation(for: NSPredicate(format: "value == 'Brush teeth'"), evaluatedWith: title)
-        wait(for: [titled], timeout: 5)
+        // Key by key and checked: on a busy simulator a fast typeText drops keys.
+        type("Brush teeth", into: title, in: app)
         // Done sits under the keyboard while it is up: a tap there lands on a key (the
         // editor then read "Brush teethO" and stayed open). Return puts the keyboard away.
         title.typeText("\n")
