@@ -125,14 +125,18 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
 
     /// Taps a photo in the row and picks one of its choices.
     private func choose(_ choice: String, onPhoto index: Int, in app: XCUIApplication) {
-        let tile = app.descendants(matching: .any)["meal-photo-\(index)"].firstMatch
-        reveal(tile, in: app)
-        // The photo's own middle: the tile's frame also holds its × and cover tag.
-        let image = tile.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'photo-'")).firstMatch
-        image.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        tapPhoto(index, in: app)
         let button = app.buttons[choice]
         XCTAssertTrue(button.waitForExistence(timeout: 5), "Tapping a photo offers \(choice)")
         button.tap()
+    }
+
+    /// Taps a photo in the row in its own middle: the tile's frame also holds its × and cover tag.
+    private func tapPhoto(_ index: Int, in app: XCUIApplication) {
+        let tile = app.descendants(matching: .any)["meal-photo-\(index)"].firstMatch
+        reveal(tile, in: app)
+        let image = tile.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'photo-'")).firstMatch
+        image.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
     /// Makes the second photo the cover, then reframes it, zoomed in; returns its photo.
@@ -141,7 +145,7 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         choose("Make cover", onPhoto: 1, in: app)
         XCTAssertEqual(photo(0, in: app), second, "The second photo is the cover now")
         snapshot("\(shot)-row")
-        choose("Reframe", onPhoto: 0, in: app)
+        tapPhoto(0, in: app)  // the cover has only Reframe, which a tap opens straight away
         let window = app.descendants(matching: .any)["reframe-window"].firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10), "Reframe opens the photo to frame")
         app.buttons["Zoom in"].tap()
@@ -225,7 +229,7 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
             XCTAssertTrue(app.staticTexts["Edit meal"].waitForExistence(timeout: 5))
             _ = photo(0, in: app)
             snapshot("parity-30-edit-row-\(look)")
-            choose("Reframe", onPhoto: 0, in: app)
+            tapPhoto(0, in: app)  // the cover opens straight to Reframe
             XCTAssertTrue(app.descendants(matching: .any)["reframe-window"].firstMatch.waitForExistence(timeout: 10))
             let done = app.buttons["reframe-done"]
             reveal(done, in: app)

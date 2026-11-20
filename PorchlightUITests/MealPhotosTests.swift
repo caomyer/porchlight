@@ -70,6 +70,29 @@ final class MealPhotosTests: XCTestCase {
         snapshot("47-saved-with-photos")
     }
 
+    /// The × badge hangs over its photo's corner, and a tap on the part over the photo still
+    /// removes it. On iOS 27 the photo's old menu took every touch inside the photo, so that
+    /// tap opened Make cover and Reframe instead.
+    func testTheRemoveBadgeTakesTapsOverThePhoto() {
+        let app = launch(["-startScreen", "food"])
+        let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
+        XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.tap()
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10), "The meal opens")
+        edit.tap()
+        XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5), "Edit shows the photos")
+
+        // The badge is drawn round the middle of its frame, which sits on the photo's corner:
+        // a little left of and below the middle is the badge, over the photo.
+        let badge = app.buttons["Remove photo 2"]
+        let inner = 5 / max(badge.frame.width, 1)
+        badge.coordinate(withNormalizedOffset: CGVector(dx: 0.5 - inner, dy: 0.5 + inner)).tap()
+        XCTAssertTrue(photo(app, 1).waitForNonExistence(timeout: 5), "A tap on the badge over the photo removes it")
+        XCTAssertFalse(app.buttons["Make cover"].exists, "and does not open the photo's choices")
+        snapshot("49b-badge-over-photo")
+    }
+
     /// A saved meal pages through its photos, and Edit removes one only once saved.
     func testPagingAndEditingPhotosOfASavedMeal() {
         let app = launch(["-startScreen", "food"])
@@ -135,12 +158,10 @@ final class MealPhotosTests: XCTestCase {
         app.buttons["Edit"].tap()
         let tile = photo(app, 0)
         XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        // The cover's only choice is Reframe, so a tap opens it straight away.
         tile.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()
-        let reframe = app.buttons["Reframe"]
-        XCTAssertTrue(reframe.waitForExistence(timeout: 5), "A photo offers to be reframed")
-        reframe.tap()
         let frameWindow = app.descendants(matching: .any)["reframe-window"]
-        XCTAssertTrue(frameWindow.waitForExistence(timeout: 5))
+        XCTAssertTrue(frameWindow.waitForExistence(timeout: 5), "Tapping the cover opens it to be reframed")
         let before = frameWindow.value as? String
         frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.1, thenDragTo: frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
