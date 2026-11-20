@@ -2,11 +2,12 @@
 
 On a busy simulator XCTest can give up starting the app ("Failed to launch ... Timed out
 while launching application via Xcode", "Failed to get launch progress ... Timed out while
-requesting launch progress"), or quitting the copy left from the test before,
-which every launch does first ("Failed to terminate com...porchlight:<pid>"): the test
-never ran, so its failure says nothing about it. Such a test, and only such a test (every
-one of its failures is one of these), runs once more on its own; any other failure stands
-as it is, and so does a test that fails its second launch too.
+requesting launch progress", "Application '...' does not have a process ID"), or quitting
+the copy left from the test before, which every launch does first ("Failed to terminate
+com...porchlight:<pid>"): the test never ran, so its failure says nothing about it. Such a
+test, and only such a test (every one of its failures is one of these, and it left no crash
+report), runs once more on its own; any other failure stands as it is, and so does a test
+that fails its second launch too.
 
   launch_retry.py failures <bundle>              the tests to run again, one "Class/test" a line
   launch_retry.py report <name> <bundle> <retry> the suite's result, counting each retried
@@ -23,6 +24,10 @@ LAUNCH_FAILURES = (
     "Failed to get launch progress ",
     "Failed to terminate ",
 )
+# "Application 'com...porchlight' does not have a process ID": the launch started the app,
+# but XCTest never learned its process; a spindump taken meanwhile showed the app idle and
+# well, and the next test quit that same process.
+LAUNCH_FAILURE_ENDINGS = ("' does not have a process ID",)
 # Not here: "Failed to get matching snapshots: Error getting main window
 # kAXErrorServerNotFound". XCTest says it when the app is running but never answered: once it
 # sat on its launch screen for two and a half minutes. A hang of the app's own at launch
@@ -49,12 +54,36 @@ def test_cases(bundle):
     return cases
 
 
+def is_launch_failure(message):
+    return message.startswith(LAUNCH_FAILURES) or (message.startswith("Application '") and message.endswith(LAUNCH_FAILURE_ENDINGS))
+
+
+def crashed(bundle, identifier):
+    """Whether XCTest attached a crash report to the test: then the app ran and died."""
+    output = subprocess.check_output(
+        ["xcrun", "xcresulttool", "get", "test-results", "activities", "--path", bundle, "--test-id", identifier],
+        stderr=subprocess.DEVNULL,
+    )
+    names = []
+
+    def walk(activity):
+        names.extend(attachment.get("name", "") for attachment in activity.get("attachments", []))
+        for child in activity.get("childActivities", []):
+            walk(child)
+
+    for run in json.loads(output).get("testRuns", []):
+        for activity in run.get("activities", []):
+            walk(activity)
+    return any("crash" in name.lower() for name in names)
+
+
 def launch_failures(bundle):
     """Failed tests whose every failure is XCTest not starting the app, or not quitting it."""
     return sorted(
         identifier
         for identifier, (result, messages) in test_cases(bundle).items()
-        if result == "Failed" and messages and all(message.startswith(LAUNCH_FAILURES) for message in messages)
+        if result == "Failed" and messages and all(is_launch_failure(message) for message in messages)
+        and not crashed(bundle, identifier)
     )
 
 
@@ -83,6 +112,9 @@ def main():
         if second:
             line += "; passed on a second launch: %s" % ", ".join(second)
         print(line)
+        if passed + failed == 0:
+            print("%s: no tests ran" % name)
+            sys.exit(1)
         sys.exit(0 if failed == 0 else 1)
     else:
         sys.exit("unknown command %s" % command)

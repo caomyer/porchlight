@@ -72,7 +72,9 @@ while (( $# )); do
   shift
 done
 
-phone_classes=(PhoneTests PhoneTabsTests PhoneCatchUpTests PhoneHouseholdTests PhoneRemindersTests PhoneFoodTests PhoneSetupTests)
+# The phone's UI test classes are the ones named Phone…Tests; a list kept by hand missed new
+# ones, which then went to the iPad and skipped themselves there.
+phone_classes=(PorchlightUITests/Phone*Tests.swift(:t:r))
 
 # Which UI suites: both unless one was named. Named tests go to the suite they belong to.
 wall=1 phone=1
@@ -212,6 +214,11 @@ d = json.load(sys.stdin)
 skipped = " (%d skipped)" % d["skippedTests"] if d["skippedTests"] else ""
 failed = ", %d failed" % d["failedTests"] if d["failedTests"] else ""
 print("%s: %d/%d passed%s%s" % (sys.argv[1], d["passedTests"], d["totalTestCount"], failed, skipped))
+# A suite that was asked for and ran nothing (a test name that matched none, or only tests
+# that skipped themselves) is no pass.
+if d["passedTests"] + d["failedTests"] == 0:
+    print("%s: no tests ran" % sys.argv[1])
+    sys.exit(1)
 sys.exit(0 if d["result"] == "Passed" else 1)
 ' "$1"
 }

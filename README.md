@@ -102,6 +102,8 @@ scripts/test.sh --only PhoneTests/testCheckingChores FirstRunTests   # just thes
 
 It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
 `--serial` runs the iPad and then the iPhone even with room for both, `--runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5` runs on another installed iOS, and `--no-build` reuses the last build.
+A UI test class named `Phone…Tests` is the phone's and runs on the iPhone; every other one is the wall's.
+A suite that runs no test at all, for a name in `--only` that matches none or only tests that skip themselves, fails ("no tests ran").
 `--shard 2/3` runs only the second of three shares of each UI suite's test classes, `--build-only` only builds, and `--progress` prints each test as it ends.
 Results and logs are in `$TMPDIR/porchlight-tests-<checkout>`: `unit`, `ui-wall` and `ui-phone`, each an `.xcresult` and a `.log`.
 
@@ -147,7 +149,7 @@ The shares are of about equal time, from each class's measured seconds in `scrip
 The suites take about 35 minutes of tests for the wall and 75 for the phone on these Macs, about one and a half times the development Mac's, since a 7 GB Mac swaps 2 to 3 GB with a simulator up.
 
 The jobs go through `scripts/test.sh` like a local run; the steps around it live in `scripts/ci`.
-A UI test that failed only because XCTest could not start the app, or quit the one before it ("Failed to launch", "Failed to get launch progress", "Failed to terminate"), which a busy hosted Mac does now and then, runs once more on its own, locally too; the summary names it ("passed on a second launch"), its second run is the `-retry` bundle and log, and any other failure stands (`scripts/lib/launch_retry.py`).
+A UI test that failed only because XCTest could not start the app, or quit the one before it ("Failed to launch", "Failed to get launch progress", "does not have a process ID", "Failed to terminate"), and left no crash report, which a busy hosted Mac does now and then, runs once more on its own, locally too; the summary names it ("passed on a second launch"), its second run is the `-retry` bundle and log, and any other failure stands (`scripts/lib/launch_retry.py`).
 The log prints each test as it ends (`--progress`), and every two minutes a heartbeat line with the free memory, so a hang or a Mac out of memory shows.
 To run only some tests, use Actions, Tests, Run workflow, with "only" set as for `--only` (for example `FirstRunTests PhoneTests/testCheckingChores`): one job builds and runs just those.
 
