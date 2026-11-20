@@ -17,9 +17,22 @@ final class FoodStore: StoredFirstObservable {
         }
         set {
             storedSnapshot = newValue
+            storedBook = nil
             withMutation(keyPath: \.snapshot) {}
         }
     }
+
+    /// The dishes of the snapshot, worked out once per snapshot (docs/design/dishes.md).
+    var book: DishBook {
+        // Read the snapshot first, so views that only ask for the book still follow changes.
+        let snapshot = snapshot
+        if let storedBook { return storedBook }
+        let book = DishBook(snapshot)
+        storedBook = book
+        return book
+    }
+
+    @ObservationIgnored private var storedBook: DishBook?
 
     @ObservationIgnored private var storedSnapshot: FoodSnapshot = .empty
     @ObservationIgnored @StoredFirst var lastError: String? = nil
@@ -52,11 +65,21 @@ final class FoodStore: StoredFirstObservable {
             do {
                 for try await snapshot in database.foodUpdates() {
                     self?.snapshot = snapshot
+                    await Self.tidy(database)
                 }
             } catch {
                 self?.lastError = error.userMessage
             }
         }
+    }
+
+    /// Gives meals an older build logged their dish, and merges dishes two devices made
+    /// with one name. Off the main actor; a failure waits for the next change.
+    private nonisolated static func tidy(_ database: AppDatabase) async {
+        await Task.detached(priority: .utility) {
+            guard (try? database.dishesNeedTidying()) == true else { return }
+            try? database.tidyDishes()
+        }.value
     }
 
     // MARK: Integration surface
@@ -288,6 +311,46 @@ final class FoodStore: StoredFirstObservable {
     func deleteMeal(_ entry: JournalEntry) {
         let id = entry.id
         perform { try database.deleteMeal(id: id) }
+    }
+
+    // MARK: Dishes
+
+    /// Renames a dish everywhere. Throws `DishError.nameTaken` when another dish of its
+    /// kitchen has the name, so the caller can offer to merge.
+    func renameDish(_ id: Dish.ID, to name: String) throws {
+        try database.renameDish(id: id, to: name)
+    }
+
+    func mergeDish(_ id: Dish.ID, into survivor: Dish.ID) {
+        perform { try database.mergeDish(id: id, into: survivor) }
+    }
+
+    func setFavorite(_ id: Dish.ID, _ favorite: Bool) {
+        perform { try database.setFavorite(dishId: id, favorite) }
+    }
+
+    /// Removes a dish from every meal; nil when it couldn't.
+    func removeDish(_ id: Dish.ID) -> DishRemoval? {
+        do {
+            let removal = try database.removeDish(id: id)
+            lastError = nil
+            return removal
+        } catch {
+            lastError = error.userMessage
+            return nil
+        }
+    }
+
+    func restore(_ removal: DishRemoval) {
+        perform { try database.restore(removal) }
+    }
+
+    func setTableFace(_ line: MealDish, _ rating: MealRating?) {
+        perform { try database.setTableFace(lineId: line.id, rating) }
+    }
+
+    func setPersonFace(_ line: MealDish, person: Person.ID, _ rating: MealRating?) {
+        perform { try database.setPersonFace(lineId: line.id, personId: person, rating) }
     }
 
     /// Turns the diary on or off, creating it the first time.

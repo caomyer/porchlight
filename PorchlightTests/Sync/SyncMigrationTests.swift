@@ -152,8 +152,8 @@ struct SyncMigrationTests {
 @Suite("Sync schema rules")
 struct SyncSchemaRulesTests {
     /// The tree from docs/design/sync-foundation.md, with the photo tables from
-    /// docs/design/sync-icloud.md and the devices from docs/design/households.md: each
-    /// synced table and its one parent.
+    /// docs/design/sync-icloud.md, the devices from docs/design/households.md and the
+    /// dishes from docs/design/dishes.md: each synced table and its one parent.
     private static let tree: [String: String?] = [
         "household": nil,
         "person": "household",
@@ -168,6 +168,7 @@ struct SyncSchemaRulesTests {
         "companionPhoto": "companion",
         "journalEntryPhotoThumb": "journalEntryPhoto", "journalEntryPhotoImage": "journalEntryPhoto",
         "device": "household",
+        "dish": "household", "mealDish": "journalEntry", "mealDishRating": "mealDish",
     ]
 
     /// Tables keyed by their parent's id, one row per parent, instead of an id of their own.

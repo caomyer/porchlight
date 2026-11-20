@@ -150,13 +150,32 @@ enum SyncSchema {
             """),
     ]
 
+    /// The tables "dishes v1" adds (docs/design/dishes.md): the household's dishes, the
+    /// dishes on each meal, and each person's own face for one of them. A dish line points at
+    /// its dish with a plain id, as a meal points at its restaurant: sync can deliver them
+    /// in either order, and a merged dish still answers for the lines that name it.
+    static let dishTables: [Table] = [
+        Table(name: "dish", parent: "household", columns: """
+            \(id), \(parent("householdId", "household")), "name" TEXT NOT NULL, "emoji" TEXT NOT NULL,
+            "tint" INTEGER NOT NULL, "kitchen" TEXT NOT NULL, "placeId" TEXT, "favorite" INTEGER NOT NULL DEFAULT 0,
+            "mergedInto" TEXT, "createdAt" TEXT NOT NULL
+            """),
+        Table(name: "mealDish", parent: "journalEntry", columns: """
+            \(id), \(parent("entryId", "journalEntry")), "dishId" TEXT NOT NULL, "sortOrder" INTEGER NOT NULL,
+            "rating" INTEGER
+            """),
+        Table(name: "mealDishRating", parent: "mealDish", columns: """
+            \(id), \(parent("mealDishId", "mealDish")), "personId" TEXT NOT NULL, "rating" INTEGER NOT NULL
+            """),
+    ]
+
     /// The rows that say which device wrote them ("from Mia's phone"). Each gains a nullable
     /// `deviceId`, a plain id: rows from before have none, and show no tag.
     static let stampedTables = ["careLog", "journalEntry", "choreCompletion", "rewardRedemption", "listItem"]
 
     /// Every table, synced or not, in the order the migrations create them.
     static var all: [Table] {
-        tables + photoTables + householdTables
+        tables + photoTables + householdTables + dishTables
     }
 
     /// Every synced table, parents before children, in the order the sync engine is given them.
