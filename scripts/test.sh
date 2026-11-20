@@ -196,6 +196,11 @@ xctestrun() {
 # it passed; "did not finish" only when the run left no results.
 report() {
   local summary
+  # Tests run a second time after their app never launched count by that second run.
+  if [[ -e "${2%.xcresult}-retry.xcresult" ]]; then
+    python3 scripts/lib/launch_retry.py report "$1" "$2" "${2%.xcresult}-retry.xcresult"
+    return
+  fi
   summary=$(xcrun xcresulttool get test-results summary --path "$2" 2>/dev/null) || true
   if [[ -z "$summary" ]]; then
     echo "$1: did not finish, see $results/${2:t:r}.log"
@@ -229,6 +234,18 @@ ui_suite() {
     echo "[$name] The test runner didn't start; trying once more"
   done
   summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
+  # A test XCTest could not start the app for, on a busy simulator, runs once more on its own; any
+  # other failure stands (scripts/lib/launch_retry.py).
+  local again test
+  local -a retry=()
+  rm -rf "$results/$name-retry.xcresult"
+  again=$(python3 scripts/lib/launch_retry.py failures "$results/$name.xcresult" 2>/dev/null) || again=""
+  for test in ${(f)again}; do retry+=(-only-testing:PorchlightUITests/$test); done
+  (( ${#retry} )) || return 0
+  echo "[$name] XCTest could not start the app for ${(j:, :)${(f)again}}; running them once more"
+  xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
+    "${retry[@]}" -resultBundlePath "$results/$name-retry.xcresult" 2>&1 | record "$results/$name-retry.log" || true
+  summarize < "$results/$name-retry.log" | grep -v "passed (" | sed "s/^/[$name, again] /"
 }
 
 # With --shard I/N, a suite's classes go to N shares of about equal time, each class,

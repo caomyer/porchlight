@@ -1,10 +1,10 @@
 #!/bin/zsh
 # Boots this checkout's simulator of a kind (ipad or iphone) on $RUNTIME, the one
-# scripts/test.sh then picks up already booted, so a UI job boots while the build runs.
+# scripts/test.sh then picks up already booted, so the log shows the boot's time apart.
 #
 # A brand-new iOS 27 simulator keeps setting itself up for minutes after it says it has
 # booted, and the first thing asked of it (installing, or uninstalling an app) waits for
-# that; asking here takes that wait out of the tests' time too.
+# that; asking here keeps that wait out of the tests' time too.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 source scripts/lib/simulators.sh
