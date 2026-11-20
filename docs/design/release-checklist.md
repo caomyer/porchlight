@@ -208,7 +208,7 @@ Each has a `-debugSyncStatus` value (`restricted`, `needsSignIn`, `couldNotCheck
 
 Why: Production only knows what was deployed to it, and a release with a new table or column fails on its first real value there.
 State: done (the process); it runs again before every release that adds a table or column.
-Evidence: `docs/design/sync-icloud.md`, "Deploying the CloudKit schema": `scripts/cloud-schema.sh seed`, `export`, review of `Config/cloudkit-schema.ckdb`, Deploy in the CloudKit Console, then `scripts/cloud-schema.sh check`.
+Evidence: `docs/design/sync-icloud.md`, "Deploying the CloudKit schema": `SchemaFileTests` proves `Config/cloudkit-schema.ckdb` is what the app writes, `scripts/cloud-schema.sh import` puts it in Development, James clicks "Deploy Schema Changes" in the CloudKit Console, and `scripts/cloud-schema.sh check` confirms Production. No device is needed; the device seed is an optional cross-check.
 To do for dishes: Production needs the record types `dish`, `mealDish` and `mealDishRating` (docs/design/dishes.md, "CloudKit") before the build that brings them reaches anyone, deployed together with the meal's multi-select Where field; its release notes ask everyone to update every device, wall first (docs/design/dishes.md, "Release notes").
 
 ## First run

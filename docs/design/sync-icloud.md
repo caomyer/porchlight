@@ -58,20 +58,32 @@ See "Deploying the CloudKit schema" below for how they get there.
 
 ## Deploying the CloudKit schema
 
-CloudKit learns a schema only in Development, and only from records: a record type appears when a record of it is first saved, and a field when a non-nil value of it is first saved.
-Production never learns anything by itself; its schema is whatever was last deployed to it from Development.
-A table or column that never reached Development with a value is missing in Production, and the first real value there fails.
+Production never learns anything by itself; its schema is whatever was last deployed to it from Development, and a table or column missing there fails on its first real value.
+Development learns a schema either from records (a record type when one is first saved, a field when a non-nil value of it is first saved) or from a schema file imported with `cktool`.
+Production keeps every field it is given forever, so what goes there must be exactly what the app writes.
+
+The path, with no device involved:
+
+1. **Test.** `SchemaFileTests` derives the schema from the app itself (`SyncMirror.all`, by the rules below) and compares it with `Config/cloudkit-schema.ckdb`, record type by record type and field by field; it names anything missing, extra or of the wrong type.
+   It runs with every unit test run, so the file can't drift from the app.
+2. **Import.** `scripts/cloud-schema.sh import` validates the file against Development, imports it, exports Development again and fails unless it matches.
+3. **Deploy.** James clicks "Deploy Schema Changes..." in the CloudKit Console (Development to Production); `cktool` can't change Production.
+4. **Check.** `scripts/cloud-schema.sh check` confirms Production has everything in the file.
+
+A new table or column therefore goes in the file by hand, in the same change, and the test says when it is wrong.
 
 ### What CloudKit has to know
 
 SQLiteData writes one record type per synced table, named like the table, in one zone of the private database (`co.pointfree.SQLiteData.defaultZone`).
-Each record type has these fields (read from SQLiteData 1.13.0's `CKRecord.update(with:userModificationTime:)` and checked by `SchemaSeedTests` against its stand-in for iCloud):
+Each record type has these fields (read from SQLiteData 1.13.0's `CKRecord.update(with:userModificationTime:)`, checked by `SchemaSeedTests` against its stand-in for iCloud, and the rules `SchemaFileTests` derives the file from):
 
 - one field per column, named like the column: encrypted, and typed by the mirror (`String` and `UUID` as strings, `Int` and `Bool` as 64-bit integers, `Double` as a double, `Date` as a date and time);
 - `BLOB` columns (the three photo tables' `image`, `journalPage.drawing`) as plain asset fields, each with an encrypted `<column>_hash` beside it;
 - `sqlitedata_icloud_userModificationTime_<column>` for every column, an encrypted 64-bit integer SQLiteData compares to merge edits field by field;
 - `sqlitedata_icloud_userModificationTime` for the whole record;
 - the record's parent, a system field, for every table but `household`.
+
+`SchemaFileTests` reads and leaves out only what no table describes: each record's system fields (`___recordID` and the like), the grants, CloudKit's own `Users` type and `cloudkit.share`.
 
 Sharing adds the system record type `cloudkit.share`: SQLiteData saves a `CKShare` of the household record (`share-<recordName>`) in the household's zone, and the app (or the share sheet) may set its `title` and `thumbnailImageData`.
 SQLiteData creates no other record types in iCloud: its own tables (`sqlitedata_icloud_metadata`, `_recordTypes`, `_stateSerialization`, `_unsyncedRecordIDs`, `_pendingRecordZoneChanges`) stay on the device.
@@ -80,9 +92,11 @@ Indexes: SQLiteData never queries CloudKit; it reads zone changes through `CKSyn
 So nothing needs a queryable or sortable index.
 The CloudKit Console's record browser wants `recordName` queryable to list records, which is a convenience for looking, not something the app needs; it can be added in the Console at any time.
 
-### The seed
+### The seed, an optional cross-check
 
-A Debug build launched with `-seedCloudSchema` teaches Development all of it (`Porchlight/Sync/SchemaSeed.swift`):
+The seed is no longer the path; it is a cross-check that a real build, writing to real iCloud, makes exactly the fields the file has.
+It needs a signed build on a device or a simulator signed in to iCloud, and signing its own bundle id with the App Store Connect key is currently refused by Apple ("Authentication failed"), so it is optional.
+A Debug build launched with `-seedCloudSchema` writes all of it to Development (`Porchlight/Sync/SchemaSeed.swift`):
 
 1. It opens a throwaway database with its own sync metadata in the temporary folder; nothing of the household on the device is opened.
 2. It writes one row to every synced table, parents first, with a value in every column (dates, ids pointing at the seeded rows, a few bytes for every BLOB), driven by `SyncMirror.all`, so a new table or column is seeded without anyone remembering to.
@@ -100,10 +114,11 @@ Installing a Debug build over Porchlight itself would keep its data but switch i
 
 ### `scripts/cloud-schema.sh`
 
-- `seed` builds Porchlight Seed, installs it on the first paired iPhone (or `PORCHLIGHT_SEED_DEVICE`), launches it with `-seedCloudSchema` and says what to watch for; `seed --simulator <id>` does the same on a simulator signed in to iCloud.
+- `import` validates `Config/cloudkit-schema.ckdb` against Development (`cktool validate-schema`), imports it (`cktool import-schema`), exports Development again and fails unless the two say the same, field for field; when they differ only in layout, it writes the export's layout back to the file to commit.
+- `seed` (optional) builds Porchlight Seed, installs it on the first paired iPhone (or `PORCHLIGHT_SEED_DEVICE`), launches it with `-seedCloudSchema` and says what to watch for; `seed --simulator <id>` does the same on a simulator signed in to iCloud.
 - `uninstall-seed` removes Porchlight Seed afterwards.
-- `export` writes Development's schema to `Config/cloudkit-schema.ckdb` with `xcrun cktool export-schema`, so schema changes show up in review.
-- `diff` compares the checked-in file with Development.
+- `export` writes Development's schema to `Config/cloudkit-schema.ckdb` with `xcrun cktool export-schema`.
+- `diff` compares the checked-in file with Development, ignoring layout.
 - `check` exports Production's schema and compares it with the checked-in file, and when they differ prints the deployment steps below.
   (`cktool validate-schema` refuses Production: "endpoint not applicable in the environment 'production'".)
 
@@ -124,18 +139,21 @@ Deploying only adds; CloudKit never removes a deployed record type or field, whi
 
 ### The first rollout
 
-1. Seed Development from James's iPhone: `scripts/cloud-schema.sh seed`, and wait for "Schema seeded".
-2. `scripts/cloud-schema.sh uninstall-seed`.
-3. `scripts/cloud-schema.sh export`, review `Config/cloudkit-schema.ckdb`, and commit it.
-4. Deploy to Production in the CloudKit Console, then `scripts/cloud-schema.sh check`.
-5. Only then turn the wall's sync switch on.
+The first schema came from the seed on James's iPhone (`seed`, `export`, review, Deploy, `check`), before the wall's sync switch was turned on.
 
-Before every later release that adds a table or a column, steps 1 to 4 run again, and `diff` in review shows what the release adds.
+### Every release that adds a table or a column
+
+1. The change adds the column or table to its mirror (`SyncMirrors.swift`) and to `Config/cloudkit-schema.ckdb`; `SchemaFileTests` passes.
+2. `scripts/cloud-schema.sh import`, from the change's branch, before anyone installs the build.
+3. James deploys in the CloudKit Console.
+4. `scripts/cloud-schema.sh check`, before the build reaches TestFlight.
 
 ### Fields waiting for Production
 
-- `careLog.slot` (encrypted 64-bit integer) and `sqlitedata_icloud_userModificationTime_slot` (encrypted 64-bit integer), in `Config/cloudkit-schema.ckdb` with the build that remembers which slot a log was made for.
-  Every care log that build writes carries them, so they must be deployed before it reaches Production; older builds ignore the field, keep it when they edit a log, and place the log by its time.
+- `careLog.slot` and `sqlitedata_icloud_userModificationTime_slot` (encrypted 64-bit integers), with the build that remembers which slot a log was made for.
+  Every care log that build writes carries them; older builds ignore the field, keep it when they edit a log, and place the log by its time.
+- `journalEntry.otherSources` (encrypted string) and `sqlitedata_icloud_userModificationTime_otherSources` (encrypted 64-bit integer), with the build whose meals can come from several places ("Where, one kind or several").
+- The record types `dish`, `mealDish` and `mealDishRating`, with the build whose meals name their dishes (dishes.md).
 
 ### When iCloud turns changes down
 

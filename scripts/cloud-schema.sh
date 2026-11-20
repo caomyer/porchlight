@@ -1,14 +1,20 @@
 #!/bin/zsh
-# Teaches CloudKit the app's schema and keeps a reviewed copy of it in the repo
-# (docs/design/sync-icloud.md, "Deploying the CloudKit schema").
+# Puts the app's CloudKit schema in Development from the reviewed copy in the repo, and
+# checks Production has it (docs/design/sync-icloud.md, "Deploying the CloudKit schema").
 #
-#   scripts/cloud-schema.sh seed [--simulator UDID]   write one record of every type to Development
-#   scripts/cloud-schema.sh uninstall-seed            remove the seeding app from the iPhone
-#   scripts/cloud-schema.sh export                    Development's schema -> Config/cloudkit-schema.ckdb
+#   scripts/cloud-schema.sh import                    Config/cloudkit-schema.ckdb -> Development, then diff
 #   scripts/cloud-schema.sh diff                      the checked-in schema against Development
 #   scripts/cloud-schema.sh check                     the checked-in schema against Production
+#   scripts/cloud-schema.sh export                    Development's schema -> Config/cloudkit-schema.ckdb
+#   scripts/cloud-schema.sh seed [--simulator UDID]   optional cross-check: a real build writes every type
+#   scripts/cloud-schema.sh uninstall-seed            remove the seeding app from the iPhone
 #
-# seed builds a Debug build as its own app, "Porchlight Seed" (bundle id
+# The path: SchemaFileTests proves Config/cloudkit-schema.ckdb is exactly what the app
+# writes; import validates it and puts it in Development; James deploys Development to
+# Production with "Deploy Schema Changes" in the CloudKit Console; check confirms it.
+# No device is involved.
+#
+# seed is a cross-check, not the path: it builds a Debug build as its own app, "Porchlight Seed" (bundle id
 # com.mingyucao.porchlight.schemaseed), signed for the same iCloud container, installs it
 # on a real iPhone (PORCHLIGHT_SEED_DEVICE, else the first paired iPhone) or with
 # --simulator on a simulator signed in to iCloud, and launches it with -seedCloudSchema.
@@ -16,7 +22,7 @@
 # app's data, its sync switch and its Release build stay exactly as they were. The seed
 # works in a throwaway database, in its own iCloud zone, and removes both when done.
 #
-# export, diff and check need a CloudKit management token saved once with
+# import, export, diff and check need a CloudKit management token saved once with
 #   xcrun cktool save-token --type management
 # (create it in the CloudKit Console: Settings, Tokens & Keys, Management Tokens).
 # Production can't be changed from here: deploying is a button in the CloudKit Console,
@@ -32,7 +38,7 @@ seed_bundle=com.mingyucao.porchlight.schemaseed
 schema_file=Config/cloudkit-schema.ckdb
 
 usage() {
-  sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 }
 
@@ -146,12 +152,39 @@ uninstall_seed() {
   echo "Removed Porchlight Seed from $device. Porchlight itself is untouched."
 }
 
+# The two files say the same, field for field: an export aligns its columns, and a file
+# edited by hand may not.
+same_schema() {
+  diff -u -w "$1" "$2"
+}
+
 export_schema() {
   local environment="$1" file="$2"
   xcrun cktool export-schema --team-id "$(team_id)" --container-id "$container" --environment "$environment" --output-file "$file"
 }
 
 case "${1:-}" in
+  import)
+    [[ -f "$schema_file" ]] || { echo "No $schema_file." >&2; exit 1; }
+    team="$(team_id)"
+    echo "Validating $schema_file against Development..."
+    xcrun cktool validate-schema --team-id "$team" --container-id "$container" --environment development --file "$schema_file"
+    echo "Importing it into Development..."
+    xcrun cktool import-schema --team-id "$team" --container-id "$container" --environment development --file "$schema_file"
+    current="$(mktemp -d)/development.ckdb"
+    export_schema development "$current"
+    if ! same_schema "$schema_file" "$current"; then
+      echo "Development still differs from $schema_file after the import (- checked in, + Development)." >&2
+      exit 1
+    fi
+    if ! cmp -s "$schema_file" "$current"; then
+      cp "$current" "$schema_file"
+      echo "Development matches. $schema_file now has the export's own layout; commit it."
+    else
+      echo "Development matches $schema_file."
+    fi
+    echo "Next: Deploy Schema Changes in the CloudKit Console, then scripts/cloud-schema.sh check."
+    ;;
   seed) shift; seed "$@" ;;
   uninstall-seed) uninstall_seed ;;
   export)
@@ -162,7 +195,7 @@ case "${1:-}" in
     [[ -f "$schema_file" ]] || { echo "No $schema_file yet: run export first." >&2; exit 1; }
     current="$(mktemp -d)/development.ckdb"
     export_schema development "$current"
-    if diff -u "$schema_file" "$current"; then
+    if same_schema "$schema_file" "$current"; then
       echo "Development matches $schema_file."
     else
       echo "Development differs from $schema_file (- checked in, + Development)."
@@ -173,7 +206,7 @@ case "${1:-}" in
     [[ -f "$schema_file" ]] || { echo "No $schema_file yet: run export first." >&2; exit 1; }
     production="$(mktemp -d)/production.ckdb"
     export_schema production "$production"
-    if diff -u "$production" "$schema_file"; then
+    if same_schema "$production" "$schema_file"; then
       echo "Production already has every record type and field in $schema_file."
       exit 0
     fi
