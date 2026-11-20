@@ -5,11 +5,11 @@ name: Tests
 # stays local: scripts/test.sh.
 #
 # Each job is one small Mac (3 cores, 7 GB), which holds one simulator, and the plan runs
-# five at once. The UI suites run in shards of whole test classes of about equal time
-# (scripts/test.sh --shard): the wall's in two, the phone's in three. The first job builds,
-# hands the build to the others as the "products" artifact, and then runs the unit tests
-# and the wall's first shard; the others boot their simulators while the build is going,
-# so the build is their only wait.
+# five at once. One job builds and hands the build to the others as the "products"
+# artifact; only then do the five test jobs start (`needs: build`), so none holds a Mac
+# while the build still waits for one. The UI suites run in shards of whole test classes of
+# about equal time (scripts/test.sh --shard): the wall's in two, the phone's in three, and
+# the unit tests run beside the wall's first shard.
 #
 # Run by hand (Actions, Tests, Run workflow) with "only" set to run just those tests, e.g.
 # "FirstRunTests PhoneTests/testCheckingChores", in one job that builds for itself.
@@ -31,7 +31,6 @@ concurrency:
 
 permissions:
   contents: read
-  actions: read
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
@@ -43,10 +42,10 @@ env:
 
 jobs:
   build:
-    name: Build, unit tests, Wall UI 1 of 2
+    name: Build
     if: ${{ !inputs.only }}
     runs-on: xcode-27
-    timeout-minutes: 60
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -59,9 +58,6 @@ jobs:
         with:
           path: ${{ env.PACKAGES }}
           key: spm-${{ hashFiles('project.yml') }}
-
-      - name: Pick the simulators
-        run: zsh scripts/ci/pick-simulators.sh
 
       - name: Build
         run: zsh scripts/test.sh --build-only
@@ -78,7 +74,7 @@ jobs:
           tar -cf products.tar -C "$PRODUCTS" .
           ls -lh products.tar
 
-      - name: Hand the build to the UI jobs
+      - name: Hand the build to the test jobs
         uses: actions/upload-artifact@v4
         with:
           name: products
@@ -86,36 +82,18 @@ jobs:
           compression-level: 1
           retention-days: 1
 
-      # Not during the build: booting beside it took the build from 5 minutes to 15, and
-      # every other job waits for the build.
-      - name: Boot the ipad
-        run: zsh scripts/ci/boot-simulator.sh ipad
-
-      - name: Test
-        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh --wall --shard 1/2 --no-build --progress --runtime "$RUNTIME"
-
-      - name: Collect results
-        if: always()
-        run: zsh scripts/ci/collect-results.sh "${{ job.status }}"
-
-      - name: Upload results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: results-Unit and Wall UI 1 of 2
-          path: results
-          if-no-files-found: ignore
-          retention-days: 7
-
-  ui:
+  test:
     name: ${{ matrix.name }}
-    if: ${{ !inputs.only }}
+    needs: build
     runs-on: xcode-27
-    timeout-minutes: 90
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
         include:
+          - name: Unit and Wall UI 1 of 2
+            kind: ipad
+            args: --wall --shard 1/2
           - name: Wall UI 2 of 2
             kind: ipad
             args: --wall --ui-only --shard 2/2
@@ -134,14 +112,12 @@ jobs:
       - name: Pick the simulators
         run: zsh scripts/ci/pick-simulators.sh
 
-      - name: Boot the ${{ matrix.kind }} while the build runs
-        run: zsh scripts/ci/boot-simulator.sh ${{ matrix.kind }}
-
-      - name: Wait for the build
-        timeout-minutes: 40
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: zsh scripts/ci/wait-for-build.sh
+      # With the memory heartbeat, and a limit, so a boot that stalls says so: twice a job
+      # that booted the iPad right after building on the same Mac was cancelled mid-boot,
+      # with free memory near its lowest.
+      - name: Boot the ${{ matrix.kind }}
+        timeout-minutes: 15
+        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-simulator.sh ${{ matrix.kind }}
 
       - name: Get the build
         uses: actions/download-artifact@v4

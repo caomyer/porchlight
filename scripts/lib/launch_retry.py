@@ -1,9 +1,11 @@
 """Second launches for UI tests whose app never started, for scripts/test.sh.
 
 On a busy simulator XCTest can give up starting the app ("Failed to launch ... Timed out
-while launching application via Xcode"): the test never ran, so its failure says nothing
-about the app. Such a test, and only such a test, runs once more on its own; any other
-failure stands as it is, and so does a test that fails its second launch too.
+while launching application via Xcode"), or quitting the copy left from the test before,
+which every launch does first ("Failed to terminate com...porchlight:<pid>"): the test
+never ran, so its failure says nothing about it. Such a test, and only such a test (every
+one of its failures is one of these), runs once more on its own; any other failure stands
+as it is, and so does a test that fails its second launch too.
 
   launch_retry.py failures <bundle>              the tests to run again, one "Class/test" a line
   launch_retry.py report <name> <bundle> <retry> the suite's result, counting each retried
@@ -14,7 +16,7 @@ import json
 import subprocess
 import sys
 
-LAUNCH_FAILURE = "Failed to launch "
+LAUNCH_FAILURES = ("Failed to launch ", "Failed to terminate ")
 
 
 def test_cases(bundle):
@@ -38,11 +40,11 @@ def test_cases(bundle):
 
 
 def launch_failures(bundle):
-    """Failed tests whose every failure is the app not launching."""
+    """Failed tests whose every failure is XCTest not starting the app, or not quitting it."""
     return sorted(
         identifier
         for identifier, (result, messages) in test_cases(bundle).items()
-        if result == "Failed" and messages and all(message.startswith(LAUNCH_FAILURE) for message in messages)
+        if result == "Failed" and messages and all(message.startswith(LAUNCH_FAILURES) for message in messages)
     )
 
 

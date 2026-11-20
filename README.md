@@ -139,15 +139,15 @@ Every push to any branch runs the unit tests and both UI suites on GitHub's host
 A newer push to the same branch cancels the run before it; a run by hand is never cancelled by, and never cancels, another run.
 Each job is a small Mac (3 cores, 7 GB) that holds one simulator, and the plan runs five at once:
 
-- **Build, unit tests, Wall UI 1 of 2** builds once (`scripts/test.sh --build-only`) and hands the build to the other jobs as the `products` artifact, then boots the iPad and runs the unit tests and the first half of the wall's UI suite (booting beside the build slowed it from 5 minutes to 15).
-- **Wall UI 2 of 2, Phone UI 1 of 3, 2 of 3, 3 of 3** each run a share of a UI suite's test classes (`--shard`), on the build from the first job (`--no-build`).
-  Each boots its simulator while the build is still going, since a new iOS 27 simulator takes 2 to 8 minutes to boot and finish setting itself up.
+- **Build** builds once (`scripts/test.sh --build-only`) and hands the build to the test jobs as the `products` artifact.
+- **Unit and Wall UI 1 of 2, Wall UI 2 of 2, Phone UI 1 of 3, 2 of 3, 3 of 3** start once the build is done (`needs: build`), boot their simulator (2 to 8 minutes for a new iOS 27 simulator), and run the unit tests or a share of a UI suite's test classes (`--shard`) on that build (`--no-build`).
+  They used to boot while the build ran, which saved those minutes, but with several branches pushing, a test job then held a Mac for as long as the build waited in the queue for one.
 
 The shares are of about equal time, from each class's measured seconds in `scripts/lib/ui-test-seconds`; when a class grows, update its line from a run's log, where each test prints its seconds.
 The suites take about 35 minutes of tests for the wall and 75 for the phone on these Macs, about one and a half times the development Mac's, since a 7 GB Mac swaps 2 to 3 GB with a simulator up.
 
 The jobs go through `scripts/test.sh` like a local run; the steps around it live in `scripts/ci`.
-A UI test whose app never started ("Failed to launch ... Timed out while launching application"), which a busy hosted Mac does now and then, runs once more on its own, locally too; the summary names it ("passed on a second launch"), its second run is the `-retry` bundle and log, and any other failure stands (`scripts/lib/launch_retry.py`).
+A UI test that failed only because XCTest could not start the app, or quit the one before it ("Failed to launch ... Timed out while launching application", "Failed to terminate"), which a busy hosted Mac does now and then, runs once more on its own, locally too; the summary names it ("passed on a second launch"), its second run is the `-retry` bundle and log, and any other failure stands (`scripts/lib/launch_retry.py`).
 The log prints each test as it ends (`--progress`), and every two minutes a heartbeat line with the free memory, so a hang or a Mac out of memory shows.
 To run only some tests, use Actions, Tests, Run workflow, with "only" set as for `--only` (for example `FirstRunTests PhoneTests/testCheckingChores`): one job builds and runs just those.
 

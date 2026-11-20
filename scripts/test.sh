@@ -234,7 +234,7 @@ ui_suite() {
     echo "[$name] The test runner didn't start; trying once more"
   done
   summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
-  # A test whose app never launched, on a busy simulator, runs once more on its own; any
+  # A test XCTest could not start the app for, on a busy simulator, runs once more on its own; any
   # other failure stands (scripts/lib/launch_retry.py).
   local again test
   local -a retry=()
@@ -242,7 +242,7 @@ ui_suite() {
   again=$(python3 scripts/lib/launch_retry.py failures "$results/$name.xcresult" 2>/dev/null) || again=""
   for test in ${(f)again}; do retry+=(-only-testing:PorchlightUITests/$test); done
   (( ${#retry} )) || return 0
-  echo "[$name] The app did not launch for ${(j:, :)${(f)again}}; running them once more"
+  echo "[$name] XCTest could not start the app for ${(j:, :)${(f)again}}; running them once more"
   xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
     "${retry[@]}" -resultBundlePath "$results/$name-retry.xcresult" 2>&1 | record "$results/$name-retry.log" || true
   summarize < "$results/$name-retry.log" | grep -v "passed (" | sed "s/^/[$name, again] /"
