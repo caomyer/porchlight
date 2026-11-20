@@ -1,0 +1,72 @@
+name: Tests
+
+# The unit tests and both UI suites on GitHub's hosted Macs, on the current iOS, so full
+# runs do not compete for the development Mac. Each job is one small machine (3 cores,
+# 7 GB), which holds one simulator, so the three suites run as three jobs side by side.
+# The iOS 17 run, for the wall iPad's own OS, stays local: scripts/test.sh.
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: ${{ matrix.name }}
+    runs-on: xcode-27
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Unit
+            args: --unit-only
+          - name: Wall UI
+            args: --wall --ui-only
+          - name: Phone UI
+            args: --phone --ui-only
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+      PORCHLIGHT_TEST_SLOTS: "1"
+      RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Pick this Xcode's 13-inch iPad Pro
+        run: |
+          ipad=$(xcrun simctl list devicetypes | sed -n 's/.*(\(com\.apple\.CoreSimulator\.SimDeviceType\.iPad-Pro-13-inch[^)]*\)).*/\1/p' | head -1)
+          test -n "$ipad"
+          echo "PORCHLIGHT_SIM_IPAD_TYPE=$ipad" >> "$GITHUB_ENV"
+          echo "iPad: $ipad"
+
+      - name: Test
+        run: zsh scripts/test.sh ${{ matrix.args }} --runtime "$RUNTIME"
+
+      - name: Collect results
+        if: always()
+        run: |
+          mkdir -p results
+          cp -R "$TMPDIR"/porchlight-tests-*/*.log results/ 2>/dev/null || true
+          if [ "${{ job.status }}" != "success" ]; then
+            for bundle in "$TMPDIR"/porchlight-tests-*/*.xcresult; do
+              [ -e "$bundle" ] && ditto -c -k --keepParent "$bundle" "results/$(basename "$bundle").zip"
+            done
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.name }}
+          path: results
+          if-no-files-found: ignore
+          retention-days: 7
