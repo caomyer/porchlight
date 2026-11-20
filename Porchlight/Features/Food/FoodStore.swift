@@ -279,7 +279,7 @@ final class FoodStore: StoredFirstObservable {
     /// caller still holds the photos for another try.
     func addMeal(_ draft: MealDraft, photos: [NewMealPhoto] = []) throws -> JournalEntry {
         guard let journalId = journal?.id else { throw FoodError.noJournal }
-        return try database.addMeal(draft, journalId: journalId, photos: photos)
+        return try database.addMeal(dishesFromTitle(draft, lines: []), journalId: journalId, photos: photos)
     }
 
     /// Adds photos to a meal that is already saved. Returns false, with `lastError` set,
@@ -305,7 +305,24 @@ final class FoodStore: StoredFirstObservable {
     @discardableResult
     func updateMeal(_ entry: JournalEntry, _ draft: MealDraft, photos items: [MealPhotoItem]? = nil) -> Bool {
         let id = entry.id
+        let draft = dishesFromTitle(draft, lines: snapshot.lines[id] ?? [])
         return perform { try database.updateMeal(id: id, draft, photos: items) }
+    }
+
+    /// Until Snap and Edit name dishes one by one, "What was it?" is the meal's one dish: a
+    /// typed name is its dish (the same one it had when the name still matches), and no name
+    /// is no dish. A meal with several dishes keeps them; the title can't speak for them.
+    private func dishesFromTitle(_ draft: MealDraft, lines: [MealDish]) -> MealDraft {
+        guard draft.dishes == nil, lines.count <= 1 else { return draft }
+        var draft = draft
+        let name = DishName.cleaned(draft.title)
+        if DishName.key(name).isEmpty || DishName.key(name) == DishName.key(draft.slot) {
+            draft.dishes = []
+        } else {
+            let kept = lines.first.flatMap { book.dish($0.dishId) }.flatMap { $0.key == DishName.key(name) ? $0.id : nil }
+            draft.dishes = [DishLineDraft(name: name, dishId: kept, rating: draft.rating)]
+        }
+        return draft
     }
 
     func deleteMeal(_ entry: JournalEntry) {

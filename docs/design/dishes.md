@@ -80,7 +80,7 @@ SQLiteData sends every row of a table the first time it starts with that table, 
 ## Older builds
 
 `PorchlightTests/Sync/OlderBuildSyncTests.swift` puts a newer and an older device on one stand-in for iCloud (SQLiteData's `MockCloudContainer`, reached with `@testable import SQLiteData`).
-The newer one has the dish tables and a new `sources` field on the meal; the older one has today's schema.
+The newer one has the dish tables and a new `otherSources` field on the meal (standing in for the multi-select Where); the older one has today's schema.
 
 - **Records of a type it doesn't know:** the older build keeps them in the engine's metadata and changes nothing; no error.
 - **Fields it doesn't know on a record it knows:** an edit on the older build sends only what it changed, from the last record iCloud gave it, so iCloud keeps the newer field, and the newer device still has its dish lines.

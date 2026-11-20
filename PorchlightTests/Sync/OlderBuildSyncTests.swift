@@ -11,7 +11,7 @@ import Testing
 /// "Older builds").
 ///
 /// Two devices share one stand-in for iCloud: the newer one knows a `dish` table, a
-/// `mealDish` table under each meal, and a new `sources` column on the meal; the older one
+/// `mealDish` table under each meal, and a new `otherSources` column on the meal; the older one
 /// is today's schema. Nothing here is the dish feature itself, only the shapes it adds.
 @MainActor
 @Suite("Older builds", .serialized)
@@ -37,12 +37,12 @@ struct OlderBuildSyncTests {
 
         // iCloud's record still has the field the older build doesn't know.
         let record = try #require(cloud.record(entryId, type: "journalEntry"))
-        #expect(record.encryptedValues["sources"] as? String == "dineOut,delivery")
+        #expect(record.encryptedValues["otherSources"] as? String == "dineOut,delivery")
         #expect(record.encryptedValues["title"] as? String == "Pho")
 
         try await newer.engine.fetchChanges()
         #expect(try newer.title(of: entryId) == "Pho")
-        #expect(try newer.string("SELECT sources FROM journalEntry WHERE id = ?", entryId) == "dineOut,delivery")
+        #expect(try newer.string("SELECT otherSources FROM journalEntry WHERE id = ?", entryId) == "dineOut,delivery")
         #expect(try newer.count("SELECT COUNT(*) FROM mealDish WHERE entryId = ?", entryId) == 2)
     }
 
@@ -58,7 +58,7 @@ struct OlderBuildSyncTests {
         older = try await older.updated()
         #expect(try older.count("SELECT COUNT(*) FROM dish") == 2)
         #expect(try older.count("SELECT COUNT(*) FROM mealDish WHERE entryId = ?", entryId) == 2)
-        #expect(try older.string("SELECT sources FROM journalEntry WHERE id = ?", entryId) == "dineOut,delivery")
+        #expect(try older.string("SELECT otherSources FROM journalEntry WHERE id = ?", entryId) == "dineOut,delivery")
     }
 
     @Test("An older build can't remove a meal that has dishes: iCloud keeps it, and it comes back there")
@@ -143,8 +143,8 @@ private final class Phone {
         try await database.writer.write { db in
             if newer {
                 // A field the newer build adds to a record the older one knows.
-                if try !db.columns(in: "journalEntry").contains(where: { $0.name == "sources" }) {
-                    try db.execute(sql: #"ALTER TABLE "journalEntry" ADD COLUMN "sources" TEXT"#)
+                if try !db.columns(in: "journalEntry").contains(where: { $0.name == "otherSources" }) {
+                    try db.execute(sql: #"ALTER TABLE "journalEntry" ADD COLUMN "otherSources" TEXT"#)
                 }
             } else {
                 // Today's schema, from before dishes.
@@ -211,7 +211,7 @@ private final class Phone {
         )
         draft.dishes = [DishLineDraft(name: "Pho tai", rating: .favorite), DishLineDraft(name: "Spring rolls", rating: .again)]
         let meal = try database.addMeal(draft, journalId: journal.id)
-        try write("UPDATE journalEntry SET sources = 'dineOut,delivery' WHERE id = ?", meal.id)
+        try write("UPDATE journalEntry SET otherSources = 'dineOut,delivery' WHERE id = ?", meal.id)
         return meal.id
     }
 
@@ -260,6 +260,6 @@ private enum NewerMirror {
         var createdAt: Date
         var placeId: UUID?
         var deviceId: UUID?
-        var sources: String?
+        var otherSources: String?
     }
 }

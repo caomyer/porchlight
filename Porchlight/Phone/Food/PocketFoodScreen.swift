@@ -80,8 +80,8 @@ struct PocketFoodScreen: View {
                 VStack(alignment: .leading, spacing: 12) {
                     PocketHeader(small: store.isEnabled ? headerLine(days: days, meals: meals) : "Food", title: "What we ate")
                     if store.isEnabled {
+                        // No identifier on the whole: it would replace each segment's own.
                         PhoneSegments(choices: PocketFoodView.allCases, selection: $view, title: \.rawValue)
-                            .accessibilityIdentifier("food-view")
                         switch view {
                         case .diary:
                             PocketFoodWeek(days: days, today: today, fresh: fresh, onOpen: open) { day, slot in
