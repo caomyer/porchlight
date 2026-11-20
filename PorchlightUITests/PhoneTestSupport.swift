@@ -1,6 +1,6 @@
 import XCTest
 
-// One set of helpers for every phone test class (PhoneTests, PhoneTabsTests,
+// One set of helpers for every phone test class (PhoneTests, PhoneTabsTests, PhoneWeekTests,
 // PhoneHouseholdTests, PhoneRemindersTests, PhoneFoodTests, PhoneSetupTests); `waitToSettle` serves the
 // wall's sheets too.
 
