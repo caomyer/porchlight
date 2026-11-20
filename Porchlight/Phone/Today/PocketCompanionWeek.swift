@@ -306,6 +306,7 @@ private struct RoutineTabs: View {
     let pick: (CareRoutine.ID) -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let layout = typeSize.isAccessibilitySize
@@ -332,9 +333,11 @@ private struct RoutineTabs: View {
                 .frame(maxWidth: .infinity, minHeight: 40)
                 .background {
                     if isOn {
+                        // Raised off the track: paper in the day look; at night the card
+                        // color is darker than the track, so the tab is lit instead.
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Theme.surface)
-                            .shadow(color: Color(hex: 0x3C_2814).opacity(0.1), radius: 2, x: 0, y: 1)
+                            .fill(scheme == .dark ? Color.white.opacity(0.13) : Theme.surface)
+                            .shadow(color: Color(hex: 0x3C_2814).opacity(scheme == .dark ? 0 : 0.1), radius: 2, x: 0, y: 1)
                     }
                 }
                 .contentShape(Rectangle())

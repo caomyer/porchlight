@@ -125,8 +125,12 @@ struct PawTrailGrid: View {
         /// A slot still to log shows the routine's emoji (the phone) or a paw (the wall).
         var showsEmoji: Bool
 
-        static let wall = Metrics(dot: 36, labelWidth: 44, cellWidth: 44, showsEmoji: false)
-        static let phone = Metrics(dot: 30, labelWidth: 30, cellWidth: nil, showsEmoji: true)
+        /// How tall a slot that asks nothing stands: the wall's dot, or the phone's tap
+        /// height, so a row of them lines up with a row of buttons.
+        var restHeight: CGFloat
+
+        static let wall = Metrics(dot: 36, labelWidth: 44, cellWidth: 44, showsEmoji: false, restHeight: 36)
+        static let phone = Metrics(dot: 30, labelWidth: 30, cellWidth: nil, showsEmoji: true, restHeight: 44)
     }
 
     let week: RoutineWeek
@@ -192,7 +196,7 @@ struct PawTrailGrid: View {
             .disabled(!isEnabled)
             .accessibilityLabel(label)
         } else {
-            Circle().fill(Theme.surface2.opacity(0.6)).frame(width: 12, height: 12).frame(width: metrics.dot, height: metrics.dot)
+            Circle().fill(Theme.surface2.opacity(0.6)).frame(width: 12, height: 12).frame(width: metrics.dot, height: metrics.restHeight)
                 .accessibilityElement()
                 .accessibilityLabel(label)
         }
