@@ -3,6 +3,17 @@ import GRDB
 
 extension AppDatabase {
     /// Companion tables. Append new migrations; never edit a shipped one.
+    /// Changes to the companion tables after they were rebuilt for sync.
+    static func registerCompanionMigrationsAfterSync(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("companions v4: the slot a log was made for") { db in
+            // Nil for every log so far, so it writes no rows: they stay placed by their time.
+            // Once a log is saved with it, its iCloud record carries the field (and its
+            // modification time), so Production must know `slot` before this ships
+            // (docs/design/sync-icloud.md, "A new column, and older builds").
+            try db.execute(sql: #"ALTER TABLE "careLog" ADD COLUMN "slot" INTEGER"#)
+        }
+    }
+
     static func registerCompanionMigrations(_ migrator: inout DatabaseMigrator) {
         migrator.registerMigration("companions v1: companions, routines and care logs") { db in
             try db.create(table: "companion") { t in
@@ -216,6 +227,11 @@ struct CareLog: Codable, Equatable, Identifiable, Sendable, FetchableRecord, Per
     var createdAt: Date
     /// The device that logged it (a plain id); nil for logs from before devices were known.
     var deviceId: Device.ID? = nil
+    /// The slot it was logged for (an index into the routine's windows), when it was
+    /// logged for one: a tap on a slot, catching up, a widget, Siri or a reminder. Nil for
+    /// a log placed by its time (the care sheet, an older build). `CareLogic.assign` puts it
+    /// in this slot whatever time of day it was written.
+    var slot: Int? = nil
 }
 
 /// Someone who did a logged routine. Several people can do one walk together.

@@ -184,11 +184,17 @@ struct PocketCareSheet: View {
         return CareCatchUp.subtitle(window, of: routine, on: catchUp.day, today: report.today, calendar: store.snapshot.calendar)
     }
 
-    /// "evening walk": the slot the chosen time belongs to, by the wall's rule.
-    private func slotName(_ routine: CareRoutine, day: CareLogDay) -> String {
+    /// "morning walk": the slot this log is for. Catching up, or fixing a log made for a
+    /// slot, that slot, unless the chosen time lies in another slot's window; else the slot
+    /// the time belongs to, by the wall's rule.
+    private func slotIndex(_ routine: CareRoutine, day: CareLogDay) -> Int {
         let minute = CareLogic.minuteOfDay(day.startedAt(fields), calendar: day.calendar)
-        let index = CareLogic.windowIndex(forMinute: minute, in: routine.effectiveWindows)
-        return CareCatchUp.slotName(routine.effectiveWindows[safe: index] ?? .anyTime, of: routine)
+        let editing = request.logId.flatMap { id in store.snapshot.entries(of: routine.id).first { $0.id == id } }
+        return CareLogic.slot(forMinute: minute, intended: request.catchUp?.slot ?? editing?.log.slot, in: routine.effectiveWindows)
+    }
+
+    private func slotName(_ routine: CareRoutine, day: CareLogDay) -> String {
+        CareCatchUp.slotName(routine.effectiveWindows[safe: slotIndex(routine, day: day)] ?? .anyTime, of: routine)
     }
 
     private func label(_ text: String) -> some View {
@@ -212,11 +218,10 @@ struct PocketCareSheet: View {
     /// Writes before closing: a log that is turned down keeps the sheet open with the reason.
     private func save(_ routine: CareRoutine, day: CareLogDay, companion: String) {
         let draft = fields.draft(for: day)
-        // Catching up logs the slot the chosen time belongs to, as the label above says: a
-        // time moved into another slot's window fills that one, and its toast says so.
-        let slot = request.catchUp.map { _ in
-            CareLogic.windowIndex(forMinute: CareLogic.minuteOfDay(draft.occurredAt, calendar: day.calendar), in: routine.effectiveWindows)
-        }
+        // Catching up logs the slot being caught up on, at whatever time it really happened
+        // (a morning walk logged at 7 pm is the morning's), unless the time was moved into
+        // another slot's window; the label above says which.
+        let slot = request.catchUp.map { _ in slotIndex(routine, day: day) }
         guard logging.save(routine, draft, catchingUp: slot, on: day.day, companion: companion) else { return }
         dismiss()
     }

@@ -75,12 +75,34 @@ enum CareLogic {
         return best
     }
 
-    /// Fills each window with the first log of the day that belongs to it.
-    /// A second log for an already filled window is an extra and fills nothing.
+    /// The slot a log at `minute` is for, when it was meant for `intended`: that slot, unless
+    /// the time lies inside another slot's window (a time moved into the evening is the
+    /// evening's). With nothing intended, the window the time belongs to.
+    static func slot(forMinute minute: Int, intended: Int?, in windows: [CareWindow]) -> Int {
+        if let intended, windows.indices.contains(intended),
+           !windows.indices.contains(where: { $0 != intended && windows[$0].contains(minute: minute) }) {
+            return intended
+        }
+        return windowIndex(forMinute: minute, in: windows)
+    }
+
+    /// Fills each window with the first log of the day that belongs to it: the one logged
+    /// for that slot, else the first whose time falls in or nearest it. A log made for a
+    /// slot (`CareLog.slot`) fills that slot whatever time of day it was written, so a late
+    /// breakfast logged at 1:30 pm is breakfast, not dinner. A second log for an already
+    /// filled window is an extra and fills nothing. Every screen, the widgets and the
+    /// write that checks a slot is free go through here.
     static func assign(_ dayEntries: [CareEntry], to windows: [CareWindow], calendar: Calendar) -> [CareEntry?] {
         var filled = [CareEntry?](repeating: nil, count: windows.count)
         guard !windows.isEmpty else { return filled }
-        for entry in dayEntries.sorted(by: { $0.time < $1.time }) {
+        let ordered = dayEntries.sorted { $0.time < $1.time }
+        var placed = Set<CareEntry.ID>()
+        for entry in ordered {
+            guard let slot = entry.log.slot, windows.indices.contains(slot), filled[slot] == nil else { continue }
+            filled[slot] = entry
+            placed.insert(entry.id)
+        }
+        for entry in ordered where !placed.contains(entry.id) {
             let index = windowIndex(forMinute: minuteOfDay(entry.time, calendar: calendar), in: windows)
             if filled[index] == nil { filled[index] = entry }
         }

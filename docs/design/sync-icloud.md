@@ -132,6 +132,11 @@ Deploying only adds; CloudKit never removes a deployed record type or field, whi
 
 Before every later release that adds a table or a column, steps 1 to 4 run again, and `diff` in review shows what the release adds.
 
+### Fields waiting for Production
+
+- `careLog.slot` (encrypted 64-bit integer) and `sqlitedata_icloud_userModificationTime_slot` (encrypted 64-bit integer), in `Config/cloudkit-schema.ckdb` with the build that remembers which slot a log was made for.
+  Every care log that build writes carries them, so they must be deployed before it reaches Production; older builds ignore the field, keep it when they edit a log, and place the log by its time.
+
 ### When iCloud turns changes down
 
 If sync is turned on before Production has the schema, CloudKit refuses each record ("Cannot create new type ... in production schema").

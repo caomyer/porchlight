@@ -118,6 +118,13 @@ What follows from the writes, with nothing phone-specific:
 - Households: the write checks that everyone credited lives in the log's own household (`CareValidationError.notInHousehold`), whichever household the phone is showing, for fixes and for "I went too" as for new logs.
 
 A slot holds one log; when two logs fall in one slot's window, the slot shows the one it was given (`CareLogic` assigns each log to the nearest free slot) and the tile opens that one, as on the wall.
+
+### A log made for a slot fills that slot
+
+A log made for a slot remembers it (`careLog.slot`): a tap on a slot, catching up, a widget, Siri and a reminder's action all write one.
+`CareLogic.assign`, which Today, the week, the widgets, the wall and the write that checks a slot is free all use, puts such a log in its slot first, whatever time of day it was written, and places the rest by their time as before.
+Before, only the time placed a log, so a slot logged late, nearer the next slot's window than its own, filled the next slot instead: a cat's breakfast logged from a widget after 1 pm showed as dinner, breakfast stayed "not logged", and dinner looked done.
+A fix keeps the slot unless its new time lies in another slot's window; a log from the care sheet, or from an older build, has no slot and is placed by its time.
 Every log is in the week page's diary, so any of them can be fixed from there.
 There is no Undo toast for a fix or a removal, as on the wall: the removal asks first instead.
 
