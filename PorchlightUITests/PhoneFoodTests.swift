@@ -191,6 +191,32 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         XCTAssertEqual(photo(0, in: app), cover, "Saved with that cover, framed")
     }
 
+    /// Reframing a photo that isn't the cover: the action sheet's Reframe opens the reframe
+    /// sheet as the action sheet goes, and Done brings back the row with that photo framed.
+    func testReframingAnotherPhotoWhenEditing() {
+        let app = launch(["-samplePhotoMeals"])
+        let meal = app.buttons["meal-Avocado toast"]
+        XCTAssertTrue(meal.waitForExistence(timeout: 10))
+        meal.tap()
+        let edit = app.buttons["edit-meal"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10))
+        reveal(edit, in: app)
+        edit.tap()
+        XCTAssertTrue(app.staticTexts["Edit meal"].waitForExistence(timeout: 5))
+        let cover = photo(0, in: app)
+        let second = photo(1, in: app)
+        XCTAssertTrue(second.hasSuffix("-centered"), "The sample's second photo starts unframed: \(second)")
+        choose("Reframe", onPhoto: 1, in: app)
+        let window = app.descendants(matching: .any)["reframe-window"].firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 10), "Reframe opens the second photo to frame")
+        app.buttons["Zoom in"].tap()
+        snapshot("parity-23-reframe-second")
+        app.buttons["reframe-done"].tap()
+        XCTAssertTrue(window.waitForNonExistence(timeout: 10), "Done goes back to the row")
+        XCTAssertEqual(photo(1, in: app), second.replacingOccurrences(of: "-centered", with: "-framed"), "The second photo is framed")
+        XCTAssertEqual(photo(0, in: app), cover, "and the cover is as it was")
+    }
+
     /// Editing a meal: the same row and reframe as the wall's editor, saved and shown again.
     func testCoverAndReframeWhenEditing() {
         let app = launch(["-samplePhotoMeals"])
