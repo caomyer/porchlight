@@ -88,6 +88,12 @@ enum DishWords {
         }
     }
 
+    /// "last today", "last Wednesday", "last Nov 8": when a dish or a place was last had.
+    static func last(_ entry: JournalEntry, today: DayKey, calendar: Calendar) -> String {
+        let day = day(entry, today: today, calendar: calendar)
+        return "last " + (entry.dayKey >= today.adding(days: -1, calendar: calendar) ? day.lowercased() : day)
+    }
+
     /// "Mar '25", "Sunday", "Nov 8": a date in a dish's stats, near ones by weekday.
     static func day(_ entry: JournalEntry, today: DayKey, calendar: Calendar) -> String {
         let date = entry.dayKey.startDate(in: calendar)

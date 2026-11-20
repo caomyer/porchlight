@@ -46,7 +46,7 @@ final class PhoneDishesTests: XCTestCase, PhoneTestHelpers {
 
         let pho = app.buttons["dish-Pho tai"]
         reveal(pho, in: app)
-        XCTAssertTrue(pho.label.contains("Pho Saigon House") || pho.label.contains("times"), pho.label)
+        XCTAssertTrue(pho.label.contains("twice"), "Delivered once and eaten there once: \(pho.label)")
         pho.tap()
         XCTAssertTrue(app.staticTexts["dish-title"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["dish-title"].label, "Pho tai")

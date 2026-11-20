@@ -407,7 +407,7 @@ struct WallPlaceSheet: View {
                     .font(.body(11, weight: 800)).tracking(1.1).foregroundStyle(Theme.muted)
                 Text("What we get here").font(.display(30)).accessibilityIdentifier("wall-place-title")
                 Text([summary.visits == 1 ? "1 visit" : "\(summary.visits) visits",
-                      summary.last.map { "last " + DishWords.day($0, today: today, calendar: store.calendar) }]
+                      summary.last.map { DishWords.last($0, today: today, calendar: store.calendar) }]
                     .compactMap { $0 }.joined(separator: " · "))
                     .font(.body(14, weight: 600)).foregroundStyle(Theme.muted)
                 VStack(spacing: 0) {

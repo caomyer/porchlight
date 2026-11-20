@@ -225,35 +225,64 @@ struct PocketDishRow: View {
     var showKitchen = true
 
     @Environment(FoodStore.self) private var store
+    @Environment(\.dynamicTypeSize) private var typeSize
     @PhoneMetric(upTo: 1.4) private var art: CGFloat = 36
+
+    private func words(_ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(dish.favorite ? "\(dish.name) ★" : dish.name)
+                .phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
+                .foregroundStyle(Theme.ink)
+            Text(detail)
+                .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                .foregroundStyle(Theme.muted)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private func face(_ face: MealRating?) -> some View {
+        if let face {
+            Text(face.emoji).font(.system(size: 18)).accessibilityLabel(face.phrase)
+        }
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(Theme.muted)
+            .accessibilityHidden(true)
+    }
 
     var body: some View {
         let summary = store.book.summary(of: dish.id)
         let detail = [
             showKitchen ? DishWords.kitchen(dish, places: store.snapshot.places) : nil,
             DishWords.times(summary.count),
-            summary.last.map { "last " + DishWords.day($0, today: store.today(CompanionClock.now()), calendar: store.calendar) },
+            summary.last.map { DishWords.last($0, today: store.today(CompanionClock.now()), calendar: store.calendar) },
         ].compactMap { $0 }.joined(separator: " · ")
         NavigationLink(value: PocketFoodRoute.dish(dish.id)) {
-            HStack(spacing: 10) {
-                DishArt(dish: dish, size: art)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(dish.favorite ? "\(dish.name) ★" : dish.name)
-                        .phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
-                        .foregroundStyle(Theme.ink)
-                    Text(detail)
-                        .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                        .foregroundStyle(Theme.muted)
+            Group {
+                if typeSize.isAccessibilitySize {
+                    // Stacked: the picture and the face, then the words at full width.
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 10) {
+                            DishArt(dish: dish, size: art)
+                            Spacer(minLength: 4)
+                            face(summary.face)
+                            chevron
+                        }
+                        words(detail)
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        DishArt(dish: dish, size: art)
+                        words(detail)
+                        Spacer(minLength: 4)
+                        face(summary.face)
+                        chevron
+                    }
                 }
-                .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 4)
-                if let face = summary.face {
-                    Text(face.emoji).font(.system(size: 18)).accessibilityLabel(face.phrase)
-                }
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Theme.muted)
-                    .accessibilityHidden(true)
             }
             .padding(.vertical, 8)
             .frame(minHeight: 44)
@@ -277,7 +306,7 @@ private struct PocketPlaceRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(place.name).phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline).foregroundStyle(Theme.ink)
                     Text([summary.visits == 1 ? "1 visit" : "\(summary.visits) visits",
-                          summary.last.map { "last " + DishWords.day($0, today: store.today(CompanionClock.now()), calendar: store.calendar) }]
+                          summary.last.map { DishWords.last($0, today: store.today(CompanionClock.now()), calendar: store.calendar) }]
                         .compactMap { $0 }.joined(separator: " · "))
                         .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
                         .foregroundStyle(Theme.muted)
@@ -346,6 +375,9 @@ struct PocketDishDetail: View {
             .padding(.bottom, 24)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .navigationTitle(dish.name)
+        // The title names the back button of the next page; the page shows its own.
+        .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
         .sheet(isPresented: $renaming) { PocketRenameDish(dish: dish) }
         .confirmationDialog(removeTitle(dish, count: summary.count), isPresented: $confirmingRemove, titleVisibility: .visible) {
             Button("Remove dish", role: .destructive) { remove(dish) }
@@ -408,6 +440,7 @@ struct PocketDishDetail: View {
         ]
         return ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) { ForEach(tiles, id: \.1) { statTile($0.0, $0.1, stacked: true) } }
+                .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 8) { ForEach(tiles, id: \.1) { statTile($0.0, $0.1, stacked: false) } }
         }
     }
@@ -419,13 +452,14 @@ struct PocketDishDetail: View {
                     Text(value).phoneFont(.display, 20, weight: 600, relativeTo: .title3).lineLimit(1).minimumScaleFactor(0.7)
                     Text(label).phoneFont(.body, 11.5, weight: 600, relativeTo: .caption).foregroundStyle(Theme.muted)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text(value).phoneFont(.display, 20, weight: 600, relativeTo: .title3)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(label).phoneFont(.body, 11.5, weight: 600, relativeTo: .caption).foregroundStyle(Theme.muted)
-                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(10)
@@ -497,12 +531,9 @@ struct PocketDishDetail: View {
                     if index > 0 { RowDivider() }
                     NavigationLink(value: PocketFoodRoute.meal(time.entry.id)) {
                         HStack(spacing: 10) {
-                            Text(DishWords.day(time.entry, today: today, calendar: store.calendar))
-                                .phoneFont(.body, 11.5, weight: 800, relativeTo: .caption)
-                                .foregroundStyle(Theme.muted)
-                                .frame(minWidth: 54, alignment: .leading)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(time.entry.slot).phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline).foregroundStyle(Theme.ink)
+                                Text("\(DishWords.day(time.entry, today: today, calendar: store.calendar)) · \(time.entry.slot.lowercased())")
+                                    .phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline).foregroundStyle(Theme.ink)
                                 Text(DishWords.faces(time.faces, people: store.snapshot.everyone, me: me?.id))
                                     .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
                                     .foregroundStyle(Theme.muted)
@@ -683,7 +714,7 @@ struct PocketPlaceDetail: View {
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("place-title")
                     Text([place.address, summary.visits == 1 ? "1 visit" : "\(summary.visits) visits",
-                          summary.last.map { "last " + DishWords.day($0, today: today, calendar: store.calendar) }]
+                          summary.last.map { DishWords.last($0, today: today, calendar: store.calendar) }]
                         .compactMap { $0 }.joined(separator: " · "))
                         .phoneFont(.body, 13, weight: 600, relativeTo: .footnote)
                         .foregroundStyle(Theme.muted)
@@ -712,6 +743,9 @@ struct PocketPlaceDetail: View {
             .padding(.bottom, 24)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .navigationTitle(place.name)
+        // The title names the back button of the next page; the page shows its own.
+        .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
     }
 
     private func lastTime(_ meal: JournalEntry, dishes: [Dish], today: DayKey) -> some View {
