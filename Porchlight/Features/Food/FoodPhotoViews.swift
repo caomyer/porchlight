@@ -361,53 +361,45 @@ struct MealPhotoRow<Trailing: View>: View {
 
     private func tile(_ item: MealPhotoItem, index: Int) -> some View {
         let isCover = index == 0
-        // On iOS 27 the photo's menu takes every touch inside its square, whatever is drawn
-        // over it, so a tap on the remove badge, which hangs over the square's corner, opened
-        // the menu instead. The badge is a menu of its own, beside and above the photo's: a
-        // tap removes the photo, and a long press offers the same.
-        return ZStack(alignment: .topTrailing) {
-            Menu {
-                if !isCover {
-                    Button { items = MealPhotoOrder.makeCover(index, in: items) } label: { Label("Make cover", systemImage: "star") }
-                }
-                // A photo whose whole shot was lost has only its square left to show.
-                if store.image(of: item) != nil {
-                    Button {
-                        CompanionCover.instantly { reframing = Reframing(index: index, item: item) }
-                    } label: { Label("Reframe", systemImage: "crop") }
-                }
-            } label: {
-                PhotoView(store.thumbnail(of: item).map { PhotoRequest($0) }) { _ in Theme.surface2 }
-                    .frame(width: side, height: side)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(isCover ? Theme.accent : .clear, lineWidth: 3)
-                    }
-                    // Color.clear takes no touches on its own; the whole square opens the menu.
-                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        return Menu {
+            if !isCover {
+                Button { items = MealPhotoOrder.makeCover(index, in: items) } label: { Label("Make cover", systemImage: "star") }
             }
-            .overlay(alignment: .bottom) {
-                if isCover {
-                    // A label, not reading text: the tile already says "the cover" to VoiceOver,
-                    // so it stays small enough to fit under the photo at any text size.
-                    Text("COVER")
-                        .font(.body(isCompact ? 10.5 : 9.5, weight: 800))
-                        .fixedSize()
-                        .tracking(0.4)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Theme.accent, in: Capsule())
-                        .offset(y: 8)
-                        .allowsHitTesting(false)
-                }
+            // A photo whose whole shot was lost has only its square left to show.
+            if store.image(of: item) != nil {
+                Button {
+                    CompanionCover.instantly { reframing = Reframing(index: index, item: item) }
+                } label: { Label("Reframe", systemImage: "crop") }
             }
-            Menu {
-                Button(role: .destructive) { items = MealPhotoOrder.remove(index, from: items) } label: {
-                    Label("Remove photo", systemImage: "trash")
+        } label: {
+            PhotoView(store.thumbnail(of: item).map { PhotoRequest($0) }) { _ in Theme.surface2 }
+                .frame(width: side, height: side)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(isCover ? Theme.accent : .clear, lineWidth: 3)
                 }
-            } label: {
+                // Color.clear takes no touches on its own; the whole square opens the menu.
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .overlay(alignment: .bottom) {
+            if isCover {
+                // A label, not reading text: the tile already says "the cover" to VoiceOver,
+                // so it stays small enough to fit under the photo at any text size.
+                Text("COVER")
+                    .font(.body(isCompact ? 10.5 : 9.5, weight: 800))
+                    .fixedSize()
+                    .tracking(0.4)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Theme.accent, in: Capsule())
+                    .offset(y: 8)
+                    .allowsHitTesting(false)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            Button { items = MealPhotoOrder.remove(index, from: items) } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .heavy))
                     // Paper on ink, so it reads in the night look too, where ink is light.
@@ -419,10 +411,7 @@ struct MealPhotoRow<Trailing: View>: View {
                     // photo, so a tap on the photo still opens its menu.
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
-            } primaryAction: {
-                items = MealPhotoOrder.remove(index, from: items)
             }
-            .menuStyle(.button)
             .buttonStyle(.plain)
             .offset(x: 15, y: -15)
             .accessibilityLabel("Remove photo \(index + 1)")
