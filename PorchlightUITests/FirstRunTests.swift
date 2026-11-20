@@ -66,8 +66,9 @@ final class FirstRunTests: XCTestCase {
         // Wait for whichever button it shows, for up to a minute: no prompt by then is a real
         // failure, and the calendars must still be listed below.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let fullAccess = springboard.alerts.buttons["Allow Full Access"]
-        let ok = springboard.alerts.buttons["OK"]
+        // iOS 27 nests each of the prompt's buttons in another of the same name.
+        let fullAccess = springboard.alerts.buttons["Allow Full Access"].firstMatch
+        let ok = springboard.alerts.buttons["OK"].firstMatch
         let deadline = Date.now.addingTimeInterval(60)
         while !(fullAccess.exists || ok.exists), Date.now < deadline {
             Thread.sleep(forTimeInterval: 0.5)

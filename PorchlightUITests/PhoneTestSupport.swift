@@ -22,6 +22,18 @@ extension XCUIElement {
 @MainActor
 protocol PhoneTestHelpers: XCTestCase {}
 
+/// Puts the simulator back in the light look after a test that turned it dark, quitting the
+/// app first. Turned back with the app still open, the app redraws every screen it holds in
+/// the new look while the next test's launch is quitting it; on a busy hosted Mac that quit
+/// once took 70 seconds and the launch failed ("Failed to terminate"). A test that left the
+/// look alone costs nothing here.
+@MainActor
+func restoreLightLook() {
+    guard XCUIDevice.shared.appearance != .light else { return }
+    XCUIApplication().terminate()
+    XCUIDevice.shared.appearance = .light
+}
+
 @MainActor
 extension PhoneTestHelpers {
     /// Attaches a screenshot of the whole screen, kept with the results.

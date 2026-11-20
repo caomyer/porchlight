@@ -98,11 +98,13 @@ final class WallTourTests: XCTestCase {
 
         let title = app.textFields["What was it?"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
+        // Before the keyboard opens: the sheet stays put for it, and iOS 27's taller keyboard
+        // covers the row this button is in.
+        app.buttons["🛵 Delivery"].tap()
         title.tap()
         let current = title.value as? String ?? ""
         title.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
         title.typeText("Leftover curry")
-        app.buttons["🛵 Delivery"].tap()
         assertOnScreen(app.staticTexts["Edit meal"], in: app, "The sheet title should stay on screen with the keyboard up")
         assertOnScreen(title, in: app, "The name field should stay on screen with the keyboard up")
         snapshot("23-meal-edit")
@@ -148,10 +150,22 @@ final class WallTourTests: XCTestCase {
 
     private func assertOnScreen(_ element: XCUIElement, in app: XCUIApplication, _ message: String) {
         let screen = app.windows.firstMatch.frame
-        let keyboardTop = app.keyboards.firstMatch.exists ? app.keyboards.firstMatch.frame.minY : screen.maxY
+        // The keyboard's frame leaves out its suggestion bar, which iOS 27 names.
+        let bar = app.otherElements["SystemInputAssistantView"].firstMatch
+        var keyboardTop = app.keyboards.firstMatch.exists ? app.keyboards.firstMatch.frame.minY : screen.maxY
+        if bar.exists { keyboardTop = min(keyboardTop, bar.frame.minY) }
         let frame = element.frame
         XCTAssertTrue(frame.minY >= screen.minY && frame.maxY <= keyboardTop, "\(message): \(frame) vs keyboard at \(keyboardTop)")
-        // The keyboard's frame leaves out its suggestion bar; only a hittable field is really in view.
-        XCTAssertTrue(element.isHittable, "\(message): it is covered")
+        // A field must also take touches there, which an older keyboard's bar could block. Text
+        // isn't hit-tested on its own on iOS 27 (a sheet's title reports as not hittable with
+        // nothing over it), so for text the frame above is the check.
+        let covered = element.elementType != .staticText && !element.isHittable
+        XCTAssertFalse(covered, "\(message): it is covered")
+        if covered {
+            // What covers it, for the results.
+            let tree = XCTAttachment(string: app.debugDescription)
+            tree.name = "\(message): the screen"
+            add(tree)
+        }
     }
 }
