@@ -147,7 +147,7 @@ The shares are of about equal time, from each class's measured seconds in `scrip
 The suites take about 35 minutes of tests for the wall and 75 for the phone on these Macs, about one and a half times the development Mac's, since a 7 GB Mac swaps 2 to 3 GB with a simulator up.
 
 The jobs go through `scripts/test.sh` like a local run; the steps around it live in `scripts/ci`.
-A UI test that failed only because XCTest could not start the app, or quit the one before it ("Failed to launch ... Timed out while launching application", "Failed to terminate"), which a busy hosted Mac does now and then, runs once more on its own, locally too; the summary names it ("passed on a second launch"), its second run is the `-retry` bundle and log, and any other failure stands (`scripts/lib/launch_retry.py`).
+A UI test that failed only because XCTest could not start the app, or quit the one before it ("Failed to launch", "Failed to get launch progress", "Failed to terminate"), which a busy hosted Mac does now and then, runs once more on its own, locally too; the summary names it ("passed on a second launch"), its second run is the `-retry` bundle and log, and any other failure stands (`scripts/lib/launch_retry.py`).
 The log prints each test as it ends (`--progress`), and every two minutes a heartbeat line with the free memory, so a hang or a Mac out of memory shows.
 To run only some tests, use Actions, Tests, Run workflow, with "only" set as for `--only` (for example `FirstRunTests PhoneTests/testCheckingChores`): one job builds and runs just those.
 

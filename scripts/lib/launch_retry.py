@@ -1,7 +1,8 @@
 """Second launches for UI tests whose app never started, for scripts/test.sh.
 
 On a busy simulator XCTest can give up starting the app ("Failed to launch ... Timed out
-while launching application via Xcode"), or quitting the copy left from the test before,
+while launching application via Xcode", "Failed to get launch progress ... Timed out while
+requesting launch progress"), or quitting the copy left from the test before,
 which every launch does first ("Failed to terminate com...porchlight:<pid>"): the test
 never ran, so its failure says nothing about it. Such a test, and only such a test (every
 one of its failures is one of these), runs once more on its own; any other failure stands
@@ -16,7 +17,16 @@ import json
 import subprocess
 import sys
 
-LAUNCH_FAILURES = ("Failed to launch ", "Failed to terminate ")
+LAUNCH_FAILURES = (
+    "Failed to launch ",
+    # "... Timed out while requesting launch progress": the same launch, given up a step later.
+    "Failed to get launch progress ",
+    "Failed to terminate ",
+)
+# Not here: "Failed to get matching snapshots: Error getting main window
+# kAXErrorServerNotFound". XCTest says it when the app is running but never answered: once it
+# sat on its launch screen for two and a half minutes. A hang of the app's own at launch
+# would look just the same, so that failure stands.
 
 
 def test_cases(bundle):
