@@ -39,18 +39,14 @@ struct CompanionReport {
     var primary: RoutineToday?
     var others: [RoutineToday]
     var mood: Double?
-    var streak: Int
     var today: DayKey
     var now: Date
     var weekDays: [DayKey]
-    /// The primary routine's slots for each day of the week.
-    var trail: [[CareSlot]]
-    var weekStats: CareLogic.WeekStats
-    var leaderboard: [CareLogic.Standing]
-    var diary: [DiaryItem]
+    /// Each routine's week, in the routines' order. The first is the primary routine's,
+    /// which the wall's companion page shows and the phone's opens on.
+    var weeks: [RoutineWeek]
     /// Every routine's slots this week that were never logged, newest first.
     var missed: [MissedCare]
-    var milestones: [Milestone]
 
     var id: Companion.ID { companion.id }
     var name: String { companion.name }
@@ -60,7 +56,21 @@ struct CompanionReport {
     }
 
     var primaryRoutine: CareRoutine? { primary?.routine }
+    var primaryWeek: RoutineWeek? { weeks.first }
     var noun: String { primaryRoutine.map { $0.kind.noun(title: $0.title) } ?? "care" }
+
+    /// The primary routine's slots for each day of the week.
+    var trail: [[CareSlot]] { primaryWeek?.trail ?? weekDays.map { _ in [] } }
+    var weekStats: CareLogic.WeekStats { primaryWeek?.stats ?? .init() }
+    var streak: Int { primaryWeek?.streak ?? 0 }
+    var leaderboard: [CareLogic.Standing] { primaryWeek?.leaderboard ?? [] }
+    var diary: [DiaryItem] { primaryWeek?.diary ?? [] }
+    var milestones: [Milestone] { primaryWeek?.milestones ?? [] }
+
+    /// A routine's week, or nil when the routine is no longer this companion's.
+    func week(of routineId: CareRoutine.ID?) -> RoutineWeek? {
+        weeks.first { $0.id == routineId }
+    }
 
     static func make(snapshot: CompanionSnapshot, companionId: Companion.ID, now: Date) -> CompanionReport? {
         guard let companion = snapshot.companions.first(where: { $0.id == companionId }) else { return nil }
@@ -70,42 +80,33 @@ struct CompanionReport {
         // The last 7 days ending today, so the page is never empty at the start of a week
         // (matches the food diary's week).
         let weekDays = (-6...0).map { today.adding(days: $0, calendar: calendar) }
-        let peopleOrder = snapshot.everyone.map(\.id)
 
         let todays = routines.map { routine in
             routineToday(routine, entries: snapshot.entries(of: routine.id), today: today, now: now, calendar: calendar)
         }
-        guard let primary = todays.first else {
-            return CompanionReport(
-                companion: companion, look: snapshot.look(of: companion), routines: [], primary: nil, others: [], mood: nil, streak: 0, today: today, now: now,
-                weekDays: weekDays, trail: weekDays.map { _ in [] }, weekStats: .init(), leaderboard: [], diary: [], missed: [], milestones: []
+        let missed = CareCatchUp.missed(routines, entries: { snapshot.entries(of: $0.id) }, now: now, calendar: calendar, since: companion.createdAt)
+        let weeks = routines.map { routine in
+            RoutineWeek.make(
+                routine, companion: companion, snapshot: snapshot, weekDays: weekDays,
+                missed: missed.filter { $0.routine.id == routine.id }, now: now
             )
         }
-        let routine = primary.routine
-        let entries = snapshot.entries(of: routine.id)
-        let byDay = CareLogic.byDay(entries, calendar: calendar)
-        let weekEntries = entries.filter { weekDays.contains(DayKey($0.time, calendar: calendar)) }
-        let captions = CaptionEngine.captions(
-            for: entries, tone: companion.captionTone, name: companion.name, routine: routine,
-            names: snapshot.names, calendar: calendar
-        )
+        // The mood follows the primary routine, the one the companion waits for most.
+        let mood = routines.first.flatMap { routine in
+            CareLogic.mood(lastCare: snapshot.entries(of: routine.id).last?.time, interval: CareLogic.interval(for: routine), now: now)
+        }
         return CompanionReport(
             companion: companion,
             look: snapshot.look(of: companion),
             routines: routines,
-            primary: primary,
+            primary: todays.first,
             others: Array(todays.dropFirst()),
-            mood: CareLogic.mood(lastCare: entries.last?.time, interval: CareLogic.interval(for: routine), now: now),
-            streak: CareLogic.streak(for: routine, entries: entries, now: now, calendar: calendar),
+            mood: mood,
             today: today,
             now: now,
             weekDays: weekDays,
-            trail: weekDays.map { CareLogic.slots(for: routine, on: $0, byDay: byDay, now: now, calendar: calendar) },
-            weekStats: CareLogic.weekStats(for: routine, entries: entries, days: weekDays, now: now, calendar: calendar),
-            leaderboard: CareLogic.leaderboard(weekEntries, people: peopleOrder),
-            diary: weekEntries.reversed().map { DiaryItem(entry: $0, caption: captions[$0.id]) },
-            missed: CareCatchUp.missed(routines, entries: { snapshot.entries(of: $0.id) }, now: now, calendar: calendar, since: companion.createdAt),
-            milestones: milestones(routine: routine, entries: entries, snapshot: snapshot, now: now, calendar: calendar)
+            weeks: weeks,
+            missed: missed
         )
     }
 
@@ -202,21 +203,26 @@ struct CompanionReport {
 }
 
 extension CompanionReport {
-    /// "13 walks · 5h 50m outside · 4 squirrels pursued, 0 caught": the week in a line,
-    /// under the title of the wall's companion page and the phone's.
-    var weekSummary: String {
-        let stats = weekStats
-        var parts = ["\(stats.count) \(stats.count == 1 ? noun : noun + "s")"]
-        if stats.totalMinutes > 0 {
-            let time = stats.totalMinutes >= 60 ? "\(stats.totalMinutes / 60)h \(stats.totalMinutes % 60)m" : "\(stats.totalMinutes) min"
-            parts.append(primaryRoutine?.kind == .walk ? "\(time) outside" : time)
-        }
-        let squirrels = diary.filter { $0.entry.log.vibe == .squirrel }.count
-        if squirrels > 0 {
-            parts.append("\(squirrels) \(squirrels == 1 ? "squirrel" : "squirrels") pursued, 0 caught")
-        } else if stats.stars > 0 {
-            parts.append("\(stats.stars) stars earned")
+    /// "13 walks · 5h 50m outside · 4 squirrels pursued, 0 caught": the primary routine's
+    /// week in a line, under the title of the wall's companion page and the phone's.
+    var weekSummary: String { primaryWeek?.summary ?? "0 cares" }
+
+    /// "Toy poodle · 4 yrs": what the companion is, and how old, under its name.
+    func aboutLine(calendar: Calendar) -> String {
+        var parts: [String] = []
+        let about = companion.about
+        parts.append(about.isEmpty ? companion.species.label : about)
+        if let birth = companion.birthDate {
+            let years = calendar.dateComponents([.year], from: birth, to: now).year ?? 0
+            let months = calendar.dateComponents([.month], from: birth, to: now).month ?? 0
+            parts.append(years >= 1 ? "\(years) \(years == 1 ? "yr" : "yrs")" : "\(max(months, 1)) mo")
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// "🙂 Doing fine", or what it waits for before anything was logged.
+    var moodText: String {
+        guard let mood = moodLabel else { return "Waiting for first \(noun)" }
+        return "\(mood.emoji) \(mood.label)"
     }
 }

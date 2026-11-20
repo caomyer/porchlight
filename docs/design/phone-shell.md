@@ -115,10 +115,41 @@ There is no Undo toast for a fix or a removal, as on the wall: the removal asks 
 ## A companion's week (B3)
 
 Tapping a companion's card (its face and name, or the whole card when it is all set) opens `PocketCompanionWeek`.
-It is the wall's companion page in one column, built from the same `CompanionReport`: the hero with the week in a line (`CompanionReport.weekSummary`, moved out of the wall's page so both use it) and the mood, Paw trail, the diary with missed slots in their place, the walker of the week and the little milestones.
-Wording comes from the routine's kind, so a plant gets "who watered" and "Gardener of the week".
-A first week shows "The first week together" and an empty trail of dashed rings, never a zero.
-A missed slot in the diary opens the phone's catch-up sheet, and a logged one opens it to fix (above).
+It has everything the wall's companion page has, laid out for a phone held in one hand, in one scrolling column:
+
+1. The hero: the face, "Yo-Yo's week", what the companion is and how old ("Toy poodle · 4 yrs"), the week in a line, and the wall's mood meter.
+2. The routines, "🦮 Walk", "🥣 Feed", "💧 Water", when there is more than one. Everything below follows the one picked, and the page opens on the primary routine, the wall's.
+3. The wall's four numbers (the streak, the average walk or the meals this week, slots on time, the business log or the stars) and "Log a walk" (by the routine: "Log a meal").
+4. Paw trail, with the day's letter and number over each column.
+5. The diary ("Walk diary", "Meal diary"), with the routine's missed slots in their place.
+6. The podium ("Walker of the week", "Chef of the week"), second, first and third, the leader crowned.
+7. The little milestones.
+
+The wall's page shows only the primary routine's week; the phone shows each routine's, so meals and water have their trail, diary, numbers and podium too.
+`CompanionReport` now holds a `RoutineWeek` per routine (`weeks`); the fields the wall reads (`trail`, `diary`, `weekStats` and the rest) are the first one's, so the wall's page and Today read exactly what they did.
+
+Paw trail's dots do what the wall's do (`RoutineWeek.tap`): a logged one opens its log to fix in `PocketCareSheet`, one still open today starts a new log in it, and a missed one logs that slot for its own day.
+Every missed slot, from the trail or the diary, goes through one function, `logMissed`, which opens the catch-up sheet.
+A slot that was never owed (one that closed before the companion was added) is a plain dot that asks nothing, on the wall too; the diary never listed it either.
+A logged diary row opens it to fix (above).
+
+### One implementation for the wall and the phone
+
+The pieces of the page are shared, in `CompanionWeek.swift` (pure, `CompanionWeekTests`) and `CompanionWeekViews.swift`:
+
+- `RoutineWeek`: a routine's trail, numbers (`tiles`), streak, standings, diary rows (`DiaryRow`), missed slots and milestones, the week in a line (`summary`), what a trail slot does (`tap`) and what VoiceOver reads for it (`trailLabel`).
+- `CareLogic.podium` and `leader`: the podium's order and its crown.
+- `CompanionWeekWords`: every heading and sentence ("Paw trail" and "who walked, each slot", "Walk diary" and "captions: Cheeky", "Feed Yo-Yo · Dinner wasn't logged" and "Fri · usually 5-7pm", "No walks yet this week. The podium is wide open.").
+- `CompanionReport.aboutLine` and `moodText`.
+- The views: `MoodMeter`, `StatTileGrid`, `PawTrailGrid` and `PodiumView`. Their type is `sharedFont`, so they keep the wall's fixed sizes over the wall and grow with Dynamic Type on a phone; the trail takes the phone's metrics (30 pt dots, columns sharing the width) and shows a routine's emoji where the wall shows a paw.
+
+The wall's page is built from the same pieces and looks as it did.
+Wording comes from the routine's kind, so a plant gets "who watered" and "Gardener of the week"; a kind without a verb of its own (litter, meds, cleaning) says "who did it", as the wall did for anything but a walk.
+
+A first week shows "The first week together", "Waiting for first walk" under the mood meter, and a trail of open slots, never a zero.
+
+At the largest text sizes the routines go one under another, the numbers one per row, the hero's face above its words, a missed row's "Log it" under it, and the podium becomes bars, which keep every name whole.
+The trail's letters stop growing at the extra-large size, like the Food tab's week; every slot in it is also a row in the diary, whose words grow all the way.
 
 ## Pitch in (B4)
 
@@ -274,10 +305,12 @@ Star counts always agree in number ("+1 star", "2 stars") through `StarWords`.
 - Unit: `PocketTodayTests` (which slot one tap logs, card order, freshness, catch-up, my chores and the shared ones, stars, the words), `PocketWritesTests` (the already-logged path, joining and its undo, undo of a log, chores that are already done), `DeviceSettingsTests` (role defaults, stored role, "me" per household, forgetting) and `CareLogFieldsTests` (including fixing a log: its day, its fields and the shared words).
 - Unit, fixing a log: `TwoHouseholdsTests` (a fix in the log's own household while the other shows, never crediting the other household, stars on fixing and removing, a removed or moved log reminding again).
 - UI, fixing a log: `PhoneTabsTests.testFixingAWalkFromToday`, `testFixingAWalkFromTheWeek`, `testFixingAWalkOnASharedScreen` and `testFixingAWalkLooks` (night look and the largest text), mirroring the wall's `LoggedEntryTests`.
+- Unit, a companion's week: `CompanionWeekTests` (a week per routine with the primary's as the wall's, what a trail slot does and reads, the numbers, the podium and the words).
+- UI, a companion's week: `PhoneWeekTests` (the trail's dots, a meal logged from the trail showing in the trail and the diary, water, the night look and the largest text with walks, meals and water, and a first week). `-sampleWater` gives Yo-Yo a water bowl and `-sampleCompanions 4` adds Pip, a rabbit added just now with nothing logged.
 - Unit, everyday screens: `PocketTabsTests` (grocery sections, dinners to groceries, Glow for me and who earned a reward, the next 7 days, Pitch in's week, the calendar choices).
 - Unit, reminders: `ReminderPlannerTests` (only chosen slots, done slots removed, if missed, snooze and hand-off, archived "me", chores the evening before, the 64 cap, pruning).
 - Unit, households: `HouseholdSetupTests` (a household started on a phone is the one the wall's first run makes, drafts, an invalid name, a member leaving on the fake and the owner who can't) and `HouseholdStorageTests` (the sums come from the rows).
-- UI: `PhoneTests`, `PhoneTabsTests`, `PhoneHouseholdTests`, `PhoneRemindersTests`, `PhoneFoodTests` and `PhoneSetupTests` (A2 from a fresh install to Today, every tab empty, setup edits, a companion in the wall's editor, leaving, removing someone, storage), which run only on an iPhone; `scripts/test.sh --phone --ui-only` runs them on the iOS 17.5 iPhone 15 simulator, and the iPad run skips them.
+- UI: `PhoneTests`, `PhoneTabsTests`, `PhoneWeekTests`, `PhoneHouseholdTests`, `PhoneRemindersTests`, `PhoneFoodTests` and `PhoneSetupTests` (A2 from a fresh install to Today, every tab empty, setup edits, a companion in the wall's editor, leaving, removing someone, storage), which run only on an iPhone; `scripts/test.sh --phone --ui-only` runs them on the iOS 17.5 iPhone 15 simulator, and the iPad run skips them.
   Each test attaches a screenshot of every screen it visits.
 
 ## Judgment calls
@@ -303,7 +336,12 @@ Where the atlas was silent, or didn't fit the code:
 - **"This iPhone".** Sentences name the device with `UIDevice.current.model`; that only picks words and never decides behavior.
 - **Sample time.** The sample household's care depends on the hour. `-debugCompanionNow` already pinned "now" for care screens; the phone's writes and the sample's chore check-offs now use it too, so the UI tests pin 5:20 pm and always find the evening walk and dinner open, whatever the hour they run. Today's sample check-offs happen through the morning (breakfast at 7:40, and so on), or at "now" when that is earlier.
 - **More sample companions.** `-sampleCompanions 2|3` adds Miso the cat and a fiddle fig due for water today, so the grid of two has something to show.
-- **The week page is one column.** The wall's hero, podium and tiles don't fit side by side; the phone keeps the hero line and the mood, draws the podium as bars (crown on the leader) and leaves out the stat tiles, whose numbers are in the hero line. Paw trail rings are read-only; the diary's missed rows are the way to catch up from the week.
+- **The week page is one column, with the wall's content.** The wall's hero, trail, diary, podium and milestones sit side by side; the phone stacks them, with the stat tiles and the log button in their own card under the routines, since they follow the routine picked.
+- **A week per routine, picked at the top.** The wall's page is the primary routine's week. Stacking every routine's trail, diary and podium would make a page several screens long per companion, so the phone shows one routine's at a time, opening on the wall's. The hero (the face, the mood, the week in a line) stays the companion's, as on the wall.
+- **Missed slots in their own routine's diary.** The wall's diary lists every routine's missed slots under "Walk diary"; on the phone each routine's diary lists its own, so a missed dinner is under "Meal diary", beside the dinners that were logged. Today's banner still offers the newest missed slot of any routine.
+- **Today's slots aren't repeated.** The wall's hero has today's slot tiles; on the phone they are on Today's card, and the trail's last column is today, its dots tappable the same way.
+- **No long-press delete.** The wall's diary rows have "Delete this log" on a long press, which removes at once; the phone removes from the care sheet, which asks first ("Remove walk", "Keep it"), since a removal has no Undo.
+- **The trail's tap areas.** Seven days across a phone leaves about 43 pt per column, a little under 44; each dot's tap area is 44 pt tall and the column's full width, and every dot is also a row in the diary.
 - **Pitch in segments.** The atlas's Yours, Open and Everyone. "Open" is today's shared chores not done yet. Someone else's chore can't be checked off from my phone, because checking off an owned chore credits its owner. "took it Friday" in the atlas is a claim, which the data doesn't have, so it isn't shown.
 - **One chore editor.** The wall's `ChoreEditor` adapts to a compact width instead of a second phone editor; its fonts are the wall's fixed sizes, so it doesn't grow with Dynamic Type yet.
 - **A dinner's needs are typed.** Dinners have no ingredients in the data, so "Needs: tortillas, limes" is something you type for a dinner; each item goes on the groceries in its aisle, credited to you.
@@ -358,6 +396,7 @@ Settings › Photo frame sometimes kept the photo list and "Add photos" under "P
 A big polaroid used to show its bare tablecloth while the whole shot loaded; it now shows the photo's thumbnail until then, on the wall too.
 A companion added in the evening was told its dinner "wasn't logged" minutes after it arrived, on the wall's companion page and the phone's Today banner: the routine starts that day, and every window that had already closed counted as missed. `CareCatchUp.isOwed` now leaves out slots on a routine's first day whose window closed before the companion was added.
 For M4 the wall's first run now edits `HouseholdSetup` instead of its own fields, `AppModel.finishSetup` also makes the food diary, the wall's companion and routine editors lay themselves out for a compact width, and the remove sheet's words moved to `RemoveDevicesWords`; on the wall each looks and behaves as before.
+The wall's companion page is now built from the pieces it shares with the phone's week (`CompanionWeek.swift`, `CompanionWeekViews.swift`) and looks as before, with two small changes: Paw trail says what the routine's kind did ("who fed, each slot" for a cat whose first routine is feeding, where it said "who did it"; a walk still says "who walked"), and a slot that was never owed (it closed before the companion was added) is a plain dot instead of a missed one that opened the catch-up.
 Wall code changed only to share it: "On this day"'s sentence (`FoodMemoryWords`), the care form's logic and the time pill's day math, `Color.wash` resolving its colors explicitly, the companion page's week line, the grocery sections, `HomeStore.cashIn` returning the cash-in, and the chore editor's compact layout (its regular layout is unchanged).
 The wall's UI tests cover all of them.
 
