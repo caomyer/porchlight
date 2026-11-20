@@ -131,8 +131,9 @@ struct Polaroid: View {
                     }
                 }
                 .overlay(alignment: .topLeading) {
-                    if entry.source != .home {
-                        Text(entry.source.emoji)
+                    // Where it came from, when not (only) home-cooked: "🛵 · 🏢".
+                    if entry.sources.kinds != [.home] {
+                        Text(MealSources(entry.sources.kinds.filter { $0 != .home }).emoji)
                             .font(.system(size: 11))
                             .padding(.horizontal, 3)
                             .padding(.vertical, 1)

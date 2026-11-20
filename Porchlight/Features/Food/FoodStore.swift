@@ -69,7 +69,7 @@ final class FoodStore: StoredFirstObservable {
         guard isEnabled else { return [] }
         return entries(on: day).compactMap { entry in
             let id = entry.id
-            var subtitle = place(of: entry).map { "\(entry.source.label) · \($0.name)" } ?? entry.source.label
+            var subtitle = place(of: entry).map { "\(entry.sources.label) · \($0.name)" } ?? entry.sources.label
             if let rating = entry.rating { subtitle += " · \(rating.emoji) \(rating.phrase)" }
             // The thumbnail is too small for a count badge, so the count joins the subtitle.
             let photoCount = photos(of: entry).count

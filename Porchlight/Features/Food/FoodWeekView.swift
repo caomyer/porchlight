@@ -157,7 +157,8 @@ private struct WeekStatsCard: View {
                         Capsule().fill(Theme.surface2)
                     } else {
                         ForEach(parts, id: \.label) { part in
-                            Capsule().fill(part.color).frame(width: room * CGFloat(part.count) / CGFloat(stats.total))
+                            // Each kind's share of the kinds: a meal from two places is in two parts.
+                            Capsule().fill(part.color).frame(width: room * CGFloat(part.count) / CGFloat(stats.kindCount))
                         }
                     }
                 }
@@ -282,11 +283,14 @@ enum FoodMemoryWords {
         text += dish
         let slot = entry.slot.lowercased()
         let place = store.place(of: entry).map { " from \($0.name)" } ?? ""
-        switch entry.source {
-        case .home: text += AttributedString(", home-cooked \(slot)")
-        case .delivery: text += AttributedString(", delivered \(slot)\(place)")
+        // The kind a restaurant belongs to tells the story; "at work" joins it when the meal was
+        // from work too ("delivered dinner from Sakura at work").
+        let atWork = entry.sources.contains(.company) && entry.sources.primary != .company ? " at work" : ""
+        switch entry.sources.primary {
+        case .home: text += AttributedString(", home-cooked \(slot)\(atWork)")
+        case .delivery: text += AttributedString(", delivered \(slot)\(place)\(atWork)")
         case .dineOut:
-            text += AttributedString(store.place(of: entry).map { " for \(slot) at \($0.name)" } ?? ", out for \(slot)")
+            text += AttributedString((store.place(of: entry).map { " for \(slot) at \($0.name)" } ?? ", out for \(slot)") + atWork)
         case .company: text += AttributedString(" for \(slot) at work")
         }
         if let rating = entry.rating { text += AttributedString(". Verdict: \(rating.emoji)") }

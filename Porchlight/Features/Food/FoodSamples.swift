@@ -6,12 +6,12 @@ import UIKit
 
 /// A week of sample meals and handwritten pages for `-sampleHousehold`, relative to today.
 enum FoodSamples {
-    /// One sample dish: emoji, title, who ate (index into people, nil = everyone), source, tint, rating.
+    /// One sample dish: emoji, title, who ate (index into people, nil = everyone), where it came from, tint, rating.
     private struct Dish {
         let emoji: String
         let title: String
         let who: Int?
-        let source: MealSource
+        let sources: MealSources
         let tint: Int
         var rating: MealRating = .again
         var place: PlaceDraft?
@@ -22,22 +22,22 @@ enum FoodSamples {
     private static let phoHouse = PlaceDraft(name: "Pho Saigon House", address: "735 Larkin St, San Francisco", latitude: 37.784, longitude: -122.417, category: "Restaurant")
 
     private static func home(_ emoji: String, _ title: String, _ who: Int?, _ tint: Int, _ rating: MealRating = .again) -> Dish {
-        Dish(emoji: emoji, title: title, who: who, source: .home, tint: tint, rating: rating)
+        Dish(emoji: emoji, title: title, who: who, sources: MealSources(.home), tint: tint, rating: rating)
     }
 
-    private static func delivery(_ emoji: String, _ title: String, _ who: Int?, _ tint: Int, _ rating: MealRating = .again, from place: PlaceDraft? = nil) -> Dish {
-        Dish(emoji: emoji, title: title, who: who, source: .delivery, tint: tint, rating: rating, place: place)
+    private static func delivery(_ emoji: String, _ title: String, _ who: Int?, _ tint: Int, _ rating: MealRating = .again, from place: PlaceDraft? = nil, atWork: Bool = false) -> Dish {
+        Dish(emoji: emoji, title: title, who: who, sources: MealSources(atWork ? [.delivery, .company] : [.delivery]), tint: tint, rating: rating, place: place)
     }
 
     private static func out(_ emoji: String, _ title: String, _ who: Int?, _ tint: Int, _ rating: MealRating = .again, at place: PlaceDraft) -> Dish {
-        Dish(emoji: emoji, title: title, who: who, source: .dineOut, tint: tint, rating: rating, place: place)
+        Dish(emoji: emoji, title: title, who: who, sources: MealSources(.dineOut), tint: tint, rating: rating, place: place)
     }
 
     /// The last seven days (six days ago ... today): breakfast, lunch, dinner.
     private static let week: [[Dish?]] = [
         [home("🥞", "Pancakes", nil, 0xF3D9A4, .favorite), home("🥗", "Cobb salad", 1, 0xCFE3C4), home("🍝", "Pesto pasta", nil, 0xE8C9B5)],
         [home("🥣", "Granola", 0, 0xE9DCC4, .fine), nil, home("🍛", "Chicken curry", nil, 0xF1C78F)],
-        [home("🥯", "Bagel", 1, 0xE6D3B8, .fine), delivery("🍱", "Bento box", 0, 0xD9E2EE), home("🌮", "Taco night", nil, 0xF2C6A8)],
+        [home("🥯", "Bagel", 1, 0xE6D3B8, .fine), delivery("🍱", "Bento box", 0, 0xD9E2EE, atWork: true), home("🌮", "Taco night", nil, 0xF2C6A8)],
         [home("🍳", "Eggs & toast", nil, 0xF5E2A6), delivery("🥪", "Banh mi", 1, 0xE8D7C2), home("🍲", "Miso salmon", nil, 0xCBDDE6, .favorite)],
         [home("🥣", "Oatmeal", 0, 0xEADFCB, .fine), out("🍜", "Pho", nil, 0xF0D5B8, at: phoHouse), delivery("🍕", "Pizza", nil, 0xF4C3B4, .meh, from: pizzeria)],
         [nil, home("🥙", "Falafel wrap", 1, 0xDCE6CF), out("🍣", "Sushi night", nil, 0xE5D0DA, .favorite, at: sushiBar)],
@@ -89,7 +89,7 @@ enum FoodSamples {
             let eaters = dish.who.map { [people[min($0, people.count - 1)].id] } ?? people.map(\.id)
             let eatenAt = calendar.date(byAdding: .minute, value: times[slot] + minutes, to: day.startDate(in: calendar)) ?? .now
             let draft = MealDraft(
-                day: day, slot: slots[slot], source: dish.source, title: dish.title, emoji: dish.emoji,
+                day: day, slot: slots[slot], sources: dish.sources, title: dish.title, emoji: dish.emoji,
                 tint: dish.tint, rating: dish.rating, eaterIds: eaters, eatenAt: eatenAt, place: dish.place
             )
             return try database.addMeal(draft, journalId: journalId, now: eatenAt)

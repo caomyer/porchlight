@@ -87,7 +87,7 @@ struct FoodDatabaseTests {
         let entry = try #require(try db.foodSnapshot().entries.first)
 
         var edit = draft("Dan dan noodles", slot: "Dinner", eaters: [mia, james], day: "2026-01-01")
-        edit.source = .delivery
+        edit.sources = MealSources(.delivery)
         edit.rating = .fine
         let updated = try db.updateMeal(id: entry.id, edit)
 
@@ -383,7 +383,7 @@ struct FoodDatabaseTests {
     @Test("Eating out names a restaurant with its map details")
     func dineOutPlace() throws {
         var meal = draft("Margherita")
-        meal.source = .dineOut
+        meal.sources = MealSources(.dineOut)
         meal.place = PlaceDraft(name: " Una Pizza ", address: "235 12th St, San Francisco", latitude: 37.77, longitude: -122.41,
                                 category: "Restaurant", phone: "+1 415", url: "https://example.com", mapsId: "I123")
         let entry = try db.addMeal(meal, journalId: journal.id)
@@ -402,7 +402,7 @@ struct FoodDatabaseTests {
     func placesAreReused() throws {
         func meal(_ place: PlaceDraft, source: MealSource = .dineOut) -> MealDraft {
             var meal = draft()
-            meal.source = source
+            meal.sources = MealSources(source)
             meal.place = place
             return meal
         }
@@ -425,11 +425,11 @@ struct FoodDatabaseTests {
         home.place = PlaceDraft(name: "Una Pizza")
         #expect(try db.addMeal(home, journalId: journal.id).placeId == nil)
         var blank = draft()
-        blank.source = .dineOut
+        blank.sources = MealSources(.dineOut)
         blank.place = PlaceDraft(name: "   ")
         #expect(try db.addMeal(blank, journalId: journal.id).placeId == nil)
         var long = draft()
-        long.source = .dineOut
+        long.sources = MealSources(.dineOut)
         long.place = PlaceDraft(name: String(repeating: "x", count: AppDatabase.placeNameLimit + 1))
         #expect(throws: FoodError.placeNameTooLong(limit: AppDatabase.placeNameLimit)) {
             try db.addMeal(long, journalId: journal.id)
@@ -441,11 +441,11 @@ struct FoodDatabaseTests {
     func editPlace() throws {
         let entry = try db.addMeal(draft(), journalId: journal.id)
         var edit = draft()
-        edit.source = .dineOut
+        edit.sources = MealSources(.dineOut)
         edit.place = PlaceDraft(name: "Una Pizza")
         let out = try db.updateMeal(id: entry.id, edit)
         #expect(out.placeId != nil)
-        edit.source = .home
+        edit.sources = MealSources(.home)
         let back = try db.updateMeal(id: entry.id, edit)
         #expect(back.placeId == nil)
         // The restaurant stays known for next time.
@@ -456,7 +456,7 @@ struct FoodDatabaseTests {
     func placeOrderAndCascade() throws {
         func meal(_ name: String, at seconds: TimeInterval) -> MealDraft {
             var meal = draft()
-            meal.source = .dineOut
+            meal.sources = MealSources(.dineOut)
             meal.place = PlaceDraft(name: name)
             meal.eatenAt = Date(timeIntervalSince1970: seconds)
             return meal

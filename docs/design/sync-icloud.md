@@ -355,6 +355,34 @@ A unit test checks that a data migration run after the engine exists is recorded
 
 "sync v2" (photos as rows) is a schema migration that writes rows, and that is safe only because sync had never been on anywhere: on the engine's first start every table is new to it, so it uploads every row.
 
+## A new column, and older builds
+
+A household can have devices on different builds for a while (the wall updated by cable, phones on TestFlight), so a new column must leave older builds reading and editing every row safely.
+What SQLiteData 1.13.0 does, read from its source and checked by tests:
+
+- **A field an older build doesn't know:** it reads only the columns it has, so the row arrives whole minus that field.
+  When it saves the row, it starts from the last record iCloud gave it (`_lastKnownServerRecordAllFields`) and writes only its own columns, so the newer field goes back up as it was (`MealSourcesSyncTests.unknownFieldSurvives`).
+  When that device updates, the engine fills the new column from the records it kept, so nothing is lost there either.
+- **A value an older build doesn't know in a column it does know** (a new case of an enum): decoding the row fails, so the older build can't show it at all.
+  New meanings therefore go in new columns, never as new values in old ones.
+- **Every save of a row carries every column, and each column's modification time,** even a nil one: `sqlitedata_icloud_userModificationTime_<column>` is written for every column.
+  So once a build with a new column ships, every save of that table sends the new field, and Production must have it first.
+
+### Where, one kind or several
+
+A meal's Where became a set of kinds.
+`journalEntry.source` stays the primary kind, a value every build knows: the first kind picked that names a restaurant, else the first in the pills' order.
+The new nullable `journalEntry.otherSources` holds the rest, comma-separated in the pills' order ("company"), and is nil for a meal of one kind; kinds it names that a build doesn't know are skipped.
+The meal's kinds are the two together (`MealSources(primary:others:)`).
+
+- An older build shows a two-kind meal as its primary kind alone: a delivery dinner at the office reads as Delivery, with its restaurant.
+- An older build that edits the meal keeps `otherSources` as iCloud had it; if it changes the kind it can see, the meal becomes that kind and the others (Delivery and Company changed to Dine out is Dine out and Company).
+- The migration ("food v6: a meal from several places") is a plain `ALTER TABLE ... ADD COLUMN`, writes no rows, and every meal so far reads as its one kind.
+
+Before this ships, Production needs two new fields on `journalEntry`, both already in `Config/cloudkit-schema.ckdb`: `otherSources` (encrypted string) and `sqlitedata_icloud_userModificationTime_otherSources` (encrypted 64-bit integer).
+They go there the usual way: `scripts/cloud-schema.sh seed` from a device on the new build, `export` and review, Deploy Schema Changes in the CloudKit Console, then `scripts/cloud-schema.sh check`.
+If a new build reaches Production before they are deployed, every meal it adds or edits is turned down; it stays on the device, the status says "iCloud isn't taking N changes yet", and it goes up by itself once the fields are deployed ("When iCloud turns changes down"), with nothing lost.
+
 ## Backups and restore
 
 `scripts/backup-ipad.sh` copies the whole data folder, `Library/Application Support/Porchlight`.

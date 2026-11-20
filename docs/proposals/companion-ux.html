@@ -784,7 +784,8 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
     b5cam: RAW(`${status()}<div class="pb" style="gap:14px">${head('Dinner · guessed from the time', 'Snap a meal')}<div class="pol" style="width:270px;justify-self:center;transform:rotate(-1deg)"><div class="shot food1"></div><div class="capt">Sunday dinner</div></div><span class="shutter"><i></i></span><div class="sugg" style="justify-content:center"><span class="pill np">🖼️ From Photos</span><span class="pill np">✍️ No photo</span></div></div>`),
     b5details: P(`<div class="pol" style="width:200px;justify-self:center;transform:rotate(-1.5deg);padding:8px 8px 30px"><div class="shot food2"></div><div class="capt" style="font-size:20px">Pho</div></div>`, {over: sheet(`<div class="label">Dinner · Sunday 6:40 pm</div>
       <div class="field">Pho</div>
-      <div class="ch"><b style="font:700 14px/1 var(--body)">Where</b><span></span></div><div class="sugg"><span class="pill np">🏠 Home</span><span class="pill np">🛵 Delivery</span><span class="pill np dark">Pho Huynh · 40 ft</span><span class="pill np">Souvla</span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Where</b><span></span></div><div class="sugg"><span class="pill np">🏠 Home-cooked</span><span class="pill np on">🛵 Delivery</span><span class="pill np">🍽️ Dine out</span><span class="pill np on">🏢 Company</span></div>
+      <div class="sugg"><span class="pill np dark">Pho Huynh · 40 ft</span><span class="pill np">Souvla</span></div>
       <div class="ch"><b style="font:700 14px/1 var(--body)">Who ate</b><span class="sugg"><span class="pill on">${av('J','sm')}You</span><span class="pill on">${av('M','sm')}Mia</span><span class="pill">${av('A','sm')}Ava</span></span></div>
       <div class="ch"><b style="font:700 14px/1 var(--body)">Verdict</b><span class="sugg"><span class="pill np">😬</span><span class="pill np">🙂</span><span class="pill np on">😋</span><span class="pill np">🤩</span></span></div>
       <span class="btn">Save to Sunday dinner</span>`)}),
@@ -999,7 +1000,7 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
     { id:'B5', ws:'B', ph:1, t:'Food', goal:'The better camera is in your pocket, and so is the restaurant you\'re sitting in.', frames:[
       ['p','b5week','This week','The wall\'s grid at phone size, with empty slots to fill.'],
       ['p','b5cam','Snap','The polaroid viewfinder; the meal is guessed from the time.'],
-      ['p','b5details','Details','Nearby restaurants first when you\'re out; who ate defaults to you.'],
+      ['p','b5details','Details','Where takes one kind or several (a delivery dinner at the office is Delivery and Company); the first tap replaces the home-cooked guess, and the last kind can\'t come off. Nearby restaurants first when you\'re out; who ate defaults to you.'],
       ['p','b5saved','Saved','The new photo lands in its slot.'],
       ['p','b5photos','Photos','The wall\'s photo row: tap a photo to make it the cover or reframe it, × to take it off, + for another. The same in Edit.'],
       ['p','b5reframe','Reframe','The wall\'s reframe at phone size: drag, pinch, the zoom row and the thirds grid.'],

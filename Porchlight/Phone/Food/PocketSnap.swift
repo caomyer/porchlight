@@ -109,7 +109,7 @@ struct PocketSnap: View {
         do {
             let entry = try store.addMeal(form.draft(now: now, calendar: store.calendar, today: store.today(now)), photos: form.newPhotos)
             error = nil
-            onSaved(entry, form.eaterIds, form.source.hasPlace ? form.place : nil)
+            onSaved(entry, form.eaterIds, form.sources.hasPlace ? form.place : nil)
             dismiss()
         } catch {
             self.error = error.userMessage
@@ -171,7 +171,8 @@ private struct PocketSnapDetails: View {
                         title: $form.title,
                         slot: $form.slot,
                         time: $form.time,
-                        source: $form.source,
+                        sources: $form.sources,
+                        sourcesGuessed: $form.sourcesGuessed,
                         place: $form.place,
                         eaterIds: $form.eaterIds,
                         rating: Binding(get: { form.rating }, set: { form.rating = $0 ?? .again }),
@@ -275,7 +276,9 @@ struct PocketMealFields: View {
     @Binding var title: String
     @Binding var slot: String
     @Binding var time: LogTime
-    @Binding var source: MealSource
+    @Binding var sources: MealSources
+    /// The kinds are still the new meal's guess (`MealSources.tapped`); false when editing.
+    var sourcesGuessed: Binding<Bool> = .constant(false)
     @Binding var place: PlaceDraft?
     @Binding var eaterIds: Set<Person.ID>
     @Binding var rating: MealRating?
@@ -312,13 +315,19 @@ struct PocketMealFields: View {
                     PhoneChoice(title: "\(MealSlot.named(name).emoji) \(name)", isOn: slot == name) { slot = name }
                 }
             }
+            // Any number of kinds, never none: a tap on the last one picked does nothing.
             group("Where") {
-                ForEach(MealSource.allCases, id: \.self) { choice in
-                    PhoneChoice(title: "\(choice.emoji) \(choice.label)", isOn: source == choice) { source = choice }
+                ForEach(MealSource.allCases, id: \.self) { kind in
+                    PhoneChoice(title: "\(kind.emoji) \(kind.label)", isOn: sources.contains(kind)) {
+                        sources = sources.tapped(kind, replacingGuess: sourcesGuessed.wrappedValue)
+                        sourcesGuessed.wrappedValue = false
+                    }
+                        .accessibilityHint(sources.tapHint(kind, guessed: sourcesGuessed.wrappedValue))
+                        .accessibilityIdentifier("source-\(kind.rawValue)")
                 }
             }
-            if source.hasPlace {
-                RestaurantField(place: $place, prompt: source == .dineOut ? "Where? Search restaurants" : "From where? Search restaurants")
+            if sources.hasPlace {
+                RestaurantField(place: $place, prompt: sources.placePrompt)
                     .zIndex(1)
             }
             group("Who ate") {

@@ -48,7 +48,7 @@ struct PhoneStampTests {
         let list = try #require(try db.writer.read { try HomeList.fetchOne($0) })
         #expect(home.addItem("Basil", to: list, addedBy: mia))
         _ = try FoodStore(database: db).addMeal(MealDraft(
-            day: today, slot: MealSlot.defaultNames[1], source: .home, title: "Pho", emoji: nil, eaterIds: [mia], eatenAt: .now, place: nil
+            day: today, slot: MealSlot.defaultNames[1], sources: MealSources(.home), title: "Pho", emoji: nil, eaterIds: [mia], eatenAt: .now, place: nil
         ))
 
         let stamp = db.thisDeviceId(in: household.id).description

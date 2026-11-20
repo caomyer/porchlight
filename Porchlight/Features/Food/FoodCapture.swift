@@ -25,7 +25,10 @@ final class CaptureForm: StoredFirstObservable {
     }
     @ObservationIgnored private let calendar: Calendar
     @ObservationIgnored private let enabledSlots: [String]
-    var source: MealSource = .home
+    /// Where it came from: one kind or several.
+    var sources = MealSources(.home)
+    /// True until a Where pill is tapped: home-cooked is only the form's guess.
+    var sourcesGuessed = true
     var eaterIds: Set<Person.ID>
     var rating: MealRating = .again
     /// The restaurant, for delivery or eating out.
@@ -84,12 +87,12 @@ final class CaptureForm: StoredFirstObservable {
         return MealDraft(
             day: day,
             slot: slot,
-            source: source,
+            sources: sources,
             title: title,
             rating: rating,
             eaterIds: Array(eaterIds),
             eatenAt: eatenAt,
-            place: source.hasPlace ? place : nil
+            place: sources.hasPlace ? place : nil
         )
     }
 }
@@ -208,7 +211,7 @@ struct CaptureSheet: View {
         // The viewfinder stretches to the form's height, whatever the form holds.
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 920)
-        .animation(.easeInOut(duration: 0.2), value: form.source.hasPlace)
+        .animation(.easeInOut(duration: 0.2), value: form.sources.hasPlace)
         .background(SurfaceShape(cornerRadius: 28, elevation: 2.5))
         .overlay(alignment: .topTrailing) {
             Button(action: requestClose) {
@@ -296,6 +299,30 @@ struct CaptureSheet: View {
     }
 }
 
+// MARK: - Where it came from
+
+/// "From" on the wall: a pill per kind, any number picked, never none. A tap on the last
+/// one picked does nothing (`MealSources.toggled`); on a new meal the first tap replaces
+/// the home-cooked guess (`MealSources.tapped`).
+struct MealSourcePills: View {
+    @Binding var sources: MealSources
+    /// The kinds are still the form's guess; nil when editing a meal.
+    var guessed: Binding<Bool>? = nil
+
+    var body: some View {
+        FlowLayout(spacing: 8) {
+            ForEach(MealSource.allCases, id: \.self) { kind in
+                FoodChoicePill("\(kind.emoji) \(kind.label)", isSelected: sources.contains(kind), compact: true) {
+                    sources = sources.tapped(kind, replacingGuess: guessed?.wrappedValue ?? false)
+                    guessed?.wrappedValue = false
+                }
+                .accessibilityHint(sources.tapHint(kind, guessed: guessed?.wrappedValue ?? false))
+                .accessibilityIdentifier("source-\(kind.rawValue)")
+            }
+        }
+    }
+}
+
 // MARK: - Form
 
 private struct CaptureFormView: View {
@@ -347,13 +374,9 @@ private struct CaptureFormView: View {
             }
 
             label("From")
-            FlowLayout(spacing: 8) {
-                ForEach(MealSource.allCases, id: \.self) { source in
-                    FoodChoicePill("\(source.emoji) \(source.label)", isSelected: form.source == source, compact: true) { form.source = source }
-                }
-            }
-            if form.source.hasPlace {
-                RestaurantField(place: $form.place, prompt: form.source == .dineOut ? "Where? Search restaurants" : "From where? Search restaurants")
+            MealSourcePills(sources: $form.sources, guessed: $form.sourcesGuessed)
+            if form.sources.hasPlace {
+                RestaurantField(place: $form.place, prompt: form.sources.placePrompt)
                     .padding(.top, 10)
                     .zIndex(1)
             }
@@ -578,12 +601,13 @@ private struct SavedOverlay: View {
         let who = store.ateTogether(entry) ? "for everyone" : "for " + ListFormat.join(people.map(\.name))
         let slot = entry.slot.lowercased()
         let place = store.place(of: entry)?.name
-        let what = switch entry.source {
+        let atWork = entry.sources.contains(.company) && entry.sources.primary != .company ? " at work" : ""
+        let what = switch entry.sources.primary {
         case .home: "Home-cooked \(slot)"
         case .delivery: place.map { "\(slot.prefix(1).uppercased() + slot.dropFirst()) delivered from \($0)" } ?? "Delivered \(slot)"
         case .dineOut: place.map { "\(slot.prefix(1).uppercased() + slot.dropFirst()) out at \($0)" } ?? "\(slot.prefix(1).uppercased() + slot.dropFirst()) out"
         case .company: "\(slot.prefix(1).uppercased() + slot.dropFirst()) at work"
         }
-        return "\(what) \(who). It's on the calendar now, next to the rest of your day."
+        return "\(what)\(atWork) \(who). It's on the calendar now, next to the rest of your day."
     }
 }

@@ -98,7 +98,7 @@ final class SyncHarness {
 
         let journal = try database.ensureFoodJournal(householdId: household.id)
         let dinner = MealDraft(
-            day: today, slot: MealSlot.defaultNames[2], source: .dineOut, title: "Sushi", emoji: "🍣",
+            day: today, slot: MealSlot.defaultNames[2], sources: MealSources([.dineOut, .company]), title: "Sushi", emoji: "🍣",
             eaterIds: people, eatenAt: .now, place: PlaceDraft(name: "Sakura Sushi Bar")
         )
         _ = try database.addMeal(dinner, journalId: journal.id, photos: [try MealPhotoImaging.prepare(Self.image())])

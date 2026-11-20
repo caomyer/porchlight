@@ -134,7 +134,7 @@ struct HouseholdDataTests {
         let item = try db.addListItem(title: "Basil", to: list.id, addedBy: james)
         let journal = try db.ensureFoodJournal(householdId: household.id)
         let meal = try db.addMeal(
-            MealDraft(day: today, slot: MealSlot.defaultNames[1], source: .home, title: "Pho", emoji: nil, eaterIds: [mia], eatenAt: .now, place: nil),
+            MealDraft(day: today, slot: MealSlot.defaultNames[1], sources: MealSources(.home), title: "Pho", emoji: nil, eaterIds: [mia], eatenAt: .now, place: nil),
             journalId: journal.id
         )
 

@@ -112,6 +112,85 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         snapshot("b5-24-new-meal")
     }
 
+    // MARK: Where, one kind or several
+
+    /// A delivery dinner at the office: Delivery and Company picked together, saved,
+    /// shown as both, and both picked again when the meal is edited. The last kind picked
+    /// can't be taken off.
+    func testWhereTakesSeveralKinds() {
+        let app = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"])
+        app.buttons["snap-meal"].tap()
+        XCTAssertTrue(app.buttons["shutter"].waitForExistence(timeout: 5))
+        app.buttons["shutter"].tap()
+        let dish = app.textFields["dish"]
+        XCTAssertTrue(dish.waitForExistence(timeout: 5))
+        type("Bento", into: dish, in: app)
+
+        let home = app.buttons["source-home"], delivery = app.buttons["source-delivery"], company = app.buttons["source-company"]
+        reveal(home, in: app)
+        XCTAssertTrue(home.isSelected, "A new meal starts home-cooked")
+        delivery.tap()
+        XCTAssertTrue(delivery.isSelected && !home.isSelected, "The first tap picks Delivery instead of the guess")
+        // The restaurant field opens under the pills; let it settle before the next tap.
+        company.waitToSettle()
+        company.tap()
+        XCTAssertTrue(delivery.isSelected && company.isSelected, "A second kind joins the first")
+        delivery.tap()
+        XCTAssertTrue(!delivery.isSelected && company.isSelected, "And comes off again")
+        company.tap()
+        XCTAssertTrue(company.isSelected, "The last kind picked stays picked")
+        delivery.tap()
+        XCTAssertTrue(delivery.isSelected && company.isSelected)
+        XCTAssertTrue(app.textFields["Restaurant"].waitForExistence(timeout: 5), "Delivery asks from where")
+        snapshot("where-10-phone-two-kinds")
+
+        let save = app.buttons["save-meal"]
+        reveal(save, in: app)
+        save.tap()
+        XCTAssertTrue(app.otherElements["toast"].waitForExistence(timeout: 8))
+        tapToastAction(app)
+        let pager = app.otherElements["meal-pager"].exists ? app.otherElements["meal-pager"] : app.buttons["meal-pager"]
+        XCTAssertTrue(pager.waitForExistence(timeout: 5), "Open goes to the new meal")
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Delivery · Company")).firstMatch.exists, "The page says both")
+        snapshot("where-11-phone-meal")
+
+        app.buttons["edit-meal"].tap()
+        let editDelivery = app.buttons["source-delivery"]
+        XCTAssertTrue(editDelivery.waitForExistence(timeout: 5))
+        reveal(editDelivery, in: app)
+        XCTAssertTrue(editDelivery.isSelected && app.buttons["source-company"].isSelected, "Both are picked when it opens to edit")
+        XCTAssertFalse(app.buttons["source-home"].isSelected)
+        app.buttons["source-home"].tap()
+        XCTAssertTrue(app.buttons["source-home"].isSelected && editDelivery.isSelected, "Editing adds, with no guess to replace")
+        snapshot("where-12-phone-edit")
+    }
+
+    /// The Where pills in the night look and at the largest text size.
+    func testWhereLooks() {
+        for (look, arguments) in [("dark", [String]()), ("largest", ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])] {
+            if look == "dark" { XCUIDevice.shared.appearance = .dark } else { restoreLightLook() }
+            let app = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"] + arguments)
+            app.buttons["snap-meal"].tap()
+            XCTAssertTrue(app.buttons["shutter"].waitForExistence(timeout: 5))
+            app.buttons["shutter"].tap()
+            let delivery = app.buttons["source-delivery"]
+            XCTAssertTrue(delivery.waitForExistence(timeout: 5))
+            reveal(delivery, in: app)
+            waitUntilResponsive(app)
+            delivery.waitToSettle()
+            delivery.tap()
+            XCTAssertTrue(delivery.wait(for: \.isSelected, toEqual: true, timeout: 10), "Delivery is picked (\(look))")
+            let company = app.buttons["source-company"]
+            reveal(company, in: app)
+            company.waitToSettle()
+            company.tap()
+            XCTAssertTrue(company.wait(for: \.isSelected, toEqual: true, timeout: 10), "Company joins it (\(look))")
+            XCTAssertTrue(delivery.isSelected)
+            snapshot("where-20-phone-\(look)")
+            app.terminate()
+        }
+    }
+
     // MARK: Cover and reframe, as on the wall
 
     /// The photo in a tile of the photo row: "photo-<id>-centered" or "photo-<id>-framed".

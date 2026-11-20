@@ -67,7 +67,7 @@ enum PocketFood {
     static func savedToast(_ entry: JournalEntry, placeName: String?, eaters: String, calendar: Calendar) -> (title: String, detail: String) {
         let title = "Saved to \(mealName(day: entry.dayKey, slot: entry.slot, calendar: calendar))"
         let named = placeName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let source = entry.source.hasPlace && named?.isEmpty == false ? named! : entry.source.label
+        let source = entry.sources.hasPlace && named?.isEmpty == false ? named! : entry.sources.label
         // "you and Mia", "everyone", but never "mia".
         let starts = ["You", "Everyone"].contains { eaters == $0 || eaters.hasPrefix($0 + " ") }
         let who = starts ? eaters.prefix(1).lowercased() + eaters.dropFirst() : eaters
@@ -76,7 +76,7 @@ enum PocketFood {
 
     /// The details line of a meal row: "Dinner · Dine out · Pho Saigon House".
     static func mealLine(_ entry: JournalEntry, place: FoodPlace?) -> String {
-        [entry.slot, entry.source.label, place?.name].compactMap { $0 }.joined(separator: " · ")
+        [entry.slot, entry.sources.label, place?.name].compactMap { $0 }.joined(separator: " · ")
     }
 
     /// "Dinner · Sunday 6:40pm", over the details of a meal being saved.

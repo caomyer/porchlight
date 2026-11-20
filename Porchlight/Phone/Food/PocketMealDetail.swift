@@ -150,9 +150,10 @@ struct PocketMealDetail: View {
         let who = PocketFood.eaters(store.eaters(of: entry), everyone: store.ateTogether(entry), householdSize: store.people.count, me: me?.id)
         let added = PocketFood.addedBy(entry.deviceId, devices: model.devices, everyone: model.everyone, me: me?.id)
         return VStack(alignment: .leading, spacing: 2) {
-            row(place == nil ? entry.source.emoji : "📍",
-                place?.name ?? entry.source.label,
-                ([place == nil ? nil : entry.source.label, PocketFood.whenLine(slot: entry.slot, eatenAt: entry.eatenAt, calendar: calendar)].compactMap { $0 }).joined(separator: " · "))
+            // One icon, as every row has; the title names each kind ("Delivery · Company").
+            row(place == nil ? entry.sources.primary.emoji : "📍",
+                place?.name ?? entry.sources.label,
+                ([place == nil ? nil : entry.sources.label, PocketFood.whenLine(slot: entry.slot, eatenAt: entry.eatenAt, calendar: calendar)].compactMap { $0 }).joined(separator: " · "))
             if let address = place?.address {
                 row("🗺️", address, place?.category)
             }
@@ -274,7 +275,7 @@ private struct PocketMealEditor: View {
                 let now = CompanionClock.now()
                 photos(binding)
                 PocketMealFields(
-                    title: binding.title, slot: binding.slot, time: binding.time, source: binding.source,
+                    title: binding.title, slot: binding.slot, time: binding.time, sources: binding.sources,
                     place: binding.place, eaterIds: binding.eaterIds, rating: binding.rating,
                     day: entry.dayKey, range: MealEdit.timeRange(for: entry, calendar: store.calendar, now: now), now: now,
                     slots: store.slots.contains(binding.wrappedValue.slot) ? store.slots : store.slots + [binding.wrappedValue.slot]

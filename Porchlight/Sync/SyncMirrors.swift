@@ -118,6 +118,8 @@ enum SyncMirror {
         var createdAt: Date
         var placeId: UUID?
         var deviceId: UUID?
+        /// The kinds besides `source` ("food v6"); older builds' mirrors don't have it.
+        var otherSources: String?
     }
 
     @Table("journalEntryEater") struct JournalEntryEater {

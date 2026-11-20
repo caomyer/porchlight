@@ -7,14 +7,15 @@ import GRDB
 struct MealDraft: Equatable, Sendable {
     var day: DayKey
     var slot: String
-    var source: MealSource = .home
+    /// Where it came from: one kind or several.
+    var sources = MealSources(.home)
     var title: String = ""
     var emoji: String?
     var tint: Int?
     var rating: MealRating? = .again
     var eaterIds: [Person.ID]
     var eatenAt: Date
-    /// The restaurant, kept only for delivery and dining out.
+    /// The restaurant, kept only when a kind has one (delivery, dining out).
     var place: PlaceDraft?
 }
 
@@ -353,7 +354,8 @@ extension AppDatabase {
             journalId: journal.id,
             day: draft.day.rawValue,
             slot: draft.slot,
-            source: draft.source,
+            source: draft.sources.primary,
+            otherSources: draft.sources.others,
             title: title,
             emoji: (emoji?.isEmpty == false ? emoji : nil) ?? DishIllustration.suggestEmoji(for: title) ?? DishIllustration.fallbackEmoji,
             tint: draft.tint ?? DishIllustration.suggestTint(for: title),
@@ -367,7 +369,7 @@ extension AppDatabase {
     /// blank names have none. A known place is matched by its Maps id, else by name and
     /// address, and picks up details it was missing.
     private static func resolvePlace(_ draft: MealDraft, householdId: Household.ID, db: Database, now: Date) throws -> FoodPlace.ID? {
-        guard draft.source.hasPlace, let place = draft.place else { return nil }
+        guard draft.sources.hasPlace, let place = draft.place else { return nil }
         func clean(_ text: String?) -> String? {
             let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed?.isEmpty == false ? trimmed : nil
@@ -427,7 +429,7 @@ extension AppDatabase {
             }
             let validated = try Self.validated(draft, journal: journal, db: db, now: existing.createdAt)
             existing.slot = validated.slot
-            existing.source = validated.source
+            existing.sources = validated.sources
             existing.title = validated.title
             existing.emoji = validated.emoji
             existing.tint = validated.tint

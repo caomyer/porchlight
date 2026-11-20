@@ -94,7 +94,7 @@ struct PocketFoodTests {
             context.fill(CGRect(x: 0, y: 0, width: 4000, height: 3000))
         }
         let photo = try await store.preparePhoto(shot)
-        let entry = try store.addMeal(MealDraft(day: today, slot: "Dinner", source: .home, title: "Pho", eaterIds: [mia], eatenAt: .now), photos: [photo])
+        let entry = try store.addMeal(MealDraft(day: today, slot: "Dinner", sources: MealSources(.home), title: "Pho", eaterIds: [mia], eatenAt: .now), photos: [photo])
 
         let stored = try await db.writer.read { db in
             (

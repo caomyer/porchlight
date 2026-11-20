@@ -253,7 +253,17 @@ struct MealDetailSheet: View {
                 .foregroundStyle(Theme.muted)
                 .padding(.top, 4)
             VStack(alignment: .leading, spacing: 10) {
-                detail(entry.source.emoji, entry.source.label)
+                HStack(spacing: 10) {
+                    // Several kinds share the icon's column, each a little smaller, overlapping.
+                    HStack(spacing: -5) {
+                        ForEach(entry.sources.kinds, id: \.self) { kind in
+                            Text(kind.emoji).font(.system(size: entry.sources.isSingle ? 18 : 14))
+                        }
+                    }
+                    .frame(width: 26)
+                    .accessibilityHidden(true)
+                    Text(entry.sources.label).font(.body(16, weight: 600))
+                }
                 if let place = store.place(of: entry) {
                     placeDetail(place)
                 }
@@ -407,7 +417,8 @@ struct WholePhotoView: View {
 struct MealEdit: Equatable {
     var title: String
     var slot: String
-    var source: MealSource
+    /// Where it came from: one kind or several.
+    var sources: MealSources
     var rating: MealRating?
     var eaterIds: Set<Person.ID>
     var time: LogTime
@@ -420,7 +431,7 @@ struct MealEdit: Equatable {
     init(entry: JournalEntry, eaterIds: [Person.ID], place: FoodPlace? = nil, photos: [MealPhoto] = []) {
         title = entry.title
         slot = entry.slot
-        source = entry.source
+        sources = entry.sources
         rating = entry.rating
         self.eaterIds = Set(eaterIds)
         time = .at(entry.eatenAt)
@@ -446,12 +457,12 @@ struct MealEdit: Equatable {
         return MealDraft(
             day: entry.dayKey,
             slot: slot,
-            source: source,
+            sources: sources,
             title: title,
             rating: rating,
             eaterIds: Array(eaterIds),
             eatenAt: eatenAt,
-            place: source.hasPlace ? place : nil
+            place: sources.hasPlace ? place : nil
         )
     }
 }
@@ -508,13 +519,9 @@ private struct MealEditForm: View {
             }
 
             label("From")
-            FlowLayout(spacing: 8) {
-                ForEach(MealSource.allCases, id: \.self) { source in
-                    FoodChoicePill("\(source.emoji) \(source.label)", isSelected: edit.source == source, compact: true) { edit.source = source }
-                }
-            }
-            if edit.source.hasPlace {
-                RestaurantField(place: $edit.place, prompt: edit.source == .dineOut ? "Where? Search restaurants" : "From where? Search restaurants")
+            MealSourcePills(sources: $edit.sources)
+            if edit.sources.hasPlace {
+                RestaurantField(place: $edit.place, prompt: edit.sources.placePrompt)
                     .padding(.top, 10)
                     .zIndex(1)
             }

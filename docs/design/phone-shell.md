@@ -154,7 +154,7 @@ The grid has a column per day and a row per meal; a logged meal is its cover's t
 When the household hasn't turned the diary on, the tab says so and turns it on (rule 6).
 
 Snapping (`PocketSnap`) opens the camera first (`b5cam`): a polaroid whose photo is the live camera, captioned with the meal it is for ("Sunday dinner", guessed from the time), the shutter, and "From Photos" and "No photo" as the other ways in.
-A shot or a pick goes straight to the details (`b5details`): the new polaroid, what it was, when and which meal, where it came from (and the restaurant, with the wall's `RestaurantField`), who ate it and "Would eat again?", then "Save to Sunday dinner".
+A shot or a pick goes straight to the details (`b5details`): the new polaroid, what it was, when and which meal, where it came from (one kind or several, see below, and the restaurant, with the wall's `RestaurantField`), who ate it and "Would eat again?", then "Save to Sunday dinner".
 Who ate starts as me (rule 1).
 Under the polaroid, the new meal's photos sit in the wall's own photo row (`MealPhotoRow`, "Photos · 2 of 6"): tap one for Make cover or Reframe, × to take it off, and the dashed + goes back to the camera for another, up to the wall's limit.
 Photos are made by `MealPhotoImaging.prepare` off the main actor and held in memory until Save; the meal is written by `FoodStore.addMeal`, which stamps this device, so the rows are the wall's: one 2048 px whole shot and a 360 px square thumbnail per photo.
@@ -165,6 +165,16 @@ The camera says what it is for before iOS asks ("Allow camera"), and with access
 
 A meal's page (`PocketMealDetail`, `b5entry`) is the big polaroid, swiped for its other photos and tapped for the whole shot, then where it came from, the verdict with who ate and who added it, the day's handwritten page when anyone wrote on it, and the slot's other dishes.
 Edit opens the same fields in a sheet, with the same photo row as the wall's editor: Make cover and Reframe from a tap on a photo, × to take one off, and + to take or pick more, which attach on Save; Add photo on the page takes one or picks from Photos and adds it at once; Remove asks first, since a meal's photos can't come back.
+
+### Where, one kind or several
+
+Where is a row of pills, the same on the phone's Snap and Edit and the wall's capture and edit forms: Home-cooked, Delivery, Dine out and Company, any number of them, never none (`MealSources`).
+A delivery dinner at the office is Delivery and Company.
+A new meal starts home-cooked as a guess, so the first tap on another kind picks it instead ("Delivery" stays one tap); after that, and always when editing, taps add and take off, and a tap on the last kind picked does nothing.
+The restaurant field shows when any kind picked has one (Delivery, Dine out).
+Wherever one kind was shown, the kinds are joined with " · " in the pills' order, emoji likewise ("🛵 · 🏢 Delivery · Company").
+The stats count a meal once under each of its kinds, so the kinds can add up to more than the meals; every total is meals.
+How it is stored, and what older builds make of it, is in `sync-icloud.md`, "A new column, and older builds".
 
 ### Photos, the same on the wall and the phone
 

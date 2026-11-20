@@ -101,6 +101,8 @@ final class WallTourTests: XCTestCase {
         // Before the keyboard opens: the sheet stays put for it, and iOS 27's taller keyboard
         // covers the row this button is in.
         app.buttons["🛵 Delivery"].tap()
+        // Editing adds a kind; the meal was home-cooked, so that comes off.
+        if app.buttons["source-home"].isSelected { app.buttons["source-home"].tap() }
         title.tap()
         let current = title.value as? String ?? ""
         title.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))

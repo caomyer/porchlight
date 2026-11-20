@@ -15,7 +15,7 @@ enum FoodDebugPhoto {
         let draft = MealDraft(
             day: store.today(now),
             slot: "Lunch",
-            source: .home,
+            sources: MealSources(.home),
             title: "Test photo",
             eaterIds: store.people.map(\.id),
             eatenAt: now

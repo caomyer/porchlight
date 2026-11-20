@@ -98,6 +98,63 @@ final class FoodMealsTests: XCTestCase {
         snapshot("35-dine-out-saved")
     }
 
+    /// A delivery dinner at the office on the wall: Delivery and Company together, saved,
+    /// shown as both, and both picked again in the editor. The last kind can't come off.
+    func testWhereTakesSeveralKinds() {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
+        let dish = app.textFields["What was it? e.g. Dan dan noodles"]
+        XCTAssertTrue(dish.waitForExistence(timeout: 20))
+        dish.tap()
+        dish.typeText("Bento box\n")
+
+        let home = app.buttons["source-home"], delivery = app.buttons["source-delivery"], company = app.buttons["source-company"]
+        XCTAssertTrue(home.isSelected, "A new meal starts home-cooked")
+        delivery.tap()
+        XCTAssertTrue(delivery.isSelected && !home.isSelected, "The first tap picks Delivery instead of the guess")
+        Thread.sleep(forTimeInterval: 0.5)  // the restaurant field opens under the pills
+        company.tap()
+        XCTAssertTrue(delivery.isSelected && company.isSelected, "A second kind joins the first")
+        delivery.tap()
+        company.tap()
+        XCTAssertTrue(company.isSelected && !delivery.isSelected, "The last kind picked stays picked")
+        delivery.tap()
+        XCTAssertTrue(delivery.isSelected && company.isSelected)
+        XCTAssertTrue(app.textFields["Restaurant"].waitForExistence(timeout: 5), "Delivery asks from where")
+        snapshot("where-30-wall-two-kinds")
+
+        app.buttons["Save"].tap()
+        let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "at work")).firstMatch
+        XCTAssertTrue(saved.waitForExistence(timeout: 10), "The saved note says it was at work: delivered dinner at work")
+        snapshot("where-31-wall-saved")
+    }
+
+    /// Editing a meal on the wall into two kinds, and seeing both on its page.
+    func testEditingWhereIntoTwoKinds() {
+        let app = launch(["-startScreen", "food", "-debugFoodView", "detail"])
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 20))
+        edit.tap()
+        let home = app.buttons["source-home"], company = app.buttons["source-company"]
+        XCTAssertTrue(home.waitForExistence(timeout: 5))
+        let before = ["home", "delivery", "dineOut", "company"].filter { app.buttons["source-\($0)"].isSelected }
+        XCTAssertEqual(before.count, 1, "A meal from before has one kind: \(before)")
+        for kind in ["home", "delivery", "dineOut", "company"] where app.buttons["source-\(kind)"].isSelected {
+            app.buttons["source-\(kind)"].tap()
+            XCTAssertTrue(app.buttons["source-\(kind)"].isSelected, "The only kind can't come off")
+        }
+        if !home.isSelected { home.tap() }
+        if !company.isSelected { company.tap() }
+        snapshot("where-32-wall-edit")
+        app.buttons["Save"].tap()
+        let both = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Company")).firstMatch
+        XCTAssertTrue(both.waitForExistence(timeout: 5), "The page names both kinds")
+        snapshot("where-33-wall-detail")
+
+        app.buttons["Edit"].tap()
+        XCTAssertTrue(company.waitForExistence(timeout: 5))
+        XCTAssertTrue(home.isSelected && company.isSelected, "Both are picked when it opens again")
+    }
+
     /// Live Maps suggestions appear while typing a new restaurant (needs the network).
     func testLiveRestaurantSearch() throws {
         let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
@@ -125,6 +182,8 @@ final class FoodMealsTests: XCTestCase {
         XCTAssertTrue(edit.waitForExistence(timeout: 20))
         edit.tap()
         app.buttons["🍽️ Dine out"].tap()
+        // Editing adds a kind; the meal was home-cooked, so that comes off.
+        if app.buttons["source-home"].isSelected { app.buttons["source-home"].tap() }
         let restaurant = app.textFields["Restaurant"]
         XCTAssertTrue(restaurant.waitForExistence(timeout: 5))
         restaurant.tap()

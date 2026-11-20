@@ -115,6 +115,7 @@ struct AppDatabase: Sendable {
         registerHouseholdMigrations(&migrator)
         registerCalendarMigrationsAfterSync(&migrator)
         registerCompanionMigrationsAfterSync(&migrator)
+        registerFoodMigrationsAfterSync(&migrator)
         return migrator
     }
 }

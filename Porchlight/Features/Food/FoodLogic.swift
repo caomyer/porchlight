@@ -184,7 +184,8 @@ struct DishTheme: Equatable, Sendable {
     }
 }
 
-/// The numbers on the "This week" card.
+/// The numbers on the "This week" card. A meal from several places counts once under each
+/// of its kinds, so the kinds can add up to more than the meals; `total` is the meals.
 struct WeekStats: Equatable, Sendable {
     var homeCooked = 0
     var delivery = 0
@@ -195,15 +196,19 @@ struct WeekStats: Equatable, Sendable {
     var themeDishes: [String] = []
     /// Dishes eaten for the first time this week, best rated first.
     var newDishes: [JournalEntry] = []
-    var total: Int { homeCooked + delivery + dineOut + company }
+    /// The week's meals, each once.
+    var total = 0
+    /// Every kind of every meal, for splitting a bar by kind.
+    var kindCount: Int { homeCooked + delivery + dineOut + company }
 
     /// Stats for the entries of `days` (the week), with `history` as everything logged before it.
     static func make(week entries: [JournalEntry], history: [JournalEntry]) -> WeekStats {
         var stats = WeekStats()
-        stats.homeCooked = entries.filter { $0.source == .home }.count
-        stats.delivery = entries.filter { $0.source == .delivery }.count
-        stats.dineOut = entries.filter { $0.source == .dineOut }.count
-        stats.company = entries.filter { $0.source == .company }.count
+        stats.total = entries.count
+        stats.homeCooked = entries.filter { $0.sources.contains(.home) }.count
+        stats.delivery = entries.filter { $0.sources.contains(.delivery) }.count
+        stats.dineOut = entries.filter { $0.sources.contains(.dineOut) }.count
+        stats.company = entries.filter { $0.sources.contains(.company) }.count
 
         let chronological = entries.sorted { ($0.day, $0.eatenAt) < ($1.day, $1.eatenAt) }
         let themed = DishTheme.all

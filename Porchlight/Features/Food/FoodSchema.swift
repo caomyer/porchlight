@@ -61,6 +61,90 @@ enum MealSource: String, Codable, CaseIterable, Sendable, DatabaseValueConvertib
     var hasPlace: Bool { self == .delivery || self == .dineOut }
 }
 
+/// Where a meal came from: one kind or several ("Delivery · Company" for a delivery dinner at
+/// the office), always at least one, kept in the pills' order.
+///
+/// Stored as two columns so older builds keep working (docs/design/sync-icloud.md, "A new column, and older
+/// builds"): `source` holds the primary kind, a value every build knows, and
+/// `otherSources` the rest, comma-separated, or nil. An older build reads `source` alone, and
+/// one that saves the meal keeps `otherSources`, since a save starts from iCloud's last
+/// record; if it changed the kind it could see, the meal is that kind and the others.
+struct MealSources: Equatable, Hashable, Sendable {
+    /// In the pills' order, each once, never empty.
+    let kinds: [MealSource]
+
+    /// The kinds given, in the pills' order; none at all is home-cooked.
+    init(_ kinds: some Sequence<MealSource>) {
+        let given = Set(kinds)
+        let ordered = MealSource.allCases.filter(given.contains)
+        self.kinds = ordered.isEmpty ? [.home] : ordered
+    }
+
+    init(_ kind: MealSource) {
+        self.init([kind])
+    }
+
+    /// As stored: the primary kind and the others, which may name kinds this build doesn't know.
+    init(primary: MealSource, others: String?) {
+        let rest = (others ?? "").split(separator: ",").compactMap { MealSource(rawValue: String($0)) }
+        self.init([primary] + rest)
+    }
+
+    /// The kind an older build shows: the first that names a restaurant, so it keeps showing
+    /// and saving the restaurant, else the first.
+    var primary: MealSource {
+        kinds.first(where: \.hasPlace) ?? kinds[0]
+    }
+
+    /// The other kinds as stored, or nil when there is only the primary.
+    var others: String? {
+        let rest = kinds.filter { $0 != primary }
+        return rest.isEmpty ? nil : rest.map(\.rawValue).joined(separator: ",")
+    }
+
+    func contains(_ kind: MealSource) -> Bool { kinds.contains(kind) }
+
+    /// A restaurant can be named when any kind has one.
+    var hasPlace: Bool { kinds.contains(where: \.hasPlace) }
+
+    var isSingle: Bool { kinds.count == 1 }
+
+    /// "Delivery · Company".
+    var label: String { kinds.map(\.label).joined(separator: " · ") }
+
+    /// "🛵 · 🏢".
+    var emoji: String { kinds.map(\.emoji).joined(separator: " · ") }
+
+    /// "🛵 Delivery · 🏢 Company".
+    var emojiLabel: String { kinds.map { "\($0.emoji) \($0.label)" }.joined(separator: " · ") }
+
+    /// A tap on a kind's pill: adds it, or takes it off unless it is the last.
+    func toggled(_ kind: MealSource) -> MealSources {
+        if contains(kind) {
+            return isSingle ? self : MealSources(kinds.filter { $0 != kind })
+        }
+        return MealSources(kinds + [kind])
+    }
+
+    /// A tap on a kind's pill in a form. While the kinds are still the form's own guess
+    /// (a new meal starts home-cooked), a kind not picked takes the guess's place, so
+    /// "Delivery" is one tap; after that, taps add and take off (`toggled`).
+    func tapped(_ kind: MealSource, replacingGuess guessed: Bool) -> MealSources {
+        guessed && !contains(kind) ? MealSources(kind) : toggled(kind)
+    }
+
+    /// What a tap on a kind's pill does, for VoiceOver.
+    func tapHint(_ kind: MealSource, guessed: Bool) -> String {
+        if contains(kind) { return isSingle ? "At least one stays picked" : "Takes it off" }
+        return guessed ? "Picks it instead" : "Adds it"
+    }
+
+    /// The restaurant search's prompt: "Where?" when they dined out, else "From where?".
+    var placePrompt: String {
+        contains(.dineOut) ? "Where? Search restaurants" : "From where? Search restaurants"
+    }
+}
+
 /// A restaurant the household ate at or ordered from. Picked from a live map search
 /// (with address and location) or just typed in (name only). Shared by every entry
 /// that names it, so a favorite spot is one row.
@@ -122,7 +206,11 @@ struct JournalEntry: Codable, Equatable, Identifiable, Sendable {
     /// `DayKey.rawValue` ("yyyy-MM-dd"); see `dayKey`.
     var day: String
     var slot: String
+    /// The primary kind; `sources` is the whole of it.
     var source: MealSource
+    /// The other kinds, comma-separated, or nil (`MealSources`). A later column: older
+    /// builds don't know it and leave it as it is.
+    var otherSources: String? = nil
     var title: String
     /// Illustration used when there is no photo.
     var emoji: String?
@@ -347,6 +435,15 @@ extension JournalPage: FetchableRecord, PersistableRecord {
 
 extension JournalEntry {
     var dayKey: DayKey { DayKey(rawValue: day) }
+
+    /// Where the meal came from: one kind or several.
+    var sources: MealSources {
+        get { MealSources(primary: source, others: otherSources) }
+        set {
+            source = newValue.primary
+            otherSources = newValue.others
+        }
+    }
 }
 
 extension JournalPage {
@@ -452,6 +549,17 @@ extension AppDatabase {
                 t.add(column: "cropWidth", .double)
                 t.add(column: "cropHeight", .double)
             }
+        }
+    }
+
+    /// Changes to the food tables after they were rebuilt for sync.
+    static func registerFoodMigrationsAfterSync(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("food v6: a meal from several places") { db in
+            // The kinds besides `source`, comma-separated (`MealSources`). Nil for every meal so
+            // far, so it writes no rows. Once a meal is saved again, its iCloud record carries
+            // the field (and its modification time, as every column's does), so Production must
+            // know `otherSources` before this ships (docs/design/sync-icloud.md).
+            try db.execute(sql: #"ALTER TABLE "journalEntry" ADD COLUMN "otherSources" TEXT"#)
         }
     }
 }
