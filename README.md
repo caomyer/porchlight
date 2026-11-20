@@ -141,6 +141,7 @@ Each job is a small Mac (3 cores, 7 GB) that holds one simulator, and the plan r
 
 - **Build and unit tests** builds once (`scripts/test.sh --build-only`), hands the build to the UI jobs as the `products` artifact, then runs the unit tests on the iPad.
 - **Wall UI 1 of 2, 2 of 2, Phone UI 1 of 2, 2 of 2** each run a share of a UI suite's test classes (`--shard`), on the build from the first job (`--no-build`).
+  The shares are of about equal time, from each class's measured seconds in `scripts/lib/ui-test-seconds`.
   Each boots its simulator while the build is still going, since a new iOS 27 simulator takes 3 to 8 minutes to boot and finish setting itself up.
 
 The jobs go through `scripts/test.sh` like a local run; the steps around it live in `scripts/ci`.

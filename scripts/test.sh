@@ -231,18 +231,22 @@ ui_suite() {
   summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
 }
 
-# With --shard I/N, a suite's classes go to N shares of about as many tests each, every
-# class, most tests first, to the share with the fewest so far; prints share I's classes.
+# With --shard I/N, a suite's classes go to N shares of about equal time, each class,
+# longest first, to the share with the least so far; prints share I's classes. Times are
+# measured ones (scripts/lib/ui-test-seconds), else 30 seconds a test.
 shard_of() {
-  local i=${shard%/*} n=${shard#*/} class k least
+  local i=${shard%/*} n=${shard#*/} class k least seconds
   local -a weights=() mine=()
   for (( k = 1; k <= n; k++ )); do weights[k]=0; done
-  for class in $(for class in "$@"; do print -r -- "$(grep -c 'func test' PorchlightUITests/$class.swift) $class"; done | sort -k1,1nr -k2,2 | cut -d' ' -f2); do
+  for seconds class in $(for class in "$@"; do
+      seconds=$(awk -v c="$class" '$1 == c { print $2 }' scripts/lib/ui-test-seconds)
+      print -r -- "${seconds:-$(( 30 * $(grep -c 'func test' PorchlightUITests/$class.swift) ))} $class"
+    done | sort -k1,1nr -k2,2); do
     least=1
     for (( k = 2; k <= n; k++ )); do
       if (( weights[k] < weights[least] )); then least=$k; fi
     done
-    (( weights[least] += $(grep -c 'func test' PorchlightUITests/$class.swift) ))
+    (( weights[least] += seconds ))
     if (( least == i )); then mine+=("$class"); fi
   done
   (( ${#mine} )) || { echo "Shard $shard has no test classes" >&2; return 1; }
