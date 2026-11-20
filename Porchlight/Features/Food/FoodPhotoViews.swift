@@ -361,9 +361,10 @@ struct MealPhotoRow<Trailing: View>: View {
 
     private func tile(_ item: MealPhotoItem, index: Int) -> some View {
         let isCover = index == 0
-        // The remove badge sits beside the menu, not in an overlay of it: on iOS 27 a
-        // Menu takes every touch inside its bounds, overlays included, so a tap on the badge
-        // where it overlaps the photo opened the menu instead of removing the photo.
+        // On iOS 27 the photo's menu takes every touch inside its square, whatever is drawn
+        // over it, so a tap on the remove badge, which hangs over the square's corner, opened
+        // the menu instead. The badge is a menu of its own, beside and above the photo's: a
+        // tap removes the photo, and a long press offers the same.
         return ZStack(alignment: .topTrailing) {
             Menu {
                 if !isCover {
@@ -402,7 +403,11 @@ struct MealPhotoRow<Trailing: View>: View {
                         .allowsHitTesting(false)
                 }
             }
-            Button { items = MealPhotoOrder.remove(index, from: items) } label: {
+            Menu {
+                Button(role: .destructive) { items = MealPhotoOrder.remove(index, from: items) } label: {
+                    Label("Remove photo", systemImage: "trash")
+                }
+            } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .heavy))
                     // Paper on ink, so it reads in the night look too, where ink is light.
@@ -414,7 +419,10 @@ struct MealPhotoRow<Trailing: View>: View {
                     // photo, so a tap on the photo still opens its menu.
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
+            } primaryAction: {
+                items = MealPhotoOrder.remove(index, from: items)
             }
+            .menuStyle(.button)
             .buttonStyle(.plain)
             .offset(x: 15, y: -15)
             .accessibilityLabel("Remove photo \(index + 1)")
