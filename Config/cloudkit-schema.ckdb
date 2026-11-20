@@ -276,6 +276,39 @@ DEFINE SCHEMA
         GRANT READ TO "_world"
     );
 
+    RECORD TYPE dish (
+        "___createTime"                                    TIMESTAMP,
+        "___createdBy"                                     REFERENCE,
+        "___etag"                                          STRING,
+        "___modTime"                                       TIMESTAMP,
+        "___modifiedBy"                                    REFERENCE,
+        "___recordID"                                      REFERENCE,
+        createdAt                                          ENCRYPTED TIMESTAMP,
+        emoji                                              ENCRYPTED STRING,
+        favorite                                           ENCRYPTED INT64,
+        householdId                                        ENCRYPTED STRING,
+        id                                                 ENCRYPTED STRING,
+        kitchen                                            ENCRYPTED STRING,
+        mergedInto                                         ENCRYPTED STRING,
+        name                                               ENCRYPTED STRING,
+        placeId                                            ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_createdAt   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_emoji       ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_favorite    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_householdId ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id          ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_kitchen     ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_mergedInto  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_name        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_placeId     ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_tint        ENCRYPTED INT64,
+        tint                                               ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE foodPlace (
         "___createTime"                                    TIMESTAMP,
         "___createdBy"                                     REFERENCE,
@@ -567,6 +600,50 @@ DEFINE SCHEMA
         sqlitedata_icloud_userModificationTime_sortOrder ENCRYPTED INT64,
         sqlitedata_icloud_userModificationTime_title     ENCRYPTED INT64,
         title                                            ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE mealDish (
+        "___createTime"                                  TIMESTAMP,
+        "___createdBy"                                   REFERENCE,
+        "___etag"                                        STRING,
+        "___modTime"                                     TIMESTAMP,
+        "___modifiedBy"                                  REFERENCE,
+        "___recordID"                                    REFERENCE,
+        dishId                                           ENCRYPTED STRING,
+        entryId                                          ENCRYPTED STRING,
+        id                                               ENCRYPTED STRING,
+        rating                                           ENCRYPTED INT64,
+        sortOrder                                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_dishId    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_entryId   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_rating    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_sortOrder ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE mealDishRating (
+        "___createTime"                                   TIMESTAMP,
+        "___createdBy"                                    REFERENCE,
+        "___etag"                                         STRING,
+        "___modTime"                                      TIMESTAMP,
+        "___modifiedBy"                                   REFERENCE,
+        "___recordID"                                     REFERENCE,
+        id                                                ENCRYPTED STRING,
+        mealDishId                                        ENCRYPTED STRING,
+        personId                                          ENCRYPTED STRING,
+        rating                                            ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime            ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_mealDishId ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_personId   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_rating     ENCRYPTED INT64,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

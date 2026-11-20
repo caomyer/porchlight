@@ -97,11 +97,14 @@ final class SyncHarness {
         try database.setMeal(day: today, title: "Tacos", emoji: "🌮", householdId: household.id)
 
         let journal = try database.ensureFoodJournal(householdId: household.id)
-        let dinner = MealDraft(
+        var dinner = MealDraft(
             day: today, slot: MealSlot.defaultNames[2], sources: MealSources([.dineOut, .company]), title: "Sushi", emoji: "🍣",
             eaterIds: people, eatenAt: .now, place: PlaceDraft(name: "Sakura Sushi Bar")
         )
-        _ = try database.addMeal(dinner, journalId: journal.id, photos: [try MealPhotoImaging.prepare(Self.image())])
+        dinner.dishes = [DishLineDraft(name: "Salmon nigiri", rating: .again)]
+        let meal = try database.addMeal(dinner, journalId: journal.id, photos: [try MealPhotoImaging.prepare(Self.image())])
+        let line = try #require(try database.foodSnapshot().lines[meal.id]?.first)
+        try database.setPersonFace(lineId: line.id, personId: people[1], .favorite)
         let page = SampleHandwriting.page(lines: [("Sushi night", PageInk.defaultInk(for: .blue))])
         try database.savePage(journalId: journal.id, day: today, drawing: page.dataRepresentation())
     }

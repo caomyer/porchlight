@@ -260,6 +260,36 @@ enum SyncMirror {
         var createdAt: Date
         var seenAt: Date
     }
+
+    // Dishes (docs/design/dishes.md).
+
+    @Table("dish") struct Dish {
+        let id: UUID
+        var householdId: UUID
+        var name: String
+        var emoji: String
+        var tint: Int
+        var kitchen: String
+        var placeId: UUID?
+        var favorite: Bool
+        var mergedInto: UUID?
+        var createdAt: Date
+    }
+
+    @Table("mealDish") struct MealDish {
+        let id: UUID
+        var entryId: UUID
+        var dishId: UUID
+        var sortOrder: Int
+        var rating: Int?
+    }
+
+    @Table("mealDishRating") struct MealDishRating {
+        let id: UUID
+        var mealDishId: UUID
+        var personId: UUID
+        var rating: Int
+    }
 }
 
 extension SyncMirror {
@@ -275,6 +305,7 @@ extension SyncMirror {
         HomeList.self, ListItem.self, MealPlan.self,
         CompanionPhoto.self, JournalEntryPhotoThumb.self, JournalEntryPhotoImage.self,
         Device.self,
+        Dish.self, MealDish.self, MealDishRating.self,
     ]
 
     /// The zone the household lives in, the engine's own default.
@@ -299,6 +330,7 @@ extension SyncMirror {
             HomeList.self, ListItem.self, MealPlan.self,
             CompanionPhoto.self, JournalEntryPhotoThumb.self, JournalEntryPhotoImage.self,
             Device.self,
+            Dish.self, MealDish.self, MealDishRating.self,
             containerIdentifier: SyncController.containerIdentifier,
             defaultZone: zone,
             startImmediately: false,

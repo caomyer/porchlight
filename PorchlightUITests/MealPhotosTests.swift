@@ -70,6 +70,29 @@ final class MealPhotosTests: XCTestCase {
         snapshot("47-saved-with-photos")
     }
 
+    /// The × badge hangs over its photo's corner, and a tap on the part over the photo still
+    /// removes it. On iOS 27 the photo's old menu took every touch inside the photo, so that
+    /// tap opened Make cover and Reframe instead.
+    func testTheRemoveBadgeTakesTapsOverThePhoto() {
+        let app = launch(["-startScreen", "food"])
+        let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
+        XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.tap()
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10), "The meal opens")
+        edit.tap()
+        XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5), "Edit shows the photos")
+
+        // The badge is drawn round the middle of its frame, which sits on the photo's corner:
+        // a little left of and below the middle is the badge, over the photo.
+        let badge = app.buttons["Remove photo 2"]
+        let inner = 5 / max(badge.frame.width, 1)
+        badge.coordinate(withNormalizedOffset: CGVector(dx: 0.5 - inner, dy: 0.5 + inner)).tap()
+        XCTAssertTrue(photo(app, 1).waitForNonExistence(timeout: 5), "A tap on the badge over the photo removes it")
+        XCTAssertFalse(app.buttons["Make cover"].exists, "and does not open the photo's choices")
+        snapshot("49b-badge-over-photo")
+    }
+
     /// A saved meal pages through its photos, and Edit removes one only once saved.
     func testPagingAndEditingPhotosOfASavedMeal() {
         let app = launch(["-startScreen", "food"])
@@ -135,12 +158,10 @@ final class MealPhotosTests: XCTestCase {
         app.buttons["Edit"].tap()
         let tile = photo(app, 0)
         XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        // The cover's only choice is Reframe, so a tap opens it straight away.
         tile.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()
-        let reframe = app.buttons["Reframe"]
-        XCTAssertTrue(reframe.waitForExistence(timeout: 5), "A photo offers to be reframed")
-        reframe.tap()
         let frameWindow = app.descendants(matching: .any)["reframe-window"]
-        XCTAssertTrue(frameWindow.waitForExistence(timeout: 5))
+        XCTAssertTrue(frameWindow.waitForExistence(timeout: 5), "Tapping the cover opens it to be reframed")
         let before = frameWindow.value as? String
         frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.1, thenDragTo: frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
@@ -150,6 +171,44 @@ final class MealPhotosTests: XCTestCase {
         XCTAssertTrue(frameWindow.waitForNonExistence(timeout: 5))
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5), "The reframed photo saves with the meal")
+    }
+
+    /// Reframing a photo that isn't the cover: the dialog's Reframe opens the reframe screen
+    /// as the dialog goes, and Done brings back the row with that photo framed.
+    func testReframingAnotherPhoto() {
+        let app = launch(["-startScreen", "food"])
+        let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
+        XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.tap()
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10), "The meal opens")
+        edit.tap()
+        let cover = framing(app, 0)
+        let second = framing(app, 1)
+        XCTAssertTrue(second.hasSuffix("-centered"), "The sample's second photo starts unframed: \(second)")
+
+        photo(app, 1).coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()
+        let reframe = app.buttons["Reframe"]
+        XCTAssertTrue(reframe.waitForExistence(timeout: 5), "The second photo offers Reframe")
+        reframe.tap()
+        let frameWindow = app.descendants(matching: .any)["reframe-window"]
+        XCTAssertTrue(frameWindow.waitForExistence(timeout: 5), "Reframe opens the second photo to frame")
+        frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
+        snapshot("50b-reframe-second")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(frameWindow.waitForNonExistence(timeout: 5), "Done goes back to the row")
+        XCTAssertEqual(framing(app, 1), second.replacingOccurrences(of: "-centered", with: "-framed"), "The second photo is framed")
+        XCTAssertEqual(framing(app, 0), cover, "and the cover is as it was")
+    }
+
+    /// Which photo a tile shows and whether it is framed: "photo-<id>-centered" or "-framed".
+    private func framing(_ app: XCUIApplication, _ index: Int) -> String {
+        let tile = photo(app, index)
+        XCTAssertTrue(tile.waitForExistence(timeout: 5), "Photo \(index + 1) is in the row")
+        let image = tile.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'photo-'")).firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        return image.identifier
     }
 
     /// Making another photo the cover moves it to the front, once.

@@ -70,9 +70,11 @@ household
 ├─ person
 ├─ companion ─ careRoutine ─ careLog ─ careLogPerson
 ├─ journal ─┬─ journalEntry ─┬─ journalEntryEater
-│           │                └─ journalEntryPhoto
+│           │                ├─ journalEntryPhoto
+│           │                └─ mealDish ─ mealDishRating
 │           └─ journalPage
 ├─ foodPlace
+├─ dish
 ├─ chore ─ choreCompletion
 ├─ reward ─ rewardRedemption
 ├─ homeList ─ listItem

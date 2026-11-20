@@ -42,6 +42,7 @@ struct PocketMealDetail: View {
             VStack(alignment: .leading, spacing: 14) {
                 pager(entry, photos: photos)
                 facts(entry)
+                PocketMealDishes(entry: entry)
                 dayPage(entry)
                 otherDishes(entry)
                 actions(entry, photos: photos)
@@ -206,13 +207,13 @@ struct PocketMealDetail: View {
         }
     }
 
-    /// The slot's other dishes, to switch to.
+    /// The slot's other meals, to switch to (the kids ate at home while we ate out).
     @ViewBuilder
     private func otherDishes(_ entry: JournalEntry) -> some View {
         let meals = store.entries(on: entry.dayKey, slot: entry.slot)
         if meals.count > 1 {
             VStack(alignment: .leading, spacing: 8) {
-                PhoneCardHeader(title: PocketFood.mealName(day: entry.dayKey, slot: entry.slot, calendar: store.calendar), meta: "\(meals.count) dishes")
+                PhoneCardHeader(title: PocketFood.mealName(day: entry.dayKey, slot: entry.slot, calendar: store.calendar), meta: "\(meals.count) meals")
                 FlowLayout(spacing: 8, lineSpacing: 8) {
                     ForEach(meals) { meal in
                         NavigationLink(value: PocketFoodRoute.meal(meal.id)) {

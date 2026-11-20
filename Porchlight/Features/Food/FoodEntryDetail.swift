@@ -19,6 +19,8 @@ struct MealDetailSheet: View {
     @State private var drag: CGFloat = 0
     /// The photo shown whole, uncropped, over the sheet.
     @State private var wholePhoto: MealPhoto?
+    /// Everyone giving their own face, dish by dish.
+    @State private var rating = false
 
     /// The entry as it is now, so saved edits show right away.
     private var current: JournalEntry {
@@ -44,7 +46,9 @@ struct MealDetailSheet: View {
                     .frame(width: 220)
                     .padding(.top, 8)
                 }
-                if let editing {
+                if rating {
+                    WallRateEach(entry: current) { rating = false }
+                } else if let editing {
                     MealEditForm(
                         entry: current,
                         // Read the live edit, not this render's copy: a change made of two
@@ -186,7 +190,7 @@ struct MealDetailSheet: View {
         let meals = slotMeals
         if meals.count > 1 {
             VStack(alignment: .leading, spacing: 8) {
-                SheetLabel(title: current.slot, note: "· \(meals.count) dishes")
+                SheetLabel(title: current.slot, note: "· \(meals.count) meals")
                 FlowLayout(spacing: 8) {
                     ForEach(meals) { meal in
                         Button { select(meal) } label: {
@@ -207,7 +211,7 @@ struct MealDetailSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if onAddAnother != nil {
             Button(action: addAnother) {
-                Label("Another \(current.slot.lowercased()) dish", systemImage: "plus")
+                Label("Another meal at \(current.slot.lowercased())", systemImage: "plus")
                     .font(.body(14, weight: 700))
             }
             .buttonStyle(SecondaryButtonStyle())
@@ -228,7 +232,7 @@ struct MealDetailSheet: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Add another \(current.slot.lowercased()) dish")
+        .accessibilityLabel("Add another meal at \(current.slot.lowercased())")
     }
 
     private func select(_ meal: JournalEntry) {
@@ -276,6 +280,7 @@ struct MealDetailSheet: View {
                 }
             }
             .padding(.top, 18)
+            dishes(entry)
             HStack {
                 if !confirmingDelete {
                     Button {
@@ -304,6 +309,40 @@ struct MealDetailSheet: View {
             .padding(.top, 28)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    /// "What we had": each dish with its faces, and "How was it?" for everyone's own.
+    @ViewBuilder
+    private func dishes(_ entry: JournalEntry) -> some View {
+        let dishes = store.book.dishes(of: entry)
+        if !dishes.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                SheetLabel(title: "What we had", note: "· \(dishes.count == 1 ? "1 dish" : "\(dishes.count) dishes")")
+                ForEach(dishes, id: \.line.id) { line, dish in
+                    let faces = store.book.faces(of: line, entry: entry)
+                    HStack(spacing: 10) {
+                        DishArt(dish: dish, size: 34)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(dish.name).font(.body(15, weight: 700))
+                            Text(store.book.ownFaces(of: line).isEmpty
+                                 ? DishWords.ordinal(store.book.ordinal(of: line), here: dish.kitchen.placeId != nil)
+                                 : DishWords.faces(faces, people: store.snapshot.everyone, me: nil))
+                                .font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted)
+                        }
+                        Spacer(minLength: 4)
+                        if let face = faces.values.max(by: { $0.rawValue < $1.rawValue }) ?? line.rating {
+                            Text(face.emoji).font(.system(size: 20)).accessibilityLabel(face.phrase)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("wall-meal-dish-\(dish.name)")
+                }
+                Button { rating = true } label: { Label("How was it?", systemImage: "face.smiling") }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .accessibilityIdentifier("wall-rate-each")
+            }
+            .padding(.top, 18)
+        }
     }
 
     /// Removes the meal; the sheet stays open on the slot's next meal if there is one.

@@ -57,7 +57,7 @@ final class FoodMealsTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Mochi"].waitForExistence(timeout: 5), "Picking the other dish should show it")
         snapshot("31-meal-second-dish")
 
-        app.buttons["Add another dinner dish"].tap()
+        app.buttons["Add another meal at dinner"].tap()
         XCTAssertTrue(app.textFields["What was it? e.g. Dan dan noodles"].waitForExistence(timeout: 5), "Adding another should open the capture form")
         XCTAssertTrue(app.staticTexts["Dinner"].exists, "The capture form should be for the same meal")
         snapshot("32-another-dinner-dish")

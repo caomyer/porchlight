@@ -3,6 +3,14 @@ import SwiftUI
 /// Where the Food tab goes from the diary.
 enum PocketFoodRoute: Hashable {
     case meal(JournalEntry.ID)
+    case dish(Dish.ID)
+    case place(FoodPlace.ID)
+}
+
+/// The Food tab's two views: the diary, and the dishes it remembers.
+enum PocketFoodView: String, CaseIterable {
+    case diary = "Diary"
+    case dishes = "Dishes"
 }
 
 /// The Food tab (`b5week`): the week's plates as the wall's grid at phone size, with empty
@@ -18,6 +26,7 @@ struct PocketFoodScreen: View {
     @State private var addingPhoto: JournalEntry?
     /// The meal just saved, ringed in the grid for a moment (`b5saved`).
     @State private var fresh: JournalEntry.ID?
+    @State private var view: PocketFoodView = .diary
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -28,6 +37,8 @@ struct PocketFoodScreen: View {
                     Group {
                         switch route {
                         case let .meal(id): PocketMealDetail(entryId: id) { addingPhoto = $0 }
+                        case let .dish(id): PocketDishDetail(dishId: id)
+                        case let .place(id): PocketPlaceDetail(placeId: id)
                         }
                     }
                     .toolbar {
@@ -67,13 +78,20 @@ struct PocketFoodScreen: View {
             let meals = days.reduce(0) { $0 + store.entries(on: $1).count }
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    PocketHeader(small: store.isEnabled ? PocketFood.weekLine(days, meals: meals, calendar: store.calendar) : "Food", title: "What we ate")
+                    PocketHeader(small: store.isEnabled ? headerLine(days: days, meals: meals) : "Food", title: "What we ate")
                     if store.isEnabled {
-                        PocketFoodWeek(days: days, today: today, fresh: fresh, onOpen: open) { day, slot in
-                            snap = CaptureRequest(day: day, slot: slot)
+                        // No identifier on the whole: it would replace each segment's own.
+                        PhoneSegments(choices: PocketFoodView.allCases, selection: $view, title: \.rawValue)
+                        switch view {
+                        case .diary:
+                            PocketFoodWeek(days: days, today: today, fresh: fresh, onOpen: open) { day, slot in
+                                snap = CaptureRequest(day: day, slot: slot)
+                            }
+                            PocketFoodMemory(today: today, onOpen: open)
+                            PocketFoodDays(days: days.reversed(), today: today, onOpen: open)
+                        case .dishes:
+                            PocketDishesView()
                         }
-                        PocketFoodMemory(today: today, onOpen: open)
-                        PocketFoodDays(days: days.reversed(), today: today, onOpen: open)
                     } else {
                         off
                     }
@@ -89,6 +107,18 @@ struct PocketFoodScreen: View {
         }
         .background(Theme.background)
         .paperUnderStatusBar()
+    }
+
+    /// "Nov 10 to 16 · 20 meals" over the diary, "48 dishes · 11 places" over the dishes.
+    private func headerLine(days: [DayKey], meals: Int) -> String {
+        switch view {
+        case .diary: return PocketFood.weekLine(days, meals: meals, calendar: store.calendar)
+        case .dishes:
+            let book = store.book
+            let dishes = book.mostHad.count
+            let places = book.placesWithDishes.count
+            return "\(dishes == 1 ? "1 dish" : "\(dishes) dishes") · \(places == 1 ? "1 place" : "\(places) places")"
+        }
     }
 
     /// The one thing to do here, always in reach.
@@ -156,6 +186,13 @@ struct PocketFoodScreen: View {
         case "snap", "details": snap = CaptureRequest(day: today)
         case "detail":
             if let entry = store.entries(on: today).first ?? store.snapshot.entries.last { path = [.meal(entry.id)] }
+        case "dishes": view = .dishes
+        case "dish":
+            view = .dishes
+            if let dish = store.book.liveDishes.first(where: { $0.name == "Pho tai" }) ?? store.book.mostHad.first { path = [.dish(dish.id)] }
+        case "place":
+            view = .dishes
+            if let place = store.snapshot.places.first(where: { $0.name == "Pho Saigon House" }) { path = [.place(place.id)] }
         default: break
         }
     }

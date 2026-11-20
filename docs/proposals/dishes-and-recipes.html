@@ -1,0 +1,1217 @@
+<title>Dishes and Recipes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Caveat:wght@600;700&display=swap">
+<style>/* Layout: a proposal in the companion atlas's style. The problem, what exists today, the model, requirements, the journey frame by frame on the iPhone and on the wall, the hard cases, what changes, phasing, and the decisions to approve. Frame styles are the atlas's own; the page chrome follows the system's light or dark look, while every frame keeps the look it is drawn in. */
+:root {
+  --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --rail: #EDE4D4;
+  --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB;
+  --accent: #D9653B; --accent-soft: #F8DDD0; --good: #5B9F72; --good-soft: #E3EFE2;
+  --warn: #B7791F; --warn-soft: #F6E7C8; --blue: #4C7BB0; --coral: #DD7558; --ochre: #C2933A; --sage: #6E9E7E;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --rail: #2F2824; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --rail: #2F2824; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 1180px; margin: 0 auto; padding-block: 44px 90px; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(32px, 5.4vw, 50px); line-height: 1.08; text-wrap: balance; }
+h2 { font: 600 27px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 20px/1.25 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 5px; }
+a { color: var(--accent); }
+.eyebrow { font: 800 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 18px; max-width: 70ch; }
+.note { font-size: 14.5px; color: var(--muted); max-width: 76ch; }
+code { font: 500 .9em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface2); border-radius: 5px; padding: 1px 5px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.tile b { font: 600 17px/1.3 var(--display); }
+.tile p { font-size: 14.5px; color: var(--muted); }
+.tile .k { font: 800 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.index { display: flex; flex-wrap: wrap; gap: 6px; }
+.index a { text-decoration: none; background: var(--surface2); color: var(--ink); border-radius: 999px; padding: 7px 12px; font: 800 13px/1 var(--body); }
+.index a:hover { background: var(--accent-soft); }
+.choicecols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.choicecol { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.choicecol b { font: 600 17px/1.3 var(--display); }
+.choicecol p, .choicecol li { font-size: 14.5px; color: var(--muted); }
+.rec { color: var(--good); font-weight: 800; font-family: var(--body); font-size: 13px; white-space: nowrap; }
+.not { color: var(--muted); font-weight: 800; font-family: var(--body); font-size: 13px; white-space: nowrap; }
+.model { background: var(--surface); border-radius: 22px; padding: 20px; display: grid; gap: 14px; overflow-x: auto; }
+.mrow { display: grid; grid-template-columns: 130px 1fr; gap: 14px; align-items: center; min-width: 660px; }
+.mrow > span { font: 800 11.5px/1.2 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.mrow .items { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.node { border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 12px; background: var(--paper); font: 700 14px/1.25 var(--body); }
+.node small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); }
+.node.root { border-color: var(--accent); }
+.node.newn { border-color: var(--good); border-style: dashed; }
+.node.v2 { border-color: var(--ochre); border-style: dashed; }
+.reqs { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+.req { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.req h4 { margin: 0; font: 600 17px/1.3 var(--display); }
+.req ol { font-size: 14px; gap: 6px; padding-left: 0; list-style: none; }
+.req li { display: grid; grid-template-columns: 38px 1fr; gap: 6px; }
+.req li > span:first-child { font: 800 12px/1.6 var(--body); color: var(--accent); }
+.journey { background: var(--surface); border-radius: 24px; padding: 20px; display: grid; gap: 14px; min-width: 0; scroll-margin-top: 20px; }
+.jhead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.jid { font: 800 13px/1 var(--body); color: var(--surface); background: var(--ink); border-radius: 8px; padding: 5px 7px; }
+.ph-tag { font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 4px 8px; background: var(--good-soft); color: var(--good); }
+.ph-tag.v2 { background: var(--warn-soft); color: var(--warn); }
+.goal { font-size: 15.5px; max-width: 84ch; }
+.board { display: flex; gap: 18px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; }
+.fr { flex: none; display: grid; gap: 10px; align-content: start; scroll-snap-align: start; margin: 0; }
+.fr .cap { font-size: 13.5px; line-height: 1.4; }
+.fr .cap b { display: block; font: 700 13.5px/1.3 var(--body); }
+.fr .cap span { color: var(--muted); }
+.fr.p .cap { width: 286px; }
+.fr.w .cap { width: 720px; max-width: 82vw; }
+.arrow { flex: none; align-self: center; font: 600 24px/1 var(--display); color: var(--line); margin-top: -40px; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+th { font: 800 11.5px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 800; }
+.flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .flow { grid-template-columns: minmax(0, 1fr); } }
+.step { background: var(--surface); border-radius: 18px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; border-top: 4px solid var(--line); }
+.step.s1 { border-top-color: var(--good); } .step.s2 { border-top-color: var(--ochre); } .step.s3 { border-top-color: var(--muted); }
+.step b { font: 600 18px/1.25 var(--display); }
+.step p, .step ul { font-size: 14px; color: var(--muted); }
+.step ul b { color: var(--ink); }
+
+/* ============ Frames keep their own look, whatever the page's ============ */
+.sc, .ws-sc { --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --rail: #EDE4D4; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB; --accent: #D9653B; --accent-soft: #F8DDD0; --good-soft: #E3EFE2; --warn-soft: #F6E7C8; --pol: #FFFDF8; --capt: #5b4c40; --pick: #FDF1EA; color-scheme: light; }
+.es { display: inline-block; width: .32em; }
+.sc.dark { box-shadow: 0 0 0 1px #3B332D; }
+.sc.dark, .ws-sc.dark { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --rail: #2F2824; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; --pol: #EFE7DA; --capt: #4a3d33; --pick: #4A2E22; color-scheme: dark; }
+
+/* ============ Phone frame (designed at 375 pt, scaled with zoom) ============ */
+.ph { width: 397px; height: 834px; zoom: .72; background: #1d1a18; border-radius: 56px; padding: 11px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.sc { width: 375px; height: 812px; border-radius: 46px; background: var(--paper); color: var(--ink); overflow: hidden; position: relative; display: flex; flex-direction: column; font-family: var(--body); line-height: 1.3; }
+.notch { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; background: #1d1a18; border-radius: 20px; z-index: 9; }
+.status { height: 54px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 8px 34px 0; font: 700 15px/1 var(--body); }
+.status i { font-style: normal; letter-spacing: 1px; font-size: 11px; }
+.pb { flex: 1; overflow: hidden; padding: 4px 16px 16px; display: grid; gap: 12px; align-content: start; position: relative; }
+.tabbar { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 10px 28px; background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar span { display: grid; justify-items: center; gap: 3px; font: 700 10.5px/1 var(--body); color: var(--muted); }
+.tabbar span i { font-style: normal; font-size: 20px; line-height: 1; filter: grayscale(1); opacity: .65; }
+.tabbar span.on { color: var(--accent); }
+.tabbar span.on i { filter: none; opacity: 1; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phead small { display: block; font: 700 12.5px/1.2 var(--body); color: var(--muted); }
+.phead b { font: 600 28px/1.15 var(--display); }
+.navbar { display: flex; justify-content: space-between; align-items: center; min-height: 32px; }
+.back { font: 700 15px/1 var(--body); color: var(--accent); }
+.navbar .act { font: 700 15px/1 var(--body); color: var(--accent); }
+.av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); }
+.av.J { background: var(--blue); } .av.M { background: var(--coral); } .av.A { background: var(--ochre); }
+.av.sm { width: 24px; height: 24px; font-size: 11px; }
+.av.xs { width: 20px; height: 20px; font-size: 9.5px; }
+.card { background: var(--surface); border-radius: 20px; padding: 14px; display: grid; gap: 10px; box-shadow: 0 1px 2px rgba(60,40,20,.06); }
+.card.form { border-radius: 26px; padding: 18px; gap: 14px; }
+.ch { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ch b { font: 600 17px/1.2 var(--display); }
+.ch span { font: 700 12px/1.2 var(--body); color: var(--muted); }
+.btn { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 16px/1 var(--body); padding: 15px 16px; width: 100%; text-align: center; display: block; }
+.btn.ghost { background: var(--surface2); color: var(--ink); }
+.btn.line { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.btn.red { background: #B54A3A; }
+.btn.sm { font-size: 13.5px; padding: 10px 12px; width: auto; display: inline-block; }
+.btns { display: flex; gap: 8px; }
+.btns .btn { flex: 1; }
+.pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px 4px 4px; display: inline-flex; gap: 5px; align-items: center; font: 700 12.5px/1 var(--body); color: var(--ink); white-space: nowrap; }
+.pill.np { padding: 8px 11px; }
+.pill.on { border-color: var(--accent); background: var(--pick); }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.row { display: flex; gap: 10px; align-items: center; padding: 8px 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.tx { flex: 1; min-width: 0; font: 700 14px/1.25 var(--body); }
+.tx small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.chev { color: var(--muted); font: 700 16px/1 var(--body); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface2); border-radius: 12px; padding: 3px; }
+.seg span { text-align: center; font: 700 13px/1 var(--body); padding: 8px 4px; border-radius: 9px; color: var(--muted); }
+.seg span.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.field { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px; font: 600 15px/1.2 var(--body); color: var(--ink); display: flex; gap: 10px; align-items: center; }
+.field.ph-t { color: var(--muted); }
+.field.focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field .caret { width: 2px; height: 18px; background: var(--accent); display: inline-block; margin-left: -8px; }
+.field.area { display: grid; gap: 4px; align-content: start; font-weight: 500; font-size: 14px; line-height: 1.4; }
+.label { font: 800 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.label small { letter-spacing: 0; text-transform: none; font-weight: 600; font-size: 11.5px; margin-left: 4px; }
+.grp { display: grid; gap: 8px; }
+.list { background: var(--surface); border-radius: 16px; padding: 2px 14px; }
+.toast { position: absolute; left: 14px; right: 14px; top: 60px; background: #2A2420; color: #FFFCF6; border-radius: 16px; padding: 12px 14px; font: 700 13.5px/1.3 var(--body); z-index: 8; display: flex; gap: 10px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.toast small { display: block; color: #D8CDBF; font-weight: 600; font-size: 12px; }
+.toast em { margin-left: auto; font-style: normal; color: #F2B59A; font: 800 13px/1 var(--body); }
+.scrim { position: absolute; inset: 0; background: rgba(30,24,20,.38); z-index: 6; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 26px 26px 0 0; padding: 10px 18px 34px; display: grid; gap: 12px; z-index: 7; box-shadow: 0 -10px 30px rgba(0,0,0,.18); }
+.sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; display: block; }
+.sheet h4 { margin: 0; font: 600 22px/1.2 var(--display); }
+.sheet p { font-size: 14px; color: var(--muted); }
+.kb { position: absolute; left: 0; right: 0; bottom: 0; height: 250px; background: #D7D2CB; z-index: 7; display: grid; grid-template-rows: repeat(4, 1fr); gap: 8px; padding: 10px 4px 34px; }
+.sc.dark .kb { background: #2F2B28; }
+.kb div { display: flex; gap: 5px; justify-content: center; }
+.kb i { background: #fff; border-radius: 5px; width: 32px; box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.sc.dark .kb i { background: #5A544F; }
+.center { display: grid; gap: 12px; justify-items: center; text-align: center; }
+.center h4 { margin: 0; font: 600 24px/1.2 var(--display); }
+.center p { font-size: 14.5px; color: var(--muted); max-width: 30ch; }
+.big-emoji { font-size: 46px; line-height: 1; }
+.xbtn { width: 44px; height: 44px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; color: var(--muted); font: 700 18px/1 var(--body); }
+.tag { font: 800 10.5px/1 var(--body); letter-spacing: .03em; border-radius: 999px; padding: 4px 7px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
+.tag.new { background: var(--good-soft); color: var(--good); }
+.tag.acc { background: var(--accent-soft); color: var(--accent); }
+.tag.rec { background: var(--warn-soft); color: var(--warn); }
+.banner { border-radius: 14px; padding: 11px 12px; font: 700 13px/1.35 var(--body); display: flex; gap: 10px; align-items: flex-start; background: var(--surface2); }
+.banner small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.banner em { margin-left: auto; font-style: normal; font-weight: 800; color: var(--accent); white-space: nowrap; }
+
+/* Food: plates, polaroids, faces and dish lines */
+.art { aspect-ratio: 1; display: grid; place-items: center; position: relative; overflow: hidden; flex: none; }
+.art::before { content: ""; position: absolute; width: 66%; height: 66%; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 2px 6px rgba(60,40,20,.18); }
+.art span { position: relative; line-height: 1; }
+.art.photo::before { display: none; }
+.t1 { background: #F3D9BE; } .t2 { background: #DCEBD8; } .t3 { background: #F6E1A8; } .t4 { background: #E6E0F0; } .t5 { background: #F8D3C4; } .t6 { background: #D5E4EE; }
+.ph1 { background: radial-gradient(circle at 48% 52%, #E8C27A 0 18%, #C78A45 19% 27%, #6E4A2E 28% 31%, #F1E7D7 32% 60%, #8FA88B 61% 72%, #5E4636 73%); }
+.ph2 { background: radial-gradient(circle at 50% 50%, #E3A54C 0 24%, #9B5B2A 25% 31%, #F3ECE0 32% 60%, #C4B49A 61%); }
+.ph3 { background: radial-gradient(circle at 46% 50%, #A8C47E 0 18%, #F0B66A 19% 28%, #F3ECE0 29% 58%, #6F8FA6 59%); }
+.ph4 { background: radial-gradient(circle at 52% 48%, #F4D7A1 0 22%, #D98C4B 23% 30%, #FFF 31% 58%, #B89474 59%); }
+.ph5 { background: radial-gradient(circle at 50% 50%, #7FA35B 0 20%, #E9DCC2 21% 30%, #FFF 31% 60%, #A9C0CC 61%); }
+.ph6 { background: radial-gradient(circle at 50% 50%, #F0E2C8 0 30%, #C7B28E 31% 36%, #8C6A4E 37%); }
+.pol { background: var(--pol); padding: 8px 8px 0; box-shadow: 0 6px 16px rgba(60,40,20,.2); border-radius: 3px; position: relative; }
+.pol .art { border-radius: 2px; }
+.pol .capt { text-align: center; font: 700 20px/1 var(--hand); color: var(--capt); padding: 6px 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pol .more { position: absolute; right: 12px; top: 12px; background: rgba(30,24,20,.62); color: #fff; font: 800 11px/1 var(--body); padding: 4px 7px; border-radius: 999px; }
+.faces { display: flex; gap: 6px; }
+.fc { width: 44px; height: 40px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; font-size: 20px; line-height: 1; }
+.fc.on { border-color: var(--accent); background: var(--pick); box-shadow: inset 0 0 0 1px var(--accent); }
+.faces.s .fc { width: 36px; height: 32px; font-size: 16px; border-radius: 10px; }
+.dl { display: grid; grid-template-columns: 40px 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 0; }
+.dl + .dl { border-top: 1px solid var(--line); }
+.dl .art { width: 40px; border-radius: 10px; font-size: 18px; }
+.dl .art::before { width: 74%; height: 74%; }
+.dl .nm { font: 700 15px/1.2 var(--body); min-width: 0; }
+.dl .nm small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin-top: 2px; }
+.dl .x { width: 28px; height: 28px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; color: var(--muted); font: 800 13px/1 var(--body); }
+.dl .faces { grid-column: 2 / 4; }
+.dl .last { font: 600 11.5px/1 var(--body); color: var(--muted); align-self: center; margin-left: 4px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1.5px dashed var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: 7px 11px; font: 800 12.5px/1 var(--body); white-space: nowrap; }
+.chip.used { border-style: solid; border-color: var(--line); color: var(--muted); }
+.sugbox { background: var(--surface); border-radius: 16px; box-shadow: 0 10px 28px rgba(40,25,10,.2); border: 1px solid var(--line); padding: 4px 12px; display: grid; }
+.sg { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; }
+.sg + .sg { border-top: 1px solid var(--line); }
+.sg .art { width: 34px; border-radius: 9px; font-size: 16px; }
+.sg b { font: 700 14.5px/1.2 var(--body); display: block; }
+.sg b u { text-decoration: none; background: var(--accent-soft); border-radius: 3px; }
+.sg small { display: block; font: 600 12px/1.25 var(--body); color: var(--muted); margin-top: 2px; }
+.sghead { font: 800 10.5px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 10px 0 2px; }
+.plus { width: 34px; height: 34px; border-radius: 9px; border: 1.5px dashed var(--muted); display: grid; place-items: center; color: var(--muted); font: 700 16px/1 var(--body); }
+.hero { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; }
+.hero .art { width: 96px; border-radius: 18px; font-size: 40px; }
+.hero h5 { margin: 0; font: 600 26px/1.1 var(--display); }
+.hero small { display: block; font: 600 13px/1.35 var(--body); color: var(--muted); margin-top: 4px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stats div { background: var(--surface); border-radius: 14px; padding: 10px; text-align: center; font: 600 11.5px/1.3 var(--body); color: var(--muted); }
+.stats b { display: block; font: 600 20px/1.1 var(--display); color: var(--ink); }
+.who { display: grid; gap: 8px; }
+.who div { display: flex; align-items: center; gap: 8px; font: 700 13.5px/1.2 var(--body); }
+.who div span.f { font-size: 18px; letter-spacing: 2px; }
+.who div small { margin-left: auto; font: 600 12px/1 var(--body); color: var(--muted); }
+.strip { display: flex; gap: 6px; }
+.strip .art { width: 56px; border-radius: 6px; }
+.hist { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; font: 700 13.5px/1.25 var(--body); }
+.hist + .hist { border-top: 1px solid var(--line); }
+.hist .d { font: 800 11.5px/1.2 var(--body); color: var(--muted); }
+.hist small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin-top: 2px; }
+.hist .f { font-size: 17px; }
+.rk { display: grid; grid-template-columns: 34px 1fr auto auto; gap: 10px; align-items: center; padding: 9px 0; }
+.rk + .rk { border-top: 1px solid var(--line); }
+.rk .art { width: 34px; border-radius: 9px; font-size: 16px; }
+.rk b { font: 700 14.5px/1.2 var(--body); }
+.rk small { display: block; font: 600 12px/1.25 var(--body); color: var(--muted); margin-top: 2px; }
+.rk .f { font-size: 18px; }
+.rk .n { font: 800 12px/1 var(--body); color: var(--muted); min-width: 22px; text-align: right; }
+.rk.dim b { color: var(--muted); }
+.ing { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: center; padding: 7px 0; font: 600 14px/1.3 var(--body); }
+.ing + .ing { border-top: 1px solid var(--line); }
+.ck { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--line); display: grid; place-items: center; font: 800 12px/1 var(--body); color: #fff; }
+.ck.on { background: var(--accent); border-color: var(--accent); }
+.stp { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 7px 0; font: 500 14px/1.4 var(--body); }
+.stp b { width: 24px; height: 24px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; font: 800 12px/1 var(--body); color: var(--ink); }
+.rcard { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; }
+.rcard + .rcard { border-top: 1px solid var(--line); }
+.rcard .art { width: 64px; border-radius: 14px; font-size: 26px; }
+.rcard b { font: 600 17px/1.2 var(--display); display: block; }
+.rcard small { display: block; font: 600 12px/1.35 var(--body); color: var(--muted); margin-top: 3px; }
+.search { border-radius: 12px; background: var(--surface2); padding: 10px 12px; font: 600 15px/1.2 var(--body); color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.search.typed { background: var(--surface); border: 1px solid var(--accent); color: var(--ink); }
+.sech { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 2px 0; }
+.sech b { font: 600 17px/1.2 var(--display); }
+.sech span { font: 700 12px/1 var(--body); color: var(--muted); }
+.grid7 { display: grid; grid-template-columns: 26px repeat(7, 1fr); gap: 4px; align-items: center; font: 700 10.5px/1 var(--body); color: var(--muted); text-align: center; }
+.mini { aspect-ratio: 1; border-radius: 3px; background: var(--pol); padding: 2px; box-shadow: 0 1px 3px rgba(60,40,20,.15); position: relative; }
+.mini .art { width: 100%; border-radius: 1px; }
+.mini .art::before { display: none; }
+.mini.empty { background: transparent; box-shadow: none; border: 1.5px dashed var(--line); }
+.mini i { position: absolute; right: -3px; top: -4px; background: var(--ink); color: var(--surface); font: 800 8px/1 var(--body); font-style: normal; padding: 2px 3px; border-radius: 6px; }
+.mini.ring { box-shadow: 0 0 0 2.5px var(--accent); }
+.diary { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; }
+.diary + .diary { border-top: 1px solid var(--line); }
+.diary .art { width: 44px; border-radius: 4px; }
+.diary b { font: 700 19px/1 var(--hand); }
+.diary small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin-top: 3px; }
+.diary .f { font-size: 18px; }
+/* Largest accessibility text */
+.sc.ax .phead b { font-size: 36px; }
+.sc.ax .dl { grid-template-columns: 52px 1fr; }
+.sc.ax .dl .art { width: 52px; font-size: 24px; }
+.sc.ax .dl .nm { font-size: 22px; line-height: 1.2; }
+.sc.ax .dl .nm small { font-size: 17px; }
+.sc.ax .dl .x { grid-column: 2; justify-self: start; width: auto; height: auto; padding: 6px 12px; border-radius: 999px; font-size: 16px; }
+.sc.ax .dl > div:last-child { grid-column: 1 / -1 !important; }
+.sc.ax .ch b { font-size: 24px; }
+.sc.ax .ch span { font-size: 15px; }
+.sc.ax .field { font-size: 20px; padding: 16px; }
+.sc.ax .fc { width: 66px; height: 58px; font-size: 30px; }
+.sc.ax .label { font-size: 16px; }
+.sc.ax .btn { font-size: 22px; padding: 18px; }
+.sc.ax .hero { grid-template-columns: 1fr; }
+.sc.ax .hero h5 { font-size: 36px; }
+.sc.ax .hero small { font-size: 18px; }
+.sc.ax .stats { grid-template-columns: 1fr; }
+.sc.ax .stats div { display: flex; gap: 10px; align-items: baseline; text-align: left; font-size: 17px; }
+.sc.ax .stats b { font-size: 26px; display: inline; }
+.sc.ax .who div { font-size: 19px; flex-wrap: wrap; }
+.sc.ax .who div span.f { font-size: 26px; }
+.sc.ax .who div small { font-size: 16px; margin-left: 0; width: 100%; padding-left: 40px; }
+.sc.ax .av.sm { width: 32px; height: 32px; font-size: 14px; }
+.sc.ax .back { font-size: 20px; }
+.sc.ax .tag { font-size: 14px; }
+
+/* ============ Wall frame (1112 x 834, sized with container units) ============ */
+.wl { width: 720px; max-width: 82vw; aspect-ratio: 1112 / 834; background: #2b2724; border-radius: 30px; padding: 10px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.ws-sc { width: 100%; height: 100%; border-radius: 22px; background: var(--paper); overflow: hidden; display: grid; grid-template-columns: 7% 1fr; position: relative; container-type: inline-size; color: var(--ink); font-family: var(--body); line-height: 1.3; }
+.wrail { background: var(--rail); display: grid; align-content: start; justify-items: center; gap: 1.5cqw; padding-top: 1.6cqw; }
+.wrail i { width: 3.4cqw; height: 3.4cqw; border-radius: 1cqw; background: var(--surface2); display: block; font-style: normal; font-size: 1.8cqw; text-align: center; line-height: 3.4cqw; }
+.wrail i.home { background: var(--accent); }
+.wrail i.on { background: var(--surface); box-shadow: 0 0 0 .2cqw var(--line); }
+.wmain { padding: 2cqw 2.2cqw; display: grid; grid-template-rows: auto 1fr; gap: 1.6cqw; min-width: 0; min-height: 0; }
+.wfh { display: flex; align-items: flex-end; gap: 1.6cqw; }
+.wfh b { font: 600 3.6cqw/1 var(--display); white-space: nowrap; }
+.wfh span.sub { font: 500 1.35cqw/1.2 var(--body); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: .4cqw; min-width: 0; }
+.wfh .right { margin-left: auto; display: flex; gap: .6cqw; align-items: center; flex: none; }
+.wchip { font: 700 1.3cqw/1 var(--body); padding: .9cqw 1.3cqw; border-radius: 999px; background: var(--surface); color: var(--muted); box-shadow: inset 0 0 0 .12cqw var(--line); }
+.wchip.on { background: var(--ink); color: var(--surface); box-shadow: none; }
+.wbtn { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 1.4cqw/1 var(--body); padding: 1.1cqw 1.8cqw; display: inline-block; white-space: nowrap; }
+.wbtn.ghost { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 .15cqw var(--line); }
+.wbtn.red { background: #B54A3A; }
+.wcard { background: var(--surface); border-radius: 1.8cqw; padding: 1.6cqw 1.8cqw; display: grid; gap: 1cqw; align-content: start; min-height: 0; overflow: hidden; }
+.wcard .ch b { font-size: 2cqw; }
+.wcard .ch span { font-size: 1.2cqw; }
+.wweek { display: grid; grid-template-columns: 7cqw repeat(7, 1fr); gap: 1.1cqw; align-items: center; }
+.wweek .dh { text-align: center; font: 700 1.2cqw/1.2 var(--body); color: var(--muted); }
+.wweek .dh b { display: block; font: 600 2.2cqw/1 var(--display); color: var(--ink); }
+.wweek .dh.today b { color: var(--accent); }
+.wweek .sl { font: 700 1.3cqw/1.2 var(--body); color: var(--muted); }
+.wpol { background: var(--pol); padding: .45cqw .45cqw 0; box-shadow: 0 .4cqw 1cqw rgba(60,40,20,.18); border-radius: .25cqw; position: relative; }
+.wpol .art { border-radius: .15cqw; }
+.wpol .art::before { display: none; }
+.wpol .c { font: 700 1.35cqw/1 var(--hand); color: var(--capt); text-align: center; padding: .45cqw 0 .5cqw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wpol .m { position: absolute; right: .8cqw; top: .8cqw; background: rgba(30,24,20,.62); color: #fff; font: 800 .95cqw/1 var(--body); padding: .3cqw .5cqw; border-radius: 999px; }
+.wpol.e { background: transparent; box-shadow: none; border: .18cqw dashed var(--line); aspect-ratio: .86; display: grid; place-items: center; color: var(--muted); font: 700 1.6cqw/1 var(--body); }
+.wpol.ring { box-shadow: 0 0 0 .35cqw var(--accent); }
+.wscrim { position: absolute; inset: 0; background: rgba(42,36,32,.36); z-index: 5; }
+.wsheet { position: absolute; z-index: 6; background: var(--surface); border-radius: 2.4cqw; padding: 2.2cqw; display: grid; gap: 1.2cqw; align-content: start; box-shadow: 0 2cqw 5cqw rgba(40,25,10,.25); overflow: hidden; }
+.wsheet h4 { margin: 0; font: 600 2.8cqw/1.1 var(--display); }
+.wsheet .sub { font: 600 1.35cqw/1.3 var(--body); color: var(--muted); }
+.wlab { font: 800 1.05cqw/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.wpills { display: flex; gap: .6cqw; flex-wrap: wrap; }
+.wpill { border: .12cqw solid var(--line); background: var(--surface); border-radius: 999px; padding: .8cqw 1.2cqw; font: 700 1.3cqw/1 var(--body); white-space: nowrap; display: inline-flex; gap: .5cqw; align-items: center; }
+.wpill.on { border-color: var(--accent); background: var(--pick); }
+.wfield { border: .12cqw solid var(--line); background: var(--surface); border-radius: 1.2cqw; padding: 1.1cqw 1.2cqw; font: 600 1.45cqw/1.2 var(--body); display: flex; gap: 1cqw; align-items: center; }
+.wfield.ph-t { color: var(--muted); }
+.wdl { display: grid; grid-template-columns: 4.2cqw 1fr auto auto; gap: 1.1cqw; align-items: center; padding: .9cqw 0; }
+.wdl + .wdl { border-top: .1cqw solid var(--line); }
+.wdl .art { width: 4.2cqw; border-radius: 1cqw; font-size: 2cqw; }
+.wdl .art::before { width: 74%; height: 74%; }
+.wdl b { font: 700 1.55cqw/1.2 var(--body); }
+.wdl small { display: block; font: 600 1.15cqw/1.3 var(--body); color: var(--muted); margin-top: .2cqw; }
+.wfaces { display: flex; gap: .5cqw; }
+.wfc { width: 3.6cqw; height: 3.3cqw; border-radius: 1cqw; border: .12cqw solid var(--line); background: var(--surface); display: grid; place-items: center; font-size: 1.7cqw; line-height: 1; }
+.wfc.on { border-color: var(--accent); background: var(--pick); box-shadow: inset 0 0 0 .1cqw var(--accent); }
+.wfaces.big .wfc { width: 5.4cqw; height: 4.8cqw; font-size: 2.6cqw; border-radius: 1.3cqw; }
+.wx { width: 2.6cqw; height: 2.6cqw; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; color: var(--muted); font: 800 1.2cqw/1 var(--body); }
+.wchipd { border: .15cqw dashed var(--accent); color: var(--accent); border-radius: 999px; padding: .8cqw 1.2cqw; font: 800 1.25cqw/1 var(--body); white-space: nowrap; }
+.wav { width: 3.4cqw; height: 3.4cqw; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font: 800 1.4cqw/1 var(--body); flex: none; }
+.wav.J { background: var(--blue); } .wav.M { background: var(--coral); } .wav.A { background: var(--ochre); }
+.wav.s { width: 2.4cqw; height: 2.4cqw; font-size: 1cqw; }
+.wtoast { position: absolute; bottom: 2cqw; left: 50%; transform: translateX(-50%); background: #2A2420; color: #FFFCF6; border-radius: 999px; padding: 1cqw 1.8cqw; font: 700 1.4cqw/1 var(--body); display: flex; gap: 1cqw; align-items: center; white-space: nowrap; z-index: 8; }
+.wtoast em { font-style: normal; color: #F2B59A; font-weight: 800; }
+.wsearch { border-radius: 1.2cqw; background: var(--surface); box-shadow: inset 0 0 0 .12cqw var(--line); padding: 1cqw 1.3cqw; font: 600 1.4cqw/1.2 var(--body); color: var(--muted); }
+.wdish { background: var(--surface); border-radius: 1.6cqw; padding: 1cqw; display: grid; gap: .8cqw; align-content: start; }
+.wdish .art { width: 100%; border-radius: 1cqw; font-size: 4cqw; }
+.wdish b { font: 600 1.6cqw/1.15 var(--display); }
+.wdish small { display: block; font: 600 1.1cqw/1.3 var(--body); color: var(--muted); margin-top: .3cqw; }
+.wsec { font: 600 2cqw/1 var(--display); display: flex; align-items: baseline; gap: 1cqw; }
+.wsec span { font: 700 1.15cqw/1 var(--body); color: var(--muted); }
+.wrk { display: grid; grid-template-columns: 3.6cqw 1fr auto auto; gap: 1cqw; align-items: center; padding: .8cqw 0; font: 700 1.45cqw/1.2 var(--body); }
+.wrk + .wrk { border-top: .1cqw solid var(--line); }
+.wrk .art { width: 3.6cqw; border-radius: .9cqw; font-size: 1.7cqw; }
+.wrk small { display: block; font: 600 1.1cqw/1.3 var(--body); color: var(--muted); }
+.wrk .f { font-size: 1.9cqw; }
+.wrk .n { font: 800 1.15cqw/1 var(--body); color: var(--muted); }
+.wing { display: grid; grid-template-columns: 2.8cqw 1fr; gap: 1cqw; align-items: center; padding: .75cqw 0; font: 600 1.75cqw/1.3 var(--body); }
+.wing + .wing { border-top: .1cqw solid var(--line); }
+.wck { width: 2.6cqw; height: 2.6cqw; border-radius: .7cqw; border: .2cqw solid var(--line); display: grid; place-items: center; color: #fff; font: 800 1.3cqw/1 var(--body); }
+.wck.on { background: var(--accent); border-color: var(--accent); }
+.wstp { display: grid; grid-template-columns: 3.6cqw 1fr; gap: 1.2cqw; padding: 1cqw 0; font: 500 1.9cqw/1.4 var(--body); }
+.wstp + .wstp { border-top: .1cqw solid var(--line); }
+.wstp b { width: 3.4cqw; height: 3.4cqw; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; font: 800 1.5cqw/1 var(--body); }
+.wstp.now b { background: var(--accent); color: #fff; }
+.wstp.done { color: var(--muted); }
+.wstp.done b { background: var(--good-soft); color: var(--good); }
+.wvf { background: #191512; border-radius: 1.6cqw; position: relative; overflow: hidden; }
+.wvf .art { position: absolute; inset: 8% 6% 22%; width: auto; border-radius: .6cqw; }
+.wvf .sh { position: absolute; left: 50%; bottom: 4%; transform: translateX(-50%); width: 6cqw; height: 6cqw; border-radius: 50%; border: .5cqw solid #fff; }
+.wvf .sh::after { content: ""; position: absolute; inset: .5cqw; border-radius: 50%; background: #fff; }
+.wvf .hint { position: absolute; left: 0; right: 0; top: 3%; text-align: center; color: #fff; font: 700 1.2cqw/1 var(--body); opacity: .85; }
+.wtiny { font: 600 1.15cqw/1.35 var(--body); color: var(--muted); }
+</style>
+
+<div class="page">
+
+<header style="display:grid;gap:14px">
+  <div class="eyebrow">Porchlight · Proposal · Nov 19, 2026 · for James to approve before any code</div>
+  <h1>Dishes and recipes</h1>
+  <p class="lede">A meal can say what was on the table, one dish at a time, and every dish remembers itself: where we had it, how each of us liked it, and, when we cook it, the recipe.
+  Logging stays exactly as fast as today, because a meal with no dishes is still a whole meal.</p>
+  <p class="note">The sample is the atlas's household, The Lake House: James and Mia have iPhones, Ava (9) uses the kitchen iPad.
+  They dine out at Pho Saigon House, order from Tony's Corner Pizza and Sakura Sushi Bar, and cook pesto pasta, chicken curry and miso salmon at home.
+  Every frame uses the app's real words, type, colors and layout; nothing here is built.</p>
+  <nav class="index" aria-label="Sections">
+    <a href="#problem">Problem</a><a href="#today">What exists</a><a href="#model">The model</a><a href="#reqs">Requirements</a>
+    <a href="#phone">iPhone journey</a><a href="#wall">iPad journey</a><a href="#states">Hard cases</a><a href="#changes">What changes</a>
+    <a href="#phases">Phasing</a><a href="#decisions">Decisions</a><a href="#out">Out of scope</a>
+  </nav>
+</header>
+
+<section id="problem">
+  <div class="eyebrow">The problem</div>
+  <h2>The diary records meals, but forgets the food</h2>
+  <div class="tiles">
+    <div class="tile"><span class="k">Today</span><b>One name per meal</b><p>"Pho" is a word on a polaroid. Nobody can ask how many times we have had it, what else we order at that place, or whether Ava liked it.</p></div>
+    <div class="tile"><span class="k">At the restaurant</span><b>"What did we get last time?"</b><p>Mia, with the menu in her hand, wants the two dishes everyone loved and the one to skip, in a couple of seconds.</p></div>
+    <div class="tile"><span class="k">At home</span><b>The recipes are elsewhere</b><p>Screenshots, a stained card, a browser tab. The family cooks the same dozen dinners and still searches for them every time.</p></div>
+    <div class="tile"><span class="k">Who it is for</span><b>The whole family, mostly the cooks</b><p>The phone in hand when ordering or shopping; the kitchen iPad when cooking and when everyone says how dinner was.</p></div>
+  </div>
+</section>
+
+<section id="today">
+  <div class="eyebrow">Start from what exists</div>
+  <h2>Dishes already half exist: this finishes them instead of adding a second idea</h2>
+  <div class="tablewrap"><table>
+    <tr><th style="width:20%">Today</th><th style="width:34%">What it is in the code</th><th>With dishes</th></tr>
+    <tr><td><b>"What was it?"</b></td><td>The meal's one <code>title</code> (60 characters). Left empty, it saves as the slot's name, "Dinner".</td><td><b>Becomes the first dish.</b> The same field, in the same look, now suggests from memory, and a "+ Another dish" link sits under it. The title stays, written from the dishes ("Pho tai, spring rolls, bun cha"), so older builds and the polaroid caption keep working. A meal with no dishes is titled by its slot, as today.</td></tr>
+    <tr><td><b>"Would eat again?"</b></td><td>One face per meal (<code>rating</code>, 1 to 4: 😐 🙂 😋 🤩).</td><td><b>Moves to the dish.</b> Faces sit where the food is named: on each dish, or on the meal when it has no dishes. The meal's own face becomes the best of its dishes, kept for older builds and for the diary row. Anyone who ate can add their own face later.</td></tr>
+    <tr><td><b>"Other dishes in the slot"</b></td><td>Several meals (<code>journalEntry</code> rows) in one slot of a day, each with its own photos, place and people. The wall calls it "Another dinner dish".</td><td><b>Replaced for its main use.</b> Several dishes at one table are now dish lines on one meal. A second meal in a slot stays possible for what it is really for (the kids ate at home while we ate out), renamed "Another meal at dinner". Existing pairs, like Sunday's pizza and garlic bread, stay two meals.</td></tr>
+    <tr><td><b>Dinners</b> (Lists tab and the wall)</td><td>Not a list of ideas: one planned dinner per day (<code>mealPlan</code>: a title and an emoji), with "Add what it needs" to type groceries.</td><td><b>Can name a home dish</b> (second step). Planning suggests what we cook, and a dinner with a recipe fills "What does it need?" from its ingredients. Ideas come from the recipe bank, so there is still one list of our food, not two.</td></tr>
+    <tr><td><b>Restaurants</b></td><td>Shared <code>foodPlace</code> rows, picked with Apple Maps or typed.</td><td><b>Gain a page:</b> what we have had there, ranked by how we liked it. It is where "what did we order last time" lives.</td></tr>
+    <tr><td><b>Photos</b></td><td>Up to 6 per meal, first is the cover.</td><td><b>Unchanged.</b> A dish shows the photos of the meals it was in. A recipe can hold photos of its card, the same way.</td></tr>
+  </table></div>
+  <div class="choicecols">
+    <div class="choicecol"><span class="eyebrow">Shape A · proposed</span><b>A meal holds dish lines <span class="rec">recommended</span></b><p>One meal is one table: one set of photos, one place, one time, the same people. Dishes are lines on it, each pointing at a dish that remembers itself. Logging three dishes is three words, not three meals, and the week's grid keeps one polaroid per meal.</p></div>
+    <div class="choicecol"><span class="eyebrow">Shape B · considered</span><b>Every meal is one dish <span class="not">not proposed</span></b><p>Tempting, because a meal row already has a name, a face and photos. But three dishes would be three meals, each asking where, when and who; the table's one photo would belong to one of them; and fixing "who ate" would mean fixing three rows.</p></div>
+  </div>
+</section>
+
+<section id="model">
+  <div class="eyebrow">The model, in plain words</div>
+  <h2>Three new things in the first step, two in the second</h2>
+  <div class="model" role="img" aria-label="Data model: a household has dishes; a meal has dish lines that point at dishes; a dish line has faces per person; a home dish can have one recipe with card photos; a planned dinner can name a dish.">
+    <div class="mrow"><span>Household</span><div class="items"><div class="node root">The Lake House<small>owns everything below, shared in its iCloud zone</small></div></div></div>
+    <div class="mrow"><span>Already there</span><div class="items"><div class="node">Meal<small>journalEntry: slot, time, where, who, photos, title, face</small></div><div class="node">Restaurant<small>foodPlace</small></div><div class="node">Planned dinner<small>mealPlan: one per day</small></div></div></div>
+    <div class="mrow"><span>Step 1 · new</span><div class="items"><div class="node newn">Dish<small>a name, an emoji, its kitchen (home, a restaurant, or elsewhere), a favourite star</small></div><div class="node newn">Dish line<small>on a meal: which dish, its order, the table's face</small></div><div class="node newn">Face per person<small>on a dish line: who, and their face</small></div></div></div>
+    <div class="mrow"><span>Step 2 · new</span><div class="items"><div class="node v2">Recipe<small>on a home dish, at most one: serves, ingredients, steps, link, notes</small></div><div class="node v2">Recipe photo<small>photos of the card, like meal photos</small></div><div class="node v2">Planned dinner names a dish<small>one new column on mealPlan</small></div></div></div>
+  </div>
+  <ul class="note" style="max-width:none">
+    <li>A dish belongs to one kitchen. "Pho tai" at Pho Saigon House and "Pho tai" made at home are two dishes, so each has its own history and faces; each page says "Also had at …".</li>
+    <li>A recipe is not a second kind of food. It is what a home dish knows about how to make it, so cooking a dish links to its recipe by itself, and "cooked 6 times" is simply that dish's home meals.</li>
+    <li>The dish lines are the truth. The meal's title and face are written from them, as copies an older build can read.</li>
+    <li>Everything hangs off the household through one parent each, like every synced table today: a dish off the household, a dish line off its meal, a face off its dish line, a recipe off its dish. A dish line points at its dish with a plain id, the way a meal points at its restaurant, because sync can deliver them in any order.</li>
+  </ul>
+</section>
+
+<section id="reqs">
+  <div class="eyebrow">Requirements</div>
+  <h2>What has to be true, each one testable</h2>
+  <div class="reqs">
+    <div class="req"><h4>Logging stays fast</h4><ol>
+      <li><span>L1</span><span>Snap and Save, with nothing typed, saves a complete meal in the same taps as today, on the phone and the wall.</span></li>
+      <li><span>L2</span><span>With one dish typed, the form looks like today's plus one "+ Another dish" link; nothing else is asked.</span></li>
+      <li><span>L3</span><span>Faces are optional on every dish; a meal saves with none.</span></li>
+      <li><span>L4</span><span>Suggestions appear within one keystroke, from this device, with no network.</span></li>
+      <li><span>L5</span><span>Choosing a restaurant offers what we had there last time as one-tap chips.</span></li>
+      <li><span>L6</span><span>A meal holds up to 12 dishes; each name is up to 60 characters.</span></li>
+    </ol></div>
+    <div class="req"><h4>The app remembers</h4><ol>
+      <li><span>M1</span><span>At a restaurant, suggestions list that restaurant's dishes first, then the same words anywhere else.</span></li>
+      <li><span>M2</span><span>At home, suggestions list home dishes first, recipes marked, most cooked first.</span></li>
+      <li><span>M3</span><span>Typing a name that matches a dish in the same kitchen, ignoring case, accents and spaces, uses that dish instead of making a new one.</span></li>
+      <li><span>M4</span><span>Every dish has a page: times had, first and last, each person's usual face, photos, every meal, its kitchen, and its recipe for a home dish.</span></li>
+      <li><span>M5</span><span>Every restaurant has a page: visits, last time's dishes, and everything we had there ranked by our faces.</span></li>
+      <li><span>M6</span><span>Search finds dishes, restaurants, recipes and ingredients from one field.</span></li>
+      <li><span>M7</span><span>A dish can be starred as a household favourite, and favourites can be listed on their own.</span></li>
+    </ol></div>
+    <div class="req"><h4>Faces</h4><ol>
+      <li><span>F1</span><span>One tap gives a dish the table's face, for everyone who ate.</span></li>
+      <li><span>F2</span><span>"Rate each" lets each person who ate give their own face, on any device, later.</span></li>
+      <li><span>F3</span><span>A person's own face overrides the table's for them; the dish page shows each person's.</span></li>
+      <li><span>F4</span><span>The meal's face, seen by older builds and in the diary, is the best face among its dishes.</span></li>
+    </ol></div>
+    <div class="req"><h4>Recipes (second step)</h4><ol>
+      <li><span>R1</span><span>A recipe is added from the recipe bank or from a home dish's page, with a name, and optionally serves, ingredients, steps, a link, card photos and notes.</span></li>
+      <li><span>R2</span><span>A recipe named like an existing home dish joins that dish and its history.</span></li>
+      <li><span>R3</span><span>"We made this" opens Snap with Home-cooked and the dish already filled in.</span></li>
+      <li><span>R4</span><span>Ingredients can be ticked and added to the grocery list, one item per line, in its aisle.</span></li>
+      <li><span>R5</span><span>A planned dinner can name a home dish; its "What does it need?" starts from the recipe.</span></li>
+      <li><span>R6</span><span>The wall shows a recipe readable from across the kitchen, ingredients beside steps.</span></li>
+    </ol></div>
+    <div class="req"><h4>Fixing things</h4><ol>
+      <li><span>E1</span><span>A dish line can be added to, renamed on, or taken off a saved meal from Edit.</span></li>
+      <li><span>E2</span><span>Renaming a dish changes it on every meal; renaming to a name already in that kitchen offers to merge.</span></li>
+      <li><span>E3</span><span>Removing a dish takes it off its meals after saying how many; the meals and photos stay.</span></li>
+      <li><span>E4</span><span>Removing a recipe keeps its dish, the dish's meals and any planned dinner.</span></li>
+      <li><span>E5</span><span>Every remove offers Undo, as removing a grocery item does.</span></li>
+    </ol></div>
+    <div class="req"><h4>Sharing and older builds</h4><ol>
+      <li><span>S1</span><span>Dishes, faces and recipes are household data: they sync to every member and shared screen, and never cross into another household.</span></li>
+      <li><span>S2</span><span>Everything works offline and syncs later; two devices that add the same new dish end with one.</span></li>
+      <li><span>S3</span><span>On upgrade, every named meal gets one dish line, and every device computes the same rows.</span></li>
+      <li><span>S4</span><span>An older build shows every meal as today, with the dishes joined in its title and the best face.</span></li>
+    </ol></div>
+  </div>
+</section>
+
+<section id="phone">
+  <div class="eyebrow">iPhone · the phone in the hand</div>
+  <h2>At the table, at the store, on the sofa</h2>
+  <p class="note">The phone's job is to log quickly where the food is and to answer "what do we get here?" in seconds.
+  It never needs to show a whole recipe across a room; that is the wall's job.</p>
+  <div class="journey" id="p1"><div class="jhead"><span class="jid">P1</span><h3>Logging a meal at a restaurant</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">Sunday dinner at Pho Saigon House. Where moves above What, so the form knows the kitchen before you type. Last time's dishes are one tap each; a new dish is just typed.</p>
+    <div class="board" id="b-p1"></div></div>
+  <div class="journey" id="p2"><div class="jhead"><span class="jid">P2</span><h3>Logging at home, and logging nothing at all</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">At home the field offers what we cook. And Save never waits for a dish: a photo alone is a whole meal.</p>
+    <div class="board" id="b-p2"></div></div>
+  <div class="journey" id="p3"><div class="jhead"><span class="jid">P3</span><h3>Faces: the table's, then each person's</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">One tap rates a dish for the table. When people disagree, "Rate each" gives everyone who ate their own face, now or later.</p>
+    <div class="board" id="b-p3"></div></div>
+  <div class="journey" id="p4"><div class="jhead"><span class="jid">P4</span><h3>A dish's page, and a restaurant's</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">A dish is a thing with a memory. A restaurant's page is "what did we order last time here", ranked by how we liked it.</p>
+    <div class="board" id="b-p4"></div></div>
+  <div class="journey" id="p5"><div class="jhead"><span class="jid">P5</span><h3>Finding things again</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">The Food tab gains a switch: Diary, as today, and Dishes. One search field covers dishes, places and (later) recipes and ingredients.</p>
+    <div class="board" id="b-p5"></div></div>
+  <div class="journey" id="p6"><div class="jhead"><span class="jid">P6</span><h3>The recipe bank: adding, linking, cooking</h3><span class="ph-tag v2">Step 2</span></div>
+    <p class="goal">Recipes is the third view of Food: our home dishes that know how they are made. Adding one to a dish we already cook keeps its history; cooking it is logging it.</p>
+    <div class="board" id="b-p6"></div></div>
+  <div class="journey" id="p7"><div class="jhead"><span class="jid">P7</span><h3>Editing, renaming, merging, removing</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">Fixing a typo fixes it everywhere. Two names for one dish become one history. Removing says what stays.</p>
+    <div class="board" id="b-p7"></div></div>
+  <div class="journey" id="p8"><div class="jhead"><span class="jid">P8</span><h3>First run and empty states</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">After the update the diary already knows its dishes. A new household sees what will fill in, never an empty shelf without a reason.</p>
+    <div class="board" id="b-p8"></div></div>
+  <div class="journey" id="p9"><div class="jhead"><span class="jid">P9</span><h3>The key screens at night and at the largest text</h3><span class="ph-tag">Step 1 and 2</span></div>
+    <p class="goal">The night look keeps the polaroids warm. At the largest accessibility size, dish lines stack: the name on its own lines, the faces below, the remove button spelled out.</p>
+    <div class="board" id="b-p9"></div></div>
+</section>
+
+<section id="wall">
+  <div class="eyebrow">iPad · the kitchen screen everyone sees</div>
+  <h2>Where the family decides, cooks and says how it was</h2>
+  <p class="note">The wall's job is different: big, shared and at a distance.
+  It is where Ava taps her own face after dinner, where we decide what to order in, and where a recipe is read with flour on our hands.
+  Its layouts are its own, not the phone's stretched.</p>
+  <div class="journey" id="w1"><div class="jhead"><span class="jid">W1</span><h3>Logging on the wall, and the week</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">The wall's capture sheet keeps the live camera on the left; the form gains the same dish lines. The week shows one polaroid per meal, captioned with its first dish.</p>
+    <div class="board" id="b-w1"></div></div>
+  <div class="journey" id="w2"><div class="jhead"><span class="jid">W2</span><h3>After dinner: everyone says how it was</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">The wall's best job for faces: a row per person who ate, big targets, no typing. Ava rates her own bun cha.</p>
+    <div class="board" id="b-w2"></div></div>
+  <div class="journey" id="w3"><div class="jhead"><span class="jid">W3</span><h3>Dishes on the wall: "what do we order tonight?"</h3><span class="ph-tag">Step 1</span></div>
+    <p class="goal">Dishes sits beside Week and Month. Favourites first, then home and each restaurant; a restaurant opens what we get there.</p>
+    <div class="board" id="b-w3"></div></div>
+  <div class="journey" id="w4"><div class="jhead"><span class="jid">W4</span><h3>Recipes in the kitchen</h3><span class="ph-tag v2">Step 2</span></div>
+    <p class="goal">The bank as cards, a recipe readable from the stove, the card snapped with the wall's camera, and dinner planned from what we cook.</p>
+    <div class="board" id="b-w4"></div></div>
+  <div class="journey" id="w5"><div class="jhead"><span class="jid">W5</span><h3>The wall at night</h3><span class="ph-tag">Step 1 and 2</span></div>
+    <p class="goal">The night look for the two screens people read longest: the recipe while cooking, and the restaurant while ordering.</p>
+    <div class="board" id="b-w5"></div></div>
+</section>
+
+<section id="states">
+  <div class="eyebrow">Hard cases</div>
+  <h2>Every tricky state, and what happens</h2>
+  <div class="tablewrap"><table>
+    <tr><th style="width:24%">Case</th><th>What happens</th></tr>
+    <tr><td><b>The same name at two restaurants</b></td><td>Two dishes: "Pho tai" at Pho Saigon House and "Pho tai" at Pho 2000 each keep their own history and faces. Suggestions at one place show its own first, then "Also at Pho 2000". Each dish page links the other under "Also had at".</td></tr>
+    <tr><td><b>The same name at home and out</b></td><td>Two dishes, for the same reason; only the home one can have a recipe. Home suggestions show the home one first.</td></tr>
+    <tr><td><b>Nearly the same name</b></td><td>"pho tai ", "Pho Tai" and "Phở tái" in the same kitchen are one dish (case, accents and spaces ignored). Different words ("pho" and "pho tai") stay two; merging them is the cook's call.</td></tr>
+    <tr><td><b>A meal moves kitchen</b></td><td>Changing a meal's restaurant, or from home to delivery, moves its dish lines to the dishes of the same names in the new kitchen, making them if needed. The old dishes lose those meals; a dish left with no meals and no recipe disappears.</td></tr>
+    <tr><td><b>Renaming a dish</b></td><td>One change, everywhere: every meal's line, the titles written from them, and any planned dinner that names it. Undo puts the old name back.</td></tr>
+    <tr><td><b>Renaming onto an existing dish (merging)</b></td><td>"Imperial rolls is already a dish here (2 times). Merge them?" Merging moves every line and face to the older dish and marks the other as merged into it, so a line that arrives late from an offline phone still finds its way. Keep apart leaves both. A dish with a recipe merges only into one without, or the cook picks which recipe stays.</td></tr>
+    <tr><td><b>Two devices add the same new dish offline</b></td><td>Both phones make "Bun cha" at Pho Saigon House. When the second arrives, every device merges the two the same way (the older one stays), with no question asked. Faces and lines survive.</td></tr>
+    <tr><td><b>A dish line arrives before its dish</b></td><td>Sync can deliver them in either order. Until the dish arrives the meal shows its title, which already names it; nothing is lost and nothing asks.</td></tr>
+    <tr><td><b>A recipe removed while linked</b></td><td>The recipe, its card photos and notes go; the dish, its meals, its faces and any planned dinner stay. The dish page offers "Add a recipe". Undo brings the recipe back with its photos until the toast closes; after that, it is gone on every device.</td></tr>
+    <tr><td><b>A dish removed</b></td><td>"Take Banh xeo off 1 meal? The meal stays, with its photos." Its lines and faces go; a planned dinner that named it keeps its words but no longer links. With a recipe, the sheet says the recipe goes too.</td></tr>
+    <tr><td><b>Two people rate differently</b></td><td>The table's face stands for everyone until someone gives their own. James 🤩 and Ava 😐 both show on the line and on the dish page; the meal's face is the best of the dishes, never an average that nobody gave.</td></tr>
+    <tr><td><b>Someone rates who didn't eat</b></td><td>"Rate each" lists only the people who ate. Adding someone to "Who ate" adds them; taking someone off keeps their face hidden, not deleted, in case it was a slip.</td></tr>
+    <tr><td><b>A person is archived</b></td><td>Their faces stay in the history under their name, like their walks and meals today, and stop counting in "usual face" summaries.</td></tr>
+    <tr><td><b>Offline</b></td><td>Logging, suggestions, faces, search and recipes all work from the device's own copy; changes sync when it is back. Recipe card photos upload like meal photos, thumbnails first.</td></tr>
+    <tr><td><b>Two households</b></td><td>Dishes, restaurants and recipes belong to one household. Mia in The Lake House and in Grandma's household sees two separate banks; suggestions never mix them. Copying a recipe across is later, as text.</td></tr>
+    <tr><td><b>An older build sees a meal with dishes</b></td><td>It shows the meal as today: the title "Pho tai, spring rolls, bun cha" and the best face. It doesn't know the dish records and leaves them alone (to be proven by a sync test before shipping).</td></tr>
+    <tr><td><b>An older build edits that meal</b></td><td>Its change to the title or face shows on older builds only; newer builds keep showing the dish lines, which are the truth, and rewrite the title the next time the meal is saved. The household is asked to update every device, wall first.</td></tr>
+    <tr><td><b>An older build logs a new meal</b></td><td>A newer device gives it one dish line from its title, with the same ids every device would pick, exactly as the upgrade did. A meal titled with its slot name ("Dinner") gets none.</td></tr>
+    <tr><td><b>Two people edit one recipe at once</b></td><td>Each field settles on its own by the time of the edit, as every synced field does today: Mia's new steps and James's new note both survive; two edits to the ingredients keep the later one.</td></tr>
+  </table></div>
+</section>
+
+<section id="changes">
+  <div class="eyebrow">What changes</div>
+  <h2>For existing data, and for existing screens</h2>
+  <div class="choicecols">
+    <div class="choicecol"><b>Existing data</b><ul>
+      <li>Every meal with a typed title gets one dish line, its face moved onto it. Meals titled with their slot name get none.</li>
+      <li>Meals with the same title in the same kitchen share one dish, so history is there on day one: "Pho, 14 times".</li>
+      <li>Migrated dishes and lines take ids derived from the household, the kitchen and the name (and the meal), so every device that upgrades writes the same rows, and they merge.</li>
+      <li>Two meals in one slot stay two meals. Nothing is combined behind anyone's back.</li>
+      <li>Planned dinners stay as they are; in step 2 a dinner whose words match a home dish links to it.</li>
+      <li>No meal, photo, title or face is deleted or rewritten except to add the dish lines.</li>
+    </ul></div>
+    <div class="choicecol"><b>Existing screens</b><ul>
+      <li>Snap details (phone <code>PocketSnap</code>, wall <code>CaptureSheet</code>): Where moves above "What was it?", which grows dish lines; "Would eat again?" shows only for a meal with no dishes.</li>
+      <li>A meal's page (<code>PocketMealDetail</code>, <code>MealDetailSheet</code>): "What we had" with each dish's face, and "Rate each". "Another dinner dish" becomes "Another meal at dinner".</li>
+      <li>Edit meal: the same dish lines.</li>
+      <li>Food tab (phone): Diary and Dishes, then Recipes in step 2. The wall's Week and Month gain Dishes, then Recipes.</li>
+      <li>Polaroids and the diary: the first dish's name, with "+2" for more.</li>
+      <li>Lists › Dinners and the wall's dinner editor (step 2): suggestions from what we cook, and a recipe's ingredients for "What does it need?".</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="phases">
+  <div class="eyebrow">Phasing</div>
+  <h2>Dishes first, worth shipping alone; recipes next; the kitchen later</h2>
+  <div class="flow">
+    <div class="step s1"><span class="eyebrow" style="color:var(--good)">Step 1 · Dishes</span><b>The diary remembers the food</b><ul>
+      <li>Dish lines on Snap and Edit, phone and wall, with Where first.</li>
+      <li>Suggestions by kitchen, and "Last time here" chips.</li>
+      <li>The table's face and "Rate each", on the phone and the wall.</li>
+      <li>Dish pages, restaurant pages, Dishes view, search, favourites.</li>
+      <li>Rename, merge, remove, Undo.</li>
+      <li>The upgrade, and adopting older builds' meals.</li>
+      <li><b>CloudKit schema:</b> dish, dish line, face per person. James deploys before the build goes out.</li>
+    </ul></div>
+    <div class="step s2"><span class="eyebrow" style="color:var(--warn)">Step 2 · Recipes</span><b>What we cook, kept where we cook</b><ul>
+      <li>Recipes on home dishes: add, edit, remove; link, paste, card photos.</li>
+      <li>The recipe bank on the phone and the wall, with "Haven't made in a while".</li>
+      <li>"We made this", and "cooked 6 times, last on Nov 2".</li>
+      <li>Ingredients to the grocery list.</li>
+      <li>Planned dinners name a dish, and plan from the bank.</li>
+      <li>The wall's kitchen view of a recipe.</li>
+      <li><b>CloudKit schema:</b> recipe, recipe photo and its pictures, and the planned dinner's dish. A second deploy.</li>
+    </ul></div>
+    <div class="step s3"><span class="eyebrow" style="color:var(--muted)">Later · if the bank is used</span><b>Earned by use, not built ahead</b><ul>
+      <li>A step-by-step cook-along mode on the wall, with timers and the steps' own checkmarks.</li>
+      <li>Filling a recipe from a link by reading the page.</li>
+      <li>Reading a card photo into text.</li>
+      <li>Marking which photo shows which dish.</li>
+      <li>"Ava's favourites" and other per-person views.</li>
+      <li>Sending a recipe to another household as text.</li>
+      <li>Restaurant dishes nearby, which needs location.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="decisions">
+  <div class="eyebrow">For James</div>
+  <h2>Decisions to approve</h2>
+  <div class="choicecols">
+    <div class="choicecol"><span class="eyebrow">1 · The shape</span><b>A meal holds dish lines <span class="rec">recommended</span></b><p>One table is one meal, with its photos, place and people said once; dishes are lines on it. The alternative, each meal being one dish, would make three dishes cost three meals and split the table's photo from two of them.</p></div>
+    <div class="choicecol"><span class="eyebrow">2 · Faces</span><b>The table's face per dish, and each person's when they differ <span class="rec">recommended</span></b><p>One tap keeps logging fast and matches today's verdict; "Rate each" captures what a family actually argues about (Ava and spice). Per person only would ask the logger to rate for three people every time; one face only would never learn that Ava doesn't like bun cha.</p></div>
+    <div class="choicecol"><span class="eyebrow">3 · What a dish is</span><b>A name in one kitchen <span class="rec">recommended</span></b><p>Pho at two places is two dishes with their own faces, linked by name. One dish across all kitchens would mix "great here, bad there", which is exactly what "what do we get here?" must tell apart.</p></div>
+    <div class="choicecol"><span class="eyebrow">4 · Where comes first</span><b>Move Where above "What was it?" <span class="rec">recommended</span></b><p>The memory needs the kitchen before the first keystroke. It costs nothing at home (Home-cooked is already chosen) and one tap out, which logging already asks for. Keeping today's order would offer last time's dishes only after you had typed them.</p></div>
+    <div class="choicecol"><span class="eyebrow">5 · Existing meals</span><b>One dish line per named meal; no combining <span class="rec">recommended</span></b><p>History is there on day one and nothing changes behind anyone's back. Combining today's same-slot meals (pizza and garlic bread) into one would move photos between meals and surprise older builds.</p></div>
+    <div class="choicecol"><span class="eyebrow">6 · A recipe</span><b>Belongs to a home dish; ingredients and steps are plain lines <span class="rec">recommended</span></b><p>The simplest thing a family keeps up: paste it, type it, or snap the card. Lines are enough for ticking groceries. Quantities, units and scaling would make every recipe a form to fill, and nobody fills forms for dinner.</p></div>
+    <div class="choicecol"><span class="eyebrow">7 · Two steps, two schema deploys</span><b>Ship dishes first, then recipes <span class="rec">recommended</span></b><p>Dishes are useful alone and teach us how the bank should feel; recipe tables wait until they are built ("structure is earned"). It means two CloudKit deploys, each a few minutes of James's time, and deploys only ever add.</p></div>
+    <div class="choicecol"><span class="eyebrow">8 · Older builds</span><b>Dish lines are the truth; update every device, wall first <span class="rec">recommended</span></b><p>Older builds keep working from the title and the best face, and never break. An edit made on one is overwritten by the dishes on the next save from a newer build. Detecting and merging such edits would be fragile for a household of three devices.</p></div>
+  </div>
+</section>
+
+<section id="out">
+  <div class="eyebrow">Deliberately out of scope</div>
+  <h2>Not part of this</h2>
+  <div class="tiles">
+    <div class="tile"><b>Nutrition</b><p>No calories, macros or diets. This is a family's memory, not a tracker.</p></div>
+    <div class="tile"><b>Structured ingredients</b><p>No quantities, units, conversions or serving scaling. Lines only.</p></div>
+    <div class="tile"><b>A pantry</b><p>No stock of what is in the cupboard; the grocery list stays the one list.</p></div>
+    <div class="tile"><b>Automatic plans</b><p>No generated week of dinners. The bank suggests; people plan.</p></div>
+    <div class="tile"><b>Menus and reviews</b><p>No restaurant menus or public ratings from the internet; only what we ate and what we thought.</p></div>
+    <div class="tile"><b>Sharing outside</b><p>No public recipes, no social sharing, no cross-household bank.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Build notes</div>
+  <h2>How it would work</h2>
+  <ul class="note" style="max-width:none">
+    <li><b>Tables (step 1):</b> <code>dish</code> (household, name, emoji, tint, kitchen: home, place or elsewhere, place id, favourite, merged into, created at); <code>mealDish</code> (meal, dish id, order, the table's face); <code>mealDishRating</code> (dish line, person, face, id derived from the two). Each follows the schema rules: text ids, one cascading parent, no unique indexes, plain ids for cross links.</li>
+    <li><b>Tables (step 2):</b> <code>recipe</code> (id derived from its dish: one per dish; serves, ingredients, steps, link, notes, updated at), <code>recipePhoto</code> with its image and thumbnail tables (the meal photo pipeline), and <code>mealPlan.dishId</code>.</li>
+    <li><b>Writes:</b> <code>FoodStore.addMeal</code> and <code>updateMeal</code> take dish lines and write the title and face from them in the same transaction; the upgrade is a migration that writes derived-id rows, and adopting an older build's meal uses the same function.</li>
+    <li><b>Merging</b> moves lines and faces to the surviving dish in one transaction and leaves the other row marked; readers follow the mark. The same rule runs when sync delivers a duplicate.</li>
+    <li><b>Suggestions</b> are one query over the household's dishes, ordered by kitchen match, then use count, then last eaten, matched by the normalized name already used for illustrations (<code>DishIllustration.normalized</code>).</li>
+    <li><b>Older builds:</b> mirrors already read enums and JSON as strings; what an older build does with record types it has no table for must be proven with a sync test against the fake iCloud before step 1 ships. If it can't ignore them safely, step 1 waits for every device to update.</li>
+    <li><b>CloudKit:</b> each step's record types are seeded into Development with <code>scripts/cloud-schema.sh seed</code>, exported to <code>Config/cloudkit-schema.ckdb</code> for review, and deployed to Production by James in the CloudKit Console before the build reaches anyone.</li>
+    <li><b>Tests:</b> unit tests for normalization, kitchen moves, merging (including late lines), the upgrade on a copy of the wall's data, faces summaries and grocery lines; UI tests for logging with zero, one and several dishes on both shells, "Rate each" on the wall, rename and merge, and removing a recipe.</li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+(() => {
+  /* ---------- Shared bits ---------- */
+  const FACES = ['😐', '🙂', '😋', '🤩'];
+  const art = (tint, emoji, size, cls = '') => `<div class="art ${tint} ${cls}"${size ? ` style="font-size:${size}px"` : ''}><span>${emoji}</span></div>`;
+  const photo = (p, cls = '') => `<div class="art photo ${p} ${cls}"></div>`;
+
+  /* ---------- Phone ---------- */
+  const av = (p, c = 'sm') => `<span class="av ${p} ${c}">${p}</span>`;
+  const status = (t = '6:52') => `<div class="notch"></div><div class="status"><span>${t}</span><i>●●●● ▮▮</i></div>`;
+  const tabs = on => `<div class="tabbar">${[['today','🏠','Today'],['food','🍜','Food'],['lists','📝','Lists'],['glow','✨','Glow']].map(([k,i,l]) => `<span class="${k===on?'on':''}"><i>${i}</i>${l}</span>`).join('')}</div>`;
+  const head = (small, title, right = `<span class="av J">J</span>`) => `<div class="phead"><div><small>${small}</small><b>${title}</b></div>${right}</div>`;
+  const P = (body, o = {}) => `<div class="ph"><div class="sc ${o.dark ? 'dark' : ''} ${o.ax ? 'ax' : ''}">${status(o.t)}<div class="pb" style="${o.pb || ''}">${body}</div>${o.tab ? tabs(o.tab) : ''}${o.over || ''}</div></div>`;
+  const sheet = html => `<div class="scrim"></div><div class="sheet"><i class="grab"></i>${html}</div>`;
+  const toast = (icon, t, s, act = 'Open') => `<div class="toast"><span style="font-size:20px">${icon}</span><span>${t}<small>${s}</small></span><em>${act}</em></div>`;
+  const kb = `<div class="kb">${['qwertyuiop','asdfghjkl','zxcvbnm',' '].map((r, i) => `<div>${r === ' ' ? '<i style="width:60px"></i><i style="width:180px"></i><i style="width:80px;background:#3E86F7"></i>' : [...r].map(() => '<i></i>').join('')}</div>`).join('')}</div>`;
+  const faces = (on, cls = '') => `<div class="faces ${cls}">${FACES.map(f => `<span class="fc ${f === on ? 'on' : ''}">${f}</span>`).join('')}</div>`;
+  const dl = (tint, emoji, name, sub, face, o = {}) => `<div class="dl"><div class="art ${tint}"><span>${emoji}</span></div><div class="nm">${name}${sub ? `<small>${sub}</small>` : ''}</div><span class="x" aria-label="Remove">${o.ax ? 'Remove' : '×'}</span>${o.noFaces ? '' : `<div style="grid-column:2/4;display:flex;align-items:center">${faces(face, 's')}${o.last ? `<span class="last">${o.last}</span>` : ''}</div>`}</div>`;
+  const pills = (items, on) => `<div class="pills">${items.map(i => `<span class="pill np ${i === on ? 'on' : ''}">${i}</span>`).join('')}</div>`;
+  const WHERE = ['🏠 Home-cooked', '🛵 Delivery', '🍽️ Dine out', '🏢 Company'];
+  const MEALS = ['🌅 Breakfast', '☀️ Lunch', '🌙 Dinner'];
+  const whoAte = (on = 'JMA') => `<div class="grp"><span class="label">Who ate</span><div class="pills">${[['J','You'],['M','Mia'],['A','Ava']].map(([p, n]) => `<span class="pill ${on.includes(p) ? 'on' : ''}">${av(p)}${n}</span>`).join('')}</div></div>`;
+  const place = name => `<div class="field"><span>📍</span><span style="flex:1">${name}<small style="display:block;font-size:12px;color:var(--muted);font-weight:600;margin-top:2px">412 Valencia St · Restaurant</small></span><span class="chev">×</span></div>`;
+  const snapTop = (cap, p, small = false) => `<div style="display:flex;justify-content:space-between;align-items:center"><span class="xbtn">✕</span>${small ? `<div style="display:grid;justify-items:center;gap:6px"><div class="pol" style="width:118px;transform:rotate(-1.5deg)">${p ? photo(p) : art('t1', '🍽️', 30)}<div class="capt" style="font-size:16px">${cap}</div></div><span style="font:700 12px/1 var(--body);color:var(--muted)">Photos · 1 of 6</span></div>` : ''}<span style="width:44px"></span></div>`;
+  const dishField = (text, o = {}) => `<div class="field ${o.focus ? 'focus' : ''} ${text ? '' : 'ph-t'}"><span style="font-size:20px">${o.emoji || '🍽️'}</span><span>${text || o.ph || 'Add a dish, e.g. Pho'}</span>${o.focus ? '<span class="caret" style="margin-left:-6px"></span>' : ''}</div>`;
+  const whatHead = (n) => `<div class="ch" style="align-items:center"><span class="label">What we had${n ? `<small>${n}</small>` : ''}</span></div>`;
+
+  /* P1: restaurant */
+  const p1a = P(`${snapTop('Sunday dinner', 'ph1', true)}
+    <div class="card form">
+      <span class="label">Dinner · Sunday 6:40 PM</span>
+      <div class="grp"><span class="label">Where</span>${pills(WHERE, '🍽️ Dine out')}</div>
+      ${place('Pho Saigon House')}
+      ${whatHead()}
+      <div class="grp"><span style="font:600 12.5px/1.3 var(--body);color:var(--muted)">Last time here, Nov 8</span><div class="chips"><span class="chip">+ 🍜 Pho tai</span><span class="chip">+ 🥢 Spring rolls</span><span class="chip">+ ☕ Iced coffee</span></div></div>
+      ${dishField('')}
+      ${whoAte()}
+      <span class="btn">Save to Sunday dinner</span>
+    </div>`);
+  const p1b = P(`${snapTop('Pho tai +1', 'ph1', true)}
+    <div class="card form">
+      <span class="label">Dinner · Sunday 6:40 PM</span>
+      ${place('Pho Saigon House')}
+      ${whatHead('2 dishes')}
+      <div>${dl('t1', '🍜', 'Pho tai', '8th time here', null, {last: 'last time 🤩'})}${dl('t2', '🥢', 'Spring rolls', '7th time here', null, {last: 'last time 😋'})}</div>
+      <div class="chips"><span class="chip">+ ☕ Iced coffee</span></div>
+      ${dishField('', {ph: 'Add another dish'})}
+      ${whoAte()}
+      <span class="btn">Save to Sunday dinner</span>
+    </div>`);
+  const p1c = P(`${snapTop('', null)}
+    <div class="card form" style="gap:10px">
+      ${whatHead('2 dishes')}
+      <div>${dl('t1', '🍜', 'Pho tai', '8th time here', '🤩', {noFaces: true})}${dl('t2', '🥢', 'Spring rolls', '7th time here', '😋', {noFaces: true})}</div>
+      ${dishField('bun', {focus: true, emoji: '🍲'})}
+      <div class="sugbox">
+        <div class="sghead">Here, at Pho Saigon House</div>
+        <div class="sg">${art('t3', '🍲', 16)}<span><b><u>Bun</u> bo Hue</b><small>2 times · last Oct 4 · 🙂</small></span><span class="chev">+</span></div>
+        <div class="sghead">Elsewhere</div>
+        <div class="sg">${art('t5', '🍜', 16)}<span><b><u>Bun</u> rieu</b><small>Pho 2000 · once · 😋</small></span><span class="chev">+</span></div>
+        <div class="sg"><span class="plus">+</span><span><b>Add "bun cha"</b><small>New dish at Pho Saigon House</small></span><span></span></div>
+      </div>
+    </div>${kb}`, {pb: 'gap:10px'});
+  const p1d = P(`<div class="card form" style="margin-top:4px">
+      ${whatHead('3 dishes')}
+      <div>${dl('t1', '🍜', 'Pho tai', '8th time here', '🤩')}${dl('t2', '🥢', 'Spring rolls', '7th time here', '😋')}${dl('t6', '🍲', 'Bun cha', '<span class="tag new">New here</span>', '🙂')}</div>
+      <div class="chips"><span class="chip">+ ☕ Iced coffee</span></div>
+      ${dishField('', {ph: 'Add another dish'})}
+      <div class="grp"><span class="label">When</span><div style="display:flex;gap:8px;align-items:center"><span class="pill np" style="background:var(--surface2)">6:40 PM</span><span style="font:600 13px/1 var(--body);color:var(--muted)">Dinner, guessed from the time</span></div></div>
+      ${whoAte()}
+      <span class="btn">Save to Sunday dinner</span>
+    </div>`, {t: '6:58'});
+  const weekGrid = (o = {}) => {
+    const days = ['M','T','W','T','F','S','S'];
+    const cells = {
+      B: ['ph6','ph4','ph6','',  'ph4','ph3','ph4'],
+      L: ['ph5','ph2','',  'ph5','ph2','ph1','ph5'],
+      D: ['ph3','ph2','ph6','ph3','ph2','ph4', o.sun || 'ph1'],
+    };
+    const more = { 'D5': 1, 'D6': o.sunMore };
+    return `<div class="card" style="gap:6px;padding:12px 10px"><div class="grid7"><span></span>${days.map((d, i) => `<span style="${i===6?'color:var(--accent)':''}">${d}</span>`).join('')}
+      ${['B','L','D'].map(s => `<span style="text-align:left">${s === 'B' ? 'Bkf' : s === 'L' ? 'Lun' : 'Din'}</span>${cells[s].map((c, i) => c ? `<div class="mini ${s==='D'&&i===6&&o.ring?'ring':''}"><div class="art photo ${c}"></div>${more[s+i] ? `<i>+${more[s+i]}</i>` : ''}</div>` : `<div class="mini empty"></div>`).join('')}`).join('')}
+    </div></div>`;
+  };
+  const foodHead = (sw) => `${head(sw && sw[2] && sw[2][1] ? '12 recipes' : sw && sw[1][1] ? '48 dishes · 11 places' : 'Nov 9 to 15 · 19 meals', 'What we ate')}${sw ? `<div class="seg">${sw.map(([l, on]) => `<span class="${on ? 'on' : ''}">${l}</span>`).join('')}</div>` : ''}`;
+  const diaryRow = (p, name, sub, f) => `<div class="diary">${photo(p)}<span><b>${name}</b><small>${sub}</small></span><span class="f">${f}</span></div>`;
+  const p1e = P(`${foodHead([['Diary', 1], ['Dishes', 0]])}
+      ${weekGrid({ring: true, sunMore: 0})}
+      <div class="card" style="gap:0;padding:6px 14px"><div class="ch" style="padding:8px 0 2px"><b>Sunday</b><span>Today</span></div>
+        ${diaryRow('ph1', 'Pho tai, spring rolls, bun cha', 'Dinner · Dine out · Pho Saigon House<br>You, Mia and Ava · added by you', '🤩')}
+        ${diaryRow('ph5', 'Cobb salad', 'Lunch · Home-cooked · Mia · added by Mia', '🙂')}
+      </div>`,
+    {tab: 'food', t: '6:59', over: toast('🍜', 'Saved to Sunday dinner', 'Pho Saigon House · Pho tai and 2 more · you, Mia and Ava')});
+
+  /* P2: home, and nothing */
+  const p2a = P(`${snapTop('Thursday dinner', 'ph2', true)}
+    <div class="card form" style="gap:10px">
+      <span class="label">Dinner · Thursday 7:05 PM</span>
+      <div class="grp"><span class="label">Where</span>${pills(WHERE, '🏠 Home-cooked')}</div>
+      ${whatHead()}
+      ${dishField('chi', {focus: true, emoji: '🍛'})}
+      <div class="sugbox">
+        <div class="sghead">We cook</div>
+        <div class="sg">${art('t3', '🍛', 16)}<span><b><u>Chi</u>cken curry</b><small>📖 Recipe · cooked 6 times · last Nov 2</small></span><span class="chev">+</span></div>
+        <div class="sg">${art('t6', '🍲', 16)}<span><b><u>Chi</u>cken noodle soup</b><small>2 times · last Sep 21</small></span><span class="chev">+</span></div>
+        <div class="sg"><span class="plus">+</span><span><b>Add "chi…" as a new dish</b><small>Home-cooked</small></span><span></span></div>
+      </div>
+    </div>${kb}`, {t: '7:06', pb: 'gap:10px'});
+  const p2b = P(`${snapTop('Chicken curry', 'ph2', true)}
+    <div class="card form">
+      <span class="label">Dinner · Thursday 7:05 PM</span>
+      <div class="grp"><span class="label">Where</span>${pills(WHERE, '🏠 Home-cooked')}</div>
+      ${whatHead()}
+      <div>${dl('t3', '🍛', 'Chicken curry', '📖 Recipe · 7th time', '😋')}</div>
+      ${dishField('', {ph: 'Add another dish'})}
+      ${whoAte()}
+      <span class="btn">Save to Thursday dinner</span>
+    </div>`, {t: '7:07'});
+  const p2c = P(`${snapTop('Lunch', 'ph5', true)}
+    <div class="card form">
+      <span class="label">Lunch · Thursday 12:20 PM</span>
+      <div class="grp"><span class="label">Where</span>${pills(WHERE, '🏢 Company')}</div>
+      ${whatHead('optional')}
+      ${dishField('', {ph: 'What was it? e.g. Pho'})}
+      <div class="grp"><span class="label">Would eat again?</span>${faces('🙂')}</div>
+      <span class="btn">Save to Thursday lunch</span>
+    </div>`, {t: '12:21'});
+
+  /* P3: faces */
+  const mealPage = (o = {}) => `<div class="navbar"><span class="back">‹ Food</span>${av('J', '')}</div>
+      <div style="display:grid;justify-items:center;padding:4px 0 6px"><div class="pol" style="width:170px;transform:rotate(-2deg)">${photo('ph1')}<div class="capt">Pho tai +2</div></div></div>
+      <div><div style="font:600 24px/1.15 var(--display)">Sunday dinner</div><div style="font:600 13px/1.3 var(--body);color:var(--muted);margin-top:3px">🍽️ Dine out · 📍 Pho Saigon House ›</div></div>
+      <div class="card" style="gap:0;padding:6px 14px">
+        <div class="ch" style="padding:8px 0 0"><b>What we had</b><span style="color:var(--accent);font-weight:800">${o.rated ? 'Everyone rated' : 'Rate each'}</span></div>
+        <div class="rk">${art('t1', '🍜', 16)}<span><b>Pho tai</b><small>8th time here</small></span><span class="f">🤩</span><span class="chev">›</span></div>
+        <div class="rk">${art('t2', '🥢', 16)}<span><b>Spring rolls</b><small>7th time here</small></span><span class="f">😋</span><span class="chev">›</span></div>
+        <div class="rk">${art('t6', '🍲', 16)}<span><b>Bun cha</b><small>${o.rated ? `${av('J','xs')} 🤩 ${av('M','xs')} 🙂 ${av('A','xs')} 😐` : 'New here'}</small></span><span class="f">${o.rated ? '🤩' : '🙂'}</span><span class="chev">›</span></div>
+      </div>
+      <div class="card" style="gap:6px;padding:12px 14px"><div style="display:flex;gap:8px;align-items:center;font:700 13.5px/1.2 var(--body)">${av('J')}${av('M')}${av('A')}<span style="margin-left:4px">You, Mia and Ava</span></div><span style="font:600 12px/1 var(--body);color:var(--muted)">Added by you · 6:58 PM</span></div>`;
+  const p3a = P(mealPage(), {tab: 'food', t: '7:30'});
+  const rateEach = `<div class="label">Bun cha · new at Pho Saigon House</div><h4>How was it for each of you?</h4>
+      <p>The table said 🙂. Change anyone whose face was different.</p>
+      <div style="display:grid;gap:10px">
+        ${[['J','You','🤩'],['M','Mia','🙂'],['A','Ava','😐']].map(([p, n, f]) => `<div style="display:flex;align-items:center;gap:10px">${av(p, '')}<span style="font:700 14px/1 var(--body);width:44px">${n}</span>${faces(f, 's')}</div>`).join('')}
+      </div>
+      <div class="btns"><span class="btn ghost">Done</span><span class="btn">Next: Pho tai ›</span></div>`;
+  const p3b = P(mealPage(), {tab: 'food', t: '7:31', over: sheet(rateEach)});
+  const p3c = P(mealPage({rated: true}), {tab: 'food', t: '7:32'});
+
+  /* P4: dish page and restaurant page */
+  const dishPage = (o = {}) => `<div class="navbar"><span class="back">‹ Sunday dinner</span><span class="act">★ Favourite</span></div>
+      <div class="hero">${photo('ph1')}<div><h5>Pho tai</h5><small>📍 Pho Saigon House ›<br>412 Valencia St</small></div></div>
+      <div class="stats"><div><b>8</b>times</div><div><b>Mar '25</b>first</div><div><b>Sunday</b>last</div></div>
+      <div class="card" style="gap:10px"><div class="ch"><b>How we like it</b><span>usual face</span></div><div class="who">
+        <div>${av('J')}You<span class="f">🤩</span><small>6 of 8</small></div>
+        <div>${av('M')}Mia<span class="f">😋</span><small>5 of 8</small></div>
+        <div>${av('A')}Ava<span class="f">🙂</span><small>4 of 6</small></div></div></div>
+      ${o.ax ? '' : `<div class="card" style="gap:8px"><div class="ch"><b>Photos</b><span>from 5 meals</span></div><div class="strip">${['ph1','ph4','ph1','ph2','ph3'].map(p => photo(p)).join('')}</div></div>
+      <div class="card" style="gap:0;padding:6px 14px"><div class="ch" style="padding:8px 0 2px"><b>Every time</b><span>8</span></div>
+        <div class="hist"><span class="d">Nov 15</span><span>Dinner<small>You, Mia and Ava</small></span><span class="f">🤩</span></div>
+        <div class="hist"><span class="d">Nov 8</span><span>Dinner<small>You and Mia</small></span><span class="f">🤩</span></div>
+        <div class="hist"><span class="d">Oct 4</span><span>Lunch<small>Mia</small></span><span class="f">😋</span></div></div>`}`;
+  const p4a = P(dishPage(), {tab: 'food', t: '7:35'});
+  const homeDish = `<div class="navbar"><span class="back">‹ Dishes</span><span class="act">★ Favourite</span></div>
+      <div class="hero">${photo('ph2')}<div><h5>Chicken curry</h5><small>🏠 Home · cooked 6 times<br>last on Sunday, Nov 2</small></div></div>
+      <div class="card warm" style="gap:8px;background:linear-gradient(160deg,var(--warn-soft),var(--surface) 70%)"><div class="ch"><b>📖 Mia's chicken curry</b><span>Serves 4</span></div><span style="font:600 13px/1.4 var(--body);color:var(--muted)">9 ingredients · 5 steps · "Ava likes it mild: 2 tbsp curry powder."</span><div class="btns"><span class="btn sm">Open recipe</span><span class="btn sm ghost">Plan it</span></div></div>
+      <div class="card" style="gap:10px"><div class="ch"><b>How we like it</b><span>usual face</span></div><div class="who">
+        <div>${av('J')}You<span class="f">😋</span><small>5 of 6</small></div>
+        <div>${av('M')}Mia<span class="f">🤩</span><small>4 of 6</small></div>
+        <div>${av('A')}Ava<span class="f">🙂</span><small>mild only</small></div></div></div>
+      <div class="card" style="gap:8px"><div class="ch"><b>Photos</b><span>from 4 dinners</span></div><div class="strip">${['ph2','ph2','ph4','ph2'].map(p => photo(p)).join('')}</div></div>
+      <div class="card" style="gap:0;padding:6px 14px"><div class="ch" style="padding:8px 0 2px"><b>Every time</b><span>6</span></div>
+        <div class="hist"><span class="d">Nov 2</span><span>Dinner<small>You, Mia and Ava · with rice</small></span><span class="f">🤩</span></div>
+        <div class="hist"><span class="d">Oct 19</span><span>Dinner<small>You, Mia and Ava</small></span><span class="f">😋</span></div></div>`;
+  const p4b = P(homeDish, {tab: 'food', t: '7:36'});
+  const placePage = (o = {}) => `<div class="navbar"><span class="back">‹ ${o.back || 'Dishes'}</span><span class="act">Directions</span></div>
+      <div><div style="font:600 28px/1.1 var(--display)">Pho Saigon House</div><div style="font:600 13px/1.35 var(--body);color:var(--muted);margin-top:4px">412 Valencia St · 9 visits · last on Sunday</div></div>
+      <div class="banner"><span style="font-size:18px">🕘</span><span>Last time, Sunday<small>Pho tai 🤩 · Spring rolls 😋 · Bun cha 🙂</small></span></div>
+      <div class="card" style="gap:0;padding:6px 14px"><div class="ch" style="padding:8px 0 2px"><b>What we get here</b><span>best first</span></div>
+        <div class="rk">${art('t1', '🍜', 16)}<span><b>Pho tai ★</b><small>8 times · You 🤩 Mia 😋 Ava 🙂</small></span><span class="f">🤩</span><span class="n">8</span></div>
+        <div class="rk">${art('t2', '🥢', 16)}<span><b>Spring rolls</b><small>7 times · everyone 😋</small></span><span class="f">😋</span><span class="n">7</span></div>
+        <div class="rk">${art('t5', '☕', 16)}<span><b>Iced coffee</b><small>3 times · Mia</small></span><span class="f">😋</span><span class="n">3</span></div>
+        <div class="rk">${art('t3', '🍲', 16)}<span><b>Bun bo Hue</b><small>2 times · Mia</small></span><span class="f">🙂</span><span class="n">2</span></div>
+        <div class="rk">${art('t6', '🍲', 16)}<span><b>Bun cha</b><small>new · You 🤩 Ava 😐</small></span><span class="f">🙂</span><span class="n">1</span></div>
+        <div class="rk dim">${art('t4', '🥞', 16)}<span><b>Banh xeo</b><small>once · "too oily"</small></span><span class="f">😐</span><span class="n">1</span></div>
+      </div>`;
+  const p4c = P(placePage(), {tab: 'food', t: '6:31'});
+
+  /* P5: finding */
+  const dishesView = `${foodHead([['Diary', 0], ['Dishes', 1]])}
+      <div class="search">🔍 Search dishes and places</div>
+      <div class="pills"><span class="pill np on">All</span><span class="pill np">★ Favourites</span><span class="pill np">🏠 Home</span><span class="pill np">📍 Out</span></div>
+      <div class="sech"><b>★ Favourites</b><span>4</span></div>
+      <div class="card" style="gap:0;padding:2px 14px">
+        <div class="rk">${art('t1', '🍜', 16)}<span><b>Pho tai</b><small>Pho Saigon House · 8 times</small></span><span class="f">🤩</span><span class="chev">›</span></div>
+        <div class="rk">${art('t2', '🍝', 16)}<span><b>Pesto pasta</b><small>Home · 9 times</small></span><span class="f">🤩</span><span class="chev">›</span></div>
+        <div class="rk">${art('t4', '🍣', 16)}<span><b>Salmon nigiri</b><small>Sakura Sushi Bar · 5 times</small></span><span class="f">😋</span><span class="chev">›</span></div>
+      </div>
+      <div class="sech"><b>🏠 Home</b><span>14 dishes</span></div>
+      <div class="card" style="gap:0;padding:2px 14px">
+        <div class="rk">${art('t3', '🍛', 16)}<span><b>Chicken curry</b><small>6 times · last Nov 2</small></span><span class="f">😋</span><span class="chev">›</span></div>
+      </div>
+      <div class="sech"><b>📍 Pho Saigon House</b><span>6 dishes ›</span></div>
+      <div class="card" style="gap:0;padding:2px 14px">
+        <div class="rk">${art('t2', '🥢', 16)}<span><b>Spring rolls</b><small>7 times · last Sunday</small></span><span class="f">😋</span><span class="chev">›</span></div>
+      </div>`;
+  const p5a = P(dishesView, {tab: 'food', t: '6:30'});
+  const p5b = P(`${foodHead([['Diary', 0], ['Dishes', 1]])}
+      <div class="search typed">🔍 curry<span class="caret" style="width:2px;height:18px;background:var(--accent);display:inline-block"></span></div>
+      <div class="sech"><b>Dishes</b><span>2</span></div>
+      <div class="card" style="gap:0;padding:2px 14px">
+        <div class="rk">${art('t3', '🍛', 16)}<span><b>Chicken <u style="text-decoration:none;background:var(--accent-soft)">curry</u></b><small>Home · 6 times</small></span><span class="f">😋</span><span class="chev">›</span></div>
+        <div class="rk">${art('t4', '🍛', 16)}<span><b>Katsu <u style="text-decoration:none;background:var(--accent-soft)">curry</u></b><small>Sakura Sushi Bar · once</small></span><span class="f">🙂</span><span class="chev">›</span></div>
+      </div>
+      <div class="sech"><b>Places</b><span>1</span></div>
+      <div class="card" style="gap:0;padding:2px 14px"><div class="rk"><span style="font-size:20px;text-align:center">📍</span><span><b>Curry Up Now</b><small>Delivery · 2 visits · last Aug 30</small></span><span></span><span class="chev">›</span></div></div>
+      <p style="font:600 12.5px/1.4 var(--body);color:var(--muted)">In step 2 the same field also finds recipes by name and by ingredient ("curry powder").</p>${kb}`, {t: '6:30'});
+
+  /* P6: recipes */
+  const recipesView = `${foodHead([['Diary', 0], ['Dishes', 0], ['Recipes', 1]])}
+      <div class="search">🔍 Search recipes and ingredients</div>
+      <div class="banner" style="background:var(--warn-soft)"><span style="font-size:18px">🕰️</span><span>Haven't made in a while<small>Miso salmon · last Oct 12 · everyone 😋</small></span><em>Plan it</em></div>
+      <div class="card" style="gap:0;padding:2px 14px">
+        <div class="rcard">${photo('ph2')}<span><b>Chicken curry</b><small>Mia's · cooked 6 times · last Nov 2</small></span><span style="font-size:18px">😋</span></div>
+        <div class="rcard">${photo('ph3')}<span><b>Pesto pasta</b><small>From a link · cooked 9 times · last Nov 8</small></span><span style="font-size:18px">🤩</span></div>
+        <div class="rcard">${photo('ph4')}<span><b>Fish tacos</b><small>cooked twice · last Oct 26</small></span><span style="font-size:18px">😋</span></div>
+        <div class="rcard">${art('t5', '🥟', 26)}<span><b>Grandma Lin's dumplings</b><small>📷 Card photo · not cooked yet</small></span><span class="tag">New</span></div>
+      </div>`;
+  const p6a = P(`${recipesView}<span class="btn" style="margin-top:2px">+ New recipe</span>`, {tab: 'food', t: '5:10'});
+  const p6b = P(`${foodHead([['Diary', 0], ['Dishes', 0], ['Recipes', 1]])}
+      <div class="center" style="padding:24px 8px 8px"><div class="big-emoji">📖</div><h4>Keep the recipes you actually cook</h4><p>Start with one you make often. Type it, paste it from a website, or snap the card.</p></div>
+      <span class="btn">+ Add a recipe</span>
+      <div class="card" style="gap:8px"><div class="ch"><b>You cook these often</b><span>no recipe yet</span></div>
+        <div class="rk">${art('t2', '🍝', 16)}<span><b>Pesto pasta</b><small>9 times</small></span><span></span><span class="chev" style="color:var(--accent);font-weight:800">+ Recipe</span></div>
+        <div class="rk">${art('t3', '🍛', 16)}<span><b>Chicken curry</b><small>6 times</small></span><span></span><span class="chev" style="color:var(--accent);font-weight:800">+ Recipe</span></div>
+      </div>`, {tab: 'food', t: '5:10'});
+  const p6c = P(`<div class="navbar"><span class="back">Cancel</span><b style="font:600 17px/1 var(--display)">New recipe</b><span class="act">Save</span></div>
+      <div class="field focus"><span style="font-size:20px">🍛</span><span>Chicken curry</span></div>
+      <div class="banner" style="background:var(--good-soft)"><span style="font-size:16px">🔗</span><span>Joins the dish you already cook<small>Chicken curry · Home · cooked 6 times. Its history and faces come with it.</small></span></div>
+      <div class="grp"><span class="label">Serves</span><div class="pills"><span class="pill np">2</span><span class="pill np on">4</span><span class="pill np">6</span><span class="pill np">8</span></div></div>
+      <div class="grp"><span class="label">Ingredients<small>one per line</small></span><div class="field area">2 lb chicken thighs<br>1 onion<br>4 cloves garlic<br>1 thumb of ginger<br>3 tbsp curry powder<br>1 can coconut milk<br>2 potatoes<span style="color:var(--muted)">…</span></div></div>
+      <div class="grp"><span class="label">Steps<small>one per line</small></span><div class="field area">Brown the chicken in batches, set aside.<br>Soften onion, garlic and ginger, 5 min.<span style="color:var(--muted)">…</span></div></div>
+      <div class="grp"><span class="label">From</span><div class="pills"><span class="pill np">🔗 Link</span><span class="pill np">📷 Photo of the card</span></div></div>
+      <div class="grp"><span class="label">Notes</span><div class="field area">Ava likes it mild: 2 tbsp curry powder.</div></div>`, {t: '5:14'});
+  const recipePage = (o = {}) => `<div class="navbar"><span class="back">‹ Recipes</span><span class="act">Edit</span></div>
+      <div class="hero">${photo('ph2')}<div><h5>Chicken curry</h5><small>Mia's · serves 4<br>cooked 6 times · last Nov 2</small></div></div>
+      <div class="btns"><span class="btn sm">🍳 We made this</span><span class="btn sm ghost">📅 Plan it</span></div>
+      <div class="card" style="gap:0;padding:8px 14px"><div class="ch" style="padding:4px 0 4px"><b>Ingredients</b><span style="color:var(--accent);font-weight:800">${o.picked ? 'Add 3 to groceries' : 'Pick for groceries'}</span></div>
+        ${[['2 lb chicken thighs', 0], ['1 onion', 0], ['4 cloves garlic', 0], ['1 thumb of ginger', 1], ['3 tbsp curry powder', 0], ['1 can coconut milk', 1], ['2 potatoes', 1]].map(([t, on]) => `<div class="ing"><span class="ck ${o.picked && on ? 'on' : ''}">${o.picked && on ? '✓' : ''}</span><span>${t}</span></div>`).join('')}
+      </div>
+      <div class="card" style="gap:0;padding:8px 14px"><div class="ch" style="padding:4px 0 4px"><b>Steps</b><span>5</span></div>
+        <div class="stp"><b>1</b><span>Brown the chicken in batches, set aside.</span></div>
+        <div class="stp"><b>2</b><span>Soften onion, garlic and ginger, 5 min.</span></div></div>`;
+  const p6d = P(recipePage(), {tab: 'food', t: '5:20'});
+  const p6e = P(recipePage({picked: true}), {tab: 'food', t: '5:21', over: toast('🛒', '3 items added to groceries', 'Ginger, coconut milk and potatoes', 'Undo')});
+  const p6f = P(`${snapTop('Chicken curry', 'ph2', true)}
+    <div class="card form">
+      <span class="label">Dinner · Thursday 7:05 PM</span>
+      <div class="grp"><span class="label">Where</span>${pills(WHERE, '🏠 Home-cooked')}</div>
+      ${whatHead()}
+      <div>${dl('t3', '🍛', 'Chicken curry', '📖 From the recipe · 7th time', null, {last: 'last time 🤩'})}</div>
+      ${dishField('', {ph: 'Add another dish, e.g. Rice'})}
+      ${whoAte()}
+      <span class="btn">Save to Thursday dinner</span>
+    </div>`, {t: '7:05'});
+  const p6g = P(`${head('Lists', 'This week')}
+      <div class="pills"><span class="pill np">🛒 Groceries</span><span class="pill np">🏠 House</span><span class="pill np on">🍽️ Dinners</span></div>
+      <div class="card" style="gap:0;padding:2px 14px">
+        ${[['Mon', '🍝 Pesto pasta', 0], ['Tue', '🌮 Fish tacos', 0], ['Wed', 'Plan dinner', 1], ['Thu', '🍛 Chicken curry', 0, 1]].map(([d, t, empty, today]) => `<div class="row" style="min-height:44px"><span style="font:700 12px/1 var(--body);width:40px;color:${today ? 'var(--accent)' : 'var(--muted)'}">${d}</span><span class="tx" style="color:${empty ? 'var(--muted)' : 'var(--ink)'}">${t}${!empty ? '<small>📖 Recipe</small>' : ''}</span>${today ? '<span class="tag acc">today</span>' : ''}${!empty ? '<span style="color:var(--accent);font-size:16px">🛒</span>' : ''}</div>`).join('')}
+      </div>`, {tab: 'lists', t: '5:30', over: sheet(`<div class="label">🍛 Chicken curry</div><h4>What does it need?</h4>
+      <p>From the recipe. Untick what we already have.</p>
+      <div>${[['2 lb chicken thighs', 1], ['1 onion', 0], ['1 thumb of ginger', 1], ['1 can coconut milk', 1], ['2 potatoes', 1]].map(([t, on]) => `<div class="ing"><span class="ck ${on ? 'on' : ''}">${on ? '✓' : ''}</span><span>${t}</span></div>`).join('')}</div>
+      <span class="btn">Add 4 to groceries</span>`)});
+
+  /* P7: editing */
+  const p7a = P(`<div class="navbar"><span class="back">Cancel</span><b style="font:600 17px/1 var(--display)">Edit meal</b><span class="act">Save</span></div>
+      <div class="card form">
+        <div class="grp"><span class="label">Where</span>${pills(WHERE, '🍽️ Dine out')}</div>
+        ${place('Pho Saigon House')}
+        ${whatHead('3 dishes')}
+        <div>${dl('t1', '🍜', 'Pho tai', '8th time here', '🤩')}${dl('t2', '🥢', 'Spring rolls', '7th time here', '😋')}${dl('t6', '🍲', 'Bun cha', 'You 🤩 · Mia 🙂 · Ava 😐', null, {noFaces: true})}</div>
+        ${dishField('', {ph: 'Add another dish'})}
+      </div>`, {t: '8:02'});
+  const p7b = P(dishPage(), {tab: 'food', t: '8:10', over: sheet(`<div class="label">Spring rolls · Pho Saigon House</div><h4>Rename the dish</h4>
+      <div class="field focus"><span style="font-size:20px">🥢</span><span>Imperial rolls</span></div>
+      <div class="banner" style="background:var(--warn-soft)"><span style="font-size:16px">🔀</span><span>Imperial rolls is already a dish here<small>2 times, last in June. Merge them, and their 9 meals become one history?</small></span></div>
+      <div class="btns"><span class="btn ghost">Keep apart</span><span class="btn">Merge</span></div>`)});
+  const p7c = P(placePage({back: 'Sunday dinner'}), {tab: 'food', t: '8:12', over: sheet(`<div class="label">Banh xeo · Pho Saigon House</div><h4>Take Banh xeo off 1 meal?</h4>
+      <p>Lunch on Aug 16 stays, with its photos and the other dishes. Its faces for Banh xeo go.</p>
+      <span class="btn red">Remove dish</span><span class="btn ghost">Keep it</span>`)});
+  const p7d = P(recipePage(), {tab: 'food', t: '8:15', over: sheet(`<div class="label">📖 Mia's chicken curry</div><h4>Remove the recipe?</h4>
+      <p>Its ingredients, steps, notes and card photo go from every device. Chicken curry stays a dish, with its 6 dinners and faces, and Thursday's planned dinner stays.</p>
+      <span class="btn red">Remove recipe</span><span class="btn ghost">Keep it</span>`)});
+
+  /* P8: first run */
+  const p8a = P(`${foodHead([['Diary', 0], ['Dishes', 1]])}
+      <div class="card" style="gap:10px;background:linear-gradient(160deg,var(--good-soft),var(--surface) 70%)"><div style="font:600 20px/1.2 var(--display)">Your diary already knew 48 dishes</div>
+        <p style="font:500 14px/1.45 var(--body);color:var(--muted)">Each meal you named became a dish, and the same name at the same place became one: Pho, 14 times. Rename or merge any that came out wrong.</p>
+        <span class="btn sm" style="justify-self:start">Got it</span></div>
+      <div class="pills"><span class="pill np on">All</span><span class="pill np">★ Favourites</span><span class="pill np">🏠 Home</span><span class="pill np">📍 Out</span></div>
+      <div class="sech"><b>Most often</b><span>48 dishes</span></div>
+      <div class="card" style="gap:0;padding:2px 14px">
+        <div class="rk">${art('t1', '🍜', 16)}<span><b>Pho</b><small>Pho Saigon House · 14 times</small></span><span class="f">😋</span><span class="chev">›</span></div>
+        <div class="rk">${art('t2', '🍝', 16)}<span><b>Pesto pasta</b><small>Home · 9 times</small></span><span class="f">🤩</span><span class="chev">›</span></div>
+        <div class="rk">${art('t3', '🥣', 16)}<span><b>Oatmeal</b><small>Home · 31 times</small></span><span class="f">🙂</span><span class="chev">›</span></div>
+      </div>`, {tab: 'food', t: '9:00'});
+  const p8b = P(`${head('Nov 15 · 1 meal', 'What we ate')}<div class="seg"><span>Diary</span><span class="on">Dishes</span></div>
+      <div class="center" style="padding:40px 8px 8px"><div class="big-emoji">🍽️</div><h4>Name what you eat, and Porchlight remembers it</h4><p>Each dish you add when you log a meal shows up here, with every time you had it and how everyone liked it.</p></div>
+      <span class="btn">📷 Snap a meal</span>`, {tab: 'food', t: '9:00'});
+
+  /* P9: dark and largest text */
+  const darkForm = P(`<div class="card form" style="margin-top:4px">
+      ${whatHead('3 dishes')}
+      <div>${dl('t1', '🍜', 'Pho tai', '8th time here', '🤩')}${dl('t2', '🥢', 'Spring rolls', '7th time here', '😋')}${dl('t6', '🍲', 'Bun cha', '<span class="tag new">New here</span>', '🙂')}</div>
+      <div class="chips"><span class="chip">+ ☕ Iced coffee</span></div>
+      ${dishField('', {ph: 'Add another dish'})}
+      ${whoAte()}
+      <span class="btn">Save to Sunday dinner</span>
+    </div>`, {dark: true, t: '6:58'});
+  const darkDish = P(dishPage(), {dark: true, tab: 'food', t: '9:40'});
+  const darkRecipe = P(recipePage({picked: true}), {dark: true, tab: 'food', t: '9:41'});
+  const axForm = P(`<div class="card form" style="margin-top:4px">
+      <span class="label">What we had</span>
+      <div>${dl('t1', '🍜', 'Pho tai', '8th time here', '🤩', {ax: true})}${dl('t2', '🥢', 'Spring rolls', '7th time here', null, {ax: true})}</div>
+      ${dishField('', {ph: 'Add another dish'})}
+    </div>`, {ax: true, t: '6:58'});
+  const axDish = P(dishPage({ax: true}), {ax: true, tab: 'food', t: '9:42'});
+
+  /* ---------- Wall ---------- */
+  const railIcons = ['📅','🐶','🍴','☑️','✨','📝','🖼️'];
+  const rail = on => `<div class="wrail"><i class="home"></i>${railIcons.map((x, i) => `<i class="${on===i?'on':''}">${x}</i>`).join('')}<i style="margin-top:2cqw">⚙️</i></div>`;
+  const W = (inner, o = {}) => `<div class="wl"><div class="ws-sc ${o.dark ? 'dark' : ''}">${inner}</div></div>`;
+  const wav = (p, s = '') => `<span class="wav ${p} ${s}">${p}</span>`;
+  const wfaces = (on, big) => `<div class="wfaces ${big ? 'big' : ''}">${FACES.map(f => `<span class="wfc ${f === on ? 'on' : ''}">${f}</span>`).join('')}</div>`;
+  const wallHead = (mode, sub) => `<div class="wfh"><b>What we ate</b><span class="sub">${sub}</span><div class="right">${['Week','Month','Dishes','Recipes'].map(m => `<span class="wchip ${m === mode ? 'on' : ''}">${m}</span>`).join('')}<span class="wbtn" style="margin-left:.6cqw">📷 Snap a meal</span></div></div>`;
+  const wpol = (p, c, m, cls = '') => `<div class="wpol ${cls}">${photo(p)}<div class="c">${c}</div>${m ? `<span class="m">+${m}</span>` : ''}</div>`;
+  const wallWeek = (o = {}) => `${rail(2)}<div class="wmain">${wallHead('Week', 'Nov 9 – 15 · 19 meals logged')}
+      <div class="wweek">
+        <span></span>${[['Mon',9],['Tue',10],['Wed',11],['Thu',12],['Fri',13],['Sat',14],['Sun',15]].map(([d, n], i) => `<div class="dh ${i===6?'today':''}">${d}<b>${n}</b></div>`).join('')}
+        <span class="sl">🌅 Breakfast</span>${wpol('ph6','Oatmeal')}${wpol('ph4','Bagel')}${wpol('ph6','Granola')}<div class="wpol e">+</div>${wpol('ph4','Pancakes')}${wpol('ph3','Eggs & toast')}${wpol('ph4','Avocado toast')}
+        <span class="sl">☀️ Lunch</span>${wpol('ph5','Cobb salad')}${wpol('ph2','Banh mi')}<div class="wpol e">+</div>${wpol('ph5','Falafel wrap')}${wpol('ph2','Bento box')}${wpol('ph1','Pho')}${wpol('ph5','Cobb salad')}
+        <span class="sl">🌙 Dinner</span>${wpol('ph3','Pesto pasta')}${wpol('ph2','Chicken curry')}${wpol('ph6','Miso salmon')}${wpol('ph3','Fish tacos')}${wpol('ph2','Margherita')}${wpol('ph4','Salmon nigiri')}${wpol('ph1','Pho tai +2', 0, o.ring ? 'ring' : '')}
+      </div></div>${o.toast || ''}`;
+  const wSheet = (style, html) => `<div class="wscrim"></div><div class="wsheet" style="${style}">${html}</div>`;
+  const wdl = (tint, emoji, name, sub, face) => `<div class="wdl"><div class="art ${tint}"><span>${emoji}</span></div><span><b>${name}</b><small>${sub}</small></span>${wfaces(face)}<span class="wx">×</span></div>`;
+  const w1a = W(`${rail(2)}<div class="wmain"></div>${wSheet('left:4%;top:4%;right:4%;bottom:4%;grid-template-columns:40% 1fr;gap:2.4cqw', `
+      <div class="wvf"><div class="hint">Center the plate · tap the shutter</div>${photo('ph1')}<span class="sh"></span></div>
+      <div style="display:grid;gap:1.1cqw;align-content:start">
+        <div><h4>Dinner, probably</h4><div class="sub">Sunday 6:40 PM · guessed from the time of day</div></div>
+        <span class="wlab">Where</span><div class="wpills">${['🏠 Home-cooked','🛵 Delivery','🍽️ Dine out','🏢 Company'].map(w => `<span class="wpill ${w.includes('Dine') ? 'on' : ''}">${w}</span>`).join('')}</div>
+        <div class="wfield">📍 Pho Saigon House<span class="wtiny" style="margin-left:auto">412 Valencia St</span></div>
+        <span class="wlab">What we had</span>
+        <div>${wdl('t1','🍜','Pho tai','8th time here','🤩')}${wdl('t2','🥢','Spring rolls','7th time here','😋')}${wdl('t6','🍲','Bun cha','New here','🙂')}</div>
+        <div style="display:flex;gap:.6cqw;align-items:center"><span class="wtiny">Last time here:</span><span class="wchipd">+ ☕ Iced coffee</span></div>
+        <div class="wfield ph-t">🍽️ Add another dish</div>
+        <span class="wlab">Who ate</span><div class="wpills">${wav('J')}${wav('M')}${wav('A')}</div>
+        <div style="display:flex;align-items:center;gap:1cqw;margin-top:.4cqw"><span class="wtiny">1 photo ready. Fill in anything else, then Save.</span><span class="wbtn" style="margin-left:auto">Save</span></div>
+      </div>`)}`);
+  const w1b = W(wallWeek({ring: true, toast: `<div class="wtoast">🍜 Dinner saved · Pho tai and 2 more <em>Open</em></div>`}));
+
+  const w2a = W(`${wallWeek()}${wSheet('left:12%;top:16%;right:12%;grid-template-columns:30% 1fr;gap:2.4cqw', `
+      <div style="display:grid;gap:1.2cqw;align-content:start"><div class="wpol" style="transform:rotate(-2deg)">${photo('ph1')}<div class="c" style="font-size:2cqw">Pho tai +2</div></div>
+        <span class="wtiny" style="text-align:center">Sunday dinner · Pho Saigon House</span></div>
+      <div style="display:grid;gap:1.1cqw;align-content:start">
+        <div><span class="wlab">After dinner</span><h4 style="margin-top:.6cqw">How was the bun cha?</h4><div class="sub">Everyone who ate taps their own face. The table said 🙂.</div></div>
+        ${[['J','James','🤩'],['M','Mia','🙂'],['A','Ava','😐']].map(([p, n, f]) => `<div style="display:flex;align-items:center;gap:1.2cqw">${wav(p)}<span style="font:700 1.7cqw/1 var(--body);width:8cqw">${n}</span>${wfaces(f, true)}</div>`).join('')}
+        <div style="display:flex;gap:.8cqw;align-items:center;margin-top:.6cqw"><span class="wtiny">2 of 3 dishes · Pho tai and Spring rolls next</span><span class="wbtn ghost" style="margin-left:auto">Done</span><span class="wbtn">Next dish ›</span></div>
+      </div>`)}`);
+
+  const wdish = (p, name, sub, f) => `<div class="wdish">${photo(p)}<div><b>${name}</b><small>${sub}</small></div><span style="font-size:1.8cqw">${f}</span></div>`;
+  const w3a = W(`${rail(2)}<div class="wmain" style="grid-template-rows:auto auto 1fr">${wallHead('Dishes', '48 dishes · 11 places')}
+      <div style="display:grid;grid-template-columns:1fr auto;gap:1cqw;align-items:center"><div class="wsearch">🔍 Search dishes and places</div><div class="wpills"><span class="wpill on">All</span><span class="wpill">★ Favourites</span><span class="wpill">🏠 Home</span><span class="wpill">📍 Out</span></div></div>
+      <div style="display:grid;grid-template-columns:1fr 30%;gap:1.6cqw;min-height:0">
+        <div style="display:grid;gap:1cqw;align-content:start">
+          <div class="wsec">★ Favourites <span>4</span></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1cqw">${wdish('ph1','Pho tai','Pho Saigon House · 8','🤩')}${wdish('ph3','Pesto pasta','Home · 9','🤩')}${wdish('ph4','Salmon nigiri','Sakura Sushi Bar · 5','😋')}${wdish('ph2','Chicken curry','Home · 6 · 📖','😋')}</div>
+          <div class="wsec">🏠 Home <span>14 dishes</span></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1cqw">${wdish('ph6','Miso salmon','Home · 3','😋')}${wdish('ph3','Fish tacos','Home · 2','😋')}${wdish('ph5','Cobb salad','Home · 7','🙂')}${wdish('ph6','Oatmeal','Home · 31','🙂')}</div>
+        </div>
+        <div class="wcard" style="align-content:start"><div class="ch"><b>Ordering in?</b><span>by visits</span></div>
+          ${[['📍','Pho Saigon House','9 visits · Pho tai 🤩'],['🍕',"Tony's Corner Pizza",'6 orders · Margherita 😋'],['🍣','Sakura Sushi Bar','5 visits · Salmon nigiri 😋'],['🌯','Curry Up Now','2 orders · Tikka burrito 🙂'],['🥟','Dumpling Home','2 visits · Xiao long bao 🤩'],['🌮','Tacos El Primo','1 order · Al pastor 😋']].map(([e, n, s]) => `<div class="wrk"><span style="font-size:1.8cqw;text-align:center">${e}</span><span>${n}<small>${s}</small></span><span></span><span class="n">›</span></div>`).join('')}
+        </div>
+      </div></div>`);
+  const w3b = W(`${rail(2)}<div class="wmain"></div>${wSheet('left:14%;top:10%;right:14%;grid-template-columns:1fr 1fr;gap:2.4cqw', `
+      <div style="display:grid;gap:1cqw;align-content:start"><span class="wlab">Tony's Corner Pizza · 735 Larkin St</span><h4>What we get here</h4><div class="sub">6 orders · last on Friday · Margherita and garlic bread</div>
+        ${[['t5','🥖','Garlic bread','5 times · Ava 🤩','🤩',5],['t3','🍕','Margherita ★','6 times · everyone 😋','😋',6],['t1','🍕','Pepperoni','3 times · James','😋',3],['t2','🥗','Caesar salad','2 times · Mia','🙂',2],['t4','🍕','Hawaiian','once · "never again"','😐',1]].map(([t, e, n, s, f, c]) => `<div class="wrk">${art(t, e, 0)}<span>${n}<small>${s}</small></span><span class="f">${f}</span><span class="n">${c}</span></div>`).join('')}
+      </div>
+      <div style="display:grid;gap:1.2cqw;align-content:start">
+        <div class="wcard" style="background:var(--surface2)"><b style="font:600 2cqw/1.2 var(--display)">Last time, Friday</b><div class="wtiny">James, Mia and Ava</div><div class="wtiny" style="font-size:1.4cqw">Margherita 😋 · Garlic bread 🤩</div></div>
+        <div class="wpol" style="width:60%;justify-self:center;transform:rotate(2deg)">${photo('ph2')}<div class="c" style="font-size:2cqw">Margherita +1</div></div>
+        <div style="display:flex;gap:.8cqw;justify-content:flex-end"><span class="wbtn ghost">Close</span></div>
+      </div>`)}`);
+
+  const w4a = W(`${rail(2)}<div class="wmain" style="grid-template-rows:auto auto 1fr">${wallHead('Recipes', '12 recipes · 4 cooked this month')}
+      <div style="display:grid;grid-template-columns:1fr auto;gap:1cqw;align-items:center"><div class="wsearch">🔍 Search recipes and ingredients</div><span class="wbtn">+ New recipe</span></div>
+      <div style="display:grid;gap:1.2cqw;align-content:start">
+        <div class="wsec">🕰️ Haven't made in a while <span>everyone liked them</span></div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1cqw">${wdish('ph6','Miso salmon','last Oct 12 · 3 times','😋')}${wdish('ph4','Fish tacos','last Oct 26 · twice','😋')}${wdish('ph5','Green curry','last Sep 7 · 4 times','🤩')}<div class="wdish">${art('t5','🥟',0)}<div><b>Grandma Lin's dumplings</b><small>📷 card · not cooked yet</small></div></div><div class="wdish">${art('t2','🥘',0)}<div><b>Shakshuka</b><small>🔗 link · once</small></div><span style="font-size:1.8cqw">🙂</span></div></div>
+        <div class="wsec">Most cooked <span>this year</span></div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1cqw">${wdish('ph3','Pesto pasta','9 times · last Nov 8','🤩')}${wdish('ph2','Chicken curry',"Mia's · 6 times",'😋')}${wdish('ph1','Beef noodle soup','5 times','😋')}${wdish('ph5','Fried rice','5 times','🙂')}${wdish('ph4','Pancakes','4 Saturdays','🤩')}</div>
+      </div></div>`);
+  const kitchen = (o = {}) => W(`${rail(2)}<div class="wmain" style="grid-template-rows:auto 1fr">
+      <div class="wfh"><div style="display:grid;gap:.5cqw;min-width:0"><span class="wtiny" style="font-weight:800;color:var(--accent)">‹ Recipes</span><b style="font-size:3.4cqw">Chicken curry</b><span class="sub" style="padding:0">Mia's · serves 4 · cooked 6 times · last Nov 2</span></div><div class="right"><span class="wbtn ghost">🛒 Add to groceries</span><span class="wbtn">🍳 We made this</span></div></div>
+      <div style="display:grid;grid-template-columns:36% 1fr;gap:1.8cqw;min-height:0">
+        <div class="wcard"><div class="ch"><b>Ingredients</b><span>tap what's on the counter</span></div>
+          ${[['2 lb chicken thighs',1],['1 onion',1],['4 cloves garlic',1],['1 thumb of ginger',1],['3 tbsp curry powder',0],['1 can coconut milk',0],['2 potatoes',0],['1 cup frozen peas',0],['Rice, to serve',0]].map(([t, on]) => `<div class="wing" style="${on ? 'color:var(--muted)' : ''}"><span class="wck ${on ? 'on' : ''}">${on ? '✓' : ''}</span><span>${t}</span></div>`).join('')}
+        </div>
+        <div class="wcard"><div class="ch"><b>Steps</b><span>screen stays on</span></div>
+          <div class="wstp done"><b>✓</b><span>Brown the chicken in batches, set aside.</span></div>
+          <div class="wstp now"><b>2</b><span>Soften the onion, garlic and ginger, about 5 minutes.</span></div>
+          <div class="wstp"><b>3</b><span>Stir in the curry powder for a minute, until it smells toasty.</span></div>
+          <div class="wstp"><b>4</b><span>Add the coconut milk, potatoes and chicken. Simmer 25 minutes.</span></div>
+          <div class="wstp"><b>5</b><span>Peas for the last 5 minutes. Serve over rice.</span></div>
+          <div class="wtiny" style="font-size:1.4cqw;background:var(--warn-soft);border-radius:1cqw;padding:1cqw 1.2cqw">📝 Ava likes it mild: 2 tbsp curry powder. Double the potatoes.</div>
+        </div>
+      </div></div>`, o);
+  const w4b = kitchen();
+  const w4c = W(`${rail(2)}<div class="wmain"></div>${wSheet('left:4%;top:4%;right:4%;bottom:4%;grid-template-columns:40% 1fr;gap:2.4cqw', `
+      <div class="wvf"><div class="hint">Fill the frame with the card</div><div class="art photo" style="position:absolute;inset:10% 8% 24%;background:#F6EEDC;border-radius:.6cqw;display:block;padding:2cqw;font:700 1.6cqw/1.6 var(--hand);color:#6b5847">Dumplings ♡<br>1 lb ground pork<br>2 cups napa cabbage<br>3 scallions, ginger<br>soy, sesame oil<br>1 pack wrappers…</div><span class="sh"></span></div>
+      <div style="display:grid;gap:1.1cqw;align-content:start">
+        <div><h4>New recipe</h4><div class="sub">Snap the card, type it, or both. Only the name is needed.</div></div>
+        <div class="wfield">🥟 Grandma Lin's dumplings</div>
+        <span class="wlab">Photos of the card</span><div style="display:flex;gap:1cqw"><div class="art photo" style="width:8cqw;background:#F6EEDC;border-radius:1cqw;box-shadow:0 0 0 .3cqw var(--accent)"></div><div class="art photo" style="width:8cqw;border:.2cqw dashed var(--line);border-radius:1cqw;display:grid;place-items:center;color:var(--muted);font:700 2cqw/1 var(--body)">+</div></div>
+        <span class="wlab">Serves</span><div class="wpills"><span class="wpill">2</span><span class="wpill">4</span><span class="wpill on">6</span><span class="wpill">8</span></div>
+        <span class="wlab">Ingredients and steps</span><div class="wfield ph-t">Optional. The card's photo is enough to cook from.</div>
+        <span class="wlab">Notes</span><div class="wfield ph-t">e.g. Freeze half on a tray</div>
+        <div style="display:flex;align-items:center;gap:1cqw;margin-top:.4cqw"><span class="wtiny">A new home dish, Grandma Lin's dumplings, comes with it.</span><span class="wbtn" style="margin-left:auto">Save</span></div>
+      </div>`)}`);
+  const w4d = W(`${rail(0)}<div class="wmain"></div>${wSheet('left:22%;top:9%;right:22%;bottom:9%', `
+      <h4>Dinner</h4><div class="sub">Wednesday, November 18</div>
+      <div class="wfield" style="border-color:var(--accent);box-shadow:0 0 0 .3cqw var(--accent-soft)">🍽️ What's for dinner?</div>
+      <span class="wlab">We cook</span>
+      ${[['ph6','Miso salmon','📖 · last Oct 12 · everyone 😋'],['ph2','Chicken curry','📖 · last Nov 2'],['ph3','Pesto pasta','📖 · last Nov 8'],['ph4','Fish tacos','📖 · last Oct 26']].map(([p, n, s]) => `<div class="wrk">${photo(p)}<span>${n}<small>${s}</small></span><span></span><span class="n">+</span></div>`).join('')}
+      <div style="display:flex;gap:.8cqw;justify-content:flex-end;margin-top:.4cqw"><span class="wbtn ghost">Cancel</span><span class="wbtn">Save</span></div>`)}`);
+  const w5a = kitchen({dark: true});
+  const w5b = W(`${rail(2)}<div class="wmain" style="grid-template-rows:auto auto 1fr">${wallHead('Dishes', '48 dishes · 11 places')}
+      <div class="wsearch">🔍 Search dishes and places</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.6cqw;min-height:0">
+        <div class="wcard"><div class="ch"><b>Pho Saigon House</b><span>9 visits · last Sunday</span></div>
+          ${[['t1','🍜','Pho tai ★','8 times · James 🤩 Mia 😋 Ava 🙂','🤩',8],['t2','🥢','Spring rolls','7 times · everyone 😋','😋',7],['t5','☕','Iced coffee','3 times · Mia','😋',3],['t6','🍲','Bun cha','new · James 🤩 Ava 😐','🙂',1],['t4','🥞','Banh xeo','once · "too oily"','😐',1]].map(([t, e, n, s, f, c]) => `<div class="wrk">${art(t, e, 0)}<span>${n}<small>${s}</small></span><span class="f">${f}</span><span class="n">${c}</span></div>`).join('')}
+        </div>
+        <div style="display:grid;gap:1cqw;align-content:start"><div class="wsec">★ Favourites <span>4</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1cqw">${wdish('ph1','Pho tai','Pho Saigon House · 8','🤩')}${wdish('ph3','Pesto pasta','Home · 9','🤩')}</div></div>
+      </div></div>`, {dark: true});
+
+  /* ---------- Boards ---------- */
+  const frame = (kind, html, h, c) => `<figure class="fr ${kind}">${html}<figcaption class="cap"><b>${h}</b><span>${c}</span></figcaption></figure>`;
+  const spaced = h => h.replace(/(\p{Extended_Pictographic}\uFE0F?) (?=[^ <])/gu, '$1<span class="es"></span>');
+  const board = (id, frames) => { document.getElementById(id).innerHTML = spaced(frames.map(([k, html, h, c], i) => `${i ? '<span class="arrow" aria-hidden="true">›</span>' : ''}${frame(k, html, h, c)}`).join('')); };
+
+  board('b-p1', [
+    ['p', p1a, 'Where first, then what', 'After the shot. Dine out and the restaurant come first, so the form already knows the kitchen. Last time\'s dishes wait as chips; Save works right now.'],
+    ['p', p1b, 'Tap what you had again', 'Two taps, two dish lines, each with how many times we have had it and last time\'s face as a hint. Faces are optional.'],
+    ['p', p1c, 'Typing remembers', 'Suggestions from this restaurant first, then the same words elsewhere, then "Add" for a new dish here. All from the phone, offline.'],
+    ['p', p1d, 'Rate each dish, once', 'One face per dish for the table, in the same four faces as today. A new dish is marked. Who ate starts as you, as today.'],
+    ['p', p1e, 'Saved', 'The polaroid is captioned with the first dish and "+2". The diary row shows the best face. The toast names the dishes.'],
+  ]);
+  board('b-p2', [
+    ['p', p2a, 'At home, what we cook', 'Home-cooked is already chosen. Recipes are marked and the most cooked come first.'],
+    ['p', p2b, 'One dish looks like today', 'With one dish, the form is today\'s form: the name, its faces, and one quiet "Add another dish".'],
+    ['p', p2c, 'Nothing typed is a whole meal', 'A company lunch, just a photo. "Would eat again?" stays on the meal when it has no dishes, exactly as now. Saved as "Lunch".'],
+  ]);
+  board('b-p3', [
+    ['p', p3a, 'The meal\'s page', '"What we had" lists the dishes with the table\'s faces; each opens its dish. "Rate each" is one tap away.'],
+    ['p', p3b, 'Rate each', 'Only the people who ate, starting from the table\'s face. The phone holder rates for Ava, or Ava does it on the wall.'],
+    ['p', p3c, 'Everyone said', 'A line with different faces shows each person\'s; the dish\'s face is the best one given, never an average.'],
+  ]);
+  board('b-p4', [
+    ['p', p4a, 'A restaurant dish', 'How many times, since when, each person\'s usual face, photos from the meals it was in, and every time. ★ marks a household favourite.'],
+    ['p', p4b, 'A home dish with a recipe', 'Cooked 6 times, last on Nov 2. The recipe is part of the dish, one tap from its history; "Plan it" puts it on the week (step 2).'],
+    ['p', p4c, '"What do we get here?"', 'The restaurant\'s page, from a meal or from Dishes: last time\'s order, then everything ranked by our faces, with the one to skip greyed.'],
+  ]);
+  board('b-p5', [
+    ['p', p5a, 'Dishes', 'The Food tab\'s second view. Favourites, then home, then each restaurant. Filters for favourites, home and out.'],
+    ['p', p5b, 'One search', 'Dishes and places by any word in their names; recipes and ingredients join in step 2.'],
+  ]);
+  board('b-p6', [
+    ['p', p6a, 'The recipe bank', 'Our home dishes that know how they are made, with when we last cooked each. "Haven\'t made in a while" is the bank\'s dinner idea.'],
+    ['p', p6b, 'Empty bank', 'What a recipe is for, the three ways in, and the dishes we cook most that don\'t have one yet.'],
+    ['p', p6c, 'Adding a recipe', 'Only the name is needed. A name we already cook joins that dish. Ingredients and steps are plain lines: type or paste.'],
+    ['p', p6d, 'A recipe on the phone', 'Readable at arm\'s length, for the store or a quick check. "We made this" logs it; "Plan it" puts it on a day.'],
+    ['p', p6e, 'Ingredients to groceries', 'Tick what we need; they go on the grocery list in their aisles, with Undo.'],
+    ['p', p6f, 'We made this', 'Snap opens with Home-cooked and the dish filled in. Cooking it is what links it: this is its 7th time.'],
+    ['p', p6g, 'Planned from the bank', 'A planned dinner can name a dish. Its cart asks "What does it need?" with the recipe\'s lines, not an empty field.'],
+  ]);
+  board('b-p7', [
+    ['p', p7a, 'Edit a meal', 'The same dish lines as Snap. Bun cha keeps everyone\'s faces; × takes a dish off this meal only.'],
+    ['p', p7b, 'Rename, then merge', 'Renaming changes it on every meal. A name that exists in this kitchen offers to merge the two histories.'],
+    ['p', p7c, 'Remove a dish', 'Says how many meals, and that the meals and photos stay. Undo afterwards.'],
+    ['p', p7d, 'Remove a recipe', 'The dish, its dinners and the planned dinner stay; only how to make it goes.'],
+  ]);
+  board('b-p8', [
+    ['p', p8a, 'After the update', 'One card, once: the diary\'s named meals are already dishes, grouped by kitchen. Nothing to set up.'],
+    ['p', p8b, 'A new household', 'What will appear and why, with the one action that fills it.'],
+  ]);
+  board('b-p9', [
+    ['p', darkForm, 'Logging, at night', 'Warm surfaces; the selected face keeps the accent ring.'],
+    ['p', darkDish, 'A dish, at night', 'Polaroid paper stays paper; the faces stay readable.'],
+    ['p', darkRecipe, 'A recipe, at night', 'Ticked ingredients keep their accent; the toast is the app\'s own.'],
+    ['p', axForm, 'Largest text: dish lines', 'The name wraps on its own lines, faces drop below at full size, and × becomes "Remove". Two dishes fill the screen; it scrolls.'],
+    ['p', axDish, 'Largest text: a dish', 'The hero stacks, stats become rows, and each person\'s line wraps under their name.'],
+  ]);
+  board('b-w1', [
+    ['w', w1a, 'The wall\'s capture sheet', 'The camera stays live on the left for more angles, as today. Where comes first; dish lines carry their faces in one row; last time\'s dishes wait as chips.'],
+    ['w', w1b, 'The week', 'One polaroid per meal, captioned with its first dish and "+2". The new one is ringed, as today.'],
+  ]);
+  board('b-w2', [
+    ['w', w2a, 'Everyone taps their face', 'From the meal\'s sheet, "How was it?" goes dish by dish with a row per person who ate and big faces. Ava says the bun cha was 😐, herself.'],
+  ]);
+  board('b-w3', [
+    ['w', w3a, 'Dishes on the wall', 'Cards with photos at a glance; "Ordering in?" lists our places by visits with the dish we like best.'],
+    ['w', w3b, 'What we get from Tony\'s', 'The restaurant\'s sheet: everything ranked by our faces, last time\'s order and its polaroid. Decided before anyone opens a delivery app.'],
+  ]);
+  board('b-w4', [
+    ['w', w4a, 'The bank, as cards', '"Haven\'t made in a while" first: the family\'s own dinner ideas. Then the most cooked.'],
+    ['w', w4b, 'A recipe from the stove', 'Ingredients beside steps in big type. Tap an ingredient as it hits the counter and a step as it is done; both reset when the recipe closes. The screen stays on while it is open.'],
+    ['w', w4c, 'Snap the card', 'The wall\'s camera photographs Grandma\'s card. The photo is enough to cook from; typing it out is optional.'],
+    ['w', w4d, 'Planning dinner', 'The wall\'s dinner editor suggests what we cook, the longest-unmade first; a planned dish brings its recipe.'],
+  ]);
+  board('b-w5', [
+    ['w', w5a, 'Cooking at night', 'The kitchen view in the night look, for an evening kitchen.'],
+    ['w', w5b, 'Ordering in at night', 'The restaurant list in the night look.'],
+  ]);
+})();
+</script>

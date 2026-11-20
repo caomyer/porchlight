@@ -4,7 +4,15 @@ import SwiftUI
 struct FoodScreen: View {
     @Environment(FoodStore.self) private var store
 
-    enum Mode { case week, month }
+    enum Mode { case week, month, dishes }
+
+    /// A dish or a restaurant open over the wall, from the Dishes view.
+    enum Layer: Identifiable, Hashable {
+        case dish(Dish.ID)
+        case place(FoodPlace.ID)
+
+        var id: Self { self }
+    }
 
     @State private var mode: Mode = .week
     /// Weeks or months away from the current one (0 = now, -1 = previous).
@@ -13,6 +21,7 @@ struct FoodScreen: View {
     @State private var writingDay: DayKey?
     @State private var openEntry: JournalEntry?
     @State private var debugSaved: JournalEntry?
+    @State private var layer: Layer?
 
     var body: some View {
         TimelineView(.everyMinute) { context in
@@ -39,6 +48,18 @@ struct FoodScreen: View {
                 }
             }
         }
+        .wallCover(item: $layer) { layer in
+            switch layer {
+            case let .dish(id):
+                WallDishSheet(dishId: id, onOpenPlace: { place in self.layer = .place(place.id) }) {
+                    CompanionCover.instantly { self.layer = nil }
+                }
+            case let .place(id):
+                WallPlaceSheet(placeId: id, onOpenDish: { dish in self.layer = .dish(dish.id) }) {
+                    CompanionCover.instantly { self.layer = nil }
+                }
+            }
+        }
         .onAppear(perform: applyDebugLaunch)
         #if DEBUG
         .task { await FoodDebugPhoto.injectIfRequested(into: store) }
@@ -59,13 +80,16 @@ struct FoodScreen: View {
                 .padding(.bottom, 6)
             Spacer(minLength: 8)
             HStack(spacing: 6) {
-                PagerButton(symbol: "chevron.left", label: mode == .week ? "Previous week" : "Previous month") { offset -= 1 }
-                if offset < 0 {
-                    PagerButton(symbol: "chevron.right", label: mode == .week ? "Next week" : "Next month") { offset += 1 }
+                if mode != .dishes {
+                    PagerButton(symbol: "chevron.left", label: mode == .week ? "Previous week" : "Previous month") { offset -= 1 }
+                    if offset < 0 {
+                        PagerButton(symbol: "chevron.right", label: mode == .week ? "Next week" : "Next month") { offset += 1 }
+                    }
+                    Spacer().frame(width: 6)
                 }
-                Spacer().frame(width: 6)
                 FoodHeaderChip(title: "Week", isSelected: mode == .week) { select(.week) }
                 FoodHeaderChip(title: "Month", isSelected: mode == .month) { select(.month) }
+                FoodHeaderChip(title: "Dishes", isSelected: mode == .dishes) { select(.dishes) }
                 Button {
                     capture = CaptureRequest(day: today)
                 } label: {
@@ -103,6 +127,10 @@ struct FoodScreen: View {
             let name = month.formatted(.dateTime.month(.wide))
             let sameYear = store.calendar.isDate(month, equalTo: today.startDate(in: store.calendar), toGranularity: .year)
             return (sameYear ? name : month.formatted(.dateTime.month(.wide).year())) + " · tap a day to write or fix its meals"
+        case .dishes:
+            let book = store.book
+            let dishes = book.mostHad.count, places = book.placesWithDishes.count
+            return "\(dishes == 1 ? "1 dish" : "\(dishes) dishes") · \(places == 1 ? "1 place" : "\(places) places")"
         }
     }
 
@@ -124,6 +152,8 @@ struct FoodScreen: View {
                     MonthToolBar { writingDay = today }
                         .padding(.bottom, 26)
                 }
+        case .dishes:
+            WallDishesView(onOpenDish: { layer = .dish($0.id) }, onOpenPlace: { layer = .place($0.id) })
         }
     }
 
@@ -185,6 +215,7 @@ struct FoodScreen: View {
             debugSaved = store.entries(on: today).last
             capture = CaptureRequest(day: today)
         case "detail": openEntry = store.entries(on: today).first ?? store.snapshot.entries.last
+        case "dishes": mode = .dishes
         default: break
         }
         #endif

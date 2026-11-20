@@ -268,6 +268,8 @@ struct MealSourcesSyncTests {
         var edit = MealDraft(day: entry.dayKey, slot: entry.slot, sources: MealSources(.home), title: "Sushi at home",
                              eaterIds: try harness.database.snapshot().people.map(\.id), eatenAt: entry.eatenAt)
         edit.emoji = entry.emoji
+        // The meal's dishes are its title, so the new name is its one dish.
+        edit.dishes = [DishLineDraft(name: "Sushi at home")]
         _ = try harness.database.updateMeal(id: entry.id, edit)
         try await engine.syncChanges()
         #expect(try harness.unsynced() == [])

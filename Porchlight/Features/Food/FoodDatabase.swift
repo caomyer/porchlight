@@ -17,6 +17,9 @@ struct MealDraft: Equatable, Sendable {
     var eatenAt: Date
     /// The restaurant, kept only when a kind has one (delivery, dining out).
     var place: PlaceDraft?
+    /// The dishes on the meal, in order (docs/design/dishes.md). When given, they write the
+    /// meal's title, face and illustration; nil leaves a meal's dishes as they are.
+    var dishes: [DishLineDraft]? = nil
 }
 
 /// A meal's photo while it is being edited: one it already has, or a new one held in
@@ -118,6 +121,12 @@ struct FoodSnapshot: Equatable, Sendable {
     var pages: [String: Date]
     /// The household's restaurants, most recently eaten at first.
     var places: [FoodPlace] = []
+    /// The household's dishes, merged ones included so old lines still find theirs.
+    var dishes: [Dish] = []
+    /// Each meal's dish lines, in order, by entry id.
+    var lines: [JournalEntry.ID: [MealDish]] = [:]
+    /// Each person's own faces, by line id.
+    var faces: [MealDish.ID: [MealDishRating]] = [:]
 
     static let empty = FoodSnapshot(household: nil, people: [], journal: nil, entries: [], eaters: [:], pages: [:])
 
@@ -172,7 +181,25 @@ struct FoodSnapshot: Equatable, Sendable {
                 """,
             arguments: [householdId]
         )
-        return FoodSnapshot(household: household, people: people, everyone: everyone, journal: journal, entries: entries, eaters: eaters, photos: photos, photoSizes: photoSizes, pages: pages, places: places)
+        let dishes = try Dish.filter(Dish.Columns.householdId == householdId).order(Column("createdAt"), Column("id")).fetchAll(db)
+        let lineList = try MealDish.fetchAll(
+            db,
+            sql: "SELECT l.* FROM mealDish l JOIN journalEntry j ON j.id = l.entryId WHERE j.journalId = ? ORDER BY l.entryId, l.sortOrder, l.id",
+            arguments: [journal.id]
+        )
+        let faceList = try MealDishRating.fetchAll(
+            db,
+            sql: """
+                SELECT r.* FROM mealDishRating r JOIN mealDish l ON l.id = r.mealDishId
+                JOIN journalEntry j ON j.id = l.entryId WHERE j.journalId = ? ORDER BY r.id
+                """,
+            arguments: [journal.id]
+        )
+        return FoodSnapshot(
+            household: household, people: people, everyone: everyone, journal: journal, entries: entries, eaters: eaters,
+            photos: photos, photoSizes: photoSizes, pages: pages, places: places,
+            dishes: dishes, lines: Dictionary(grouping: lineList, by: \.entryId), faces: Dictionary(grouping: faceList, by: \.mealDishId)
+        )
     }
 }
 
@@ -273,6 +300,9 @@ extension AppDatabase {
                 entry.placeId = try Self.resolvePlace(draft, householdId: journal.householdId, db: db, now: now)
                 entry.deviceId = stamp(in: journal.householdId)
                 try entry.insert(db)
+                if let dishes = draft.dishes {
+                    try Self.writeDishes(dishes, entry: &entry, householdId: journal.householdId, db: db, now: now)
+                }
                 for personId in Set(draft.eaterIds) {
                     try JournalEntryEater(entryId: entry.id, personId: personId).upsert(db)
                 }
@@ -437,6 +467,12 @@ extension AppDatabase {
             existing.eatenAt = validated.eatenAt
             existing.placeId = try Self.resolvePlace(draft, householdId: journal.householdId, db: db, now: now)
             try existing.update(db)
+            if let dishes = draft.dishes {
+                try Self.writeDishes(dishes, entry: &existing, householdId: journal.householdId, db: db, now: now)
+            } else {
+                try Self.moveDishes(of: existing, householdId: journal.householdId, db: db, now: now)
+                try DishTidy.rewriteCopiesIfDishes(of: &existing, db: db)
+            }
             try db.execute(sql: "DELETE FROM journalEntryEater WHERE entryId = ?", arguments: [id])
             for personId in Set(draft.eaterIds) {
                 try JournalEntryEater(entryId: id, personId: personId).upsert(db)
