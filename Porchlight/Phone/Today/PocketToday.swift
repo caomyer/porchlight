@@ -187,8 +187,10 @@ enum PocketToday {
 
     /// A slot's line in its two parts, "5-8pm" and "open now", so a narrow tile can put
     /// the status under the time instead of breaking after the dot.
-    static func slotDetailParts(_ slot: CareSlot, calendar: Calendar) -> (time: String, status: String?) {
-        if let entry = slot.entry { return (CareText.timeWithPeriod(entry.time, calendar: calendar), nil) }
+    static func slotDetailParts(_ slot: CareSlot, calendar: Calendar, namesNobody: Bool = false) -> (time: String, status: String?) {
+        if let entry = slot.entry {
+            return (CareText.timeWithPeriod(entry.time, calendar: calendar), namesNobody ? CareLogWording.nobody.lowercased() : nil)
+        }
         let range = slot.window.isAllDay ? "Today" : slot.window.rangeText
         switch slot.state {
         case .open: return (range, "open now")

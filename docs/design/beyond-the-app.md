@@ -147,6 +147,7 @@ With two or more households (journey A5) the widgets follow the household showin
 - `LogSlotIntent` and `CheckChoreIntent` are `LiveActivityIntent`s, which iOS 17 runs in the app's process even from a widget; that is what keeps a second database connection out of the extension.
   The app declares no Live Activity, and doesn't need to.
 - "I walked Yo-Yo" logs the slot a log now belongs to (`CareLogic.windowIndex`), also after the window closed: someone telling Siri they walked the dog did walk it, and the wall files it the same way.
+  The log remembers that slot (`careLog.slot`), so it shows in it everywhere whatever the time (phone-shell.md, "A log made for a slot fills that slot").
 - Siri's answer has no Undo: interactive snippets need iOS 26, and an Undo intent Siri offers after the fact would be a second, easily misheard write.
   The answer says what was logged and for whom; Today's own undo stays the way to take it back.
 - "Snap a meal" from the atlas's Shortcuts list is left out: it opens the camera, which is the Food screen's work on the phone branch being built beside this one.

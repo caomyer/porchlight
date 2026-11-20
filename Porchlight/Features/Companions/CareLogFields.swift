@@ -45,10 +45,11 @@ struct CareLogFields: Equatable {
         return fields
     }
 
-    /// The log as it stands, for fixing it.
-    init(editing entry: CareEntry) {
+    /// The log as it stands, for fixing it, with `people` as who did it: those of its
+    /// people the household knows, so a log that names nobody asks who before it saves.
+    init(editing entry: CareEntry, people: [Person.ID]) {
         let draft = CareLogDraft(entry)
-        people = draft.people
+        self.people = people
         when = .at(draft.occurredAt)
         duration = draft.durationMinutes ?? duration
         savedDuration = draft.durationMinutes
@@ -90,6 +91,8 @@ enum CareLogWording {
     }
 
     static let editSubtitle = "Fix who, when or how it went"
+    /// A log that names nobody, in place of who did it.
+    static let nobody = "Who? Tap to say"
     static let saveChanges = "Save changes"
     /// The first tap on removing, which only asks.
     static let remove = "Remove"

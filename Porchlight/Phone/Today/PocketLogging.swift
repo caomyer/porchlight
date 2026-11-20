@@ -20,6 +20,13 @@ struct PocketLogging {
         return logging
     }
 
+    /// The same, for a toast's action: the sheet is long gone by then, so its word shows at once.
+    private var direct: PocketLogging {
+        var logging = self
+        logging.fromSheet = false
+        return logging
+    }
+
     private func present(_ toast: UndoToast) {
         if fromSheet { toasts.showAfterSheet(toast) } else { toasts.show(toast) }
     }
@@ -36,21 +43,42 @@ struct PocketLogging {
         log(action.routine, slot: action.slot.index, on: DayKey(now, calendar: calendar), draft, companion: companion, now: now)
     }
 
-    /// Logs a slot with a draft: one tap, or a missed slot caught up on at its time.
+    /// Logs one slot of a day with a draft, unless someone already did it: one tap from a
+    /// card. A write that is turned down says so in a toast.
     func log(_ routine: CareRoutine, slot: Int, on day: DayKey, _ draft: CareLogDraft, companion: String, now: Date = CompanionClock.now()) {
-        let slotName = CareCatchUp.slotName(routine.effectiveWindows[safe: slot] ?? .anyTime, of: routine)
-        switch companions.log(routineId: routine.id, slot: slot, on: day, draft, now: now) {
+        guard let result = companions.log(routineId: routine.id, slot: slot, on: day, draft, now: now) else { return failed() }
+        said(result, routine: routine, slot: slot, companion: companion, people: draft.people)
+    }
+
+    /// Saves a new log from the care sheet: for the slot being caught up on (unless someone
+    /// already did it), else at the time chosen. True when the sheet can close, its toast
+    /// waiting for it; false, with `companions.lastError` set, when the write was turned
+    /// down, so the sheet stays open and says why.
+    func save(_ routine: CareRoutine, _ draft: CareLogDraft, catchingUp slot: Int?, on day: DayKey, companion: String) -> Bool {
+        let now = CompanionClock.now()
+        if let slot {
+            guard let result = companions.log(routineId: routine.id, slot: slot, on: day, draft, now: now) else { return false }
+            said(result, routine: routine, slot: slot, companion: companion, people: draft.people)
+            return true
+        }
+        guard let log = companions.log(routineId: routine.id, draft, now: now) else { return false }
+        logged(log, routine: routine, people: draft.people)
+        return true
+    }
+
+    /// The toast for logging one slot: logged, with Undo, or who got there first.
+    private func said(_ result: CareSlotLog, routine: CareRoutine, slot: Int, companion: String, people: [Person.ID]) {
+        switch result {
         case let .logged(log):
+            let slotName = CareCatchUp.slotName(routine.effectiveWindows[safe: slot] ?? .anyTime, of: routine)
             present(UndoToast(
                 emoji: routine.emoji,
                 title: PocketCareWords.capitalized(slotName) + " logged",
-                detail: detail(people: draft.people, stars: routine.stars),
-                action: .init(title: "Undo") { companions.deleteLog(id: log.id) }
+                detail: detail(people: people, stars: routine.stars),
+                action: .init(title: "Undo") { [direct] in direct.remove(log.id) }
             ))
         case let .alreadyLogged(entry):
-            alreadyLogged(entry, routine: routine, companion: companion, joining: draft.people)
-        case nil:
-            failed()
+            alreadyLogged(entry, routine: routine, companion: companion, joining: people)
         }
     }
 
@@ -66,7 +94,7 @@ struct PocketLogging {
             emoji: routine.emoji,
             title: sentence,
             detail: "Already logged, so nothing was added",
-            action: .init(title: me.map { newcomers == [$0] } == true ? "I went too" : "We went too") { join(entry, routine: routine, adding: newcomers) }
+            action: .init(title: me.map { newcomers == [$0] } == true ? "I went too" : "We went too") { [direct] in direct.join(entry, routine: routine, adding: newcomers) }
         ))
     }
 
@@ -77,17 +105,17 @@ struct PocketLogging {
             emoji: routine.emoji,
             title: "Added \(who) to the \(routine.kind.noun(title: routine.title))",
             detail: "\(StarWords.earned(routine.stars)) each",
-            action: .init(title: "Undo") { companions.removePeople(people, fromLog: entry.id) }
+            action: .init(title: "Undo") { [direct] in if !direct.companions.removePeople(people, fromLog: entry.id) { direct.failed() } }
         ))
     }
 
     /// After the full care sheet saved a log.
-    func logged(_ log: CareLog, routine: CareRoutine, people: [Person.ID]) {
+    private func logged(_ log: CareLog, routine: CareRoutine, people: [Person.ID]) {
         present(UndoToast(
             emoji: routine.emoji,
             title: PocketCareWords.capitalized(routine.kind.noun(title: routine.title)) + " logged",
             detail: detail(people: people, stars: routine.stars),
-            action: .init(title: "Undo") { companions.deleteLog(id: log.id) }
+            action: .init(title: "Undo") { [direct] in direct.remove(log.id) }
         ))
     }
 
@@ -135,8 +163,7 @@ struct PocketLogging {
 
     /// Removes a log from the care sheet, which closed as soon as Remove was confirmed.
     func remove(_ id: CareLog.ID) {
-        companions.deleteLog(id: id)
-        if companions.lastError != nil { failed() }
+        if !companions.deleteLog(id: id) { failed() }
     }
 
     private func failed(_ message: String? = nil) {

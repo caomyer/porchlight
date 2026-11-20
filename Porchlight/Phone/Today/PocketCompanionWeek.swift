@@ -10,8 +10,7 @@ struct PocketCompanionWeek: View {
     @Environment(\.me) private var me
     @Environment(\.colorScheme) private var scheme
     @Environment(ToastCenter.self) private var toasts
-    @State private var catchUp: PocketCatchUpSheet.Request?
-    /// A diary row opened to fix, as on the wall's companion page.
+    /// A diary row opened to fix, as on the wall's companion page, or a missed slot to catch up on.
     @State private var editing: PocketCareSheet.Request?
     let logging: PocketLogging
 
@@ -40,7 +39,6 @@ struct PocketCompanionWeek: View {
             }
         }
         .background(Theme.background)
-        .sheet(item: $catchUp, onDismiss: toasts.showPending) { PocketCatchUpSheet(request: $0, logging: logging.inSheet) }
         .sheet(item: $editing, onDismiss: toasts.showPending) { PocketCareSheet(request: $0, logging: logging.inSheet) }
     }
 
@@ -119,7 +117,7 @@ struct PocketCompanionWeek: View {
     private func loggedRow(_ item: DiaryItem, report: CompanionReport) -> some View {
         let entry = item.entry
         let snapshot = store.snapshot
-        var head = PocketToday.who(entry.people, me: nil, names: snapshot.names)
+        var head = snapshot.namesNobody(entry) ? CareLogWording.nobody : PocketToday.who(entry.people, me: nil, names: snapshot.names)
         if let minutes = entry.log.durationMinutes { head += " · \(minutes) min" }
         let business = CareText.business(entry.log)
         if !business.isEmpty { head += " \(business)" }
@@ -159,7 +157,7 @@ struct PocketCompanionWeek: View {
         let calendar = store.snapshot.calendar
         let name = PocketCareWords.capitalized(CareCatchUp.slotName(missed.slot.window, of: missed.routine))
         let day = PocketCareWords.dayWord(missed.day, today: report.today, calendar: calendar)
-        return Button { catchUp = PocketCatchUpSheet.Request(companionId: report.id, missed: missed) } label: {
+        return Button { editing = .catchUp(missed, companionId: report.id, people: me.map { [$0.id] } ?? []) } label: {
             HStack(alignment: .center, spacing: 10) {
                 Text(missed.routine.emoji)
                     .phoneFont(.body, 12)

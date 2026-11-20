@@ -115,15 +115,19 @@ extension PhoneTestHelpers {
     }
 
     /// Scrolls a little at a time until `element` is wholly in view, above the tab bar
-    /// when there is one.
+    /// when there is one: up the page when it is above the screen (a test that looked
+    /// further down first), else down. A tap never relies on XCUITest scrolling for it,
+    /// which on iOS 27, under the floating tab bar, can stop short and tap nothing.
     func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         let window = app.windows.firstMatch.frame
         let tabBar = app.tabBars.firstMatch
         let bottom = tabBar.exists ? tabBar.frame.minY : window.maxY
         let visible = CGRect(x: window.minX, y: window.minY, width: window.width, height: bottom - window.minY)
         for _ in 0..<14 where !(element.exists && element.isHittable && visible.contains(element.frame)) {
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)))
+            let above = element.exists && element.frame.minY < visible.minY
+            let (from, to) = above ? (0.45, 0.7) : (0.7, 0.45)
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: from))
+            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: to)))
         }
     }
 

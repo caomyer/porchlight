@@ -114,6 +114,7 @@ struct AppDatabase: Sendable {
         registerPhotoMigrations(&migrator, files: files)
         registerHouseholdMigrations(&migrator)
         registerCalendarMigrationsAfterSync(&migrator)
+        registerCompanionMigrationsAfterSync(&migrator)
         return migrator
     }
 }
