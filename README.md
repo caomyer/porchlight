@@ -102,6 +102,7 @@ scripts/test.sh --only PhoneTests/testCheckingChores FirstRunTests   # just thes
 
 It skips the screen tour, which only takes screenshots for review; add `--tour` before deploying.
 `--serial` runs the iPad and then the iPhone even with room for both, `--runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5` runs on another installed iOS, and `--no-build` reuses the last build.
+`--shard 2/3` runs only the second of three shares of each UI suite's test classes, `--build-only` only builds, and `--progress` prints each test as it ends.
 Results and logs are in `$TMPDIR/porchlight-tests-<checkout>`: `unit`, `ui-wall` and `ui-phone`, each an `.xcresult` and a `.log`.
 
 How it stays fast and out of everyone's way:
@@ -131,6 +132,27 @@ Both columns ran the same tests, so both include the shorter idle-timer test, wh
 Side by side each suite runs slower than alone, since the two share the CPU, but the whole run takes the longer of the two instead of their sum.
 Most of a suite's time is the tests' own steps: each look at the screen takes about a second on these large accessibility trees, and each launch with the sample household 3 to 4 seconds.
 The phone suite's food tests are much slower than on November 16 (the meal page test 131 seconds, from 40), with the app slow to quit between tests; that slowness is in the app, not in the setup.
+
+#### On GitHub (CI)
+
+Every push to any branch runs the unit tests and both UI suites on GitHub's hosted Macs (`.github/workflows/tests.yml`), on iOS 27.2 with Xcode 27.2, so full runs leave the development Mac alone.
+A newer push to the same branch cancels the run before it.
+Each job is a small Mac (3 cores, 7 GB) that holds one simulator, and the plan runs five at once:
+
+- **Build and unit tests** builds once (`scripts/test.sh --build-only`), hands the build to the UI jobs as the `products` artifact, then runs the unit tests on the iPad.
+- **Wall UI 1 of 2, 2 of 2, Phone UI 1 of 2, 2 of 2** each run a share of a UI suite's test classes (`--shard`), on the build from the first job (`--no-build`).
+  Each boots its simulator while the build is still going, since a new iOS 27 simulator takes 3 to 8 minutes to boot and finish setting itself up.
+
+The jobs go through `scripts/test.sh` like a local run; the steps around it live in `scripts/ci`.
+The log prints each test as it ends (`--progress`), and every two minutes a heartbeat line with the free memory, so a hang or a Mac out of memory shows.
+To run only some tests, use Actions, Tests, Run workflow, with "only" set as for `--only` (for example `FirstRunTests PhoneTests/testCheckingChores`): one job builds and runs just those.
+
+**Reading a failure.** The job's log lists the failed tests and their messages under `[ui-wall]`, `[ui-phone]` or the unit summary.
+Each job uploads an artifact, `results-<job name>` (for example `results-Wall UI 2 of 2`), kept for a week, with the job's `.log` files and, when the job failed, each `.xcresult` bundle zipped.
+Unzip one and open it in Xcode, or export its screenshots with `xcrun xcresulttool export attachments --path ui-wall.xcresult --output-path shots`.
+Screenshots are in the simulator's portrait frame: a landscape wall screen shows turned on its side.
+
+**What stays local.** The hosted Macs have only iOS 27 simulators, so the iOS 17.5 run, the wall iPad's own OS, stays on the development Mac: run `scripts/test.sh` before deploying to the wall.
 
 ## Install on the wall iPad
 

@@ -128,7 +128,7 @@ summarize() {
 # it ends, so a run that hangs shows where.
 record() {
   if (( progress )); then
-    tee "$1" | grep --line-buffered -E "^Test Case .*(passed|failed|skipped)" | sed -l "s/^/[${1:t:r}] /" || true
+    tee "$1" | grep --line-buffered -E "^Test Case .*(passed|failed|skipped)|Test .*(passed after|failed after|skipped\.)" | sed -l "s/^/[${1:t:r}] /" || true
   else
     cat > "$1"
   fi
