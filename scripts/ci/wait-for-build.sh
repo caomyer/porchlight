@@ -6,7 +6,7 @@ set -euo pipefail
 api="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 step=$SECONDS
 until gh api "$api/artifacts" --jq '.artifacts[].name' | grep -qx products; do
-  build=$(gh api "$api/jobs" --jq '.jobs[] | select(.name == "Build and unit tests") | .status')
+  build=$(gh api "$api/jobs" --jq '.jobs[] | select(.name | startswith("Build")) | .status')
   if [[ "$build" == completed ]]; then
     # It may have uploaded just after the look above.
     gh api "$api/artifacts" --jq '.artifacts[].name' | grep -qx products && break

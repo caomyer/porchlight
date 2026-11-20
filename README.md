@@ -139,10 +139,12 @@ Every push to any branch runs the unit tests and both UI suites on GitHub's host
 A newer push to the same branch cancels the run before it.
 Each job is a small Mac (3 cores, 7 GB) that holds one simulator, and the plan runs five at once:
 
-- **Build and unit tests** builds once (`scripts/test.sh --build-only`), hands the build to the UI jobs as the `products` artifact, then runs the unit tests on the iPad.
-- **Wall UI 1 of 2, 2 of 2, Phone UI 1 of 2, 2 of 2** each run a share of a UI suite's test classes (`--shard`), on the build from the first job (`--no-build`).
-  The shares are of about equal time, from each class's measured seconds in `scripts/lib/ui-test-seconds`.
-  Each boots its simulator while the build is still going, since a new iOS 27 simulator takes 3 to 8 minutes to boot and finish setting itself up.
+- **Build, unit tests, Wall UI 1 of 2** builds once (`scripts/test.sh --build-only`) and hands the build to the other jobs as the `products` artifact, then runs the unit tests and the first half of the wall's UI suite on the iPad, which booted during the build.
+- **Wall UI 2 of 2, Phone UI 1 of 3, 2 of 3, 3 of 3** each run a share of a UI suite's test classes (`--shard`), on the build from the first job (`--no-build`).
+  Each boots its simulator while the build is still going, since a new iOS 27 simulator takes 2 to 8 minutes to boot and finish setting itself up.
+
+The shares are of about equal time, from each class's measured seconds in `scripts/lib/ui-test-seconds`; when a class grows, update its line from a run's log, where each test prints its seconds.
+The suites take about 35 minutes of tests for the wall and 75 for the phone on these Macs, about one and a half times the development Mac's, since a 7 GB Mac swaps 2 to 3 GB with a simulator up.
 
 The jobs go through `scripts/test.sh` like a local run; the steps around it live in `scripts/ci`.
 The log prints each test as it ends (`--progress`), and every two minutes a heartbeat line with the free memory, so a hang or a Mac out of memory shows.

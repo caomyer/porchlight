@@ -4,11 +4,12 @@ name: Tests
 # runs do not compete for the development Mac. The iOS 17 run, for the wall iPad's own OS,
 # stays local: scripts/test.sh.
 #
-# Each job is one small Mac (3 cores, 7 GB), which holds one simulator. One job builds,
-# hands the build to the others as the "products" artifact, and then runs the unit tests.
-# The UI suites run in shards of whole test classes (scripts/test.sh --shard), one per job,
-# five jobs side by side, which is as many Macs as the plan runs at once. Each UI job boots
-# its simulator while the build is still going, so the build is the only wait.
+# Each job is one small Mac (3 cores, 7 GB), which holds one simulator, and the plan runs
+# five at once. The UI suites run in shards of whole test classes of about equal time
+# (scripts/test.sh --shard): the wall's in two, the phone's in three. The first job builds,
+# hands the build to the others as the "products" artifact, and then runs the unit tests
+# and the wall's first shard; the others boot their simulators while the build is going,
+# so the build is their only wait.
 #
 # Run by hand (Actions, Tests, Run workflow) with "only" set to run just those tests, e.g.
 # "FirstRunTests PhoneTests/testCheckingChores", in one job that builds for itself.
@@ -40,7 +41,7 @@ env:
 
 jobs:
   build:
-    name: Build and unit tests
+    name: Build, unit tests, Wall UI 1 of 2
     if: ${{ !inputs.only }}
     runs-on: xcode-27
     timeout-minutes: 60
@@ -59,6 +60,9 @@ jobs:
 
       - name: Pick the simulators
         run: zsh scripts/ci/pick-simulators.sh
+
+      - name: Boot the ipad while the build runs
+        run: nohup zsh scripts/ci/boot-simulator.sh ipad > boot.log 2>&1 &
 
       - name: Build
         run: zsh scripts/test.sh --build-only
@@ -83,8 +87,10 @@ jobs:
           compression-level: 1
           retention-days: 1
 
-      - name: Unit tests
-        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh --unit-only --no-build --progress --runtime "$RUNTIME"
+      - name: Test
+        run: |
+          cat boot.log
+          zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh --wall --shard 1/2 --no-build --progress --runtime "$RUNTIME"
 
       - name: Collect results
         if: always()
@@ -94,7 +100,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: results-Unit
+          name: results-Unit and Wall UI 1 of 2
           path: results
           if-no-files-found: ignore
           retention-days: 7
@@ -108,18 +114,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Wall UI 1 of 2
-            kind: ipad
-            args: --wall --ui-only --shard 1/2
           - name: Wall UI 2 of 2
             kind: ipad
             args: --wall --ui-only --shard 2/2
-          - name: Phone UI 1 of 2
+          - name: Phone UI 1 of 3
             kind: iphone
-            args: --phone --ui-only --shard 1/2
-          - name: Phone UI 2 of 2
+            args: --phone --ui-only --shard 1/3
+          - name: Phone UI 2 of 3
             kind: iphone
-            args: --phone --ui-only --shard 2/2
+            args: --phone --ui-only --shard 2/3
+          - name: Phone UI 3 of 3
+            kind: iphone
+            args: --phone --ui-only --shard 3/3
     steps:
       - uses: actions/checkout@v4
 
