@@ -63,7 +63,7 @@ struct CompanionScreen: View {
                         request = CareLogRequest(companionId: companionId, routineId: routine.id, returnTitle: "Back to \(report.name)")
                     }
                 } label: {
-                    Label(CompanionWeekWords.logButton(routine), systemImage: "pawprint.fill")
+                    Label(CompanionWeekWords.logButton(CareWords(routine, species: report.companion.species)), systemImage: "pawprint.fill")
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .alignmentGuide(.lastTextBaseline) { $0[VerticalAlignment.center] + 6 }
@@ -129,7 +129,7 @@ private struct PawTrailCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            CardHeader(title: "Paw trail", meta: report.primaryRoutine.map(CompanionWeekWords.trailMeta) ?? "who did it, each slot")
+            CardHeader(title: "Paw trail", meta: report.words.map(CompanionWeekWords.trailMeta) ?? "who did it, each slot")
             if let week = report.primaryWeek {
                 PawTrailGrid(week: week, weekDays: report.weekDays, today: report.today, isEnabled: openCareLog != nil) { open($0, week: week) }
             }
@@ -162,11 +162,11 @@ private struct DiaryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             CardHeader(
-                title: report.primaryRoutine.map(CompanionWeekWords.diaryTitle) ?? "Care diary",
+                title: report.words.map(CompanionWeekWords.diaryTitle) ?? "Care diary",
                 meta: CompanionWeekWords.captionsMeta(report.companion)
             )
             if report.diary.isEmpty && report.missed.isEmpty {
-                Text(report.primaryRoutine.map(CompanionWeekWords.emptyDiary) ?? "Nothing logged this week yet.")
+                Text(report.words.map(CompanionWeekWords.emptyDiary) ?? "Nothing logged this week yet.")
                     .font(.body(13.5, weight: 600))
                     .foregroundStyle(Theme.muted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -275,9 +275,9 @@ private struct PodiumCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            CardHeader(title: report.primaryRoutine.map(CompanionWeekWords.podiumTitle) ?? "Helper of the week")
+            CardHeader(title: report.words.map(CompanionWeekWords.podiumTitle) ?? "Helper of the week")
             if report.leaderboard.isEmpty {
-                Text(report.primaryRoutine.map(CompanionWeekWords.emptyPodium) ?? "The podium is wide open.")
+                Text(report.words.map(CompanionWeekWords.emptyPodium) ?? "The podium is wide open.")
                     .font(.body(13.5, weight: 600))
                     .foregroundStyle(Theme.muted)
                     .frame(maxWidth: .infinity, minHeight: 120)

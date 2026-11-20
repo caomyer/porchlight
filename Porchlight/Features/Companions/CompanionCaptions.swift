@@ -31,6 +31,7 @@ enum CaptionEngine {
         tone: CompanionTone,
         name: String,
         routine: CareRoutine,
+        words: CareWords,
         names: [Person.ID: String],
         calendar: Calendar
     ) -> [CareLog.ID: String] {
@@ -42,7 +43,7 @@ enum CaptionEngine {
             let context = Context(
                 name: name,
                 kind: routine.kind,
-                noun: routine.kind.noun(title: routine.title),
+                noun: words.noun,
                 who: whoText(entry.people, names: names),
                 together: entry.isTogether,
                 nthThisWeek: counts[entry.id] ?? 1,

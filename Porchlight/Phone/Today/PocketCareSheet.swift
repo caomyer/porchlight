@@ -66,10 +66,11 @@ struct PocketCareSheet: View {
             routine: routine, editing: editing, catchUpDay: request.catchUp?.day, today: report.today, now: report.now,
             calendar: store.snapshot.calendar, history: store.snapshot.entries(of: routine.id)
         )
-        let noun = routine.kind.noun(title: routine.title)
+        let words = store.snapshot.words(routine)
+        let noun = words.noun
         return PhoneSheet(
             label: "\(report.name) · \(slotName(routine, day: day))",
-            title: editing == nil ? "Log a \(noun)" : CareLogWording.editTitle(routine)
+            title: editing == nil ? CompanionWeekWords.logButton(words) : CareLogWording.editTitle(words)
         ) {
             if let subtitle = subtitle(routine, report: report, editing: editing) {
                 Text(subtitle)
@@ -123,7 +124,7 @@ struct PocketCareSheet: View {
                     }
                 }
             }
-            TextField("A note for the \(noun) diary", text: $fields.note, axis: .vertical)
+            TextField("A note for the \(words.diaryNoun) diary", text: $fields.note, axis: .vertical)
                 .phoneFont(.body, 15, weight: 600)
                 .submitLabel(.done)
                 .fieldStyle()
@@ -152,7 +153,7 @@ struct PocketCareSheet: View {
     @ViewBuilder
     private func editButtons(_ editing: CareEntry, routine: CareRoutine, day: CareLogDay) -> some View {
         if confirmingRemove {
-            Button(CareLogWording.confirmRemove(routine), role: .destructive) { remove(editing) }
+            Button(CareLogWording.confirmRemove(store.snapshot.words(routine)), role: .destructive) { remove(editing) }
                 .buttonStyle(PhoneButtonStyle(kind: .destructive))
                 .accessibilityIdentifier("confirm-remove-care")
             Button(CareLogWording.keep) { confirmingRemove = false }

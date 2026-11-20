@@ -187,9 +187,9 @@ struct PocketTodayTests {
     func words() {
         let names: [Person.ID: String] = [F.james: "James", F.mia: "Mia"]
         let entry = F.entry(1, 17, 40, by: [F.mia])
-        #expect(PocketToday.alreadyDone(entry, routine: F.walk, companion: "Yo-Yo", me: F.james, names: names, calendar: F.calendar) == "Mia walked Yo-Yo at 5:40pm")
+        #expect(PocketToday.alreadyDone(entry, words: CareWords(F.walk, species: .dog), companion: "Yo-Yo", me: F.james, names: names, calendar: F.calendar) == "Mia walked Yo-Yo at 5:40pm")
         let mine = F.entry(2, 17, 40, by: [F.james])
-        #expect(PocketToday.alreadyDone(mine, routine: F.walk, companion: "Yo-Yo", me: F.james, names: names, calendar: F.calendar) == "You walked Yo-Yo at 5:40pm")
+        #expect(PocketToday.alreadyDone(mine, words: CareWords(F.walk, species: .dog), companion: "Yo-Yo", me: F.james, names: names, calendar: F.calendar) == "You walked Yo-Yo at 5:40pm")
         #expect(PocketToday.who([F.james, F.mia], me: F.james, names: names) == "Mia & you")
     }
 }

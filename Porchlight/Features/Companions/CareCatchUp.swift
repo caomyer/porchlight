@@ -30,7 +30,7 @@ enum CareCatchUp {
         guard isCatchUpDay(day, today: today, calendar: calendar) else { return [] }
         let byDay = CareLogic.byDay(entries, calendar: calendar)
         return CareLogic.slots(for: routine, on: day, byDay: byDay, now: now, calendar: calendar)
-            .filter { $0.state == .missed && isOwed($0, of: routine, on: day, since: added, calendar: calendar) }
+            .filter { $0.state == .missed && CareLogic.isOwed($0, of: routine, on: day, since: added, calendar: calendar) }
             .map { slot in
                 MissedCare(
                     routine: routine, day: day, slot: slot,
@@ -47,14 +47,6 @@ enum CareCatchUp {
             return routines.flatMap { missed($0, entries: entries($0), on: day, now: now, calendar: calendar, since: added) }
                 .sorted { $0.usual > $1.usual }
         }
-    }
-
-    /// Whether a slot that went by unlogged was owed: on the day a routine starts, slots
-    /// whose window had closed before the companion was added never were. A companion added
-    /// at 9 pm doesn't owe that evening's dinner.
-    static func isOwed(_ slot: CareSlot, of routine: CareRoutine, on day: DayKey, since added: Date?, calendar: Calendar) -> Bool {
-        guard let added, day == routine.start else { return true }
-        return CareLogic.date(day, minute: slot.window.end, calendar: calendar) > added
     }
 
     /// When a slot usually happens on `day`: its typical time over the two weeks before,

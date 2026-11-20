@@ -84,7 +84,7 @@ struct PocketLogging {
 
     /// Someone logged the slot first: say so, and offer to join their log.
     private func alreadyLogged(_ entry: CareEntry, routine: CareRoutine, companion: String, joining people: [Person.ID]) {
-        let sentence = PocketToday.alreadyDone(entry, routine: routine, companion: companion, me: me, names: names, calendar: calendar)
+        let sentence = PocketToday.alreadyDone(entry, words: companions.snapshot.words(routine), companion: companion, me: me, names: names, calendar: calendar)
         let newcomers = people.filter { !entry.people.contains($0) }
         guard !newcomers.isEmpty else {
             present(UndoToast(emoji: routine.emoji, title: sentence, detail: "Already logged, so nothing was added"))
@@ -103,7 +103,7 @@ struct PocketLogging {
         let who = PocketToday.who(people, me: me, names: names)
         present(UndoToast(
             emoji: routine.emoji,
-            title: "Added \(who) to the \(routine.kind.noun(title: routine.title))",
+            title: "Added \(who) to the \(companions.snapshot.words(routine).noun)",
             detail: "\(StarWords.earned(routine.stars)) each",
             action: .init(title: "Undo") { [direct] in if !direct.companions.removePeople(people, fromLog: entry.id) { direct.failed() } }
         ))
@@ -113,7 +113,7 @@ struct PocketLogging {
     private func logged(_ log: CareLog, routine: CareRoutine, people: [Person.ID]) {
         present(UndoToast(
             emoji: routine.emoji,
-            title: PocketCareWords.capitalized(routine.kind.noun(title: routine.title)) + " logged",
+            title: CompanionWeekWords.logged(companions.snapshot.words(routine)),
             detail: detail(people: people, stars: routine.stars),
             action: .init(title: "Undo") { [direct] in direct.remove(log.id) }
         ))

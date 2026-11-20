@@ -101,7 +101,7 @@ enum PocketToday {
         let candidates = reports.flatMap { report -> [(CompanionReport, MissedCare)] in
             let late = ([report.primary].compactMap { $0 } + report.others).flatMap { today in
                 today.slots.filter {
-                    $0.state == .late && CareCatchUp.isOwed($0, of: today.routine, on: report.today, since: report.companion.createdAt, calendar: calendar)
+                    $0.state == .late && CareLogic.isOwed($0, of: today.routine, on: report.today, since: report.companion.createdAt, calendar: calendar)
                 }.map { slot in
                     MissedCare(
                         routine: today.routine, day: report.today, slot: slot,
@@ -151,9 +151,9 @@ enum PocketToday {
 
     /// "Mia walked Yo-Yo at 5:40pm": what someone else already did, said before
     /// offering to join it.
-    static func alreadyDone(_ entry: CareEntry, routine: CareRoutine, companion: String, me: Person.ID?, names: [Person.ID: String], calendar: Calendar) -> String {
+    static func alreadyDone(_ entry: CareEntry, words: CareWords, companion: String, me: Person.ID?, names: [Person.ID: String], calendar: Calendar) -> String {
         let who = who(entry.people, me: me, names: names)
-        let sentence = routine.kind.sentence(who: who.prefix(1).uppercased() + who.dropFirst(), name: companion, title: routine.title)
+        let sentence = words.sentence(who: who.prefix(1).uppercased() + who.dropFirst(), name: companion)
         return sentence + " at " + CareText.timeWithPeriod(entry.time, calendar: calendar)
     }
 
@@ -161,7 +161,7 @@ enum PocketToday {
     static func allSetLine(_ report: CompanionReport, me: Person.ID?, names: [Person.ID: String], calendar: Calendar) -> String {
         let parts = ([report.primary].compactMap { $0 } + report.others).compactMap { today -> String? in
             guard let last = today.slots.compactMap(\.entry).max(by: { $0.time < $1.time }) else { return nil }
-            return "\(today.routine.kind.pastVerb.lowercased()) at \(CareText.timeWithPeriod(last.time, calendar: calendar)) by \(who(last.people, me: me, names: names))"
+            return "\(CareWords(today.routine, species: report.companion.species).pastVerb.lowercased()) at \(CareText.timeWithPeriod(last.time, calendar: calendar)) by \(who(last.people, me: me, names: names))"
         }
         guard let first = parts.first else { return "Nothing due today" }
         return ([first.prefix(1).uppercased() + first.dropFirst()] + parts.dropFirst()).joined(separator: " · ")
@@ -170,8 +170,8 @@ enum PocketToday {
     /// "Walked 9h ago by Mia" under a companion's name.
     static func lastLine(_ today: RoutineToday?, report: CompanionReport, me: Person.ID?, names: [Person.ID: String]) -> String {
         guard let today else { return report.companion.species.label }
-        guard let last = today.lastEntry else { return "Waiting for the first \(today.routine.kind.noun(title: today.routine.title))" }
-        return "\(today.routine.kind.pastVerb) \(CareText.ago(last.time, now: report.now)) by \(who(last.people, me: me, names: names))"
+        guard let last = today.lastEntry else { return "Waiting for the first \(CareWords(today.routine, species: report.companion.species).noun)" }
+        return "\(CareWords(today.routine, species: report.companion.species).pastVerb) \(CareText.ago(last.time, now: report.now)) by \(who(last.people, me: me, names: names))"
     }
 
     /// "Evening", "Water": a slot's name on its tile.

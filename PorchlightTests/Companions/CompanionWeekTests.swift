@@ -144,18 +144,113 @@ struct CompanionWeekTests {
         #expect(CareLogic.leader([]) == nil)
     }
 
+    @Test("Water is a plant's watering and an animal's refill, everywhere it is named")
+    func waterWords() {
+        let water = F.water
+        for species in [Species.dog, .cat] {
+            let bowl = CareWords(water, species: species)
+            #expect(bowl.isBowl)
+            #expect(CompanionWeekWords.logButton(bowl) == "Log a refill")
+            #expect(CompanionWeekWords.diaryTitle(bowl) == "Water diary")
+            #expect(CompanionWeekWords.trailMeta(bowl) == "who refilled, each slot")
+            #expect(CompanionWeekWords.podiumTitle(bowl) == "Bartender of the week")
+            #expect(CompanionWeekWords.emptyPodium(bowl) == "No refills yet this week. The podium is wide open.")
+            #expect(CompanionWeekWords.logged(bowl) == "Refill logged", "the toast")
+            #expect(CompanionWeekWords.waitingForFirst(bowl) == "Waiting for first refill")
+            #expect(bowl.sentence(who: "Mia", name: "Yo-Yo") == "Mia refilled Yo-Yo's water", "the timeline and arrivals")
+            #expect(bowl.buttonTitle(name: "Yo-Yo") == "I refilled Yo-Yo's water", "Today's button and the reminder's action")
+            #expect(bowl.question(name: "Yo-Yo") == "Who refilled Yo-Yo's water?", "the wall's care sheet")
+            #expect(bowl.pastVerb == "Refilled", "Today's card and the widgets")
+            #expect(CareLogWording.editTitle(bowl) == "Edit refill")
+            #expect(CareLogWording.confirmRemove(bowl) == "Remove refill")
+        }
+
+        let plant = CareWords(water, species: .plant)
+        #expect(!plant.isBowl)
+        #expect(CompanionWeekWords.logButton(plant) == "Log a watering")
+        #expect(CompanionWeekWords.diaryTitle(plant) == "Watering diary")
+        #expect(CompanionWeekWords.trailMeta(plant) == "who watered, each slot")
+        #expect(CompanionWeekWords.podiumTitle(plant) == "Gardener of the week")
+        #expect(plant.sentence(who: "Mia", name: "Fern") == "Mia watered Fern")
+        #expect(plant.pastVerb == "Watered")
+
+        // Every other kind reads the same for any companion.
+        #expect(CareWords(F.walk, species: .dog) == CareWords(kind: .walk, title: "Walk", species: .dog))
+        #expect(CareWords(kind: .feed, title: "Feed", species: .cat).noun == CareWords(kind: .feed, title: "Feed", species: .plant).noun)
+        #expect(CompanionPresets.welcome(name: "Yo-Yo", species: .dog, routines: [CareRoutineDraft(kind: .water, windows: [.hours("Morning", 7, 11)], stars: 1)])
+            == "Yo-Yo has joined the household and expects one refill a day. Zero excuses.")
+    }
+
+    @Test("The words follow the companion, from the snapshot and on the page")
+    func wordsOnThePage() throws {
+        let db = try AppDatabase.inMemory()
+        let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "James", color: .blue)])
+        var dog = CompanionDraft.new(species: .dog)
+        dog.name = "Yo-Yo"
+        dog.routines.append(CareRoutineDraft(kind: .water, windows: [.hours("Morning", 7, 11)], stars: 1))
+        var fern = CompanionDraft.new(species: .plant)
+        fern.name = "Fern"
+        let dogId = try db.saveCompanion(dog, householdId: household.id)
+        let fernId = try db.saveCompanion(fern, householdId: household.id)
+        let snapshot = try db.writer.read(CompanionSnapshot.fetch)
+        let bowl = try #require(snapshot.routines(of: dogId).first { $0.kind == .water })
+        let soil = try #require(snapshot.routines(of: fernId).first { $0.kind == .water })
+        #expect(snapshot.words(bowl).noun == "refill")
+        #expect(snapshot.words(soil).noun == "watering")
+        let report = try #require(CompanionReport.make(snapshot: snapshot, companionId: dogId, now: .now))
+        #expect(report.week(of: bowl.id)?.words.isBowl == true)
+        #expect(report.week(of: bowl.id).map { CompanionWeekWords.podiumTitle($0.words) } == "Bartender of the week")
+    }
+
+    @Test("A slot that closed before the companion arrived is owed nowhere: trail, numbers, streak, missed")
+    func owed() throws {
+        let db = try AppDatabase.inMemory()
+        let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "James", color: .blue)])
+        let james = try db.snapshot().people[0].id
+        let calendar = try #require(try db.snapshot().household).calendar
+        let today = DayKey(.now, calendar: calendar)
+        let arrived = CareLogic.date(today, minute: 18 * 60 + 30, calendar: calendar)
+        var draft = CompanionDraft.new(species: .rabbit)
+        draft.name = "Pip"
+        let id = try db.saveCompanion(draft, householdId: household.id, now: arrived)
+
+        // Added at 6:30 pm: breakfast (6-9 am) was never owed, dinner (5-7 pm) is open.
+        var snapshot = try db.writer.read(CompanionSnapshot.fetch)
+        var report = try #require(CompanionReport.make(snapshot: snapshot, companionId: id, now: arrived))
+        var meals = try #require(report.weeks.first { $0.routine.kind == .feed })
+        let breakfast = try #require(meals.trail[6].first { $0.index == 0 })
+        #expect(!CareLogic.isOwed(breakfast, of: meals.routine, on: today, since: arrived, calendar: calendar))
+        #expect(meals.tap(breakfast, on: today) == nil, "the trail draws it as a plain dot")
+        #expect(meals.trailLabel(breakfast, window: breakfast.window, on: today, snapshot: snapshot).hasSuffix("not due"))
+        #expect(meals.stats.slotsSoFar == 0, "nothing owed yet")
+        #expect(meals.tiles(calendar: calendar)[2] == .init(value: "-", unit: nil, label: "slots on time"), "no score, not a failing one")
+        #expect(meals.missed.isEmpty && meals.late.isEmpty && report.missed.isEmpty)
+
+        // Dinner at 6:40 pm completes the first day: breakfast doesn't count against it.
+        let dinnerAt = CareLogic.date(today, minute: 18 * 60 + 40, calendar: calendar)
+        try db.logCare(routineId: meals.routine.id, CareLogDraft(people: [james], occurredAt: dinnerAt), now: dinnerAt)
+        snapshot = try db.writer.read(CompanionSnapshot.fetch)
+        report = try #require(CompanionReport.make(snapshot: snapshot, companionId: id, now: dinnerAt))
+        meals = try #require(report.weeks.first { $0.routine.kind == .feed })
+        #expect(meals.stats.slotsSoFar == 1 && meals.stats.slotsOnTime == 1)
+        #expect(meals.tiles(calendar: calendar)[2].value == "1/1")
+        #expect(meals.streak == 1, "a whole first day")
+        #expect(CareLogic.onTimeRun(for: meals.routine, entries: snapshot.entries(of: meals.routine.id), now: dinnerAt, calendar: calendar, since: arrived) == 1)
+        #expect(CareLogic.streak(for: meals.routine, entries: snapshot.entries(of: meals.routine.id), now: dinnerAt, calendar: calendar, since: nil) == 0,
+                "and the day would not be whole")
+    }
+
     @Test("The page's words, from the routine's kind")
     func words() throws {
         let week = try week()
-        let walk = week.walks.routine
-        let feed = week.meals.routine
+        let walk = week.walks.words
+        let feed = week.meals.words
         #expect(CompanionWeekWords.diaryTitle(walk) == "Walk diary")
         #expect(CompanionWeekWords.diaryTitle(feed) == "Meal diary")
         #expect(CompanionWeekWords.podiumTitle(feed) == "Chef of the week")
         #expect(CompanionWeekWords.trailMeta(walk) == "who walked, each slot")
         #expect(CompanionWeekWords.trailMeta(feed) == "who fed, each slot")
-        var litter = feed
-        litter.kind = .litter
+        let litter = CareWords(kind: .litter, title: "Litter", species: .cat)
         #expect(CompanionWeekWords.trailMeta(litter) == "who did it, each slot")
         #expect(CompanionWeekWords.logButton(feed) == "Log a meal")
         #expect(CompanionWeekWords.emptyDiary(feed) == "Nothing logged this week yet. The first meal starts the story.")

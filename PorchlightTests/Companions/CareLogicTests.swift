@@ -89,24 +89,24 @@ struct CareLogicTests {
     func streak() {
         let history = F.fullDays(1...6)
         let morning = F.date(day: 7, 8)
-        #expect(CareLogic.streak(for: F.walk, entries: history, now: morning, calendar: calendar) == 6)
+        #expect(CareLogic.streak(for: F.walk, entries: history, now: morning, calendar: calendar, since: nil) == 6)
         let today = history + [F.entry(1, 7), F.entry(2, 18)]
-        #expect(CareLogic.streak(for: F.walk, entries: today, now: F.date(19), calendar: calendar) == 7)
+        #expect(CareLogic.streak(for: F.walk, entries: today, now: F.date(19), calendar: calendar, since: nil) == 7)
     }
 
     @Test("A missed slot ends the streak, and no history means no streak")
     func streakBreaks() {
         var history = F.fullDays(1...6)
         history.removeAll { $0.id == 1007 }  // Nov 4, evening
-        #expect(CareLogic.streak(for: F.walk, entries: history, now: F.date(8), calendar: calendar) == 2)
-        #expect(CareLogic.streak(for: F.walk, entries: [], now: F.date(8), calendar: calendar) == 0)
+        #expect(CareLogic.streak(for: F.walk, entries: history, now: F.date(8), calendar: calendar, since: nil) == 2)
+        #expect(CareLogic.streak(for: F.walk, entries: [], now: F.date(8), calendar: calendar, since: nil) == 0)
     }
 
     @Test("Every-N-days streaks count the days in between as kept")
     func streakEveryNDays() {
         let entries = [1, 4].map { F.entry(.number($0), day: $0, 9, routine: 11) }
         // Nov 1 and Nov 4 watered; Nov 7 is due and not done yet, so it doesn't count.
-        #expect(CareLogic.streak(for: F.water, entries: entries, now: F.date(day: 7, 8), calendar: calendar) == 6)
+        #expect(CareLogic.streak(for: F.water, entries: entries, now: F.date(day: 7, 8), calendar: calendar, since: nil) == 6)
     }
 
     // MARK: Weekly stats
@@ -121,7 +121,7 @@ struct CareLogicTests {
             F.entry(4, day: 7, 8, minutes: 25, pee: true, poo: true),
             F.entry(5, day: 31 - 31, 8, minutes: 99),  // Oct 31: previous week
         ]
-        let stats = CareLogic.weekStats(for: F.walk, entries: entries, days: days, now: F.date(day: 7, 12), calendar: calendar)
+        let stats = CareLogic.weekStats(for: F.walk, entries: entries, days: days, now: F.date(day: 7, 12), calendar: calendar, since: nil)
         #expect(stats.count == 4)
         #expect(stats.averageMinutes == 29)
         #expect(stats.pee == 3)
@@ -157,11 +157,11 @@ struct CareLogicTests {
     func onTimeRun() {
         var entries = F.fullDays(1...6)
         entries.append(F.entry(1, 8))
-        #expect(CareLogic.onTimeRun(for: F.walk, entries: entries, now: F.date(12), calendar: calendar) == 13)
+        #expect(CareLogic.onTimeRun(for: F.walk, entries: entries, now: F.date(12), calendar: calendar, since: nil) == 13)
         entries.append(F.entry(2, day: 0, 12))  // Oct 31 midday: a late morning walk ends the run there
-        #expect(CareLogic.onTimeRun(for: F.walk, entries: entries, now: F.date(12), calendar: calendar) == 13)
+        #expect(CareLogic.onTimeRun(for: F.walk, entries: entries, now: F.date(12), calendar: calendar, since: nil) == 13)
         let late = entries + [F.entry(3, 21)]
-        #expect(CareLogic.onTimeRun(for: F.walk, entries: late, now: F.date(22), calendar: calendar) == 0)
+        #expect(CareLogic.onTimeRun(for: F.walk, entries: late, now: F.date(22), calendar: calendar, since: nil) == 0)
     }
 
     @Test("Next milestone steps up through the list, then by the last step")

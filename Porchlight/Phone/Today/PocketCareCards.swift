@@ -67,7 +67,7 @@ private struct FullCareCard: View {
                     handlers.log(card, lead, alsoWent)
                     alsoWent = []
                 } label: {
-                    Text("\(lead.routine.emoji) \(lead.routine.kind.buttonTitle(name: report.name, title: lead.routine.title))")
+                    Text("\(lead.routine.emoji) \(CareWords(lead.routine, species: report.companion.species).buttonTitle(name: report.name))")
                 }
                 .buttonStyle(PhoneButtonStyle())
                 .accessibilityLabel(PocketCareWords.logLabel(lead, companion: report.name))
@@ -75,7 +75,7 @@ private struct FullCareCard: View {
             } else if card.standing == .allSet, let latest {
                 DoneCapsule(text: "✓ Logged · \(StarWords.earned(latest.log.stars))")
             } else if let routine = card.shown?.routine {
-                Button("Log a \(routine.kind.noun(title: routine.title))…") { handlers.more(card, routine, []) }
+                Button(CompanionWeekWords.logButton(CareWords(routine, species: report.companion.species)) + "…") { handlers.more(card, routine, []) }
                     .buttonStyle(PhoneButtonStyle(kind: .ghost))
             }
             if !card.others.isEmpty {
@@ -186,7 +186,7 @@ private struct FullCareCard: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("More details for \(report.name.possessive) \(routine.kind.noun(title: routine.title))")
+            .accessibilityLabel("More details for \(report.name.possessive) \(CareWords(routine, species: report.companion.species).noun)")
             .accessibilityIdentifier("more-\(report.name)")
         }
     }
@@ -257,7 +257,7 @@ private struct SmallCareCard: View {
             .accessibilityIdentifier("week-\(card.report.name)")
             Spacer(minLength: 0)
             if let lead = card.lead {
-                Button("\(lead.routine.emoji) \(lead.routine.kind.pastVerb)") { handlers.log(card, lead, []) }
+                Button("\(lead.routine.emoji) \(CareWords(lead.routine, species: card.report.companion.species).pastVerb)") { handlers.log(card, lead, []) }
                     .buttonStyle(PhoneButtonStyle(small: true))
                     .accessibilityLabel(PocketCareWords.logLabel(lead, companion: card.report.name))
                     .accessibilityIdentifier("log-\(card.report.name)")

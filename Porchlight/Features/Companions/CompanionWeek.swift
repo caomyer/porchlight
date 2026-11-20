@@ -19,9 +19,12 @@ struct RoutineWeek: Identifiable {
     var late: [MissedCare] = []
     var milestones: [Milestone]
 
+    /// What the routine's care is called, for what its companion is.
+    var words: CareWords
+
     var id: CareRoutine.ID { routine.id }
-    /// "walk", "meal", "watering".
-    var noun: String { routine.kind.noun(title: routine.title) }
+    /// "walk", "meal", "watering", "refill".
+    var noun: String { words.noun }
     /// The diary's rows: what was logged, with what wasn't in its place, newest first.
     var rows: [DiaryRow] { DiaryRow.rows(diary, missed: missed) }
 
@@ -33,14 +36,16 @@ struct RoutineWeek: Identifiable {
         let entries = snapshot.entries(of: routine.id)
         let byDay = CareLogic.byDay(entries, calendar: calendar)
         let weekEntries = entries.filter { weekDays.contains(DayKey($0.time, calendar: calendar)) }
+        let words = CareWords(routine, species: companion.species)
+        let added = companion.createdAt
         let captions = CaptionEngine.captions(
-            for: entries, tone: companion.captionTone, name: companion.name, routine: routine,
+            for: entries, tone: companion.captionTone, name: companion.name, routine: routine, words: words,
             names: snapshot.names, calendar: calendar
         )
         let trail = weekDays.map { CareLogic.slots(for: routine, on: $0, byDay: byDay, now: now, calendar: calendar) }
         let today = DayKey(now, calendar: calendar)
         let late = (weekDays.last == today ? trail.last ?? [] : [])
-            .filter { $0.state == .late && CareCatchUp.isOwed($0, of: routine, on: today, since: companion.createdAt, calendar: calendar) }
+            .filter { $0.state == .late && CareLogic.isOwed($0, of: routine, on: today, since: added, calendar: calendar) }
             .map { slot in
                 MissedCare(
                     routine: routine, day: today, slot: slot,
@@ -50,13 +55,14 @@ struct RoutineWeek: Identifiable {
         return RoutineWeek(
             routine: routine,
             trail: trail,
-            stats: CareLogic.weekStats(for: routine, entries: entries, days: weekDays, now: now, calendar: calendar),
-            streak: CareLogic.streak(for: routine, entries: entries, now: now, calendar: calendar),
+            stats: CareLogic.weekStats(for: routine, entries: entries, days: weekDays, now: now, calendar: calendar, since: added),
+            streak: CareLogic.streak(for: routine, entries: entries, now: now, calendar: calendar, since: added),
             leaderboard: CareLogic.leaderboard(weekEntries, people: snapshot.everyone.map(\.id)),
             diary: weekEntries.reversed().map { DiaryItem(entry: $0, caption: captions[$0.id]) },
             missed: missed,
             late: late,
-            milestones: CompanionReport.milestones(routine: routine, entries: entries, snapshot: snapshot, now: now, calendar: calendar)
+            milestones: CompanionReport.milestones(routine: routine, words: words, entries: entries, snapshot: snapshot, now: now, calendar: calendar, since: added),
+            words: words
         )
     }
 
@@ -97,7 +103,8 @@ struct RoutineWeek: Identifiable {
         } else {
             tiles.append(Tile(value: "\(stats.count)", unit: nil, label: "\(noun)s this week"))
         }
-        tiles.append(Tile(value: "\(stats.slotsOnTime)/\(stats.slotsSoFar)", unit: nil, label: "slots on time"))
+        // Nothing owed yet (a companion added today) is no score at all, not a failing one.
+        tiles.append(Tile(value: stats.slotsSoFar == 0 ? "-" : "\(stats.slotsOnTime)/\(stats.slotsSoFar)", unit: nil, label: "slots on time"))
         if routine.tracks(.pee) || routine.tracks(.poo) {
             let business = [routine.tracks(.pee) ? "💧\(stats.pee)" : nil, routine.tracks(.poo) ? "💩\(stats.poo)" : nil]
             tiles.append(Tile(value: business.compactMap { $0 }.joined(separator: " "), unit: nil, label: "business log"))
@@ -203,27 +210,19 @@ enum CompanionWeekWords {
         text.prefix(1).uppercased() + text.dropFirst()
     }
 
-    /// "Log a walk": the page's own log button.
-    static func logButton(_ routine: CareRoutine) -> String {
-        "Log a \(routine.kind.noun(title: routine.title))"
+    /// "Log a walk", "Log a refill": the page's own log button.
+    static func logButton(_ words: CareWords) -> String {
+        "Log a \(words.noun)"
     }
 
     /// "who walked, each slot", beside Paw trail.
-    static func trailMeta(_ routine: CareRoutine) -> String {
-        let verb = switch routine.kind {
-        case .walk: "walked"
-        case .feed: "fed"
-        case .water: "watered"
-        case .groom: "groomed"
-        case .play: "played"
-        default: "did it"
-        }
-        return "who \(verb), each slot"
+    static func trailMeta(_ words: CareWords) -> String {
+        "who \(words.trailVerb), each slot"
     }
 
-    /// "Walk diary", "Meal diary".
-    static func diaryTitle(_ routine: CareRoutine) -> String {
-        "\(capitalized(routine.kind.noun(title: routine.title))) diary"
+    /// "Walk diary", "Meal diary", "Water diary".
+    static func diaryTitle(_ words: CareWords) -> String {
+        "\(capitalized(words.diaryNoun)) diary"
     }
 
     /// "captions: Cheeky", beside the diary's title, unless captions are off.
@@ -231,17 +230,27 @@ enum CompanionWeekWords {
         companion.captionTone == .off ? nil : "captions: \(companion.captionTone.label)"
     }
 
-    static func emptyDiary(_ routine: CareRoutine) -> String {
-        "Nothing logged this week yet. The first \(routine.kind.noun(title: routine.title)) starts the story."
+    static func emptyDiary(_ words: CareWords) -> String {
+        "Nothing logged this week yet. The first \(words.noun) starts the story."
     }
 
-    /// "Walker of the week", "Chef of the week".
-    static func podiumTitle(_ routine: CareRoutine) -> String {
-        "\(routine.kind.agentNoun) of the week"
+    /// "Walker of the week", "Chef of the week", "Bartender of the week".
+    static func podiumTitle(_ words: CareWords) -> String {
+        "\(words.agentNoun) of the week"
     }
 
-    static func emptyPodium(_ routine: CareRoutine) -> String {
-        "No \(routine.kind.noun(title: routine.title))s yet this week. The podium is wide open."
+    static func emptyPodium(_ words: CareWords) -> String {
+        "No \(words.noun)s yet this week. The podium is wide open."
+    }
+
+    /// "Waiting for first walk": the mood before anything was logged.
+    static func waitingForFirst(_ words: CareWords) -> String {
+        "Waiting for first \(words.noun)"
+    }
+
+    /// "Refill logged": the toast after a log from the care sheet.
+    static func logged(_ words: CareWords) -> String {
+        "\(capitalized(words.noun)) logged"
     }
 
     /// "Today 8:12am", "Fri 6:40pm": when a diary row happened.

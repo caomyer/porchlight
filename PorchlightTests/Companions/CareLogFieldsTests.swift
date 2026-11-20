@@ -56,8 +56,8 @@ struct CareLogFieldsTests {
 
     @Test("The wall and the phone say the same when fixing a log")
     func fixingWords() {
-        #expect(CareLogWording.editTitle(F.walk) == "Edit walk")
-        #expect(CareLogWording.confirmRemove(F.walk) == "Remove walk")
+        #expect(CareLogWording.editTitle(CareWords(F.walk, species: .dog)) == "Edit walk")
+        #expect(CareLogWording.confirmRemove(CareWords(F.walk, species: .dog)) == "Remove walk")
         #expect(CareLogWording.saveChanges == "Save changes")
         #expect(CareLogWording.remove == "Remove" && CareLogWording.keep == "Keep it")
         #expect(CareLogWording.editSubtitle == "Fix who, when or how it went")

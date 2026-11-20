@@ -127,7 +127,7 @@ enum IntentWork {
             let lead = report.map { PocketToday.card($0, calendar: who.snapshot.calendar) }
             let open = ([lead?.lead].compactMap { $0 } + (lead?.others ?? [])).first { $0.routine.kind == kind }?.routine
             guard let chosen = open ?? ofKind.first else {
-                return .answer(Answer(text: "\(companion.name) has no \(kind.noun(title: kind.defaultTitle)) routine in Porchlight.", wrote: false))
+                return .answer(Answer(text: "\(companion.name) has no \(CareWords(kind: kind, title: kind.defaultTitle, species: companion.species).noun) routine in Porchlight.", wrote: false))
             }
             routine = chosen
         } else {
@@ -140,7 +140,7 @@ enum IntentWork {
         let calendar = who.snapshot.calendar
         let day = DayKey(now, calendar: calendar)
         guard routine.occurs(on: day, calendar: calendar) else {
-            return .answer(Answer(text: "\(companion.name.possessive) \(routine.kind.noun(title: routine.title)) isn't due today.", wrote: false))
+            return .answer(Answer(text: "\(companion.name.possessive) \(CareWords(routine, species: companion.species).noun) isn't due today.", wrote: false))
         }
         let slot = CareLogic.windowIndex(forMinute: CareLogic.minuteOfDay(now, calendar: calendar), in: routine.effectiveWindows)
         return log(routine: routine, companion: companion, slot: slot, day: day, me: me, who: who, database: database, now: now)
@@ -160,7 +160,7 @@ enum IntentWork {
             ))
         case let .alreadyLogged(entry):
             return .answer(Answer(
-                text: PocketToday.alreadyDone(entry, routine: routine, companion: companion.name, me: me.id, names: who.snapshot.names, calendar: calendar),
+                text: PocketToday.alreadyDone(entry, words: CareWords(routine, species: companion.species), companion: companion.name, me: me.id, names: who.snapshot.names, calendar: calendar),
                 detail: "Already logged, so nothing was added.",
                 wrote: false
             ))

@@ -57,7 +57,9 @@ struct CompanionReport {
 
     var primaryRoutine: CareRoutine? { primary?.routine }
     var primaryWeek: RoutineWeek? { weeks.first }
-    var noun: String { primaryRoutine.map { $0.kind.noun(title: $0.title) } ?? "care" }
+    /// What the primary routine's care is called, for what this companion is.
+    var words: CareWords? { primaryRoutine.map { CareWords($0, species: companion.species) } }
+    var noun: String { words?.noun ?? "care" }
 
     /// The primary routine's slots for each day of the week.
     var trail: [[CareSlot]] { primaryWeek?.trail ?? weekDays.map { _ in [] } }
@@ -118,12 +120,12 @@ struct CompanionReport {
 
     // MARK: Milestones
 
-    static func milestones(routine: CareRoutine, entries: [CareEntry], snapshot: CompanionSnapshot, now: Date, calendar: Calendar) -> [Milestone] {
-        let noun = routine.kind.noun(title: routine.title)
+    static func milestones(routine: CareRoutine, words: CareWords, entries: [CareEntry], snapshot: CompanionSnapshot, now: Date, calendar: Calendar, since added: Date?) -> [Milestone] {
+        let noun = words.noun
         var list: [Milestone] = []
 
         if !entries.isEmpty && !routine.effectiveWindows.allSatisfy(\.isAllDay) {
-            let run = CareLogic.onTimeRun(for: routine, entries: entries, now: now, calendar: calendar)
+            let run = CareLogic.onTimeRun(for: routine, entries: entries, now: now, calendar: calendar, since: added)
             let target = CareLogic.nextMilestone(after: run, in: CareLogic.runMilestones)
             list.append(Milestone(
                 id: "run", emoji: "🏅", title: "\(target) \(noun)s in a row on time",
@@ -222,7 +224,7 @@ extension CompanionReport {
 
     /// "🙂 Doing fine", or what it waits for before anything was logged.
     var moodText: String {
-        guard let mood = moodLabel else { return "Waiting for first \(noun)" }
+        guard let mood = moodLabel else { return words.map(CompanionWeekWords.waitingForFirst) ?? "Waiting for first care" }
         return "\(mood.emoji) \(mood.label)"
     }
 }

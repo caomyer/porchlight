@@ -91,9 +91,9 @@ enum CompanionPresets {
     }
 
     /// The preview line when a companion has just been added.
-    static func welcome(name: String, routines: [CareRoutineDraft]) -> String {
+    static func welcome(name: String, species: Species, routines: [CareRoutineDraft]) -> String {
         guard let first = routines.first else { return "\(name) has joined the household." }
-        let noun = first.kind.noun(title: first.title)
+        let noun = CareWords(kind: first.kind, title: first.title, species: species).noun
         if case let .everyNDays(days) = first.recurrence {
             return "\(name) has joined the household and expects a \(noun) every \(days) days. Zero excuses."
         }

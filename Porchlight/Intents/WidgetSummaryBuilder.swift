@@ -50,7 +50,7 @@ enum WidgetSummaryBuilder {
                 }
                 return WidgetSummary.CompanionInfo.Routine(
                     id: routine.id.description, title: routine.title, emoji: routine.emoji,
-                    doneWord: routine.kind.pastVerb, slots: slots
+                    doneWord: CareWords(routine, species: companion.species).pastVerb, slots: slots
                 )
             }
             return WidgetSummary.CompanionInfo(

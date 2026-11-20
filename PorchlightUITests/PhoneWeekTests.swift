@@ -149,7 +149,8 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         let app = launch(Self.water)
         openWeek(app)
         app.buttons["routine-Water"].tap()
-        XCTAssertTrue(element(app, beginningWith: "Watering diary").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(app, beginningWith: "Water diary").waitForExistence(timeout: 5), "A dog's bowl, not a plant's watering")
+        XCTAssertEqual(app.buttons["log-routine"].label, "Log a refill")
         XCTAssertTrue(dot(app, "Water", day: 4, slot: 0).label.hasSuffix("missed"), "Two days ago's water was skipped")
         snapshot("week-30-water")
     }

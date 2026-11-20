@@ -117,7 +117,7 @@ enum ReminderPlanner {
                         fireDate: fireDate,
                         title: "\(companion.name.possessive) \(CareCatchUp.slotName(window, of: routine))",
                         body: careBody(window, timing: timing, snoozed: snooze != nil),
-                        logTitle: routine.kind.buttonTitle(name: companion.name, title: routine.title)
+                        logTitle: CareWords(routine, species: companion.species).buttonTitle(name: companion.name)
                     )
                 }
             }

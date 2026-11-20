@@ -114,7 +114,7 @@ struct PocketCompanionWeek: View {
         VStack(alignment: .leading, spacing: 12) {
             StatTileGrid(week: week)
             Button { newLog(week.routine) } label: {
-                Label(CompanionWeekWords.logButton(week.routine), systemImage: "pawprint.fill")
+                Label(CompanionWeekWords.logButton(week.words), systemImage: "pawprint.fill")
             }
             .buttonStyle(PhoneButtonStyle())
             .accessibilityIdentifier("log-routine")
@@ -126,7 +126,7 @@ struct PocketCompanionWeek: View {
 
     private func trail(_ week: RoutineWeek, report: CompanionReport) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            PhoneCardHeader(title: "Paw trail", meta: CompanionWeekWords.trailMeta(week.routine))
+            PhoneCardHeader(title: "Paw trail", meta: CompanionWeekWords.trailMeta(week.words))
             // Seven columns can't grow without end: the letters stop growing at the
             // extra-large size, and every slot is also a row in the diary below.
             PawTrailGrid(week: week, weekDays: report.weekDays, today: report.today, metrics: .phone) { open($0, week: week) }
@@ -140,9 +140,9 @@ struct PocketCompanionWeek: View {
     private func diary(_ week: RoutineWeek, report: CompanionReport) -> some View {
         let rows = week.rows
         return VStack(alignment: .leading, spacing: 4) {
-            PhoneCardHeader(title: CompanionWeekWords.diaryTitle(week.routine), meta: CompanionWeekWords.captionsMeta(report.companion))
+            PhoneCardHeader(title: CompanionWeekWords.diaryTitle(week.words), meta: CompanionWeekWords.captionsMeta(report.companion))
             if rows.isEmpty {
-                Text(CompanionWeekWords.emptyDiary(week.routine))
+                Text(CompanionWeekWords.emptyDiary(week.words))
                     .phoneFont(.body, 13, weight: 600, relativeTo: .subheadline)
                     .foregroundStyle(Theme.muted)
                     .padding(.vertical, 7)
@@ -235,9 +235,9 @@ struct PocketCompanionWeek: View {
 
     private func podium(_ week: RoutineWeek) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            PhoneCardHeader(title: CompanionWeekWords.podiumTitle(week.routine))
+            PhoneCardHeader(title: CompanionWeekWords.podiumTitle(week.words))
             if week.leaderboard.isEmpty {
-                Text(CompanionWeekWords.emptyPodium(week.routine))
+                Text(CompanionWeekWords.emptyPodium(week.words))
                     .phoneFont(.body, 13, weight: 600, relativeTo: .subheadline)
                     .foregroundStyle(Theme.muted)
                     .frame(maxWidth: .infinity, minHeight: 60)
