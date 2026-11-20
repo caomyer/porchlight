@@ -42,7 +42,7 @@ enum DishKitchen: Hashable, Sendable {
     }
 
     static func of(_ entry: JournalEntry) -> DishKitchen {
-        of(sources: [entry.source], placeId: entry.placeId)
+        of(sources: Set(entry.sources.kinds), placeId: entry.placeId)
     }
 
     /// Stored as `dish.kitchen`.

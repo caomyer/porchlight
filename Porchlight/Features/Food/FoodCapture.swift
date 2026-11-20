@@ -102,7 +102,7 @@ final class CaptureForm: StoredFirstObservable {
 struct CaptureSheet: View {
     let request: CaptureRequest
     var doneTitle = "Back to diary"
-    /// Starts a fresh capture for the same meal ("Snap another"), e.g. a second dish.
+    /// Starts a fresh capture for the same slot ("Snap another meal at dinner"), e.g. what the kids ate at home.
     var onAnother: ((CaptureRequest) -> Void)?
     /// Debug screenshots only: start on the "Saved" overlay for this entry.
     var previewSaved: JournalEntry?
@@ -575,7 +575,7 @@ private struct SavedOverlay: View {
             HStack(spacing: 12) {
                 if let onAnother {
                     Button(action: onAnother) {
-                        Label("Snap another \(entry.slot.lowercased()) dish", systemImage: "plus")
+                        Label("Snap another meal at \(entry.slot.lowercased())", systemImage: "plus")
                     }
                     .buttonStyle(SecondaryButtonStyle())
                 }

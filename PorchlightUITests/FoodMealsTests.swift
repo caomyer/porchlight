@@ -199,15 +199,16 @@ final class FoodMealsTests: XCTestCase {
         snapshot("38-edit-dine-out-saved")
     }
 
-    /// Today's plates show a two-dish breakfast as a stack; its sheet offers another dish.
+    /// Today's plates show two breakfasts as a stack; the sheet offers another meal at
+    /// breakfast (several dishes of one meal are its dish lines since dishes, docs/design/dishes.md).
     func testSeveralDishesOnTodaysPlates() {
         let app = launch(["-startScreen", "today"])
         let plate = button(app, startingWith: "Breakfast: Oat latte and 1 more")
         XCTAssertTrue(plate.waitForExistence(timeout: 20), "Today's breakfast should show as a stack of two")
         snapshot("39-today-plates")
         plate.tap()
-        XCTAssertTrue(app.buttons["Avocado toast"].waitForExistence(timeout: 5), "The other breakfast dish should be one tap away")
-        app.buttons["Add another breakfast dish"].tap()
+        XCTAssertTrue(app.buttons["Avocado toast"].waitForExistence(timeout: 5), "The other breakfast should be one tap away")
+        app.buttons["Add another meal at breakfast"].tap()
         XCTAssertTrue(app.textFields["What was it? e.g. Dan dan noodles"].waitForExistence(timeout: 5), "Adding another should open the capture form")
         XCTAssertTrue(app.staticTexts["Breakfast"].exists, "The capture form should be for breakfast")
     }

@@ -36,9 +36,13 @@ final class WallDishesTests: XCTestCase {
     func testDishesAPlaceAndADish() {
         let app = launch()
         app.buttons["Dishes"].tap()
-        let pho = app.buttons["wall-dish-Pho tai"]
-        XCTAssertTrue(pho.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["wall-dish-Avocado toast"].waitForExistence(timeout: 10), "Home's dishes come first")
         snapshot("wall-dishes-01-view")
+        // The grid is lazy: a restaurant's dishes, below home's, exist once shown. Out shows them.
+        app.buttons["📍 Out"].tap()
+        let pho = app.buttons["wall-dish-Pho tai"]
+        XCTAssertTrue(pho.waitForExistence(timeout: 10), "Out shows each restaurant's dishes")
+        snapshot("wall-dishes-01b-out")
 
         let place = app.buttons["wall-place-Pho Saigon House"]
         XCTAssertTrue(place.exists, "Ordering in? lists our places")

@@ -92,7 +92,7 @@ struct WallDishesView: View {
             let home = book.homeDishes
             if !home.isEmpty { grid("🏠 Home", meta: home.count == 1 ? "1 dish" : "\(home.count) dishes", dishes: home) }
         }
-        if filter == .out {
+        if filter == .all || filter == .out {
             ForEach(book.placesWithDishes, id: \.place.id) { place, dishes in
                 grid("📍 \(place.name)", meta: dishes.count == 1 ? "1 dish" : "\(dishes.count) dishes", dishes: dishes)
             }
