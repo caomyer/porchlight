@@ -104,7 +104,7 @@ struct CompanionTodayCard: View {
                 }
                 HStack(spacing: 10) {
                     Button { onLog(primary.id) } label: {
-                        Label(primary.routine.kind.buttonTitle(name: report.name, title: primary.routine.title), systemImage: "pawprint.fill")
+                        Label(CareWords(primary.routine, species: report.companion.species).buttonTitle(name: report.name), systemImage: "pawprint.fill")
                             .lineLimit(1)
                     }
                     .buttonStyle(PrimaryButtonStyle())
@@ -130,7 +130,7 @@ struct CompanionTodayCard: View {
     private var moodLine: String {
         guard let routine = report.primaryRoutine else { return report.companion.species.label }
         guard let last = report.primary?.lastEntry else { return "Waiting for first \(report.noun)" }
-        return "\(routine.kind.pastVerb) \(CareText.ago(last.time, now: report.now))"
+        return "\(CareWords(routine, species: report.companion.species).pastVerb) \(CareText.ago(last.time, now: report.now))"
     }
 }
 
@@ -248,7 +248,7 @@ struct SlotGrid: View {
             when = "not due today"
         }
         guard let last = today.lastEntry else { return when.prefix(1).uppercased() + when.dropFirst() }
-        return "\(routine.kind.pastVerb) \(CareText.ago(last.time, now: report.now)) · \(when)"
+        return "\(CareWords(routine, species: report.companion.species).pastVerb) \(CareText.ago(last.time, now: report.now)) · \(when)"
     }
 }
 

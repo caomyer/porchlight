@@ -137,13 +137,35 @@ enum CareKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible
         }
     }
 
-    /// Past-tense sentence: "Mia walked Yo-Yo".
-    func sentence(who: String, name: String, title: String) -> String {
-        switch self {
+}
+
+/// What a routine's care is called, everywhere it is named: the page, the Today card, the
+/// care sheet, toasts, captions, widgets, reminders and Siri. Mostly by the routine's kind
+/// ("walked", "fed"), but water depends on what is cared for: a plant is watered by its
+/// gardener, an animal's water bowl is refilled by its bartender.
+struct CareWords: Equatable, Sendable {
+    let kind: CareKind
+    let title: String
+    /// Water for an animal: its bowl, not a plant's soil.
+    let isBowl: Bool
+
+    init(kind: CareKind, title: String, species: Species) {
+        self.kind = kind
+        self.title = title
+        isBowl = kind == .water && species != .plant
+    }
+
+    init(_ routine: CareRoutine, species: Species) {
+        self.init(kind: routine.kind, title: routine.title, species: species)
+    }
+
+    /// Past-tense sentence: "Mia walked Yo-Yo", "Mia refilled Yo-Yo's water".
+    func sentence(who: String, name: String) -> String {
+        switch kind {
         case .walk: "\(who) walked \(name)"
         case .feed: "\(who) fed \(name)"
         case .litter: "\(who) did \(name.possessive) litter"
-        case .water: "\(who) watered \(name)"
+        case .water: isBowl ? "\(who) refilled \(name.possessive) water" : "\(who) watered \(name)"
         case .groom: "\(who) groomed \(name)"
         case .meds: "\(who) gave \(name) meds"
         case .play: "\(who) played with \(name)"
@@ -153,25 +175,25 @@ enum CareKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible
     }
 
     /// The big button: "I walked Yo-Yo".
-    func buttonTitle(name: String, title: String) -> String {
-        sentence(who: "I", name: name, title: title)
+    func buttonTitle(name: String) -> String {
+        sentence(who: "I", name: name)
     }
 
     /// The log sheet question: "Who walked Yo-Yo?"
-    func question(name: String, title: String) -> String {
-        switch self {
+    func question(name: String) -> String {
+        switch kind {
         case .custom: "Who did \(title.lowercased())?"
-        default: sentence(who: "Who", name: name, title: title) + "?"
+        default: sentence(who: "Who", name: name) + "?"
         }
     }
 
     /// "Walked 1h ago".
     var pastVerb: String {
-        switch self {
+        switch kind {
         case .walk: "Walked"
         case .feed: "Fed"
         case .litter: "Litter done"
-        case .water: "Watered"
+        case .water: isBowl ? "Refilled" : "Watered"
         case .groom: "Groomed"
         case .meds: "Meds given"
         case .play: "Played"
@@ -180,23 +202,38 @@ enum CareKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible
         }
     }
 
-    /// "walk", "feeding": used in captions and headings.
-    func noun(title: String) -> String {
-        switch self {
+    /// "who walked", beside the paw trail: the kinds with a verb of their own, else "did it".
+    var trailVerb: String {
+        switch kind {
+        case .walk: "walked"
+        case .feed: "fed"
+        case .water: isBowl ? "refilled" : "watered"
+        case .groom: "groomed"
+        case .play: "played"
+        default: "did it"
+        }
+    }
+
+    /// One logged care: "walk", "meal", "watering", "refill". Used in captions, headings,
+    /// buttons ("Log a refill") and toasts ("Refill logged").
+    var noun: String {
+        switch kind {
         case .walk: "walk"
         case .feed: "meal"
-        case .water: "watering"
-        case .custom: title.lowercased()
+        case .water: isBowl ? "refill" : "watering"
         default: title.lowercased()
         }
     }
 
-    /// The podium title: "Walker of the week".
+    /// What the diary is of: "Walk diary", "Meal diary", "Water diary".
+    var diaryNoun: String { isBowl ? "water" : noun }
+
+    /// The podium title: "Walker of the week", "Bartender of the week".
     var agentNoun: String {
-        switch self {
+        switch kind {
         case .walk: "Walker"
         case .feed: "Chef"
-        case .water: "Gardener"
+        case .water: isBowl ? "Bartender" : "Gardener"
         case .litter: "Scooper"
         case .groom: "Groomer"
         case .meds: "Nurse"

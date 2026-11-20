@@ -85,9 +85,9 @@ struct CareLogFields: Equatable {
 
 /// The care sheet's words for fixing a log, the same on the wall and the phone.
 enum CareLogWording {
-    /// "Edit walk", "Edit feed".
-    static func editTitle(_ routine: CareRoutine) -> String {
-        "Edit " + routine.kind.noun(title: routine.title)
+    /// "Edit walk", "Edit meal", "Edit refill".
+    static func editTitle(_ words: CareWords) -> String {
+        "Edit " + words.noun
     }
 
     static let editSubtitle = "Fix who, when or how it went"
@@ -100,8 +100,8 @@ enum CareLogWording {
     static let keep = "Keep it"
 
     /// "Remove walk": the second tap, which removes it and the stars it earned.
-    static func confirmRemove(_ routine: CareRoutine) -> String {
-        "Remove " + routine.kind.noun(title: routine.title)
+    static func confirmRemove(_ words: CareWords) -> String {
+        "Remove " + words.noun
     }
 }
 

@@ -18,6 +18,7 @@ enum CompanionTimeline {
                 let dayEntries = byDay[day] ?? []
                 let captions = dayEntries.isEmpty || companion.captionTone == .off ? [:] : CaptionEngine.captions(
                     for: entries, tone: companion.captionTone, name: companion.name, routine: routine,
+                    words: CareWords(routine, species: companion.species),
                     names: snapshot.names, calendar: calendar
                 )
                 for entry in dayEntries {
@@ -51,7 +52,7 @@ enum CompanionTimeline {
         _ entry: CareEntry, routine: CareRoutine, companion: Companion, caption: String?, face: AnyView, snapshot: CompanionSnapshot
     ) -> TimelineItem {
         let who = CaptionEngine.whoText(entry.people, names: snapshot.names)
-        var title = routine.kind.sentence(who: who, name: companion.name, title: routine.title)
+        var title = CareWords(routine, species: companion.species).sentence(who: who, name: companion.name)
         if let minutes = entry.log.durationMinutes { title += " · \(minutes) min" }
         let story = entry.log.note.map { "\"\($0)\"" } ?? caption
         let subtitle = [CareText.business(entry.log, spaced: true), story].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")

@@ -15,13 +15,16 @@ struct ArrivedRow: Equatable, Sendable {
     var detail: String?
     /// The routine's title.
     var title: String?
+    /// What a care row's companion is, which names the care: a dog's water is refilled, a plant watered.
+    var species: String? = nil
 
     /// "James walked Yo-Yo", "Mia added lunch: Pho".
     func sentence(who: String) -> String {
         switch kind {
         case .care:
             let kind = detail.flatMap(CareKind.init(rawValue:)) ?? .custom
-            return kind.sentence(who: who, name: subject, title: title ?? kind.defaultTitle)
+            let words = CareWords(kind: kind, title: title ?? kind.defaultTitle, species: species.flatMap(Species.init(rawValue:)) ?? .other)
+            return words.sentence(who: who, name: subject)
         case .meal: return "\(who) added \(detail?.lowercased() ?? "a meal"): \(subject)"
         case .chore: return "\(who) did \(subject)"
         case .reward: return "\(who) cashed in \(subject)"
@@ -33,30 +36,30 @@ struct ArrivedRow: Equatable, Sendable {
     static func fetch(_ db: Database, excluding excluded: Device.ID?, since: Date) throws -> [ArrivedRow] {
         let rows = try Row.fetchAll(db, sql: """
             SELECT 'care' AS kind, careLog.id, careLog.deviceId, careLog.createdAt AS at,
-                   companion.name AS subject, careRoutine.kind AS detail, careRoutine.title AS title
+                   companion.name AS subject, careRoutine.kind AS detail, careRoutine.title AS title, companion.species AS species
             FROM careLog JOIN careRoutine ON careRoutine.id = careLog.careRoutineId
             JOIN companion ON companion.id = careRoutine.companionId
             WHERE careLog.deviceId IS NOT NULL AND careLog.deviceId IS NOT :excluded AND careLog.createdAt >= :since
             UNION ALL
-            SELECT 'meal', id, deviceId, createdAt, title, slot, NULL FROM journalEntry
+            SELECT 'meal', id, deviceId, createdAt, title, slot, NULL, NULL FROM journalEntry
             WHERE deviceId IS NOT NULL AND deviceId IS NOT :excluded AND createdAt >= :since
             UNION ALL
-            SELECT 'chore', choreCompletion.id, choreCompletion.deviceId, choreCompletion.completedAt, chore.title, NULL, NULL
+            SELECT 'chore', choreCompletion.id, choreCompletion.deviceId, choreCompletion.completedAt, chore.title, NULL, NULL, NULL
             FROM choreCompletion JOIN chore ON chore.id = choreCompletion.choreId
             WHERE choreCompletion.deviceId IS NOT NULL AND choreCompletion.deviceId IS NOT :excluded AND choreCompletion.completedAt >= :since
             UNION ALL
-            SELECT 'reward', rewardRedemption.id, rewardRedemption.deviceId, rewardRedemption.redeemedAt, reward.title, NULL, NULL
+            SELECT 'reward', rewardRedemption.id, rewardRedemption.deviceId, rewardRedemption.redeemedAt, reward.title, NULL, NULL, NULL
             FROM rewardRedemption JOIN reward ON reward.id = rewardRedemption.rewardId
             WHERE rewardRedemption.deviceId IS NOT NULL AND rewardRedemption.deviceId IS NOT :excluded AND rewardRedemption.redeemedAt >= :since
             UNION ALL
-            SELECT 'list', listItem.id, listItem.deviceId, listItem.createdAt, listItem.title, homeList.title, NULL
+            SELECT 'list', listItem.id, listItem.deviceId, listItem.createdAt, listItem.title, homeList.title, NULL, NULL
             FROM listItem JOIN homeList ON homeList.id = listItem.listId
             WHERE listItem.deviceId IS NOT NULL AND listItem.deviceId IS NOT :excluded AND listItem.createdAt >= :since
             ORDER BY at DESC
             """, arguments: ["excluded": excluded, "since": since])
         return rows.compactMap { row in
             guard let kind = Kind(rawValue: row["kind"]), let deviceId = (row["deviceId"] as String?).flatMap(Device.ID.init) else { return nil }
-            return ArrivedRow(kind: kind, rowId: row["id"], deviceId: deviceId, subject: row["subject"], detail: row["detail"], title: row["title"])
+            return ArrivedRow(kind: kind, rowId: row["id"], deviceId: deviceId, subject: row["subject"], detail: row["detail"], title: row["title"], species: row["species"])
         }
     }
 }

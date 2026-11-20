@@ -1,31 +1,47 @@
 import SwiftUI
 
-/// A companion's week on the phone: the wall's companion page, condensed into one
-/// column. The same report (`CompanionReport`) feeds both, so the trail, diary, mood,
-/// milestones and walker of the week say the same thing on the wall and here.
+/// A companion's week on the phone: the wall's companion page, for a phone held in one
+/// hand. The same report (`CompanionReport`), the same pieces (`CompanionWeekViews`: the
+/// mood meter, stat tiles, paw trail and podium) and the same words (`CompanionWeekWords`),
+/// in one column. The wall shows the primary routine's week; the phone shows each
+/// routine's, picked at the top, so meals and water have their trail and diary too.
 struct PocketCompanionWeek: View {
     let companionId: Companion.ID
+    let logging: PocketLogging
 
     @Environment(CompanionStore.self) private var store
     @Environment(\.me) private var me
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(ToastCenter.self) private var toasts
-    /// A diary row opened to fix, as on the wall's companion page, or a missed slot to catch up on.
-    @State private var editing: PocketCareSheet.Request?
-    let logging: PocketLogging
+    /// A new log, a missed slot to catch up on, or a logged one opened to fix, as on the
+    /// wall's companion page: all in the one care sheet.
+    @State private var careSheet: PocketCareSheet.Request?
+    /// The routine whose week is shown: the primary one until another is picked.
+    @State private var routineId: CareRoutine.ID?
 
     var body: some View {
         TimelineView(.everyMinute) { _ in
             if let report = store.report(for: companionId, now: CompanionClock.now()) {
+                let week = report.week(of: routineId) ?? report.primaryWeek
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         hero(report)
-                        if let routine = report.primaryRoutine {
-                            PocketPawTrail(report: report, routine: routine)
+                        if let week {
+                            if report.weeks.count > 1 {
+                                RoutineTabs(weeks: report.weeks, selected: week.id) { routineId = $0 }
+                            }
+                            numbers(week, report: report)
+                            trail(week, report: report)
+                            diary(week, report: report)
+                            podium(week)
+                            milestones(week, report: report)
+                        } else {
+                            Text("Add a care routine in Household to track \(report.name.possessive) day.")
+                                .phoneFont(.body, 14, weight: 600, relativeTo: .subheadline)
+                                .foregroundStyle(Theme.muted)
+                                .phoneCard()
                         }
-                        diary(report)
-                        walkers(report)
-                        milestones(report)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
@@ -39,64 +55,94 @@ struct PocketCompanionWeek: View {
             }
         }
         .background(Theme.background)
-        .sheet(item: $editing, onDismiss: toasts.showPending) { PocketCareSheet(request: $0, logging: logging.inSheet) }
+        .sheet(item: $careSheet, onDismiss: toasts.showPending) { PocketCareSheet(request: $0, logging: logging.inSheet) }
+    }
+
+    // MARK: Opening a log
+
+    /// A new log for this routine, credited to me to start with.
+    private func newLog(_ routine: CareRoutine) {
+        careSheet = PocketCareSheet.Request(companionId: companionId, routineId: routine.id, people: me.map { [$0.id] } ?? [], logId: nil)
+    }
+
+    /// A slot that was never logged, from the trail or the diary, is logged for its own
+    /// day and for the slot tapped (`CareLogic.slot`), however late it is caught up on.
+    /// Every way the page catches up goes through here.
+    private func logMissed(_ missed: MissedCare) {
+        careSheet = .catchUp(missed, companionId: companionId, people: me.map { [$0.id] } ?? [])
+    }
+
+    /// What a tap on the trail does, as on the wall.
+    private func open(_ tap: RoutineWeek.TrailTap, week: RoutineWeek) {
+        switch tap {
+        case let .edit(entry): careSheet = .edit(entry, companionId: companionId)
+        case let .catchUp(missed): logMissed(missed)
+        case .log: newLog(week.routine)
+        }
     }
 
     // MARK: Hero
 
     private func hero(_ report: CompanionReport) -> some View {
-        HStack(spacing: 12) {
-            CompanionBadge(report, size: 64)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(report.name.possessive) week")
-                    .phoneFont(.display, 24, weight: 600, relativeTo: .title)
-                    .accessibilityAddTraits(.isHeader)
-                Text(report.weekStats.count == 0 ? "The first week together" : report.weekSummary)
-                    .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
-                    .foregroundStyle(Theme.muted)
-                if let mood = report.moodLabel {
-                    Text("\(mood.emoji) \(mood.label)")
-                        .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
+        VStack(alignment: .leading, spacing: 14) {
+            AdaptiveRow(spacing: 12) {
+                CompanionBadge(report, size: 64)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(report.name.possessive) week")
+                        .phoneFont(.display, 24, weight: 600, relativeTo: .title)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(report.aboutLine(calendar: store.snapshot.calendar))
+                        .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
+                        .foregroundStyle(Theme.muted)
+                    Text(report.weekStats.count == 0 ? "The first week together" : report.weekSummary)
+                        .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
+                        .foregroundStyle(Theme.muted)
                 }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            MoodMeter(report: report)
         }
-        .accessibilityElement(children: .combine)
         .phoneCard(tint: report.look.tint)
+    }
+
+    // MARK: Numbers
+
+    /// The week's four numbers and the page's own log button, as in the wall's hero.
+    private func numbers(_ week: RoutineWeek, report: CompanionReport) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            StatTileGrid(week: week)
+            Button { newLog(week.routine) } label: {
+                Label(CompanionWeekWords.logButton(week.words), systemImage: "pawprint.fill")
+            }
+            .buttonStyle(PhoneButtonStyle())
+            .accessibilityIdentifier("log-routine")
+        }
+        .phoneCard()
+    }
+
+    // MARK: Paw trail
+
+    private func trail(_ week: RoutineWeek, report: CompanionReport) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PhoneCardHeader(title: "Paw trail", meta: CompanionWeekWords.trailMeta(week.words))
+            // Seven columns can't grow without end: the letters stop growing at the
+            // extra-large size, and every slot is also a row in the diary below.
+            PawTrailGrid(week: week, weekDays: report.weekDays, today: report.today, metrics: .phone) { open($0, week: week) }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        }
+        .phoneCard()
     }
 
     // MARK: Diary
 
-    private enum DiaryRow: Identifiable {
-        case logged(DiaryItem)
-        case missed(MissedCare)
-
-        var id: String {
-            switch self {
-            case let .logged(item): "log-\(item.id)"
-            case let .missed(missed): "missed-\(missed.id)"
-            }
-        }
-
-        var time: Date {
-            switch self {
-            case let .logged(item): item.entry.time
-            case let .missed(missed): missed.usual
-            }
-        }
-    }
-
-    private func diary(_ report: CompanionReport) -> some View {
-        let rows = (report.diary.map(DiaryRow.logged) + report.missed.map(DiaryRow.missed)).sorted { $0.time > $1.time }
-        let noun = PocketCareWords.capitalized(report.noun)
+    private func diary(_ week: RoutineWeek, report: CompanionReport) -> some View {
+        let rows = week.rows
         return VStack(alignment: .leading, spacing: 4) {
-            PhoneCardHeader(
-                title: "\(noun) diary",
-                meta: report.companion.captionTone == .off ? nil : "captions: \(report.companion.captionTone.label.lowercased())"
-            )
+            PhoneCardHeader(title: CompanionWeekWords.diaryTitle(week.words), meta: CompanionWeekWords.captionsMeta(report.companion))
             if rows.isEmpty {
-                Text("Nothing logged this week yet. The first \(report.noun) starts the story.")
+                Text(CompanionWeekWords.emptyDiary(week.words))
                     .phoneFont(.body, 13, weight: 600, relativeTo: .subheadline)
                     .foregroundStyle(Theme.muted)
                     .padding(.vertical, 7)
@@ -117,123 +163,126 @@ struct PocketCompanionWeek: View {
     private func loggedRow(_ item: DiaryItem, report: CompanionReport) -> some View {
         let entry = item.entry
         let snapshot = store.snapshot
-        var head = snapshot.namesNobody(entry) ? CareLogWording.nobody : PocketToday.who(entry.people, me: nil, names: snapshot.names)
+        let nobody = snapshot.namesNobody(entry)
+        var head = nobody ? CareLogWording.nobody : CaptionEngine.whoText(entry.people, names: snapshot.names)
         if let minutes = entry.log.durationMinutes { head += " · \(minutes) min" }
-        let business = CareText.business(entry.log)
-        if !business.isEmpty { head += " \(business)" }
-        return Button { editing = .edit(entry, companionId: report.id) } label: {
-            loggedRowContent(item, head: head, report: report)
+        let business = CareText.business(entry.log, spaced: true)
+        if !business.isEmpty { head += "  \(business)" }
+        return Button { careSheet = .edit(entry, companionId: report.id) } label: {
+            HStack(alignment: .top, spacing: 10) {
+                CarerAvatar(carers: Carers(entry.people, snapshot: snapshot), size: 24)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(head)
+                        .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                        .foregroundStyle(nobody ? Theme.accent : Theme.ink)
+                    if let story = entry.log.note ?? item.caption {
+                        Text(story)
+                            .phoneFont(.body, 13, weight: 500, relativeTo: .footnote)
+                            .foregroundStyle(Theme.ink)
+                    }
+                    Text(CompanionWeekWords.when(entry.time, today: report.today, calendar: snapshot.calendar))
+                        .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                        .foregroundStyle(Theme.muted)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 8)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
         }
         .buttonStyle(.plain)
         .accessibilityHint(CareLogWording.editSubtitle)
     }
 
-    private func loggedRowContent(_ item: DiaryItem, head: String, report: CompanionReport) -> some View {
-        let entry = item.entry
-        let snapshot = store.snapshot
-        return HStack(alignment: .top, spacing: 10) {
-            CarerAvatar(carers: Carers(entry.people, snapshot: snapshot), size: 24)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(head).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                if let story = entry.log.note ?? item.caption {
-                    Text(story)
-                        .phoneFont(.body, 12.5, weight: 500, relativeTo: .footnote)
-                        .foregroundStyle(Theme.ink)
-                }
-                Text(PocketWeekWords.when(entry.time, today: report.today, calendar: snapshot.calendar))
-                    .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                    .foregroundStyle(Theme.muted)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical, 8)
-        .frame(minHeight: 44)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-    }
-
+    /// "Morning walk wasn't logged · Mon · usually 6-10am · Log it", in the wall's words.
     private func missedRow(_ missed: MissedCare, report: CompanionReport) -> some View {
         let calendar = store.snapshot.calendar
-        let name = PocketCareWords.capitalized(CareCatchUp.slotName(missed.slot.window, of: missed.routine))
-        let day = PocketCareWords.dayWord(missed.day, today: report.today, calendar: calendar)
-        return Button { editing = .catchUp(missed, companionId: report.id, people: me.map { [$0.id] } ?? []) } label: {
-            HStack(alignment: .center, spacing: 10) {
+        let title = CompanionWeekWords.missedTitle(missed, companion: report.companion)
+        return Button { logMissed(missed) } label: {
+            HStack(alignment: .top, spacing: 10) {
                 Text(missed.routine.emoji)
                     .phoneFont(.body, 12)
                     .frame(width: 24, height: 24)
                     .overlay(Circle().strokeBorder(Theme.muted.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5])))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("\(name) wasn't logged")
-                        .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                        .foregroundStyle(Theme.muted)
-                    Text(PocketCareWords.capitalized(day))
-                        .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                        .foregroundStyle(Theme.muted)
+                AdaptiveRow(spacing: 10, alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(title) wasn't logged")
+                            .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                            .foregroundStyle(Theme.muted)
+                        Text(CompanionWeekWords.missedDetail(missed, calendar: calendar))
+                            .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                            .foregroundStyle(Theme.muted)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Log it")
+                        .phoneFont(.body, 13, weight: 800, relativeTo: .footnote)
+                        .foregroundStyle(Theme.accent)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Text("Log it")
-                    .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
-                    .foregroundStyle(Theme.accent)
             }
             .padding(.vertical, 8)
             .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(name) wasn't logged \(day)")
+        .accessibilityLabel("\(title) wasn't logged, \(CompanionWeekWords.missedDay(missed, today: report.today, calendar: calendar))")
         .accessibilityHint("Log it")
     }
 
-    // MARK: Walker of the week
+    // MARK: Podium
 
-    @ViewBuilder
-    private func walkers(_ report: CompanionReport) -> some View {
-        let title = "\(report.primaryRoutine?.kind.agentNoun ?? "Helper") of the week"
-        let standings = Array(report.leaderboard.prefix(4))
-        VStack(alignment: .leading, spacing: 8) {
-            PhoneCardHeader(title: title)
-            if standings.isEmpty {
-                Text("No \(report.noun)s yet this week. Wide open.")
+    private func podium(_ week: RoutineWeek) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            PhoneCardHeader(title: CompanionWeekWords.podiumTitle(week.words))
+            if week.leaderboard.isEmpty {
+                Text(CompanionWeekWords.emptyPodium(week.words))
                     .phoneFont(.body, 13, weight: 600, relativeTo: .subheadline)
                     .foregroundStyle(Theme.muted)
-            }
-            let most = standings.map(\.count).max() ?? 1
-            ForEach(standings, id: \.carer) { standing in
-                standingRow(standing, most: most, crowned: standing == standings.first && (standings.count == 1 || standings[1].count < standing.count))
+                    .frame(maxWidth: .infinity, minHeight: 60)
+                    .multilineTextAlignment(.center)
+            } else if typeSize.isAccessibilitySize {
+                // At accessibility sizes the pods' names would be cut off: the same top
+                // three as bars, the leader crowned.
+                let most = week.leaderboard.map(\.count).max() ?? 1
+                let leader = CareLogic.leader(week.leaderboard)
+                ForEach(Array(week.leaderboard.prefix(3)), id: \.carer) { standing in
+                    standingRow(standing, most: most, crowned: standing == leader)
+                }
+            } else {
+                PodiumView(standings: week.leaderboard)
             }
         }
         .phoneCard()
     }
 
     private func standingRow(_ standing: CareLogic.Standing, most: Int, crowned: Bool) -> some View {
-        let snapshot = store.snapshot
-        let (carers, name): (Carers, String) = switch standing.carer {
-        case let .person(id): (Carers([id], snapshot: snapshot), id == me?.id ? "You" : snapshot.person(id)?.name ?? "Someone")
-        case .together: (Carers(colors: [Theme.everyone, Theme.everyone], initials: [CareText.heart]), "Together")
-        }
-        let color = carers.isTogether ? Theme.everyone : carers.single
+        let (carers, name) = CareLogic.describe(standing.carer, snapshot: store.snapshot)
         return PersonBarRow(
             name: name + (crowned ? " 👑" : ""), count: standing.count,
-            fraction: Double(standing.count) / Double(max(most, 1)), color: color
+            fraction: Double(standing.count) / Double(max(most, 1)), color: carers.isTogether ? Theme.everyone : carers.single
         ) {
             CarerAvatar(carers: carers, size: 24)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(name), \(standing.count)")
+        .accessibilityLabel("\(name), \(standing.count)\(crowned ? ", first" : "")")
     }
 
     // MARK: Milestones
 
-    private func milestones(_ report: CompanionReport) -> some View {
+    private func milestones(_ week: RoutineWeek, report: CompanionReport) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             PhoneCardHeader(title: "Little milestones")
-            ForEach(report.milestones) { milestone in
+            ForEach(week.milestones) { milestone in
                 HStack(spacing: 10) {
                     Text(milestone.emoji)
                         .phoneFont(.body, 20)
                         .frame(width: 40, height: 40)
-                        .background(tint(milestone.tint, report: report).wash(0.15, over: Theme.surface, in: scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(
+                            milestone.tint.color(look: report.look, snapshot: store.snapshot).wash(0.15, over: Theme.surface, in: scheme),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        )
                     VStack(alignment: .leading, spacing: 1) {
                         Text(milestone.title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
                         Text(milestone.detail)
@@ -247,93 +296,55 @@ struct PocketCompanionWeek: View {
         }
         .phoneCard()
     }
-
-    private func tint(_ tint: Milestone.Tint, report: CompanionReport) -> Color {
-        switch tint {
-        case .companion: report.look.tint
-        case let .person(id): store.snapshot.person(id)?.color.color ?? Theme.everyone
-        case .together: Theme.everyone
-        }
-    }
 }
 
-/// Paw trail at phone size: a ring per slot and day, in the color of who did it, a dashed
-/// ring for one not done (accented while it's still waiting today). Never a zero.
-private struct PocketPawTrail: View {
-    let report: CompanionReport
-    let routine: CareRoutine
+/// Which routine's week the page shows: "🦮 Walk", "🥣 Feed". A segmented row that
+/// wraps into a column at accessibility sizes, rather than cutting its words off.
+private struct RoutineTabs: View {
+    let weeks: [RoutineWeek]
+    let selected: CareRoutine.ID
+    let pick: (CareRoutine.ID) -> Void
 
-    @Environment(CompanionStore.self) private var store
-    @PhoneMetric private var ring: CGFloat = 24
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        let calendar = store.snapshot.calendar
-        let windows = routine.effectiveWindows
-        let labels = CareText.shortLabels(windows)
-        VStack(alignment: .leading, spacing: 8) {
-            PhoneCardHeader(title: "Paw trail", meta: "who \(routine.kind.pastVerb.lowercased()), each slot")
-            Grid(horizontalSpacing: 2, verticalSpacing: 6) {
-                GridRow {
-                    Color.clear.frame(width: 34, height: 1)
-                    ForEach(report.weekDays, id: \.self) { day in
-                        Text(PocketWeekWords.letter(day, calendar: calendar))
-                            .phoneFont(.body, 10.5, weight: 700, relativeTo: .caption2)
-                            .foregroundStyle(day == report.today ? Theme.accent : Theme.muted)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                ForEach(windows.indices, id: \.self) { index in
-                    GridRow {
-                        Text(labels[index])
-                            .phoneFont(.body, 10.5, weight: 700, relativeTo: .caption2)
-                            .foregroundStyle(Theme.muted)
-                            .frame(width: 34, alignment: .leading)
-                        ForEach(report.weekDays.indices, id: \.self) { dayIndex in
-                            cell(report.trail[dayIndex].first { $0.index == index }, day: report.weekDays[dayIndex], window: windows[index])
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 4))
+            : AnyLayout(HStackLayout(spacing: 4))
+        layout {
+            ForEach(weeks) { week in
+                tab(week)
             }
         }
-        .phoneCard()
+        .padding(4)
+        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    @ViewBuilder
-    private func cell(_ slot: CareSlot?, day: DayKey, window: CareWindow) -> some View {
-        let calendar = store.snapshot.calendar
-        let weekday = day.formatted(.dateTime.weekday(.wide), calendar: calendar)
-        let name = PocketCareWords.capitalized(CareCatchUp.slotName(window, of: routine))
-        if let entry = slot?.entry {
-            PawDot(carers: Carers(entry.people, snapshot: store.snapshot), size: ring, content: .initial)
-                .accessibilityLabel("\(name), \(weekday), \(CaptionEngine.whoText(entry.people, names: store.snapshot.names))")
-        } else {
-            let waiting = slot?.isPendingToday == true
-            Circle()
-                .strokeBorder(waiting ? Theme.accent : Theme.line, style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5]))
-                .frame(width: ring, height: ring)
-                .overlay {
-                    if waiting {
-                        Text(routine.emoji).font(.system(size: ring * 0.45))
+    private func tab(_ week: RoutineWeek) -> some View {
+        let isOn = week.id == selected
+        return Button { pick(week.id) } label: {
+            Text("\(week.routine.emoji) \(week.routine.title)")
+                .phoneFont(.body, 14, weight: isOn ? 800 : 700, relativeTo: .subheadline)
+                .foregroundStyle(isOn ? Theme.ink : Theme.muted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background {
+                    if isOn {
+                        // Raised off the track: paper in the day look; at night the card
+                        // color is darker than the track, so the tab is lit instead.
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(scheme == .dark ? Color.white.opacity(0.13) : Theme.surface)
+                            .shadow(color: Color(hex: 0x3C_2814).opacity(scheme == .dark ? 0 : 0.1), radius: 2, x: 0, y: 1)
                     }
                 }
-                .accessibilityLabel("\(name), \(weekday), \(waiting ? "to do" : slot?.state == .missed ? "missed" : "not due")")
+                .contentShape(Rectangle())
         }
-    }
-}
-
-enum PocketWeekWords {
-    /// "M", "T": a day's letter in the trail.
-    static func letter(_ day: DayKey, calendar: Calendar) -> String {
-        let weekday = calendar.component(.weekday, from: day.startDate(in: calendar))
-        return calendar.veryShortWeekdaySymbols[weekday - 1]
-    }
-
-    /// "Today 8:12am", "Fri 6:40pm".
-    static func when(_ date: Date, today: DayKey, calendar: Calendar) -> String {
-        let time = CareText.timeWithPeriod(date, calendar: calendar)
-        let day = DayKey(date, calendar: calendar)
-        if day == today { return "Today \(time)" }
-        return day.formatted(.dateTime.weekday(.abbreviated), calendar: calendar) + " \(time)"
+        .buttonStyle(.plain)
+        .accessibilityLabel(week.routine.title)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .accessibilityIdentifier("routine-\(week.routine.title)")
     }
 }

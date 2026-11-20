@@ -16,8 +16,8 @@ struct CaptionEngineTests {
     @Test("Captions are deterministic and never repeat a template back to back", arguments: [CompanionTone.wholesome, .cheeky, .dramatic])
     func noRepeats(tone: CompanionTone) {
         let entries = week()
-        let first = CaptionEngine.captions(for: entries, tone: tone, name: "Yo-Yo", routine: F.walk, names: names, calendar: F.calendar)
-        let second = CaptionEngine.captions(for: entries.shuffled(), tone: tone, name: "Yo-Yo", routine: F.walk, names: names, calendar: F.calendar)
+        let first = CaptionEngine.captions(for: entries, tone: tone, name: "Yo-Yo", routine: F.walk, words: CareWords(F.walk, species: .dog), names: names, calendar: F.calendar)
+        let second = CaptionEngine.captions(for: entries.shuffled(), tone: tone, name: "Yo-Yo", routine: F.walk, words: CareWords(F.walk, species: .dog), names: names, calendar: F.calendar)
         #expect(first == second)
         #expect(first.count == entries.count)
         let texts = entries.map { first[$0.id]! }
@@ -30,7 +30,7 @@ struct CaptionEngineTests {
     @Test("Same-vibe logs in a row still get different captions")
     func vibeStreak() {
         let entries = (0..<6).map { F.entry(.number($0 + 1), day: 1 + $0, 7, vibe: .squirrel) }
-        let captions = CaptionEngine.captions(for: entries, tone: .cheeky, name: "Yo-Yo", routine: F.walk, names: names, calendar: F.calendar)
+        let captions = CaptionEngine.captions(for: entries, tone: .cheeky, name: "Yo-Yo", routine: F.walk, words: CareWords(F.walk, species: .dog), names: names, calendar: F.calendar)
         let texts = entries.map { captions[$0.id]! }
         for (a, b) in zip(texts, texts.dropFirst()) {
             #expect(a != b)
@@ -39,7 +39,7 @@ struct CaptionEngineTests {
 
     @Test("Off means no captions")
     func off() {
-        #expect(CaptionEngine.captions(for: week(), tone: .off, name: "Yo-Yo", routine: F.walk, names: names, calendar: F.calendar).isEmpty)
+        #expect(CaptionEngine.captions(for: week(), tone: .off, name: "Yo-Yo", routine: F.walk, words: CareWords(F.walk, species: .dog), names: names, calendar: F.calendar).isEmpty)
     }
 
     @Test("Captions use names and counts, and only mention walking for walks")
@@ -56,7 +56,7 @@ struct CaptionEngineTests {
         )
         let entries = (0..<20).map { F.entry(.number($0 + 1), day: 1 + $0 % 7, 9 + $0 / 7, routine: 1) }
         for tone in [CompanionTone.wholesome, .cheeky, .dramatic] {
-            let captions = CaptionEngine.captions(for: entries, tone: tone, name: "Fern", routine: plant, names: names, calendar: F.calendar)
+            let captions = CaptionEngine.captions(for: entries, tone: tone, name: "Fern", routine: plant, words: CareWords(plant, species: .plant), names: names, calendar: F.calendar)
             for text in captions.values {
                 #expect(!text.contains("walk"), "\(text)")
                 #expect(!text.contains("pace"), "\(text)")
@@ -89,13 +89,13 @@ struct CaptionEngineTests {
 
     @Test("Wording adapts to the routine kind")
     func kindWording() {
-        #expect(CareKind.walk.sentence(who: "Mia", name: "Yo-Yo", title: "Walk") == "Mia walked Yo-Yo")
-        #expect(CareKind.walk.question(name: "Yo-Yo", title: "Walk") == "Who walked Yo-Yo?")
-        #expect(CareKind.water.buttonTitle(name: "Fern", title: "Water") == "I watered Fern")
-        #expect(CareKind.custom.question(name: "Rex", title: "Brush teeth") == "Who did brush teeth?")
-        #expect(CompanionPresets.welcome(name: "Yo-Yo", routines: CompanionPresets.routines(for: .dog))
+        #expect(CareWords(kind: .walk, title: "Walk", species: .dog).sentence(who: "Mia", name: "Yo-Yo") == "Mia walked Yo-Yo")
+        #expect(CareWords(kind: .walk, title: "Walk", species: .dog).question(name: "Yo-Yo") == "Who walked Yo-Yo?")
+        #expect(CareWords(kind: .water, title: "Water", species: .plant).buttonTitle(name: "Fern") == "I watered Fern")
+        #expect(CareWords(kind: .custom, title: "Brush teeth", species: .other).question(name: "Rex") == "Who did brush teeth?")
+        #expect(CompanionPresets.welcome(name: "Yo-Yo", species: .dog, routines: CompanionPresets.routines(for: .dog))
             == "Yo-Yo has joined the household and expects two walks a day. Zero excuses.")
-        #expect(CompanionPresets.welcome(name: "Fern", routines: CompanionPresets.routines(for: .plant))
+        #expect(CompanionPresets.welcome(name: "Fern", species: .plant, routines: CompanionPresets.routines(for: .plant))
             == "Fern has joined the household and expects a watering every 3 days. Zero excuses.")
     }
 }

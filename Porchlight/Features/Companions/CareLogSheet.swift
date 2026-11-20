@@ -238,7 +238,7 @@ private struct CareLogForm: View {
                 if confirmingDelete {
                     Button(CareLogWording.keep) { confirmingDelete = false }
                         .buttonStyle(SecondaryButtonStyle())
-                    Button(CareLogWording.confirmRemove(routine), role: .destructive, action: delete)
+                    Button(CareLogWording.confirmRemove(words), role: .destructive, action: delete)
                         .buttonStyle(PrimaryButtonStyle())
                 } else {
                     Button { confirmingDelete = true } label: {
@@ -264,7 +264,8 @@ private struct CareLogForm: View {
         }
     }
 
-    private var noun: String { routine.kind.noun(title: routine.title) }
+    private var words: CareWords { CareWords(routine, species: report.companion.species) }
+    private var noun: String { words.noun }
 
     private var subtitle: String {
         if editing != nil { return CareLogWording.editSubtitle }
@@ -275,8 +276,8 @@ private struct CareLogForm: View {
     }
 
     private var title: String {
-        guard editing != nil else { return routine.kind.question(name: report.name, title: routine.title) }
-        return CareLogWording.editTitle(routine)
+        guard editing != nil else { return words.question(name: report.name) }
+        return CareLogWording.editTitle(words)
     }
 
     private func label(_ text: String, note: String? = nil) -> some View {
@@ -390,7 +391,7 @@ struct Celebration: Equatable {
         let who = firstNames.isEmpty ? "" : ", " + CaptionEngine.whoText(people, names: names)
         let today = report.primary?.routine.id == routine.id ? report.primary : report.others.first { $0.routine.id == routine.id }
         let countToday = (today?.slots.filter(\.isDone).count ?? 0) + 1
-        let noun = routine.kind.noun(title: routine.title)
+        let noun = CareWords(routine, species: report.companion.species).noun
         var message = "\(noun.prefix(1).uppercased() + noun.dropFirst()) #\(countToday) today"
         if let slots = today?.slots, countToday >= slots.count, slots.count > 1 {
             message += slots.count == 2 ? ", both slots done" : ", all \(slots.count) slots done"

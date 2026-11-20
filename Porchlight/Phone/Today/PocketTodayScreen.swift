@@ -104,7 +104,7 @@ struct PocketTodayScreen: View {
     private var careHandlers: PocketCareHandlers {
         PocketCareHandlers(
             log: { card, action, alsoWent in
-                credit(question: action.routine.kind.question(name: card.report.name, title: action.routine.title)) { person in
+                credit(question: CareWords(action.routine, species: card.report.companion.species).question(name: card.report.name)) { person in
                     logging.log(action, companion: card.report.name, people: [person] + alsoWent)
                 }
             },

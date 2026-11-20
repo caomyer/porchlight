@@ -380,7 +380,7 @@ struct CompanionEditorForm: View {
             SectionLabel("Care routines")
             VStack(spacing: 10) {
                 ForEach(draft.routines) { routine in
-                    RoutineRow(routine: routine) {
+                    RoutineRow(routine: routine, species: draft.species) {
                         present(RoutineEditing(draft: routine, isNew: false))
                     }
                 }
@@ -411,7 +411,7 @@ struct CompanionEditorForm: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 10) {
                             ForEach(draft.routines) { routine in
-                                RoutineRow(routine: routine) {
+                                RoutineRow(routine: routine, species: draft.species) {
                                     present(RoutineEditing(draft: routine, isNew: false))
                                 }
                             }
@@ -638,6 +638,8 @@ private struct RoutineRow: View {
     @Environment(AppModel.self) private var model
     @Environment(\.colorScheme) private var scheme
     let routine: CareRoutineDraft
+    /// What it cares for, which names the care ("per refill" for a bowl, "per watering" for a plant).
+    let species: Species
     let onEdit: () -> Void
 
     var body: some View {
@@ -692,7 +694,7 @@ private struct RoutineRow: View {
     private var tags: [String] {
         var tags = CareField.allCases.filter(routine.trackedFields.contains).map(\.label)
         if routine.stars > 0 {
-            let noun = routine.kind.noun(title: routine.title)
+            let noun = CareWords(kind: routine.kind, title: routine.title, species: species).noun
             tags.append(routine.stars == 1 ? "⭐ 1 per \(noun)" : "⭐ \(routine.stars) each")
         }
         return tags
@@ -719,7 +721,7 @@ private struct CompanionPreviewCard: View {
                     .background(look.tint.wash(0.3), in: Circle())
                 VStack(alignment: .leading, spacing: 4) {
                     Text(name).font(.display(26)).lineLimit(1).minimumScaleFactor(0.6)
-                    Text(first.map { "Waiting for first \($0.kind.noun(title: $0.title))" } ?? draft.species.label)
+                    Text(first.map { CompanionWeekWords.waitingForFirst(CareWords($0, species: draft.species)) } ?? draft.species.label)
                         .font(.body(14, weight: 600))
                         .foregroundStyle(Theme.muted)
                         .lineLimit(1)
@@ -742,7 +744,7 @@ private struct CompanionPreviewCard: View {
                 }
                 .padding(.top, 14)
             }
-            Text("\"\(CompanionPresets.welcome(name: name, routines: draft.routines))\"")
+            Text("\"\(CompanionPresets.welcome(name: name, species: draft.species, routines: draft.routines))\"")
                 .font(.body(13, weight: 600))
                 .foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)

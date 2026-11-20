@@ -23,6 +23,11 @@ enum CompanionSamples {
         draft.about = "Toy poodle"
         draft.birthDate = calendar.date(byAdding: .month, value: -51, to: now)
         draft.tone = .cheeky
+        // `-sampleWater YES`: Yo-Yo's water bowl too, so a page has walks, meals and water.
+        let withWater = UserDefaults.standard.bool(forKey: "sampleWater")
+        if withWater {
+            draft.routines.append(CareRoutineDraft(kind: .water, windows: [.hours("Morning", 7, 11)], stars: 1))
+        }
         // The routines started with the 34 days of history below.
         let started = DayKey(now, calendar: calendar).adding(days: -34, calendar: calendar)
         for index in draft.routines.indices { draft.routines[index].startDay = started }
@@ -68,10 +73,26 @@ enum CompanionSamples {
                     try database.logCare(routineId: feedId, CareLogDraft(people: [ids[random.next(in: 0...ids.count - 1)]], occurredAt: start), now: now)
                 }
             }
+            // The bowl is filled every morning but two days ago's.
+            if withWater, let water = routines.first(where: { $0.kind == .water }), back != 2 {
+                let start = CareLogic.date(day, minute: 8 * 60 + 10, calendar: calendar)
+                if start <= now {
+                    try database.logCare(routineId: water.id, CareLogDraft(people: [ids[(back + 1) % ids.count]], occurredAt: start), now: now)
+                }
+            }
         }
         let extra = UserDefaults.standard.integer(forKey: "sampleCompanions")
         if extra >= 2 { try seedCat(database, householdId: householdId, people: ids, calendar: calendar, now: now) }
         if extra >= 3 { try seedPlant(database, householdId: householdId, people: ids, calendar: calendar, now: now) }
+        if extra >= 4 { try seedNewcomer(database, householdId: householdId, now: now) }
+    }
+
+    /// `-sampleCompanions 4`: Pip the rabbit, added just now, with nothing logged yet.
+    private static func seedNewcomer(_ database: AppDatabase, householdId: Household.ID, now: Date) throws {
+        var draft = CompanionDraft.new(species: .rabbit)
+        draft.name = "Pip"
+        draft.about = "Lionhead"
+        _ = try database.saveCompanion(draft, householdId: householdId, now: now)
     }
 
     /// `-sampleCompanions 2`: Miso the cat, fed twice a day, with a week of meals and litter.

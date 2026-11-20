@@ -100,6 +100,11 @@ struct CompanionSnapshot: Equatable, Sendable {
         routines.filter { $0.companionId == companionId }
     }
 
+    /// What a routine's care is called, by what its companion is.
+    func words(_ routine: CareRoutine) -> CareWords {
+        CareWords(routine, species: companions.first { $0.id == routine.companionId }?.species ?? .other)
+    }
+
     func entries(of routineId: CareRoutine.ID?) -> [CareEntry] {
         guard let routineId else { return [] }
         return entries.filter { $0.log.careRoutineId == routineId }

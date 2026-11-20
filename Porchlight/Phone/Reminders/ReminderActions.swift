@@ -127,7 +127,7 @@ enum ReminderActions {
             return Confirmation(title: "Logged: \(slotName)", body: "Credited to you at \(CareText.timeWithPeriod(now, calendar: snapshot.calendar)).")
         case let .alreadyLogged(entry):
             return Confirmation(
-                title: PocketToday.alreadyDone(entry, routine: routine, companion: companion.name, me: me, names: snapshot.names, calendar: snapshot.calendar),
+                title: PocketToday.alreadyDone(entry, words: CareWords(routine, species: companion.species), companion: companion.name, me: me, names: snapshot.names, calendar: snapshot.calendar),
                 body: "Already logged, so nothing was added."
             )
         case nil:
