@@ -237,6 +237,9 @@ struct PodiumView: View {
     let standings: [CareLogic.Standing]
 
     @Environment(CompanionStore.self) private var store
+    /// The pods are washed in the look they are shown in: on a phone at night, a light wash
+    /// would put light numbers on a light pod. The wall is always light, as before.
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let order = CareLogic.podium(standings)
@@ -264,7 +267,7 @@ struct PodiumView: View {
                 .padding(.top, 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .frame(height: max(30, 88 * CGFloat(standing.count) / CGFloat(max(most, 1))))
-                .background(color.wash(0.28, over: Theme.surface2), in: UnevenRoundedRectangle(topLeadingRadius: 12, bottomLeadingRadius: 4, bottomTrailingRadius: 4, topTrailingRadius: 12, style: .continuous))
+                .background(color.wash(0.28, over: Theme.surface2, in: scheme), in: UnevenRoundedRectangle(topLeadingRadius: 12, bottomLeadingRadius: 4, bottomTrailingRadius: 4, topTrailingRadius: 12, style: .continuous))
             Text(name)
                 .sharedFont(.body, 12, weight: 700, relativeTo: .caption)
                 .foregroundStyle(Theme.muted)
