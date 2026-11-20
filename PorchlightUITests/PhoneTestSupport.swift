@@ -61,18 +61,25 @@ extension PhoneTestHelpers {
         // Between the island's bottom (about 48 pt) and the safe area's (59 pt), across the
         // middle of the screen, clear of the clock and the battery.
         let xs = stride(from: Int(CGFloat(image.width) * 0.12), to: Int(CGFloat(image.width) * 0.88), by: 3).map { $0 }
-        let colors = [51, 56].flatMap { row in xs.map { pixel(image, x: $0, y: Int(CGFloat(row) * scale)) } }
+        let colors = [51, 56].flatMap { row in
+            let pixels = pixelRow(image, y: Int(CGFloat(row) * scale))
+            return xs.map { Array(pixels[$0 * 4 ..< $0 * 4 + 3]) }
+        }
         let first = colors[0]
         let off = colors.filter { color in zip(color, first).contains { abs(Int($0) - Int($1)) > 6 } }
         XCTAssertTrue(off.isEmpty, "\(name): something shows under the status bar (\(off.count) of \(colors.count) samples differ)", file: file, line: line)
     }
 
-    private func pixel(_ image: CGImage, x: Int, y: Int) -> [UInt8] {
-        var bytes = [UInt8](repeating: 0, count: 4)
-        let context = CGContext(data: &bytes, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
-                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        context.draw(image, in: CGRect(x: -x, y: -(image.height - 1 - y), width: image.width, height: image.height))
-        return Array(bytes.prefix(3))
+    /// One row of the image, four bytes (RGBA) a pixel. Drawn once a row: drawing the whole
+    /// screenshot once for each of some 600 pixels took 17 minutes on a busy hosted Mac.
+    private func pixelRow(_ image: CGImage, y: Int) -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: image.width * 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            let context = CGContext(data: buffer.baseAddress, width: image.width, height: 1, bitsPerComponent: 8, bytesPerRow: image.width * 4,
+                                    space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            context.draw(image, in: CGRect(x: 0, y: -(image.height - 1 - y), width: image.width, height: image.height))
+        }
+        return bytes
     }
 
     /// Taps the toast's action (Undo, I went too) once the toast has finished sliding in:
