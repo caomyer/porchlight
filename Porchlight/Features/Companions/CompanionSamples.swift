@@ -23,7 +23,7 @@ enum CompanionSamples {
         draft.about = "Toy poodle"
         draft.birthDate = calendar.date(byAdding: .month, value: -51, to: now)
         draft.tone = .cheeky
-        // `-sampleWater`: Yo-Yo's water bowl too, so a page has walks, meals and water.
+        // `-sampleWater YES`: Yo-Yo's water bowl too, so a page has walks, meals and water.
         let withWater = UserDefaults.standard.bool(forKey: "sampleWater")
         if withWater {
             draft.routines.append(CareRoutineDraft(kind: .water, windows: [.hours("Morning", 7, 11)], stars: 1))

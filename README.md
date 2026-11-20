@@ -136,10 +136,10 @@ The phone suite's food tests are much slower than on November 16 (the meal page 
 #### On GitHub (CI)
 
 Every push to any branch runs the unit tests and both UI suites on GitHub's hosted Macs (`.github/workflows/tests.yml`), on iOS 27.2 with Xcode 27.2, so full runs leave the development Mac alone.
-A newer push to the same branch cancels the run before it.
+A newer push to the same branch cancels the run before it; a run by hand is never cancelled by, and never cancels, another run.
 Each job is a small Mac (3 cores, 7 GB) that holds one simulator, and the plan runs five at once:
 
-- **Build, unit tests, Wall UI 1 of 2** builds once (`scripts/test.sh --build-only`) and hands the build to the other jobs as the `products` artifact, then runs the unit tests and the first half of the wall's UI suite on the iPad, which booted during the build.
+- **Build, unit tests, Wall UI 1 of 2** builds once (`scripts/test.sh --build-only`) and hands the build to the other jobs as the `products` artifact, then boots the iPad and runs the unit tests and the first half of the wall's UI suite (booting beside the build slowed it from 5 minutes to 15).
 - **Wall UI 2 of 2, Phone UI 1 of 3, 2 of 3, 3 of 3** each run a share of a UI suite's test classes (`--shard`), on the build from the first job (`--no-build`).
   Each boots its simulator while the build is still going, since a new iOS 27 simulator takes 2 to 8 minutes to boot and finish setting itself up.
 

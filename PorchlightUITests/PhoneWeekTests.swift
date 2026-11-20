@@ -27,6 +27,8 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
     }
 
     private static let largest = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+    /// Yo-Yo's water bowl too. A launch argument reaches UserDefaults only with a value.
+    private static let water = ["-sampleWater", "YES"]
 
     private func launch(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication.porchlight()
@@ -52,10 +54,21 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         return dot
     }
 
-    /// Swipes a sheet away by its title and waits for it to go.
-    private func closeSheet(_ title: XCUIElement) {
-        title.swipeDown(velocity: .fast)
-        XCTAssertTrue(title.waitForNonExistence(timeout: 10), "The sheet closes")
+    /// Closes the care sheet by dragging its grabber to the bottom of the screen, and waits
+    /// for it to go. A swipe on a sheet open at full height only lowers it to its smaller
+    /// height. The sheet's Save button marks it: the page has its own "Log a walk" button,
+    /// so the sheet's title can't.
+    private func closeSheet(_ app: XCUIApplication) {
+        let save = app.buttons["save-care"]
+        for _ in 0..<3 where save.exists {
+            let grabber = app.buttons["Sheet Grabber"]
+            let start = grabber.exists
+                ? grabber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                : app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+            start.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
+            _ = save.waitForNonExistence(timeout: 3)
+        }
+        XCTAssertTrue(save.waitForNonExistence(timeout: 10), "The sheet closes")
     }
 
     // MARK: The paw trail
@@ -74,22 +87,22 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(edit.waitForExistence(timeout: 5), "A logged dot opens its walk to fix")
         XCTAssertTrue(app.staticTexts["Fix who, when or how it went"].exists)
         snapshot("week-11-trail-edit")
-        closeSheet(edit)
+        closeSheet(app)
 
         let missed = dot(app, "Walk", day: 2, slot: 0)
         XCTAssertTrue(missed.label.hasSuffix("missed"), missed.label)
         missed.tap()
-        let slot = app.staticTexts["YO-YO · MORNING WALK"]
-        XCTAssertTrue(slot.waitForExistence(timeout: 5), "A missed dot logs that morning's walk")
+        XCTAssertTrue(app.staticTexts["YO-YO · MORNING WALK"].waitForExistence(timeout: 5), "A missed dot logs that morning's walk")
         snapshot("week-12-trail-missed")
-        closeSheet(slot)
+        closeSheet(app)
 
         let evening = dot(app, "Walk", day: 6, slot: 1)
         XCTAssertTrue(evening.label.hasSuffix("to do"), evening.label)
         evening.tap()
-        let new = app.staticTexts["Log a walk"]
-        XCTAssertTrue(new.waitForExistence(timeout: 5), "Tonight's open dot starts a walk")
-        closeSheet(new)
+        XCTAssertTrue(app.staticTexts["YO-YO · EVENING WALK"].waitForExistence(timeout: 5), "Tonight's open dot starts a walk")
+        XCTAssertTrue(app.buttons["save-care"].exists)
+        snapshot("week-13-trail-new")
+        closeSheet(app)
     }
 
     // MARK: Every routine
@@ -111,12 +124,13 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(dinner.label.hasPrefix("Dinner, "), dinner.label)
         XCTAssertTrue(dinner.label.hasSuffix("to do"), dinner.label)
         dinner.tap()
-        XCTAssertTrue(app.staticTexts["Log a meal"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["YO-YO · DINNER"].waitForExistence(timeout: 5), "Tonight's open dinner starts a meal")
+        // The sheet's Save button marks it: the page has a "Log a meal" button of its own.
         let save = app.buttons["save-care"]
         reveal(save, in: app)
         save.waitToSettle()
         save.tap()
-        XCTAssertTrue(app.staticTexts["Log a meal"].waitForNonExistence(timeout: 10))
+        XCTAssertTrue(save.waitForNonExistence(timeout: 10), "Saving closes the sheet")
         XCTAssertTrue(app.staticTexts["Meal logged"].waitForExistence(timeout: 10), "The toast says it was logged")
         XCTAssertTrue(app.buttons["trail-Feed-6-1"].label.hasSuffix("James"), "Tonight's dinner is in the trail, mine")
         let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Today 5:20'")).firstMatch
@@ -132,7 +146,7 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
 
     /// Water has its week too.
     func testWater() {
-        let app = launch(["-sampleWater"])
+        let app = launch(Self.water)
         openWeek(app)
         app.buttons["routine-Water"].tap()
         XCTAssertTrue(element(app, beginningWith: "Watering diary").waitForExistence(timeout: 5))
@@ -150,7 +164,7 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         ]
         for look in looks {
             XCUIDevice.shared.appearance = look.appearance
-            let app = launch(["-sampleWater"] + look.arguments)
+            let app = launch(Self.water + look.arguments)
             let window = app.windows.firstMatch.frame
             openWeek(app)
             snapshot("week-40-\(look.name)-top")

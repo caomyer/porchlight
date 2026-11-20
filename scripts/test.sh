@@ -72,7 +72,7 @@ while (( $# )); do
   shift
 done
 
-phone_classes=(PhoneTests PhoneTabsTests PhoneWeekTests PhoneHouseholdTests PhoneRemindersTests PhoneFoodTests PhoneSetupTests)
+phone_classes=(PhoneTests PhoneTabsTests PhoneWeekTests PhoneCatchUpTests PhoneHouseholdTests PhoneRemindersTests PhoneFoodTests PhoneSetupTests)
 
 # Which UI suites: both unless one was named. Named tests go to the suite they belong to.
 wall=1 phone=1

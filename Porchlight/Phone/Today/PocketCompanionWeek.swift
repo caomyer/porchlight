@@ -14,8 +14,8 @@ struct PocketCompanionWeek: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(ToastCenter.self) private var toasts
-    @State private var catchUp: PocketCatchUpSheet.Request?
-    /// A new log, or a logged one opened to fix, as on the wall's companion page.
+    /// A new log, a missed slot to catch up on, or a logged one opened to fix, as on the
+    /// wall's companion page: all in the one care sheet.
     @State private var careSheet: PocketCareSheet.Request?
     /// The routine whose week is shown: the primary one until another is picked.
     @State private var routineId: CareRoutine.ID?
@@ -55,7 +55,6 @@ struct PocketCompanionWeek: View {
             }
         }
         .background(Theme.background)
-        .sheet(item: $catchUp, onDismiss: toasts.showPending) { PocketCatchUpSheet(request: $0, logging: logging.inSheet) }
         .sheet(item: $careSheet, onDismiss: toasts.showPending) { PocketCareSheet(request: $0, logging: logging.inSheet) }
     }
 
@@ -67,9 +66,10 @@ struct PocketCompanionWeek: View {
     }
 
     /// A slot that was never logged, from the trail or the diary, is logged for its own
-    /// day. Every way the page catches up goes through here.
+    /// day and for the slot tapped (`CareLogic.slot`), however late it is caught up on.
+    /// Every way the page catches up goes through here.
     private func logMissed(_ missed: MissedCare) {
-        catchUp = PocketCatchUpSheet.Request(companionId: companionId, missed: missed)
+        careSheet = .catchUp(missed, companionId: companionId, people: me.map { [$0.id] } ?? [])
     }
 
     /// What a tap on the trail does, as on the wall.
@@ -163,7 +163,8 @@ struct PocketCompanionWeek: View {
     private func loggedRow(_ item: DiaryItem, report: CompanionReport) -> some View {
         let entry = item.entry
         let snapshot = store.snapshot
-        var head = CaptionEngine.whoText(entry.people, names: snapshot.names)
+        let nobody = snapshot.namesNobody(entry)
+        var head = nobody ? CareLogWording.nobody : CaptionEngine.whoText(entry.people, names: snapshot.names)
         if let minutes = entry.log.durationMinutes { head += " · \(minutes) min" }
         let business = CareText.business(entry.log, spaced: true)
         if !business.isEmpty { head += "  \(business)" }
@@ -171,7 +172,9 @@ struct PocketCompanionWeek: View {
             HStack(alignment: .top, spacing: 10) {
                 CarerAvatar(carers: Carers(entry.people, snapshot: snapshot), size: 24)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(head).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                    Text(head)
+                        .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                        .foregroundStyle(nobody ? Theme.accent : Theme.ink)
                     if let story = entry.log.note ?? item.caption {
                         Text(story)
                             .phoneFont(.body, 13, weight: 500, relativeTo: .footnote)

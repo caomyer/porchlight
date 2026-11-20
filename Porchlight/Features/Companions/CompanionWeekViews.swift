@@ -180,7 +180,7 @@ struct PawTrailGrid: View {
     @ViewBuilder
     private func cell(_ slot: CareSlot?, window: CareWindow, on day: DayKey) -> some View {
         let snapshot = store.snapshot
-        let label = week.trailLabel(slot, window: window, on: day, names: snapshot.names, calendar: snapshot.calendar)
+        let label = week.trailLabel(slot, window: window, on: day, snapshot: snapshot)
         if let tap = week.tap(slot, on: day) {
             Button { onTap(tap) } label: {
                 mark(tap)
@@ -203,6 +203,9 @@ struct PawTrailGrid: View {
         switch tap {
         case let .edit(entry):
             PawDot(carers: Carers(entry.people, snapshot: store.snapshot), size: metrics.dot, content: .initial)
+        case let .catchUp(missed) where missed.day == today:
+            // Late today: still waiting, like an open slot.
+            ghost(waiting: true)
         case .catchUp:
             ghost(waiting: false).opacity(0.45)
         case .log:

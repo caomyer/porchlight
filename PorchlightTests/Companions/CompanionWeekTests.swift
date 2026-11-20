@@ -10,6 +10,7 @@ struct CompanionWeekTests {
 
     struct Week {
         let report: CompanionReport
+        let snapshot: CompanionSnapshot
         let calendar: Calendar
         let today: DayKey
         let james: Person.ID
@@ -22,7 +23,7 @@ struct CompanionWeekTests {
 
     /// Yo-Yo, walked and fed for ten days but only logged today and yesterday, at 6:30 pm.
     /// Yesterday's dinner was skipped; tonight's is open.
-    private func week() throws -> Week {
+    private func week(atMinute minute: Int = 18 * 60 + 30) throws -> Week {
         let db = try AppDatabase.inMemory()
         let household = try db.createHousehold(name: "Home", people: [
             PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral),
@@ -30,7 +31,7 @@ struct CompanionWeekTests {
         let people = try db.snapshot().people.map(\.id)
         let calendar = try #require(try db.snapshot().household).calendar
         let today = DayKey(.now, calendar: calendar)
-        let now = CareLogic.date(today, minute: 18 * 60 + 30, calendar: calendar)
+        let now = CareLogic.date(today, minute: minute, calendar: calendar)
         let yesterday = today.adding(days: -1, calendar: calendar)
 
         var draft = CompanionDraft.new(species: .dog)
@@ -50,7 +51,7 @@ struct CompanionWeekTests {
 
         let snapshot = try db.writer.read(CompanionSnapshot.fetch)
         let report = try #require(CompanionReport.make(snapshot: snapshot, companionId: id, now: now))
-        return Week(report: report, calendar: calendar, today: today, james: people[0], mia: people[1])
+        return Week(report: report, snapshot: snapshot, calendar: calendar, today: today, james: people[0], mia: people[1])
     }
 
     @Test("Every routine has its week, and the primary's is the wall's")
@@ -91,13 +92,27 @@ struct CompanionWeekTests {
         notOwed.missed = []
         #expect(notOwed.tap(yesterday[1], on: week.yesterday) == nil, "A slot that was never owed asks nothing")
 
-        let names = [week.james: "James", week.mia: "Mia"]
         let weekday = week.yesterday.formatted(.dateTime.weekday(.wide), calendar: week.calendar)
-        #expect(meals.trailLabel(yesterday[1], window: yesterday[1].window, on: week.yesterday, names: names, calendar: week.calendar) == "Dinner, \(weekday), missed")
-        #expect(meals.trailLabel(yesterday[0], window: yesterday[0].window, on: week.yesterday, names: names, calendar: week.calendar) == "Breakfast, \(weekday), Mia")
+        #expect(meals.trailLabel(yesterday[1], window: yesterday[1].window, on: week.yesterday, snapshot: week.snapshot) == "Dinner, \(weekday), missed")
+        #expect(meals.trailLabel(yesterday[0], window: yesterday[0].window, on: week.yesterday, snapshot: week.snapshot) == "Breakfast, \(weekday), Mia")
         let todayName = week.today.formatted(.dateTime.weekday(.wide), calendar: week.calendar)
-        #expect(meals.trailLabel(today[1], window: today[1].window, on: week.today, names: names, calendar: week.calendar) == "Dinner, \(todayName), to do")
-        #expect(week.walks.trailLabel(nil, window: .hours("Morning", 6, 10), on: week.today, names: names, calendar: week.calendar).hasSuffix("not due"))
+        #expect(meals.trailLabel(today[1], window: today[1].window, on: week.today, snapshot: week.snapshot) == "Dinner, \(todayName), to do")
+        #expect(week.walks.trailLabel(nil, window: .hours("Morning", 6, 10), on: week.today, snapshot: week.snapshot).hasSuffix("not due"))
+    }
+
+    @Test("Today's slot whose window closed is caught up on for that slot, not logged now")
+    func lateToday() throws {
+        let week = try week(atMinute: 21 * 60)
+        let dinner = try #require(week.meals.trail[6].first { $0.index == 1 })
+        #expect(dinner.state == .late)
+        guard case let .catchUp(missed) = week.meals.tap(dinner, on: week.today) else {
+            Issue.record("A late dinner is caught up on")
+            return
+        }
+        #expect(missed.day == week.today && missed.slot.index == 1, "for tonight's dinner, the slot tapped")
+        let todayName = week.today.formatted(.dateTime.weekday(.wide), calendar: week.calendar)
+        #expect(week.meals.trailLabel(dinner, window: dinner.window, on: week.today, snapshot: week.snapshot) == "Dinner, \(todayName), late")
+        #expect(week.meals.missed.allSatisfy { $0.day != week.today }, "It isn't in the diary's missed rows, which are earlier days")
     }
 
     @Test("The four numbers follow the routine")

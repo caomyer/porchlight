@@ -28,7 +28,7 @@ struct CareLogFieldsTests {
         )
         #expect(logDay.day == F.key(5), "the log's day, before a missed slot's or today")
         #expect(!logDay.isToday)
-        let fields = CareLogFields(editing: entry)
+        let fields = CareLogFields(editing: entry, people: entry.people)
         #expect(fields.people == [F.james, F.mia])
         #expect(fields.when == .at(F.date(day: 5, 7, 40)))
         #expect(fields.duration == 30 && fields.pee && !fields.poo && fields.vibe == .squirrel)
@@ -42,12 +42,12 @@ struct CareLogFieldsTests {
 
     @Test("A saved length that isn't a choice still shows, picked, and stays to go back to")
     func savedLength() {
-        var fields = CareLogFields(editing: F.entry(5, 7, 40, minutes: 12))
+        var fields = CareLogFields(editing: F.entry(5, 7, 40, minutes: 12), people: [F.james])
         #expect(fields.durationChoices == [10, 12, 20, 30, 45, 60])
         #expect(fields.duration == 12)
         fields.duration = 20
         #expect(fields.durationChoices.contains(12), "picking another length keeps the saved one on offer")
-        #expect(CareLogFields(editing: F.entry(6, 7, 40, minutes: 30)).durationChoices == CareLogFields.durations)
+        #expect(CareLogFields(editing: F.entry(6, 7, 40, minutes: 30), people: [F.james]).durationChoices == CareLogFields.durations)
         #expect(CareLogFields(people: [F.james]).durationChoices == CareLogFields.durations, "a new log offers the usual lengths")
         #expect(CareLogFields.durationTitle(60) == "1 hr+")
         #expect(CareLogFields.durationTitle(90) == "90 min", "a long saved walk says its length, not a second \"1 hr+\"")

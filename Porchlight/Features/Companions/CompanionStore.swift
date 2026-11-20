@@ -111,6 +111,18 @@ struct CompanionSnapshot: Equatable, Sendable {
         everyone.person(id)
     }
 
+    /// Whether a log names nobody this household knows: no one was ever on it, or its
+    /// people haven't arrived from another device yet. It shows "Who? Tap to say" and opens
+    /// to say who.
+    func namesNobody(_ entry: CareEntry) -> Bool {
+        !entry.people.contains { person($0) != nil }
+    }
+
+    /// Who to start a fix with: the log's people that this household knows.
+    func knownPeople(of entry: CareEntry) -> [Person.ID] {
+        entry.people.filter { person($0) != nil }
+    }
+
     /// Names of everyone, removed people included.
     var names: [Person.ID: String] {
         Dictionary(everyone.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
@@ -170,17 +182,24 @@ final class CompanionStore: StoredFirstObservable {
     }
 
     private func observe() {
+        // A read that fails once (a busy disk, a row mid-sync) must not leave every screen
+        // showing what it had before for good: it says so, and watches again a moment later.
         observation = Task { [weak self, database] in
-            do {
-                let updates = ValueObservation
-                    .tracking(CompanionSnapshot.fetch)
-                    .removeDuplicates()
-                    .values(in: database.writer)
-                for try await snapshot in updates {
-                    self?.apply(snapshot)
+            while !Task.isCancelled {
+                do {
+                    let updates = ValueObservation
+                        .tracking(CompanionSnapshot.fetch)
+                        .removeDuplicates()
+                        .values(in: database.writer)
+                    for try await snapshot in updates {
+                        self?.apply(snapshot)
+                    }
+                    return
+                } catch {
+                    guard let self else { return }
+                    self.lastError = error.userMessage
+                    try? await Task.sleep(for: .seconds(1))
                 }
-            } catch {
-                self?.lastError = error.userMessage
             }
         }
     }
@@ -300,7 +319,9 @@ final class CompanionStore: StoredFirstObservable {
         perform { _ = try database.updateCareLog(id: id, draft, now: now) }
     }
 
-    func deleteLog(id: CareLog.ID) {
+    /// Removes a log. Returns false, with `lastError` set, when it can't be.
+    @discardableResult
+    func deleteLog(id: CareLog.ID) -> Bool {
         perform { try database.deleteCareLog(id: id) }
     }
 

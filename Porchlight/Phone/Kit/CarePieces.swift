@@ -44,8 +44,8 @@ struct CareSlotTile: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(PocketToday.slotTitle(slot, of: routine))
                     .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
-                SlotDetail(parts: PocketToday.slotDetailParts(slot, calendar: snapshot.calendar))
-                    .foregroundStyle(isCalling ? Theme.accent : Theme.muted)
+                SlotDetail(parts: PocketToday.slotDetailParts(slot, calendar: snapshot.calendar, namesNobody: namesNobody))
+                    .foregroundStyle(isCalling || namesNobody ? Theme.accent : Theme.muted)
             }
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
@@ -62,6 +62,9 @@ struct CareSlotTile: View {
         }
         .accessibilityElement(children: .combine)
     }
+
+    /// Logged, but by nobody this household knows: it asks who.
+    private var namesNobody: Bool { slot.entry.map(snapshot.namesNobody) ?? false }
 
     /// Open now, or past its window: the slot is asking for someone.
     private var isCalling: Bool { [.open, .due, .late].contains(slot.state) }

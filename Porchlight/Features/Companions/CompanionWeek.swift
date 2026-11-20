@@ -14,6 +14,9 @@ struct RoutineWeek: Identifiable {
     var diary: [DiaryItem]
     /// The routine's slots this week that were never logged, newest first.
     var missed: [MissedCare]
+    /// Today's slots whose window closed without a log: caught up on for the slot itself,
+    /// as Today's banner does, so a breakfast logged at 1:30 pm is breakfast, not dinner.
+    var late: [MissedCare] = []
     var milestones: [Milestone]
 
     var id: CareRoutine.ID { routine.id }
@@ -34,14 +37,25 @@ struct RoutineWeek: Identifiable {
             for: entries, tone: companion.captionTone, name: companion.name, routine: routine,
             names: snapshot.names, calendar: calendar
         )
+        let trail = weekDays.map { CareLogic.slots(for: routine, on: $0, byDay: byDay, now: now, calendar: calendar) }
+        let today = DayKey(now, calendar: calendar)
+        let late = (weekDays.last == today ? trail.last ?? [] : [])
+            .filter { $0.state == .late && CareCatchUp.isOwed($0, of: routine, on: today, since: companion.createdAt, calendar: calendar) }
+            .map { slot in
+                MissedCare(
+                    routine: routine, day: today, slot: slot,
+                    usual: CareCatchUp.usualTime(slot.index, of: routine, on: today, entries: entries, now: now, calendar: calendar)
+                )
+            }
         return RoutineWeek(
             routine: routine,
-            trail: weekDays.map { CareLogic.slots(for: routine, on: $0, byDay: byDay, now: now, calendar: calendar) },
+            trail: trail,
             stats: CareLogic.weekStats(for: routine, entries: entries, days: weekDays, now: now, calendar: calendar),
             streak: CareLogic.streak(for: routine, entries: entries, now: now, calendar: calendar),
             leaderboard: CareLogic.leaderboard(weekEntries, people: snapshot.everyone.map(\.id)),
             diary: weekEntries.reversed().map { DiaryItem(entry: $0, caption: captions[$0.id]) },
             missed: missed,
+            late: late,
             milestones: CompanionReport.milestones(routine: routine, entries: entries, snapshot: snapshot, now: now, calendar: calendar)
         )
     }
@@ -99,34 +113,39 @@ struct RoutineWeek: Identifiable {
     enum TrailTap: Equatable {
         /// A logged slot opens its log to fix.
         case edit(CareEntry)
-        /// A slot earlier this week that was never logged is logged for its own day.
+        /// A slot whose window closed without a log, earlier this week or today, is logged
+        /// for its own day and for that slot (`CareLogic.slot`), however late.
         case catchUp(MissedCare)
-        /// A slot still expected today starts a new log.
+        /// A slot still open or to come today starts a new log.
         case log
     }
 
-    /// Nil for a slot that asks nothing: one in the future, or a day it wasn't due.
+    /// Nil for a slot that asks nothing: one in the future, a day it wasn't due, or one that
+    /// closed before the companion arrived, which was never owed.
     func tap(_ slot: CareSlot?, on day: DayKey) -> TrailTap? {
         guard let slot else { return nil }
         if let entry = slot.entry { return .edit(entry) }
-        if slot.isPendingToday { return .log }
-        // Only a slot that was owed: one that closed before the companion arrived wasn't.
-        if slot.state == .missed, let missed = missed.first(where: { $0.day == day && $0.slot.index == slot.index }) {
-            return .catchUp(missed)
+        switch slot.state {
+        case .upcoming, .open, .due:
+            return .log
+        case .late, .missed:
+            return (late + missed).first { $0.day == day && $0.slot.index == slot.index }.map(TrailTap.catchUp)
+        case .done, .future:
+            return nil
         }
-        return nil
     }
 
-    /// "Morning walk, Monday, Mia": what VoiceOver reads for a slot of the trail.
-    func trailLabel(_ slot: CareSlot?, window: CareWindow, on day: DayKey, names: [Person.ID: String], calendar: Calendar) -> String {
+    /// "Morning walk, Monday, Mia": what VoiceOver reads for a slot of the trail. A log
+    /// that names nobody known reads "Who? Tap to say", as its diary row does.
+    func trailLabel(_ slot: CareSlot?, window: CareWindow, on day: DayKey, snapshot: CompanionSnapshot) -> String {
         let name = CompanionWeekWords.capitalized(CareCatchUp.slotName(window, of: routine))
-        let weekday = day.formatted(.dateTime.weekday(.wide), calendar: calendar)
+        let weekday = day.formatted(.dateTime.weekday(.wide), calendar: snapshot.calendar)
         let status: String
         if let entry = slot?.entry {
-            status = CaptionEngine.whoText(entry.people, names: names)
+            status = snapshot.namesNobody(entry) ? CareLogWording.nobody : CaptionEngine.whoText(entry.people, names: snapshot.names)
         } else {
             switch tap(slot, on: day) {
-            case .catchUp: status = "missed"
+            case .catchUp: status = slot?.state == .late ? "late" : "missed"
             case .log: status = "to do"
             default: status = "not due"
             }
