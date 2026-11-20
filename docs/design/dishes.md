@@ -108,3 +108,40 @@ Each also has `sqlitedata_icloud_userModificationTime` and its parent reference.
 
 Until Production has them, a newer build's dish rows stay on the device: iCloud turns each down ("Cannot create new type"), the meal itself still syncs, and `SyncController` offers the rows again every ten minutes and at launch, saying "iCloud isn't taking N changes yet" meanwhile (`sync-icloud.md`, "When iCloud turns changes down").
 Nothing is lost, and the next offer after the deploy goes through.
+
+James accepted this (November 20): dish lines stay on the meal, and an older build can't remove a meal that has dishes until it updates.
+The other way, hanging lines off the household, would let an older build remove such a meal, but a newer device could then not tell a meal that was removed from one that hasn't arrived yet, and would risk deleting lines.
+
+## Release notes
+
+For the build that brings dishes, in TestFlight's "What to Test" and the App Store's notes:
+
+> Meals can now name their dishes, and every dish remembers itself: where you had it, how often, and how each of you liked it.
+> Open Food › Dishes to find them, or a restaurant to see what you get there.
+> Update Porchlight on every device, the wall first: until a device updates, it can't remove a meal that has dishes.
+
+## Screens
+
+The phone (`Porchlight/Phone/Food/PocketDishes.swift`):
+
+- The Food tab has two views, Diary (as before) and Dishes, switched by `PhoneSegments`; its small line says "48 dishes · 11 places" over the dishes.
+- Dishes: one search field over dishes and places, filters (All, ★ Favourites, 🏠 Home, 📍 Out), then favourites, home, each restaurant (its name opens its page, with its three best dishes) and elsewhere.
+  After the update, a card says once per phone what the diary already knew ("Your diary already knew 19 dishes").
+  A household with no dishes sees why the view is empty.
+- A dish's page: its picture, name and kitchen (a restaurant opens its page), times had, first and last, each person's usual face, photos of the meals it was on, every time (each opens its meal), "Also had at", and Favourite, Rename and Remove.
+  Renaming onto a name the kitchen has offers to merge; removing says how many meals it leaves, and offers Undo.
+- A restaurant's page: visits and last visit, last time's order (opens that meal), everything we had there best face first with the one to skip greyed, and Directions.
+- A meal's page gains "What we had": each dish with its face, opening the dish, and "Rate each", where everyone who ate gets their own face, dish by dish, starting from the table's.
+  The slot's other meals are "meals" now, not "dishes".
+
+The wall (`Porchlight/Features/Food/WallDishes.swift`):
+
+- Dishes sits beside Week and Month: a grid of dish cards (favourites, home, elsewhere; or each restaurant under 📍 Out), and "Ordering in?", our places by visits with the dish we like best.
+- A dish opens as a sheet with the same memory, and Favourite, Rename (merging) and Remove (with Undo in the sheet).
+- A restaurant opens as "What we get here", with last time's order and its polaroid.
+- A meal's sheet gains "What we had" and "How was it?": a row per person who ate, big faces, dish by dish.
+  "Another dinner dish" is "Another meal at dinner".
+- The wall keeps its one light look, so the proposal's night frames of the wall don't apply.
+
+Not built yet, waiting for the meal sheets: dish lines on Snap and Edit, Where above "What was it?", suggestions while typing and "Last time here" chips.
+They go on top of the multi-select Where when it lands.

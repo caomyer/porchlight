@@ -51,6 +51,14 @@ enum FoodSamples {
         (6, 0, home("☕", "Oat latte", 0, 0xE6D5C3, .fine)),
     ]
 
+    /// The dishes of sample meals that had more than one, by the meal's title; every other
+    /// meal is the one dish it names.
+    private static let dishes: [String: [(String, MealRating?)]] = [
+        "Pho": [("Pho tai", .favorite), ("Spring rolls", .again)],
+        "Pizza": [("Margherita", .meh), ("Garlic knots", .fine)],
+        "Taco night": [("Fish tacos", .again), ("Elote", .favorite)],
+    ]
+
     /// Handwritten lines per day of `week`: text and writer (index into people) or a fixed ink.
     private static let notes: [[(String, Int, PageInk?)]] = [
         [("pancakes ♡", 1, nil), ("cobb salad", 1, nil), ("pesto pasta!", 0, nil)],
@@ -65,8 +73,8 @@ enum FoodSamples {
     /// Earlier days, so the streak is long and most dishes are not "new this week".
     private static let history: [[Dish]] = [
         [home("🍳", "Eggs & toast", nil, 0xF5E2A6), home("🍝", "Pesto pasta", nil, 0xE8C9B5)],
-        [home("🥣", "Granola", 0, 0xE9DCC4), delivery("🍜", "Pho", nil, 0xF0D5B8), home("🌮", "Taco night", nil, 0xF2C6A8)],
-        [home("🥞", "Pancakes", nil, 0xF3D9A4), home("🥙", "Falafel wrap", 1, 0xDCE6CF), delivery("🍕", "Pizza", nil, 0xF4C3B4)],
+        [home("🥣", "Granola", 0, 0xE9DCC4), delivery("🍜", "Pho", nil, 0xF0D5B8, from: phoHouse), home("🌮", "Taco night", nil, 0xF2C6A8)],
+        [home("🥞", "Pancakes", nil, 0xF3D9A4), home("🥙", "Falafel wrap", 1, 0xDCE6CF), delivery("🍕", "Pizza", nil, 0xF4C3B4, from: pizzeria)],
         [home("🥯", "Bagel", 1, 0xE6D3B8), delivery("🍱", "Bento box", 0, 0xD9E2EE), home("🍛", "Chicken curry", nil, 0xF1C78F)],
         [home("🥑", "Avocado toast", 1, 0xD7E5C2), home("🥗", "Cobb salad", 1, 0xCFE3C4), delivery("🍣", "Sushi night", nil, 0xE5D0DA)],
         [home("🥣", "Oatmeal", 0, 0xEADFCB), delivery("🥪", "Banh mi", 1, 0xE8D7C2)],
@@ -88,11 +96,18 @@ enum FoodSamples {
         func add(_ dish: Dish, day: DayKey, slot: Int, later minutes: Int = 0) throws -> JournalEntry {
             let eaters = dish.who.map { [people[min($0, people.count - 1)].id] } ?? people.map(\.id)
             let eatenAt = calendar.date(byAdding: .minute, value: times[slot] + minutes, to: day.startDate(in: calendar)) ?? .now
-            let draft = MealDraft(
+            var draft = MealDraft(
                 day: day, slot: slots[slot], source: dish.source, title: dish.title, emoji: dish.emoji,
                 tint: dish.tint, rating: dish.rating, eaterIds: eaters, eatenAt: eatenAt, place: dish.place
             )
-            return try database.addMeal(draft, journalId: journalId, now: eatenAt)
+            draft.dishes = (dishes[dish.title] ?? [(dish.title, dish.rating)]).map { DishLineDraft(name: $0.0, rating: $0.1) }
+            let entry = try database.addMeal(draft, journalId: journalId, now: eatenAt)
+            // Someone didn't agree with the table about the week's pho.
+            if dish.title == "Pho", dish.source == .dineOut, people.count > 1,
+               let line = try database.foodSnapshot().lines[entry.id]?.last {
+                try database.setPersonFace(lineId: line.id, personId: people[people.count - 1].id, .fine)
+            }
+            return entry
         }
 
         /// Gives a sample meal generated photos, so covers, counts and paging show without a camera.
