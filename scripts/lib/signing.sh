@@ -12,7 +12,8 @@
 #   PORCHLIGHT_ASC_KEY_ID      its key id, ABC123
 #   PORCHLIGHT_ASC_ISSUER_ID   the issuer id from App Store Connect › Users and Access › Integrations
 #
-# Without them, signing falls back to whatever account xcodebuild can see.
+# Without them, or with PORCHLIGHT_SIGN_WITH_XCODE=1, signing falls back to whatever account
+# xcodebuild can see.
 
 porchlight_load_signing() {
   local file="$1/Config/AppStoreConnect.env"
@@ -31,7 +32,11 @@ porchlight_load_signing() {
   # The arguments every signing xcodebuild call adds.
   typeset -ga porchlight_signing_args
   porchlight_signing_args=(-allowProvisioningUpdates)
-  if [[ -n "${PORCHLIGHT_ASC_KEY_PATH:-}" && -n "${PORCHLIGHT_ASC_KEY_ID:-}" && -n "${PORCHLIGHT_ASC_ISSUER_ID:-}" ]]; then
+  # PORCHLIGHT_SIGN_WITH_XCODE=1 leaves the key out, for when Apple turns the key down for a
+  # new profile: xcodebuild then signs with the account Xcode is signed in to.
+  if [[ -n "${PORCHLIGHT_SIGN_WITH_XCODE:-}" ]]; then
+    echo "Signing with Xcode's account (PORCHLIGHT_SIGN_WITH_XCODE)." >&2
+  elif [[ -n "${PORCHLIGHT_ASC_KEY_PATH:-}" && -n "${PORCHLIGHT_ASC_KEY_ID:-}" && -n "${PORCHLIGHT_ASC_ISSUER_ID:-}" ]]; then
     if [[ ! -f "$PORCHLIGHT_ASC_KEY_PATH" ]]; then
       echo "The App Store Connect key isn't at $PORCHLIGHT_ASC_KEY_PATH." >&2
       return 1
