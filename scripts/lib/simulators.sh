@@ -13,9 +13,11 @@ zmodload zsh/system
 
 # The wall iPad and the oldest phones run iOS 17, so tests run on iOS 17.5.
 porchlight_sim_runtime=com.apple.CoreSimulator.SimRuntime.iOS-17-5
+# A newer Xcode may not have these models: PORCHLIGHT_SIM_IPAD_TYPE and
+# PORCHLIGHT_SIM_IPHONE_TYPE name another of the same size (.github/workflows/tests.yml).
 typeset -gA porchlight_sim_types=(
-  ipad com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB
-  iphone com.apple.CoreSimulator.SimDeviceType.iPhone-15
+  ipad "${PORCHLIGHT_SIM_IPAD_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB}"
+  iphone "${PORCHLIGHT_SIM_IPHONE_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPhone-15}"
 )
 porchlight_sim_locks=/private/tmp/porchlight-simulator-locks
 # The simulators this shell holds.
