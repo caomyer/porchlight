@@ -364,7 +364,8 @@ extension AppDatabase {
             }
             let slots = CareLogic.slots(for: routine, on: day, byDay: CareLogic.byDay(entries, calendar: calendar), now: now, calendar: calendar)
             if let done = slots[safe: index]?.entry { return .alreadyLogged(done) }
-            return .logged(try insertLog(draft, note: note, routine: routine, now: now, in: db))
+            let slot = routine.effectiveWindows.indices.contains(index) ? index : nil
+            return .logged(try insertLog(draft, note: note, routine: routine, slot: slot, now: now, in: db))
         }
     }
 
@@ -393,9 +394,9 @@ extension AppDatabase {
     /// The one place a care log is added, stamped with the device that wrote it.
     /// The people must live in the routine's household: a log never credits someone from
     /// another household (journey A5).
-    private func insertLog(_ draft: CareLogDraft, note: String?, routine: CareRoutine, now: Date, in db: Database) throws -> CareLog {
+    private func insertLog(_ draft: CareLogDraft, note: String?, routine: CareRoutine, slot: Int? = nil, now: Date, in db: Database) throws -> CareLog {
         let householdId = try Self.household(of: routine, crediting: draft.people, in: db)
-        var log = CareLog(careRoutineId: routine.id, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now, deviceId: stamp(in: householdId))
+        var log = CareLog(careRoutineId: routine.id, occurredAt: draft.occurredAt, stars: routine.stars, createdAt: now, deviceId: stamp(in: householdId), slot: slot)
         log.apply(draft, note: note, routine: routine)
         try log.insert(db)
         try Self.replacePeople(of: log.id, with: draft.people, in: db)
@@ -410,6 +411,16 @@ extension AppDatabase {
             guard var log = try CareLog.fetchOne(db, id: id) else { throw CareValidationError.unknownLog }
             guard let routine = try CareRoutine.fetchOne(db, id: log.careRoutineId) else { throw CareValidationError.unknownRoutine }
             _ = try Self.household(of: routine, crediting: draft.people, in: db)
+            // A log keeps the slot it was made for unless its new time lies in another
+            // slot's window: then that time places it again.
+            if log.occurredAt != draft.occurredAt, let slot = log.slot {
+                let calendar = try Household.fetchOne(db, sql: """
+                    SELECT household.* FROM household JOIN companion ON companion.householdId = household.id
+                    WHERE companion.id = ?
+                    """, arguments: [routine.companionId])?.calendar ?? .current
+                let minute = CareLogic.minuteOfDay(draft.occurredAt, calendar: calendar)
+                if CareLogic.slot(forMinute: minute, intended: slot, in: routine.effectiveWindows) != slot { log.slot = nil }
+            }
             log.occurredAt = draft.occurredAt
             log.apply(draft, note: note, routine: routine)
             try log.update(db)

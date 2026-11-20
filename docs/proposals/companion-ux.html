@@ -731,10 +731,13 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
       <div class="ch"><b style="font:700 14px/1 var(--body)">Business</b><span class="sugg"><span class="pill np on">💧</span><span class="pill np">💩</span></span></div>
       <div class="field ph-t">A note for the walk diary</div>
       <span class="btn">Log walk · +1 star</span>`)}),
-    b2catch: P(`${head('Sunday, November 15', 'Hi, James')}<div class="banner warn"><span>🍽️</span><span>Yo-Yo's dinner wasn't logged<small>Usually 5 to 7 pm</small></span><em>Log it</em></div>${petCard()}`, {tab:'today', t:'9:30', over: sheet(`<div class="label">Yo-Yo · dinner</div><h4>When did Yo-Yo eat?</h4>
-      <div class="sugg"><span class="pill np on">6:00 pm</span><span class="pill np">6:30 pm</span><span class="pill np">7:00 pm</span><span class="pill np">Usual · 5:30</span></div>
-      <div class="pad">${['1','2','3','4','5','6','7','8','9','am/pm','0','⌫'].map(k=>`<span>${k}</span>`).join('')}</div>
-      <span class="btn">Log dinner at 6:00 pm</span>`)}),
+    b2catch: P(`${head('Sunday, November 15', 'Hi, James')}<div class="banner warn"><span>🦮</span><span>Yo-Yo's morning walk wasn't logged<small>Usually 6 to 10 am</small></span><em>Log it</em></div>${petCard()}`, {tab:'today', t:'11:30', over: sheet(`<div class="label">Yo-Yo · morning walk</div><h4>Log a walk</h4>
+      <p>For today's morning walk</p>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Started</b><span class="pill np on">7:15 am ▾</span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">How long</b><span class="sugg">${['10','20','30','45'].map((m,i)=>`<span class="pill np ${i===1?'on':''}">${m} min</span>`).join('')}</span></div>
+      <div class="ch"><b style="font:700 14px/1 var(--body)">Who went</b><span class="sugg"><span class="pill on">${av('J','sm')}You</span><span class="pill">${av('M','sm')}Mia</span><span class="pill">${av('A','sm')}Ava</span></span></div>
+      <div class="field ph-t">A note for the walk diary</div>
+      <span class="btn">Log walk · +1 star</span>`)}),
     b2fix: P(`${head('Sunday, November 15', 'Hi, James')}${petCard({walked:true})}`, {tab:'today', over: sheet(`<div class="label">Yo-Yo · morning walk</div><h4>Edit walk</h4>
       <p>Fix who, when or how it went</p>
       <div class="ch"><b style="font:700 14px/1 var(--body)">Started</b><span class="pill np on">9:39 am ▾</span></div>
@@ -979,7 +982,7 @@ code { font: 500 .92em ui-monospace, "SF Mono", Menlo, monospace; background: va
     { id:'B2', ws:'B', ph:1, t:'Log care', goal:'One tap logs it for you. Details, other people and late logging are there when needed and never in the way.', frames:[
       ['p','b2tap','One tap, undo toast','Credited to you; "also went" adds Mia. Undo reverses it everywhere.'],
       ['p','b2sheet','More… opens the care sheet','The same fields as the wall\'s care sheet: time pill, duration, who, business, note.'],
-      ['p','b2catch','Catch up','A missed routine shows once on Today. The time pill opens suggestions and the number pad, like the wall.'],
+      ['p','b2catch','Catch up','A missed routine shows once on Today. Log it opens the same care sheet as any log, for that slot at its usual time, with who, how long and the rest.'],
       ['p','b2fix','Fix a log','A done slot on Today, or a row of the week\'s diary, opens the log as the wall does: every field as logged, "Save changes".'],
       ['p','b2remove','Remove a log','"Remove" asks once more, with the wall\'s words. The log\'s stars go with it, and its slot is open again.']],
       states:['Two people log the same slot at once: both entries kept, the slot shows both avatars','Logged on the wall seconds earlier: the button already reads done when you open the app','Undo after the wall shows it: the wall row disappears too'],

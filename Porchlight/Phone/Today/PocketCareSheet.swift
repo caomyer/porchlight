@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// "More…" on a care card, or a logged entry opened to fix: the wall's care sheet at
-/// phone size. The same fields (when, how long, who, business, vibe, note), the same
-/// rules (`CareLogFields`, `CareLogDay`) and the same words for fixing one
-/// (`CareLogWording`), with you already picked as who went on a new log.
+/// The one way to log care on the phone beyond a card's one tap: "More…" on a care card, a
+/// slot nobody logged (Today's banner, a missed mark in the week), or a logged entry opened
+/// to fix. It is the wall's care sheet at phone size: the same fields (when, how long, who,
+/// business, vibe, note), the same rules (`CareLogFields`, `CareLogDay`) and the same words
+/// for fixing one (`CareLogWording`), with you already picked as who went on a new log.
 struct PocketCareSheet: View {
     struct Request: Identifiable {
         var companionId: Companion.ID
@@ -13,8 +14,21 @@ struct PocketCareSheet: View {
         var people: [Person.ID]
         /// Set to fix this log instead of adding one.
         var logId: CareLog.ID?
+        /// Set to catch up on a slot nobody logged: the log is for that slot's day, at its
+        /// usual time, unless someone logs the slot first.
+        var catchUp: CareLogRequest.CatchUp?
 
-        var id: String { "\(companionId)-\(routineId)-\(logId?.description ?? "new")" }
+        var id: String {
+            "\(companionId)-\(routineId)-\(logId?.description ?? "new")" + (catchUp.map { "-\($0.day.rawValue)-\($0.slot)" } ?? "")
+        }
+
+        /// Catches up on `missed`, credited to `people` to start with.
+        static func catchUp(_ missed: MissedCare, companionId: Companion.ID, people: [Person.ID]) -> Request {
+            Request(
+                companionId: companionId, routineId: missed.routine.id, people: people,
+                catchUp: CareLogRequest.CatchUp(day: missed.day, slot: missed.slot.index)
+            )
+        }
 
         /// Opens a logged entry to fix, as tapping it does on the wall.
         static func edit(_ entry: CareEntry, companionId: Companion.ID) -> Request {
@@ -49,7 +63,7 @@ struct PocketCareSheet: View {
 
     private func form(report: CompanionReport, routine: CareRoutine, editing: CareEntry?) -> some View {
         let day = CareLogDay.forSheet(
-            routine: routine, editing: editing, catchUpDay: nil, today: report.today, now: report.now,
+            routine: routine, editing: editing, catchUpDay: request.catchUp?.day, today: report.today, now: report.now,
             calendar: store.snapshot.calendar, history: store.snapshot.entries(of: routine.id)
         )
         let noun = routine.kind.noun(title: routine.title)
@@ -57,8 +71,8 @@ struct PocketCareSheet: View {
             label: "\(report.name) · \(slotName(routine, day: day))",
             title: editing == nil ? "Log a \(noun)" : CareLogWording.editTitle(routine)
         ) {
-            if editing != nil {
-                Text(CareLogWording.editSubtitle)
+            if let subtitle = subtitle(routine, report: report, editing: editing) {
+                Text(subtitle)
                     .phoneFont(.body, 13, weight: 600, relativeTo: .subheadline)
                     .foregroundStyle(Theme.muted)
             }
@@ -89,6 +103,7 @@ struct PocketCareSheet: View {
                     PersonPill(person: person, title: person.id == me?.id ? "You" : nil, isOn: fields.people.contains(person.id)) {
                         fields.toggle(person.id)
                     }
+                    .accessibilityIdentifier("went-\(person.name)")
                 }
             }
             if routine.tracks(.pee) || routine.tracks(.poo) {
@@ -123,7 +138,7 @@ struct PocketCareSheet: View {
                 if let editing {
                     editButtons(editing, routine: routine, day: day)
                 } else {
-                    Button("Log \(noun) · \(StarWords.earned(routine.stars))") { save(routine, day: day) }
+                    Button("Log \(noun) · \(StarWords.earned(routine.stars))") { save(routine, day: day, companion: report.name) }
                         .buttonStyle(PhoneButtonStyle())
                         .disabled(fields.people.isEmpty)
                         .accessibilityIdentifier("save-care")
@@ -161,11 +176,25 @@ struct PocketCareSheet: View {
         model.people.filter { $0.id == me?.id } + model.people.filter { $0.id != me?.id }
     }
 
-    /// "evening walk": the slot the chosen time belongs to, by the wall's rule.
-    private func slotName(_ routine: CareRoutine, day: CareLogDay) -> String {
+    /// Under the title: how a fix works, or which slot is being caught up on ("For today's
+    /// morning walk"); nothing on a plain new log.
+    private func subtitle(_ routine: CareRoutine, report: CompanionReport, editing: CareEntry?) -> String? {
+        if editing != nil { return CareLogWording.editSubtitle }
+        guard let catchUp = request.catchUp, let window = routine.effectiveWindows[safe: catchUp.slot] else { return nil }
+        return CareCatchUp.subtitle(window, of: routine, on: catchUp.day, today: report.today, calendar: store.snapshot.calendar)
+    }
+
+    /// "morning walk": the slot this log is for. Catching up, or fixing a log made for a
+    /// slot, that slot, unless the chosen time lies in another slot's window; else the slot
+    /// the time belongs to, by the wall's rule.
+    private func slotIndex(_ routine: CareRoutine, day: CareLogDay) -> Int {
         let minute = CareLogic.minuteOfDay(day.startedAt(fields), calendar: day.calendar)
-        let index = CareLogic.windowIndex(forMinute: minute, in: routine.effectiveWindows)
-        return CareCatchUp.slotName(routine.effectiveWindows[safe: index] ?? .anyTime, of: routine)
+        let editing = request.logId.flatMap { id in store.snapshot.entries(of: routine.id).first { $0.id == id } }
+        return CareLogic.slot(forMinute: minute, intended: request.catchUp?.slot ?? editing?.log.slot, in: routine.effectiveWindows)
+    }
+
+    private func slotName(_ routine: CareRoutine, day: CareLogDay) -> String {
+        CareCatchUp.slotName(routine.effectiveWindows[safe: slotIndex(routine, day: day)] ?? .anyTime, of: routine)
     }
 
     private func label(_ text: String) -> some View {
@@ -183,14 +212,18 @@ struct PocketCareSheet: View {
         guard !didSetDefaults else { return }
         didSetDefaults = true
         store.lastError = nil
-        fields = editing.map(CareLogFields.init(editing:)) ?? .new(people: request.people, for: day, catchUpSlot: nil)
+        fields = editing.map { CareLogFields(editing: $0, people: store.snapshot.knownPeople(of: $0)) } ?? .new(people: request.people, for: day, catchUpSlot: request.catchUp?.slot)
     }
 
-    private func save(_ routine: CareRoutine, day: CareLogDay) {
+    /// Writes before closing: a log that is turned down keeps the sheet open with the reason.
+    private func save(_ routine: CareRoutine, day: CareLogDay, companion: String) {
         let draft = fields.draft(for: day)
-        guard let log = store.log(routineId: routine.id, draft, now: CompanionClock.now()) else { return }
+        // Catching up logs the slot being caught up on, at whatever time it really happened
+        // (a morning walk logged at 7 pm is the morning's), unless the time was moved into
+        // another slot's window; the label above says which.
+        let slot = request.catchUp.map { _ in slotIndex(routine, day: day) }
+        guard logging.save(routine, draft, catchingUp: slot, on: day.day, companion: companion) else { return }
         dismiss()
-        logging.logged(log, routine: routine, people: draft.people)
     }
 
     /// The log keeps its routine and the stars it earned; only who, when and how change.

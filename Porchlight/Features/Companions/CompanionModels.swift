@@ -165,21 +165,6 @@ enum CareKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible
         }
     }
 
-    /// Catching up asks only for the time: "When did Yo-Yo eat?"
-    func whenQuestion(name: String, title: String) -> String {
-        switch self {
-        case .walk: "When did \(name) go out?"
-        case .feed: "When did \(name) eat?"
-        case .litter: "When was \(name.possessive) litter done?"
-        case .water: "When was \(name) watered?"
-        case .groom: "When was \(name) groomed?"
-        case .meds: "When did \(name) get meds?"
-        case .play: "When did \(name) play?"
-        case .clean: "When was \(name.possessive) cleanup?"
-        case .custom: "When was \(title.lowercased())?"
-        }
-    }
-
     /// "Walked 1h ago".
     var pastVerb: String {
         switch self {

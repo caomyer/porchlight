@@ -60,6 +60,62 @@ struct PocketWritesTests {
         #expect(toasts.current?.title == "That didn't save", "removed on another device meanwhile")
     }
 
+    @Test("Catching up from the care sheet logs that slot, credited to who was picked, and its toast waits for the sheet")
+    @MainActor
+    func catchUpFromTheSheet() throws {
+        let toasts = ToastCenter()
+        let logging = PocketLogging(companions: CompanionStore(database: db), home: HomeStore(database: db), toasts: toasts, me: james).inSheet
+        let morning = calendar.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: 7, minute: 15))!
+        var full = draft([james, mia], at: morning)
+        full.durationMinutes = 30
+        #expect(logging.save(walk, full, catchingUp: 0, on: today, companion: "Yo-Yo"))
+        let stored = try entries()
+        #expect(stored.count == 1)
+        #expect(Set(stored[0].people) == [james, mia])
+        #expect(stored[0].log.durationMinutes == 30)
+        #expect(toasts.current == nil, "the toast waits for the sheet to close")
+        toasts.showPending()
+        #expect(toasts.current?.title == "Morning walk logged")
+
+        // The same slot again: nothing is added, and the toast says who did it.
+        #expect(logging.save(walk, draft([mia], at: morning), catchingUp: 0, on: today, companion: "Yo-Yo"))
+        #expect(try entries().count == 1)
+    }
+
+    @Test("A log the rules turn down keeps the care sheet open, with why, and never closes it quietly")
+    @MainActor
+    func turnedDownKeepsTheSheetOpen() throws {
+        let toasts = ToastCenter()
+        let store = CompanionStore(database: db)
+        let logging = PocketLogging(companions: store, home: HomeStore(database: db), toasts: toasts, me: james).inSheet
+        let stranger = Person.ID(UUID())
+        let morning = calendar.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: 7, minute: 15))!
+        #expect(!logging.save(walk, draft([stranger], at: morning), catchingUp: 0, on: today, companion: "Yo-Yo"))
+        #expect(store.lastError != nil, "the sheet shows why")
+        #expect(!logging.save(walk, draft([], at: morning), catchingUp: nil, on: today, companion: "Yo-Yo"), "nobody on it")
+        #expect(try entries().isEmpty)
+        toasts.showPending()
+        #expect(toasts.current == nil, "no toast pretends it was logged")
+    }
+
+    @Test("A log whose people never arrived names nobody, and a fix starts with nobody picked")
+    @MainActor
+    func logThatNamesNobody() throws {
+        let log = try db.logCare(routineId: walk.id, draft([james], at: now.addingTimeInterval(-600)), now: now)
+        // As when its people haven't come from the other device: the log alone.
+        try db.writer.write { db in _ = try CareLogPerson.deleteAll(db) }
+        let snapshot = try db.writer.read(CompanionSnapshot.fetch)
+        let entry = try #require(snapshot.entries.first { $0.id == log.id })
+        #expect(snapshot.namesNobody(entry))
+        #expect(CareLogFields(editing: entry, people: snapshot.knownPeople(of: entry)).people.isEmpty, "Save waits for someone")
+        // An id this household doesn't know is nobody too, and isn't saved back.
+        let unknown = CareEntry(log: entry.log, people: [Person.ID(UUID())])
+        #expect(snapshot.namesNobody(unknown))
+        #expect(snapshot.knownPeople(of: unknown).isEmpty)
+        #expect(!snapshot.namesNobody(CareEntry(log: entry.log, people: [mia])))
+        #expect(throws: CareValidationError.noWalkers) { try db.updateCareLog(id: log.id, draft([], at: entry.time), now: now) }
+    }
+
     @Test("Logging an open slot adds the log, credited to who was given")
     func logsAnOpenSlot() throws {
         let result = try db.logCare(routineId: walk.id, slot: 1, on: today, draft([james, mia], at: now), now: now)

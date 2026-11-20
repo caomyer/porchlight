@@ -155,9 +155,6 @@ struct TimeKeypadCard: View {
     let onChange: (Int) -> Void
     let onSuggestion: (TimeSuggestion) -> Void
     let onClose: () -> Void
-    /// Laid out in a sheet rather than its own popover, as on the phone's catch-up
-    /// sheet: it fills the sheet's width, and the sheet's own button replaces Done.
-    var isInline = false
 
     @FocusState private var hasKeys: Bool
 
@@ -207,27 +204,25 @@ struct TimeKeypadCard: View {
                     }
                 }
             }
-            if !isInline {
-                HStack {
-                    Spacer(minLength: 0)
-                    Button(action: onClose) {
-                        Text("Done")
-                            .font(.body(14, weight: 800))
-                            .foregroundStyle(Theme.surface)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 9)
-                            .background(Theme.ink, in: Capsule())
-                            .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(note != nil)
-                    .opacity(note == nil ? 1 : 0.35)
-                    .accessibilityIdentifier("time-done")
+            HStack {
+                Spacer(minLength: 0)
+                Button(action: onClose) {
+                    Text("Done")
+                        .font(.body(14, weight: 800))
+                        .foregroundStyle(Theme.surface)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 9)
+                        .background(Theme.ink, in: Capsule())
+                        .contentShape(Capsule())
                 }
+                .buttonStyle(.plain)
+                .disabled(note != nil)
+                .opacity(note == nil ? 1 : 0.35)
+                .accessibilityIdentifier("time-done")
             }
         }
-        .padding(isInline ? 0 : 14)
-        .frame(width: isInline ? nil : 272)
+        .padding(14)
+        .frame(width: 272)
         // A hardware keyboard types straight in.
         .focusable()
         .focusEffectDisabled()

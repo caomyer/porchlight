@@ -71,6 +71,7 @@ enum SyncMirror {
         var stars: Int
         var createdAt: Date
         var deviceId: UUID?
+        var slot: Int?
     }
 
     @Table("careLogPerson") struct CareLogPerson {
