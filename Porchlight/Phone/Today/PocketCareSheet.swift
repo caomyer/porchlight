@@ -103,6 +103,7 @@ struct PocketCareSheet: View {
                     PersonPill(person: person, title: person.id == me?.id ? "You" : nil, isOn: fields.people.contains(person.id)) {
                         fields.toggle(person.id)
                     }
+                    .accessibilityIdentifier("went-\(person.name)")
                 }
             }
             if routine.tracks(.pee) || routine.tracks(.poo) {

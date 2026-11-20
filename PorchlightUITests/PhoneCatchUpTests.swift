@@ -63,19 +63,14 @@ final class PhoneCatchUpTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["For today's morning walk"].exists, "for the slot nobody logged")
     }
 
-    private func selected(_ app: XCUIApplication, _ label: String) -> Bool {
-        app.buttons.matching(NSPredicate(format: "label == %@ AND selected == true", label)).firstMatch.exists
-    }
-
     func testCatchingUpFromTodaysBanner() {
         let app = launch()
         openFromBanner(app)
-        XCTAssertTrue(selected(app, "You"), "Who went starts with you")
+        XCTAssertTrue(app.buttons["went-James"].isSelected, "Who went starts with you")
         XCTAssertTrue(app.buttons["exact-time"].exists, "When, at the slot's usual time")
         snapshot("catch-up-10-banner-sheet")
-        // The card's "Also went" behind the sheet has a Mia too; the sheet's is drawn last.
-        let mias = app.buttons.matching(NSPredicate(format: "label == 'Mia'"))
-        let mia = mias.element(boundBy: mias.count - 1)
+        // The card's "Also went" behind the sheet has a Mia too: the sheet's is "went-Mia".
+        let mia = app.buttons["went-Mia"]
         reveal(mia, in: app)
         mia.tap()
         let longer = app.buttons["45 min"]
@@ -96,7 +91,7 @@ final class PhoneCatchUpTests: XCTestCase, PhoneTestHelpers {
         tile.waitToSettle()
         tile.tap()
         XCTAssertTrue(app.staticTexts["Edit walk"].waitForExistence(timeout: 5))
-        XCTAssertTrue(selected(app, "You") && selected(app, "Mia"), "Credited to both")
+        XCTAssertTrue(app.buttons["went-James"].isSelected && app.buttons["went-Mia"].isSelected, "Credited to both")
         XCTAssertTrue(app.buttons["45 min"].isSelected)
     }
 
@@ -109,9 +104,9 @@ final class PhoneCatchUpTests: XCTestCase, PhoneTestHelpers {
         missed.tap()
         XCTAssertTrue(app.staticTexts["Log a walk"].waitForExistence(timeout: 5), "The same care sheet as any walk")
         XCTAssertTrue(element(app, beginningWith: "For ").exists, "for that day's morning walk")
-        XCTAssertTrue(selected(app, "You"))
+        XCTAssertTrue(app.buttons["went-James"].isSelected)
         snapshot("catch-up-20-week-sheet")
-        let mia = app.buttons["Mia"]
+        let mia = app.buttons["went-Mia"]
         reveal(mia, in: app)
         mia.tap()
         let save = app.buttons["save-care"]
