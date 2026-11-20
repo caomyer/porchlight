@@ -344,7 +344,7 @@ private struct CareLogForm: View {
         didSetDefaults = true
         store.lastError = nil
         if let editing {
-            fields = CareLogFields(editing: editing)
+            fields = CareLogFields(editing: editing, people: store.snapshot.knownPeople(of: editing))
             return
         }
         fields = .new(people: model.people.first.map { [$0.id] } ?? [], for: logDay, catchUpSlot: catchUp?.slot)
@@ -356,14 +356,23 @@ private struct CareLogForm: View {
             if store.updateLog(id: editing.id, draft) { onClose() }
             return
         }
-        guard store.log(routineId: routine.id, draft) != nil else { return }
+        if let catchUp {
+            // The slot itself, unless someone logged it meanwhile: then there is nothing to add.
+            switch store.log(routineId: routine.id, slot: catchUp.slot, on: catchUp.day, draft) {
+            case nil: return
+            case .alreadyLogged: return onClose()
+            case .logged: break
+            }
+        } else {
+            guard store.log(routineId: routine.id, draft) != nil else { return }
+        }
         onSaved(Celebration.after(report: report, routine: routine, people: fields.people, names: store.snapshot.names, calendar: store.snapshot.calendar))
     }
 
     private func delete() {
         guard let editing else { return }
-        store.deleteLog(id: editing.id)
-        onClose()
+        // A removal that is turned down keeps the sheet open with the reason.
+        if store.deleteLog(id: editing.id) { onClose() }
     }
 }
 

@@ -82,13 +82,22 @@ The stores observe the database, and Today redraws every minute, so a log from a
 
 One tap logs care for me now, credited to me and anyone picked under "Also went".
 `PocketLogging` writes it and shows a toast with Undo; Undo deletes the log.
-"More…" opens `PocketCareSheet`, and the catch-up banner opens `PocketCatchUpSheet`.
+"More…" opens `PocketCareSheet`, and so does catching up: Today's banner and a missed row in a companion's week open it for that slot and day (`PocketCareSheet.Request.catchUp`), at the slot's usual time, with you picked as who went, so Save works at once.
+There is one care sheet on the phone, and it asks what the wall's does: when, how long, who, business, vibe and a note.
 
 Never confidently out of date (rule 10): one tap and catch-up call `AppDatabase.logCare(routineId:slot:on:_:now:)`, which reads the slot again inside the write.
+The care sheet writes before it closes (`PocketLogging.save`): a log the rules turn down keeps the sheet open with the reason, and one that saves closes it with its toast.
+No care write fails quietly: Undo, "I went too" and its Undo, a fix and a removal each say "That didn't save" when they are turned down, on the wall a removal keeps its sheet open with the reason, and the wall's diary says when a log couldn't be deleted.
 If someone already logged it, nothing is added; the toast says who and when ("Mia walked Yo-Yo at 5:40pm") and offers "I went too", which adds me to their log (with its own Undo).
 Chores do the same with `AppDatabase.completeChore`: a chore someone just checked off is never unchecked by a stale tap, and the toast says who did it.
 
-The wall's care form logic moved out of its view into `CareLogFields` and `CareLogDay`, and the time pill's day math into `LogTimeDay`, so the wall's log sheet, the phone's care sheet and the phone's catch-up pad share one implementation.
+The wall's care form logic moved out of its view into `CareLogFields` and `CareLogDay`, and the time pill's day math into `LogTimeDay`, so the wall's log sheet and the phone's care sheet share one implementation.
+
+### A log that names nobody
+
+A log always has someone on it: the rules refuse one with nobody (`CareRules.validatedNote`), and every sheet keeps Save off until someone is picked.
+One can still show up with nobody this household knows, when its people haven't arrived from the device that wrote it, or name someone the household doesn't have.
+It is never hidden: Today's tile, the week's diary, the wall's diary and Paw trail say "Who? Tap to say" in place of a name, and tapping it opens the fix with nobody picked, so it saves only once someone is (`CompanionSnapshot.namesNobody`, `knownPeople(of:)`).
 The wall's form behaves exactly as before.
 
 ### Fixing a log (B2, `b2fix`)
@@ -118,7 +127,7 @@ Tapping a companion's card (its face and name, or the whole card when it is all 
 It is the wall's companion page in one column, built from the same `CompanionReport`: the hero with the week in a line (`CompanionReport.weekSummary`, moved out of the wall's page so both use it) and the mood, Paw trail, the diary with missed slots in their place, the walker of the week and the little milestones.
 Wording comes from the routine's kind, so a plant gets "who watered" and "Gardener of the week".
 A first week shows "The first week together" and an empty trail of dashed rings, never a zero.
-A missed slot in the diary opens the phone's catch-up sheet, and a logged one opens it to fix (above).
+A missed slot in the diary opens the care sheet to catch up on it, and a logged one opens it to fix (above).
 
 ## Pitch in (B4)
 
@@ -271,13 +280,13 @@ Star counts always agree in number ("+1 star", "2 stars") through `StarWords`.
 
 ## Tests
 
-- Unit: `PocketTodayTests` (which slot one tap logs, card order, freshness, catch-up, my chores and the shared ones, stars, the words), `PocketWritesTests` (the already-logged path, joining and its undo, undo of a log, chores that are already done), `DeviceSettingsTests` (role defaults, stored role, "me" per household, forgetting) and `CareLogFieldsTests` (including fixing a log: its day, its fields and the shared words).
+- Unit: `PocketTodayTests` (which slot one tap logs, card order, freshness, catch-up, my chores and the shared ones, stars, the words), `PocketWritesTests` (the already-logged path, joining and its undo, undo of a log, catching up from the care sheet, a log the rules turn down keeping the sheet open, a log that names nobody, chores that are already done), `DeviceSettingsTests` (role defaults, stored role, "me" per household, forgetting) and `CareLogFieldsTests` (including fixing a log: its day, its fields and the shared words).
 - Unit, fixing a log: `TwoHouseholdsTests` (a fix in the log's own household while the other shows, never crediting the other household, stars on fixing and removing, a removed or moved log reminding again).
 - UI, fixing a log: `PhoneTabsTests.testFixingAWalkFromToday`, `testFixingAWalkFromTheWeek`, `testFixingAWalkOnASharedScreen` and `testFixingAWalkLooks` (night look and the largest text), mirroring the wall's `LoggedEntryTests`.
 - Unit, everyday screens: `PocketTabsTests` (grocery sections, dinners to groceries, Glow for me and who earned a reward, the next 7 days, Pitch in's week, the calendar choices).
 - Unit, reminders: `ReminderPlannerTests` (only chosen slots, done slots removed, if missed, snooze and hand-off, archived "me", chores the evening before, the 64 cap, pruning).
 - Unit, households: `HouseholdSetupTests` (a household started on a phone is the one the wall's first run makes, drafts, an invalid name, a member leaving on the fake and the owner who can't) and `HouseholdStorageTests` (the sums come from the rows).
-- UI: `PhoneTests`, `PhoneTabsTests`, `PhoneHouseholdTests`, `PhoneRemindersTests`, `PhoneFoodTests` and `PhoneSetupTests` (A2 from a fresh install to Today, every tab empty, setup edits, a companion in the wall's editor, leaving, removing someone, storage), which run only on an iPhone; `scripts/test.sh --phone --ui-only` runs them on the iOS 17.5 iPhone 15 simulator, and the iPad run skips them.
+- UI: `PhoneTests`, `PhoneTabsTests`, `PhoneCatchUpTests` (catching up from Today's banner and from the week, in the care sheet), `PhoneHouseholdTests`, `PhoneRemindersTests`, `PhoneFoodTests` and `PhoneSetupTests` (A2 from a fresh install to Today, every tab empty, setup edits, a companion in the wall's editor, leaving, removing someone, storage), which run only on an iPhone; `scripts/test.sh --phone --ui-only` runs them on the iOS 17.5 iPhone 15 simulator, and the iPad run skips them.
   Each test attaches a screenshot of every screen it visits.
 
 ## Judgment calls
@@ -290,7 +299,7 @@ Where the atlas was silent, or didn't fit the code:
 - **Done rows stay where they are.** Chores keep the board's order and a done row stays, crossed out, so nothing jumps under your thumb. A done row is not a button; Undo on the toast takes a check-off back, and fixing older ones stays on the wall for now.
 - **A finished card.** A companion whose day is done shows "✓ Logged" for 15 minutes after its last log (the `b2tap` frame), then folds to "Yo-Yo is all set" (`b1clear`). The time comes from the data, so it survives a relaunch.
 - **One missed slot at a time, and only once.** The banner shows the newest missed slot, today's or earlier in the week the wall lets you catch up on. It has a "Not now" button; a dismissed slot is remembered on the device and never shown again.
-- **Catch-up asks only when.** The pad is the wall's `TimeKeypadCard`, laid into the sheet. Its suggestions are the usual time and the slot window's start, middle and end. Who did it is me.
+- **Catching up is the care sheet.** It used to be a sheet of its own that asked only the time and credited me; James wanted one way to log a walk everywhere. It opens prefilled for the slot and its usual time, with me picked, so it is still one tap to save.
 - **The care sheet's layout.** The atlas puts labels beside the choices; the phone puts each label above its choices, which wraps cleanly at large text sizes. The fields, durations and defaults are the wall's.
 - **No celebration on the phone.** The wall's confetti is a moment for the room; the phone confirms with the toast.
 - **Toast words.** "The wall shows it now" is left out: there is no sync on this branch, and the toast shouldn't promise it. The toast says what was logged, with whom, and the stars.

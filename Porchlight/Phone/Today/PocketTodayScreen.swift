@@ -14,7 +14,6 @@ struct PocketTodayScreen: View {
 
     @State private var path: [PocketRoute] = []
     @State private var careSheet: PocketCareSheet.Request?
-    @State private var catchUp: PocketCatchUpSheet.Request?
     /// On a shared screen, what is waiting for someone to say who did it.
     @State private var asking: WhoDidIt?
     @AppStorage("pocket.dismissedCatchUps") private var dismissedCatchUps = ""
@@ -82,9 +81,6 @@ struct PocketTodayScreen: View {
         .sheet(item: $careSheet, onDismiss: toasts.showPending) { request in
             PocketCareSheet(request: request, logging: logging.inSheet)
         }
-        .sheet(item: $catchUp, onDismiss: toasts.showPending) { request in
-            PocketCatchUpSheet(request: request, logging: logging.inSheet)
-        }
         .confirmationDialog(asking?.question ?? "", isPresented: isAsking, titleVisibility: .visible, presenting: asking) { pending in
             ForEach(model.people) { person in
                 Button(person.name) { pending.run(person.id) }
@@ -132,7 +128,7 @@ struct PocketTodayScreen: View {
                 tone: .warn, emoji: missed.routine.emoji,
                 title: "\(report.name.possessive) \(slot) wasn't logged\(when)",
                 detail: missed.slot.window.isAllDay ? nil : "Usually \(missed.slot.window.rangeText)",
-                action: ("Log it", { catchUp = PocketCatchUpSheet.Request(companionId: report.id, missed: missed) }),
+                action: ("Log it", { careSheet = .catchUp(missed, companionId: report.id, people: me.map { [$0.id] } ?? []) }),
                 onDismiss: { dismiss(missed) }
             )
             .accessibilityIdentifier("catch-up")
@@ -195,8 +191,8 @@ struct PocketTodayScreen: View {
 
     // MARK: Debug
 
-    /// `-debugCompanionSheet log|catchUp` opens the care sheet or the catch-up sheet,
-    /// for screenshots.
+    /// `-debugCompanionSheet log|catchUp` opens the care sheet for a new log or for the
+    /// missed slot Today's banner offers, for screenshots.
     private func openDebugSheet() {
         #if DEBUG
         switch UserDefaults.standard.string(forKey: "startScreen") {
@@ -216,7 +212,7 @@ struct PocketTodayScreen: View {
         case "catchUp":
             let reports = companions.companions.compactMap { companions.report(for: $0.id) }
             if let found = PocketToday.catchUp(reports, snapshot: companions.snapshot, dismissed: []) {
-                catchUp = PocketCatchUpSheet.Request(companionId: found.report.id, missed: found.missed)
+                careSheet = .catchUp(found.missed, companionId: found.report.id, people: me.map { [$0.id] } ?? [])
             }
         default: break
         }

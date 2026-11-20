@@ -277,7 +277,7 @@ private struct PawTrailCard: View {
     @ViewBuilder
     private func cell(_ slot: CareSlot?, on day: DayKey) -> some View {
         if let slot, let entry = slot.entry {
-            dotButton(slot, on: day, status: CaptionEngine.whoText(entry.people, names: store.snapshot.names)) {
+            dotButton(slot, on: day, status: store.snapshot.namesNobody(entry) ? CareLogWording.nobody : CaptionEngine.whoText(entry.people, names: store.snapshot.names)) {
                 .edit(entry, companionId: report.id)
             } label: {
                 PawDot(carers: Carers(entry.people, snapshot: store.snapshot), size: 36, content: .initial)
@@ -329,6 +329,8 @@ private struct DiaryCard: View {
     let report: CompanionReport
     @Environment(CompanionStore.self) private var store
     @Environment(\.openCareLog) private var openCareLog
+    /// Why a log couldn't be deleted, until it is read.
+    @State private var deleteError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -356,6 +358,11 @@ private struct DiaryCard: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .card(padding: 20)
+        .alert("That didn't delete", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deleteError ?? "")
+        }
     }
 
     /// What was logged, with what wasn't in its place, newest first.
@@ -418,8 +425,9 @@ private struct DiaryCard: View {
     private func row(_ item: DiaryItem) -> some View {
         let snapshot = store.snapshot
         let entry = item.entry
-        let who = CaptionEngine.whoText(entry.people, names: snapshot.names)
-        var head = Text(who).font(.body(13.5, weight: 700))
+        let nobody = snapshot.namesNobody(entry)
+        let who = nobody ? CareLogWording.nobody : CaptionEngine.whoText(entry.people, names: snapshot.names)
+        var head = Text(who).font(.body(13.5, weight: 700)).foregroundStyle(nobody ? Theme.accent : Theme.ink)
         if let minutes = entry.log.durationMinutes {
             head = head + Text(" · \(minutes) min").font(.body(13.5))
         }
@@ -432,7 +440,7 @@ private struct DiaryCard: View {
         .buttonStyle(.plain)
         .contextMenu {
             Button("Delete this log", systemImage: "trash", role: .destructive) {
-                store.deleteLog(id: entry.id)
+                if !store.deleteLog(id: entry.id) { deleteError = store.lastError ?? "Try again in a moment." }
             }
         }
     }

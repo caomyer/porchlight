@@ -57,9 +57,11 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         let missed = element(app, beginningWith: "Morning walk wasn't logged")
         reveal(missed, in: app)
         missed.tap()
-        XCTAssertTrue(app.staticTexts["When did Yo-Yo go out?"].waitForExistence(timeout: 5), "A missed slot in the diary is caught up on")
-        app.buttons["save-catch-up"].waitToSettle()
-        app.buttons["save-catch-up"].tap()
+        XCTAssertTrue(element(app, beginningWith: "For ").waitForExistence(timeout: 5), "A missed slot in the diary is caught up on")
+        let save = app.buttons["save-care"]
+        reveal(save, in: app)
+        save.waitToSettle()
+        save.tap()
         XCTAssertTrue(app.staticTexts["Morning walk logged"].waitForExistence(timeout: 5))
     }
 
