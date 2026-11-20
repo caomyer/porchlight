@@ -25,6 +25,8 @@ porchlight_load_signing() {
       [[ -n "${(P)name:-}" ]] || typeset -g "$name=$value"
     done < "$file"
   fi
+  # Unset is fine (the scripts run with set -u): signing then uses Xcode's account.
+  PORCHLIGHT_ASC_KEY_PATH="${PORCHLIGHT_ASC_KEY_PATH:-}"
   PORCHLIGHT_ASC_KEY_PATH="${PORCHLIGHT_ASC_KEY_PATH/#\~/$HOME}"
   # The arguments every signing xcodebuild call adds.
   typeset -ga porchlight_signing_args
