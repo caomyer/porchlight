@@ -31,6 +31,13 @@ final class MealPhotosTests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: "meal-photo-\(index)").firstMatch
     }
 
+    /// Taps a photo's × where it is drawn, in the middle of its frame, as a finger would.
+    /// XCTest's own tap on the button picks its own point: on iOS 27 that was the frame's far
+    /// corner, off the drawn badge and on the photo, which opened the photo's choices.
+    private func removePhoto(_ app: XCUIApplication, _ number: Int) {
+        app.buttons["Remove photo \(number)"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+
     private func labelled(_ app: XCUIApplication, startingWith prefix: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
     }
@@ -44,7 +51,7 @@ final class MealPhotosTests: XCTestCase {
                        "Taking photos must not save the meal")
         snapshot("45-capture-three-shots")
 
-        app.buttons["Remove photo 2"].tap()
+        removePhoto(app, 2)
         XCTAssertTrue(photo(app, 2).waitForNonExistence(timeout: 5), "Removing a shot leaves two")
         XCTAssertTrue(app.staticTexts["2 photos ready. Fill in anything else, then Save."].waitForExistence(timeout: 5))
 
@@ -112,7 +119,7 @@ final class MealPhotosTests: XCTestCase {
 
         app.buttons["Edit"].tap()
         XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5), "Edit shows the photos")
-        app.buttons["Remove photo 2"].tap()
+        removePhoto(app, 2)
         XCTAssertTrue(photo(app, 1).waitForNonExistence(timeout: 5))
         snapshot("49-edit-photos")
         app.buttons["Cancel"].tap()
@@ -120,7 +127,7 @@ final class MealPhotosTests: XCTestCase {
 
         app.buttons["Edit"].tap()
         XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5))
-        app.buttons["Remove photo 2"].tap()
+        removePhoto(app, 2)
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5))
         XCTAssertEqual(app.descendants(matching: .any)["meal-pager"].label, "Avocado toast", "Saving removes the photo")
