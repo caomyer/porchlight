@@ -14,6 +14,9 @@
 #   scripts/test.sh --runtime <id>  another iOS, e.g. com.apple.CoreSimulator.SimRuntime.iOS-26-5
 #   scripts/test.sh --workers N     each UI suite on N clones of its simulator
 #   scripts/test.sh --no-build      reuse the last build
+#   scripts/test.sh --build-only    only build, for every suite
+#   scripts/test.sh --shard I/N     only the I-th of N even shares of each UI suite's test classes
+#   scripts/test.sh --progress      also print each test as it ends, so a hang shows where
 #   scripts/test.sh <udid>          the given simulator instead of this checkout's own (one suite)
 #
 # Each checkout makes its own simulators ("Porchlight <checkout> ipad" and "... iphone"), so
@@ -43,8 +46,14 @@ build=1
 workers=1
 udid=""
 only=()
+build_only=0
+shard=""
+progress=0
 while (( $# )); do
   case "$1" in
+    --build-only) build_only=1; ui=0 ;;
+    --shard) shift; shard="$1" ;;
+    --progress) progress=1 ;;
     --unit-only) ui=0 ;;
     --ui-only) unit=0 ;;
     --wall) wall_asked=1 ;;
@@ -57,7 +66,7 @@ while (( $# )); do
     --workers) shift; workers="$1" ;;
     --runtime) shift; porchlight_sim_runtime="$1" ;;
     --only) shift; while (( $# )) && [[ "$1" != -* ]]; do only+=("$1"); shift; done; continue ;;
-    -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) udid="$1" ;;
   esac
   shift
@@ -115,6 +124,16 @@ summarize() {
   grep -E "error:|passed \(|failed \(|\*\* (TEST|BUILD)|✘" | grep -v "Run script\|appintents\|strip-bitcode" || true
 }
 
+# Keeps xcodebuild's whole output in the log `$1`; with --progress also prints each test as
+# it ends, so a run that hangs shows where.
+record() {
+  if (( progress )); then
+    tee "$1" | grep --line-buffered -E "^Test Case .*(passed|failed|skipped)|Test .*(passed after|failed after|skipped\.)" | sed -l "s/^/[${1:t:r}] /" || true
+  else
+    cat > "$1"
+  fi
+}
+
 started=$SECONDS
 timings=()
 # Each step's time, said as it ends and again at the end (a background job's list stays
@@ -127,7 +146,7 @@ took() {
 
 # Simulators: the one given, else this checkout's own.
 ipad="" iphone=""
-if (( unit || wall )); then
+if (( (unit || wall) && ! build_only )); then
   if [[ -n "$udid" ]] && ! (( phone )); then ipad=$udid; else ipad=$(porchlight_simulator ipad); fi
 fi
 if (( phone )); then
@@ -159,6 +178,7 @@ if (( build )); then
   fi
   took build $step
 fi
+(( build_only )) && exit 0
 
 # The Mac's test slots: one per simulator booted at a time. Two free means side by side.
 step=$SECONDS
@@ -201,7 +221,7 @@ ui_suite() {
   for attempt in 1 2; do
     rm -rf "$results/$name.xcresult"
     xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
-      "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult" > "$results/$name.log" 2>&1 || true
+      "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult" 2>&1 | record "$results/$name.log" || true
     # A freshly booted simulator under memory pressure can fail to start the test runner at
     # all ("Timed out while loading Accessibility", or the runner crashing before it
     # connects); no test ran, so once is tried again.
@@ -211,6 +231,28 @@ ui_suite() {
   summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
 }
 
+# With --shard I/N, a suite's classes go to N shares of about equal time, each class,
+# longest first, to the share with the least so far; prints share I's classes. Times are
+# measured ones (scripts/lib/ui-test-seconds), else 30 seconds a test.
+shard_of() {
+  local i=${shard%/*} n=${shard#*/} class k least seconds
+  local -a weights=() mine=()
+  for (( k = 1; k <= n; k++ )); do weights[k]=0; done
+  for seconds class in $(for class in "$@"; do
+      seconds=$(awk -v c="$class" '$1 == c { print $2 }' scripts/lib/ui-test-seconds)
+      print -r -- "${seconds:-$(( 30 * $(grep -c 'func test' PorchlightUITests/$class.swift) ))} $class"
+    done | sort -k1,1nr -k2,2); do
+    least=1
+    for (( k = 2; k <= n; k++ )); do
+      if (( weights[k] < weights[least] )); then least=$k; fi
+    done
+    (( weights[least] += seconds ))
+    if (( least == i )); then mine+=("$class"); fi
+  done
+  (( ${#mine} )) || { echo "Shard $shard has no test classes" >&2; return 1; }
+  print -r -- $mine
+}
+
 wall_args=()
 phone_args=()
 if (( wall )); then
@@ -218,6 +260,12 @@ if (( wall )); then
     for test in $wall_only; do wall_args+=(-only-testing:PorchlightUITests/$test); done
   elif (( smoke )); then
     for test in $smoke_wall; do wall_args+=(-only-testing:PorchlightUITests/$test); done
+  elif [[ -n "$shard" ]]; then
+    wall_classes=(PorchlightUITests/*Tests.swift(:t:r))
+    wall_classes=(${wall_classes:|phone_classes})
+    classes=$(shard_of $wall_classes) || exit 1
+    for class in ${=classes}; do wall_args+=(-only-testing:PorchlightUITests/$class); done
+    (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
   else
     for class in $phone_classes; do wall_args+=(-skip-testing:PorchlightUITests/$class); done
     (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
@@ -228,6 +276,9 @@ if (( phone )); then
     for test in $phone_only; do phone_args+=(-only-testing:PorchlightUITests/$test); done
   elif (( smoke )); then
     for test in $smoke_phone; do phone_args+=(-only-testing:PorchlightUITests/$test); done
+  elif [[ -n "$shard" ]]; then
+    classes=$(shard_of $phone_classes) || exit 1
+    for class in ${=classes}; do phone_args+=(-only-testing:PorchlightUITests/$class); done
   else
     for class in $phone_classes; do phone_args+=(-only-testing:PorchlightUITests/$class); done
   fi
@@ -246,7 +297,7 @@ run_ipad() {
     echo "Unit tests on $ipad"
     rm -rf "$results/unit.xcresult"
     xcodebuild test-without-building -xctestrun "$(xctestrun Porchlight)" -destination "id=$ipad" \
-      -resultBundlePath "$results/unit.xcresult" > "$results/unit.log" 2>&1 || true
+      -resultBundlePath "$results/unit.xcresult" 2>&1 | record "$results/unit.log" || true
     summarize < "$results/unit.log" | grep -v "passed ("
     report Unit "$results/unit.xcresult" || failed=1
     took unit $step

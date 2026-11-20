@@ -16,7 +16,7 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
     }
 
     override func tearDown() {
-        MainActor.assumeIsolated { XCUIDevice.shared.appearance = .light }
+        MainActor.assumeIsolated { restoreLightLook() }
         super.tearDown()
     }
 

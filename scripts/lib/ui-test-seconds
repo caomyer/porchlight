@@ -1,0 +1,24 @@
+# How long each UI test class took in seconds, for `scripts/test.sh --shard`, which splits a
+# suite into shares of about equal time. Measured on GitHub's hosted Macs on iOS 27.2 on
+# November 20, 2026, one simulator per Mac. A class missing here counts 30 seconds a test;
+# refresh the numbers from a run's logs when the shares drift apart.
+PhoneFoodTests 890
+PhoneTabsTests 738
+PhoneHouseholdTests 432
+PhoneSetupTests 386
+PhoneTests 258
+PhoneRemindersTests 225
+HouseholdTests 254
+FoodMealsTests 252
+SyncSettingsTests 234
+MealPhotosTests 197
+PhotoFrameTests 166
+TimeFieldTests 156
+LoggedEntryTests 137
+WallTourTests 131
+PitchInTests 106
+ScrollingTests 100
+CompanionEditorTests 100
+CatchUpTests 90
+DayAtAGlanceTests 90
+FirstRunTests 65
