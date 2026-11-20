@@ -98,11 +98,13 @@ final class WallTourTests: XCTestCase {
 
         let title = app.textFields["What was it?"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
+        // Before the keyboard opens: the sheet stays put for it, and iOS 27's taller keyboard
+        // covers the row this button is in.
+        app.buttons["🛵 Delivery"].tap()
         title.tap()
         let current = title.value as? String ?? ""
         title.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
         title.typeText("Leftover curry")
-        app.buttons["🛵 Delivery"].tap()
         assertOnScreen(app.staticTexts["Edit meal"], in: app, "The sheet title should stay on screen with the keyboard up")
         assertOnScreen(title, in: app, "The name field should stay on screen with the keyboard up")
         snapshot("23-meal-edit")
@@ -153,5 +155,11 @@ final class WallTourTests: XCTestCase {
         XCTAssertTrue(frame.minY >= screen.minY && frame.maxY <= keyboardTop, "\(message): \(frame) vs keyboard at \(keyboardTop)")
         // The keyboard's frame leaves out its suggestion bar; only a hittable field is really in view.
         XCTAssertTrue(element.isHittable, "\(message): it is covered")
+        if !element.isHittable {
+            // What covers it, for the results.
+            let tree = XCTAttachment(string: app.debugDescription)
+            tree.name = "\(message): the screen"
+            add(tree)
+        }
     }
 }

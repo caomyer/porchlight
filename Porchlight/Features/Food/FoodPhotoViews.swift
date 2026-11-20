@@ -361,44 +361,47 @@ struct MealPhotoRow<Trailing: View>: View {
 
     private func tile(_ item: MealPhotoItem, index: Int) -> some View {
         let isCover = index == 0
-        return Menu {
-            if !isCover {
-                Button { items = MealPhotoOrder.makeCover(index, in: items) } label: { Label("Make cover", systemImage: "star") }
-            }
-            // A photo whose whole shot was lost has only its square left to show.
-            if store.image(of: item) != nil {
-                Button {
-                    CompanionCover.instantly { reframing = Reframing(index: index, item: item) }
-                } label: { Label("Reframe", systemImage: "crop") }
-            }
-        } label: {
-            PhotoView(store.thumbnail(of: item).map { PhotoRequest($0) }) { _ in Theme.surface2 }
-                .frame(width: side, height: side)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(isCover ? Theme.accent : .clear, lineWidth: 3)
+        // The remove badge sits beside the menu, not in an overlay of it: on iOS 27 a
+        // Menu takes every touch inside its bounds, overlays included, so a tap on the badge
+        // where it overlaps the photo opened the menu instead of removing the photo.
+        return ZStack(alignment: .topTrailing) {
+            Menu {
+                if !isCover {
+                    Button { items = MealPhotoOrder.makeCover(index, in: items) } label: { Label("Make cover", systemImage: "star") }
                 }
-                // Color.clear takes no touches on its own; the whole square opens the menu.
-                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-        .overlay(alignment: .bottom) {
-            if isCover {
-                // A label, not reading text: the tile already says "the cover" to VoiceOver,
-                // so it stays small enough to fit under the photo at any text size.
-                Text("COVER")
-                    .font(.body(isCompact ? 10.5 : 9.5, weight: 800))
-                    .fixedSize()
-                    .tracking(0.4)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Theme.accent, in: Capsule())
-                    .offset(y: 8)
-                    .allowsHitTesting(false)
+                // A photo whose whole shot was lost has only its square left to show.
+                if store.image(of: item) != nil {
+                    Button {
+                        CompanionCover.instantly { reframing = Reframing(index: index, item: item) }
+                    } label: { Label("Reframe", systemImage: "crop") }
+                }
+            } label: {
+                PhotoView(store.thumbnail(of: item).map { PhotoRequest($0) }) { _ in Theme.surface2 }
+                    .frame(width: side, height: side)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(isCover ? Theme.accent : .clear, lineWidth: 3)
+                    }
+                    // Color.clear takes no touches on its own; the whole square opens the menu.
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-        }
-        .overlay(alignment: .topTrailing) {
+            .overlay(alignment: .bottom) {
+                if isCover {
+                    // A label, not reading text: the tile already says "the cover" to VoiceOver,
+                    // so it stays small enough to fit under the photo at any text size.
+                    Text("COVER")
+                        .font(.body(isCompact ? 10.5 : 9.5, weight: 800))
+                        .fixedSize()
+                        .tracking(0.4)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Theme.accent, in: Capsule())
+                        .offset(y: 8)
+                        .allowsHitTesting(false)
+                }
+            }
             Button { items = MealPhotoOrder.remove(index, from: items) } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .heavy))

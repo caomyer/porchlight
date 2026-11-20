@@ -150,7 +150,8 @@ To run only some tests, use Actions, Tests, Run workflow, with "only" set as for
 **Reading a failure.** The job's log lists the failed tests and their messages under `[ui-wall]`, `[ui-phone]` or the unit summary.
 Each job uploads an artifact, `results-<job name>` (for example `results-Wall UI 2 of 2`), kept for a week, with the job's `.log` files and, when the job failed, each `.xcresult` bundle zipped.
 Unzip one and open it in Xcode, or export its screenshots with `xcrun xcresulttool export attachments --path ui-wall.xcresult --output-path shots`.
-Screenshots are in the simulator's portrait frame: a landscape wall screen shows turned on its side.
+A failed UI test also keeps a screen recording of itself in its bundle, which `ffmpeg -ss <seconds> -i <recording>.mp4 -frames:v 1 frame.png` turns into a still at any moment.
+The UI tests turn the iPad to landscape before each launch (`XCUIApplication.porchlight()`): a new simulator boots in portrait, and on iPadOS 27 the landscape-only wall then draws sideways under a portrait keyboard.
 
 **What stays local.** The hosted Macs have only iOS 27 simulators, so the iOS 17.5 run, the wall iPad's own OS, stays on the development Mac: run `scripts/test.sh` before deploying to the wall.
 
