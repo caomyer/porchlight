@@ -219,7 +219,7 @@ struct CompanionWeekTests {
         var report = try #require(CompanionReport.make(snapshot: snapshot, companionId: id, now: arrived))
         var meals = try #require(report.weeks.first { $0.routine.kind == .feed })
         let breakfast = try #require(meals.trail[6].first { $0.index == 0 })
-        #expect(!CareLogic.isOwed(breakfast, of: meals.routine, on: today, since: arrived, calendar: calendar))
+        #expect(!CareLogic.isOwed(breakfast, of: meals.routine, on: today, since: arrived, now: arrived, calendar: calendar))
         #expect(meals.tap(breakfast, on: today) == nil, "the trail draws it as a plain dot")
         #expect(meals.trailLabel(breakfast, window: breakfast.window, on: today, snapshot: snapshot).hasSuffix("not due"))
         #expect(meals.stats.slotsSoFar == 0, "nothing owed yet")

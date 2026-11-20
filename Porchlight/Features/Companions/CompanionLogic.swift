@@ -153,33 +153,63 @@ enum CareLogic {
     /// had closed before the companion was added (`added`) never was: a companion added at
     /// 9 pm doesn't owe that evening's dinner. The one rule for it: the paw trail, the week's
     /// numbers, the streak, the on-time run, the missed list and Today's banner all ask here.
-    static func isOwed(_ slot: CareSlot, of routine: CareRoutine, on day: DayKey, since added: Date?, calendar: Calendar) -> Bool {
+    ///
+    /// The arrival is never later than `now`: a companion can't have arrived in the future
+    /// (a device whose clock runs ahead, or "now" pinned earlier than the arrival), and a
+    /// slot still open now is owed whatever a creation stamp says.
+    static func isOwed(_ slot: CareSlot, of routine: CareRoutine, on day: DayKey, since added: Date?, now: Date, calendar: Calendar) -> Bool {
         guard let added, day == routine.start else { return true }
-        return date(day, minute: slot.window.end, calendar: calendar) > added
+        return date(day, minute: slot.window.end, calendar: calendar) > min(added, now)
     }
 
     // MARK: Streak
 
+    /// How a day stands for the streak.
+    enum DayStanding: Equatable, Sendable {
+        /// Something was done and nothing owed was left undone: the day counts.
+        case complete
+        /// Nothing was owed and nothing done (the routine's first day, after its last
+        /// window closed before the companion arrived): it neither counts nor breaks.
+        case neutral
+        /// Something owed is still undone: the streak stops here (today only waits).
+        case incomplete
+    }
+
+    /// A day counts once every owed slot is done; a slot done although it wasn't owed
+    /// counts as done. A day with no slots at all (one the routine isn't due) counts, as
+    /// the streak is in days.
+    static func standing(_ routine: CareRoutine, on day: DayKey, byDay: [DayKey: [CareEntry]], now: Date, calendar: Calendar, since added: Date?) -> DayStanding {
+        let slots = slots(for: routine, on: day, byDay: byDay, now: now, calendar: calendar)
+        if slots.contains(where: { !$0.isDone && isOwed($0, of: routine, on: day, since: added, now: now, calendar: calendar) }) {
+            return .incomplete
+        }
+        if !slots.isEmpty && !slots.contains(where: \.isDone)
+            && !slots.contains(where: { isOwed($0, of: routine, on: day, since: added, now: now, calendar: calendar) }) {
+            return .neutral
+        }
+        return .complete
+    }
+
     /// Consecutive days, ending today, on which every owed slot was filled. Today
-    /// only counts once complete; an unfinished today never breaks the streak.
+    /// only counts once complete; an unfinished today never breaks the streak, and a
+    /// day that owed nothing (`DayStanding.neutral`) is passed over.
     static func streak(for routine: CareRoutine, entries: [CareEntry], now: Date, calendar: Calendar, since added: Date?) -> Int {
         guard let first = entries.map(\.time).min() else { return 0 }
         let byDay = byDay(entries, calendar: calendar)
         let firstDay = DayKey(first, calendar: calendar)
         var day = DayKey(now, calendar: calendar)
         var count = 0
-        if isComplete(routine, on: day, byDay: byDay, now: now, calendar: calendar, since: added) { count += 1 }
+        if standing(routine, on: day, byDay: byDay, now: now, calendar: calendar, since: added) == .complete { count += 1 }
         day = day.adding(days: -1, calendar: calendar)
-        while day >= firstDay, isComplete(routine, on: day, byDay: byDay, now: now, calendar: calendar, since: added) {
-            count += 1
+        while day >= firstDay {
+            switch standing(routine, on: day, byDay: byDay, now: now, calendar: calendar, since: added) {
+            case .complete: count += 1
+            case .neutral: break
+            case .incomplete: return count
+            }
             day = day.adding(days: -1, calendar: calendar)
         }
         return count
-    }
-
-    static func isComplete(_ routine: CareRoutine, on day: DayKey, byDay: [DayKey: [CareEntry]], now: Date, calendar: Calendar, since added: Date?) -> Bool {
-        slots(for: routine, on: day, byDay: byDay, now: now, calendar: calendar)
-            .allSatisfy { $0.isDone || !isOwed($0, of: routine, on: day, since: added, calendar: calendar) }
     }
 
     // MARK: Weekly stats
@@ -218,7 +248,7 @@ enum CareLogic {
                     stats.slotsSoFar += 1
                     if onTime { stats.slotsOnTime += 1 }
                 case .late, .missed:
-                    if isOwed(slot, of: routine, on: day, since: added, calendar: calendar) { stats.slotsSoFar += 1 }
+                    if isOwed(slot, of: routine, on: day, since: added, now: now, calendar: calendar) { stats.slotsSoFar += 1 }
                 case .upcoming, .open, .due, .future:
                     break
                 }
@@ -277,7 +307,7 @@ enum CareLogic {
                 case .done(onTime: true): run += 1
                 case .upcoming, .open, .due, .future: continue
                 case .late, .missed:
-                    if isOwed(slot, of: routine, on: day, since: added, calendar: calendar) { return run }
+                    if isOwed(slot, of: routine, on: day, since: added, now: now, calendar: calendar) { return run }
                 case .done(onTime: false): return run
                 }
             }

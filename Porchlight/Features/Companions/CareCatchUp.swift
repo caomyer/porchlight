@@ -30,7 +30,7 @@ enum CareCatchUp {
         guard isCatchUpDay(day, today: today, calendar: calendar) else { return [] }
         let byDay = CareLogic.byDay(entries, calendar: calendar)
         return CareLogic.slots(for: routine, on: day, byDay: byDay, now: now, calendar: calendar)
-            .filter { $0.state == .missed && CareLogic.isOwed($0, of: routine, on: day, since: added, calendar: calendar) }
+            .filter { $0.state == .missed && CareLogic.isOwed($0, of: routine, on: day, since: added, now: now, calendar: calendar) }
             .map { slot in
                 MissedCare(
                     routine: routine, day: day, slot: slot,
