@@ -1,8 +1,8 @@
-# Dishes: the design of step 1
+# Dishes and recipes: the design
 
-This is the technical design for step 1 of `docs/proposals/dishes-and-recipes.html`, which James approved with its eight recommendations.
+This is the technical design for steps 1 and 2 of `docs/proposals/dishes-and-recipes.html`, which James approved with its eight recommendations.
 A meal can name what was on the table, one dish at a time, and every dish remembers itself.
-Recipes are step 2 and are not built.
+Step 2, recipes, is at the end ("Recipes"); the "Later" group of the proposal is not built.
 
 ## The model
 
@@ -163,3 +163,130 @@ What the form holds is `DishLinesEdit`: the ordered lines, each with the table's
 - Save never waits for a dish: what is still typed when Save is tapped is the last dish, and no dish at all is a whole meal titled by its slot.
 - "Would eat again?" shows only while the meal names no dish; with dishes, the faces are on them.
 - On the phone the lines grow with Dynamic Type and, at the accessibility sizes, the faces drop under the name at full width; the wall keeps its sizes, one line per dish with the faces beside it.
+
+## Recipes
+
+Step 2: a home dish can know how it is made.
+A recipe is not a second kind of food: it belongs to one home dish, so cooking the dish is cooking the recipe, and "cooked 6 times" is that dish's meals (every meal of a home dish was cooked at home).
+
+### The model
+
+| Thing | Table | Parent | Notes |
+|---|---|---|---|
+| Recipe | `recipe` | `dish` | Serves, ingredients and steps (plain lines), link, notes, who added it, created and updated at. At most one per dish: its id is derived from the dish's (`Recipe.id(dishId:)`). |
+| Card photo | `recipePhoto` | `dish` | Its recipe (a plain id), its place in order, and its two pictures in the row: the small square (`thumbnail`) and the whole card (`image`). |
+| Planned dinner's dish | `mealPlan.dishId` | | A plain id, nil for every dinner planned so far. |
+
+Ingredients and steps are stored as text, one line each (`RecipeText`): pasted text loses its bullets and numbering, never its amounts.
+There are no quantities or units to keep up.
+A line becomes a grocery item by dropping its amount, its unit and how it is cut (`Ingredient.groceryName`: "1 thumb of ginger" is "Ginger").
+Limits (`RecipeLimits`): 80 lines each, 200 characters a line, 2,000 for notes, 6 card photos, serves 1 to 99, and the link a web address ("https://" is added when left off).
+
+### Why a card photo hangs off the dish
+
+The proposal had card photos as a meal's photos are: a `recipePhoto` row under the recipe, with its pictures in two tables under it.
+That shape loses card photos on a device that updates after recipes were made elsewhere.
+
+A device on the build before recipes keeps the recipe records in the sync engine's metadata (see "Older builds" below).
+When it updates, the engine puts those records into the new tables one table at a time, in no set order (SQLiteData 1.13.0, `SyncEngine.updateLocalFromSchemaChange`, iterates a dictionary).
+A child table that comes before its parent fails its foreign key, the engine stops there, and the rest wait for a later launch, which tries again in another order.
+`OlderBuildSyncTests.updatingBringsInRecipes` failed exactly so with the proposal's shape ("FOREIGN KEY constraint failed" inserting into `recipePhotoThumb`).
+The engine's ordinary fetch has no such problem: it sorts records parents first and retries any that fail.
+
+So no new table may hang off another new one.
+`recipe` and `recipePhoto` both hang off `dish`, which every such device has, and a card photo names its recipe with a plain id.
+Its two pictures are columns of its row (both iCloud assets), and nothing reads them but `PhotoImages` and the recipe's page: `RecipePhoto` selects everything else, `RecipePhotoRow` is the whole row for saving and for Undo, and the storage meter reads their sizes with `LENGTH`, which doesn't load them.
+Removing a recipe removes its card photos itself (`RecipeTidy.delete`), since they don't cascade from it; removing the dish takes both.
+
+Step 1 has the same shape in one place: `mealDishRating` hangs off `mealDish`, both new in "dishes v1".
+By the same path, a device that updated from before dishes, while other devices had given their own faces, can have needed more than one launch to show them; no test covers that case yet.
+
+### Ids and joining
+
+A recipe added from the bank names its dish.
+A home dish of that name (by `DishName.key`) is joined, with its history and faces ("Joins the dish you already cook", `RecipeBank.joins`); otherwise the dish is made with the derived id dishes get from a name.
+Two devices that add a recipe to the same dish offline therefore write one row, and each field settles on its own: Mia's new steps and James's new note both survive.
+Saving again edits that row; it never makes a second.
+
+### Writes
+
+- `AppDatabase.saveRecipe(_:householdId:addedBy:)` takes a `RecipeDraft`: the name, the dish when editing, serves, lines, link, notes, and the card photos in order (`RecipePhotoItem`: kept or added).
+  Only a home dish can have one (`notAHomeDish`).
+  Changing the name renames the dish everywhere, as renaming a dish does, unless another home dish has it (`nameTaken`, so the editor can offer that dish).
+- `removeRecipe(dishId:)` takes the recipe and its card photos and returns a `RecipeRemoval`; `restore` puts them back while the dish is there (Undo).
+  The dish, its meals, its faces and its planned dinners stay.
+- `removeDish` now also takes the dish's recipe (and any on a dish merged into it), and unlinks the dinners planned from it: they keep their words.
+  `DishRemoval` carries both, and `restore` puts them back; a dinner relinks only if it still has the same words.
+- `DishTidy.dropIfUnused` keeps a dish with a recipe, so a recipe not cooked yet is never tidied away, and neither is one whose last meal moved kitchen.
+- Merging leaves a recipe where it is.
+  The survivor's own recipe wins, else readers find the merged dish's through the merge (`DishBook.recipe(of:)`, `RecipeTidy.recipe(ofLive:)`), as late dish lines do, and editing it from the survivor edits that row.
+- Renaming or merging a dish renames the dinners planned from it that still had its old name (`PlannedDish.rename`).
+- `HomeDatabase.addListItems(titles:to:addedBy:)` adds several items in one write, each in its guessed aisle, skipping a title the list has unchecked; `deleteListItems(ids:)` is its Undo.
+- `setMeal(day:title:emoji:householdId:dishId:)` plans a dinner from a dish; edited by its words with the same name, it keeps the dish.
+- `FoodStore` has `recipeBank`, `saveRecipe`, `removeRecipe` and `restore`; `HomeStore` has `setMeal(on:title:emoji:dishId:)`, `addIngredients` and `removeItems`.
+
+### Planned dinners
+
+A planned dinner names a home dish when it was planned from one (`mealPlan.dishId`), and the link holds only while its title still names that dish (`PlannedDish.dish`).
+Otherwise a dinner whose words match a home dish links to it, which is how dinners planned before recipes link too.
+The title is checked because an older build that renames the dinner sends only the title: iCloud keeps the id, but the words have moved on.
+
+### The bank
+
+`RecipeBank` reads the dish book: every live home dish with a recipe, most cooked first, then most recently, then by name, with recipes not cooked yet last.
+
+- "Haven't made in a while": a recipe whose usual face is at least 🙂, last cooked 21 or more whole days ago in the household's time zone; the best liked first, then the longest ago.
+- "You cook these often": home dishes had twice or more with no recipe, most first, three at most.
+- Search matches every word typed against the name or any ingredient ("curry powder" finds the chicken curry).
+- Words (`RecipeWords`): "Mia's · cooked 6 times · last Nov 2", "From a link · cooked twice", "📷 Card photo · not cooked yet", and on the dish page "Cooked 6 times, last on Nov 2".
+
+### Older builds
+
+`OlderBuildSyncTests` adds a device on the build before recipes: dishes, but no recipe tables and no `mealPlan.dishId`.
+
+- **Recipes and card photos:** it keeps them in the engine's metadata and changes nothing; no error.
+- **A planned dinner it edits:** it sends only what it changed, so iCloud keeps `dishId`, and the newer devices still link it while the words name the dish.
+- **Removing a dish that has a recipe:** it deletes the dish and its lines, but not the recipe it doesn't know, and iCloud refuses to delete a record that other records name as their parent.
+  The dish comes back on that device, with its recipe untouched everywhere; the meals lose that dish, as removing asked.
+  An older build can't otherwise reach such a dish: it drops only dishes with no meals that a meal just left, and a dish that came back that way is one again.
+- **Updating:** the engine puts the waiting recipes and card photos in, pictures and all, and `mealPlan.dishId` with them.
+
+So during the update an older build can do everything but remove a dish that has a recipe, which it gets back, losing nothing.
+
+### One deploy, one build
+
+Everything step 2 writes is in one Production deploy, made before any build with recipes reaches a device:
+
+| Record type | Fields (each encrypted, each with its `sqlitedata_icloud_userModificationTime_<field>`) |
+|---|---|
+| `recipe` (new) | `id`, `dishId` (strings), `serves` (int64), `ingredients`, `steps`, `link`, `notes`, `addedById` (strings), `createdAt`, `updatedAt` (timestamps) |
+| `recipePhoto` (new) | `id`, `dishId`, `recipeId` (strings), `sortOrder` (int64), `createdAt` (timestamp), `thumbnail`, `image` (assets, each with an encrypted `_hash`) |
+| `mealPlan` (changed) | adds `dishId` (string) and its `sqlitedata_icloud_userModificationTime_dishId` |
+
+Each new type also has `sqlitedata_icloud_userModificationTime` and its parent reference.
+`Config/cloudkit-schema.ckdb` has them (`SchemaFileTests` derives it from `SyncMirror.all`), and `scripts/cloud-schema.sh import` put them in Development.
+Until Production has them, a newer build's recipe rows stay on the device, and the planned dinners it saves are turned down too (a field iCloud doesn't know); both are offered again every ten minutes, nothing is lost, and the next offer after the deploy goes through.
+Hence the order: James deploys, then the build ships.
+
+### Screens
+
+To be built in this order, each with its hosted looks (light, dark, largest) and one UI journey per real journey on each shell:
+
+1. The phone's Food tab gains Recipes beside Diary and Dishes: the bank, "Haven't made in a while" with Plan it, "You cook these often" with + Recipe, search by name and ingredient, and the empty bank (P6a, P6b).
+2. The recipe editor on the phone: the name, with "Joins the dish you already cook"; serves; ingredients and steps, cleaned when pasted; the link; card photos from the camera or the picker; notes (P6c).
+3. The recipe page on the phone: picture, whose, serves, "cooked N times · last …", We made this (Snap with Home-cooked and the dish filled in), Plan it, ingredients picked for groceries with Undo, steps, notes, link, card photos, Edit, and Remove with Undo (P6d, P6e, P6f, P7d).
+   A home dish's page shows its recipe or "Add a recipe", and "Cooked N times, last on …".
+4. Planned dinners: Lists › Dinners suggests what we cook, marks a dinner with a recipe 📖, and "What does it need?" starts from its ingredients (P6g); Plan it from the bank picks the day.
+5. The wall: Recipes beside Week, Month and Dishes as cards; a recipe's kitchen view readable from the stove, ingredients beside steps in large type; the card snapped with the wall's camera; and dinner planned from the bank (W4).
+   The wall keeps its one light look.
+6. The night look and the largest text for the recipe screens (P9), with ink-bounds checks wherever the handwriting draws a recipe's name.
+
+UI journeys, on the phone and on the wall: adding a recipe to a dish we cook, cooking from the bank, planning a dinner from the bank, and ingredients to the grocery list.
+
+### Release notes
+
+For the build that brings recipes:
+
+> Home dishes can now keep their recipe: type it, paste it from a website, or snap the card.
+> Open Food › Recipes to find them, plan a dinner from one, or add what it needs to the grocery list.
+> Update Porchlight on every device: until a device updates, it can't remove a dish that has a recipe.

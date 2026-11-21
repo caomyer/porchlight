@@ -169,13 +169,32 @@ enum SyncSchema {
             """),
     ]
 
+    /// The tables "recipes v1" adds (docs/design/dishes.md, "Recipes"): a home dish's recipe,
+    /// at most one, its id derived from the dish's; and photos of the recipe's card, each
+    /// with its whole picture and its small square. Both hang off the dish, which every
+    /// device already has, and a card photo names its recipe with a plain id: an older
+    /// device that updates puts the new tables' rows in, table by table, in no set order,
+    /// so no new table may hang off another new one (docs/design/dishes.md, "Updating").
+    /// "recipes v1" also gives `mealPlan` a plain `dishId`.
+    static let recipeTables: [Table] = [
+        Table(name: "recipe", parent: "dish", columns: """
+            \(id), \(parent("dishId", "dish")), "serves" INTEGER, "ingredients" TEXT NOT NULL DEFAULT '',
+            "steps" TEXT NOT NULL DEFAULT '', "link" TEXT, "notes" TEXT NOT NULL DEFAULT '', "addedById" TEXT,
+            "createdAt" TEXT NOT NULL, "updatedAt" TEXT NOT NULL
+            """),
+        Table(name: "recipePhoto", parent: "dish", columns: """
+            \(id), \(parent("dishId", "dish")), "recipeId" TEXT NOT NULL, "sortOrder" INTEGER NOT NULL,
+            "createdAt" TEXT NOT NULL, "thumbnail" BLOB NOT NULL, "image" BLOB NOT NULL
+            """),
+    ]
+
     /// The rows that say which device wrote them ("from Mia's phone"). Each gains a nullable
     /// `deviceId`, a plain id: rows from before have none, and show no tag.
     static let stampedTables = ["careLog", "journalEntry", "choreCompletion", "rewardRedemption", "listItem"]
 
     /// Every table, synced or not, in the order the migrations create them.
     static var all: [Table] {
-        tables + photoTables + householdTables + dishTables
+        tables + photoTables + householdTables + dishTables + recipeTables
     }
 
     /// Every synced table, parents before children, in the order the sync engine is given them.

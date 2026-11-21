@@ -224,6 +224,8 @@ enum SyncMirror {
         var day: String
         var title: String
         var emoji: String?
+        /// The home dish it names ("recipes v1"); older builds' mirrors don't have it.
+        var dishId: UUID?
     }
 
     // Photo bytes, each keyed by the row it belongs to. The engine sends every BLOB as an
@@ -290,6 +292,32 @@ enum SyncMirror {
         var personId: UUID
         var rating: Int
     }
+
+    // Recipes (docs/design/dishes.md, "Recipes").
+
+    @Table("recipe") struct Recipe {
+        let id: UUID
+        var dishId: UUID
+        var serves: Int?
+        var ingredients: String
+        var steps: String
+        var link: String?
+        var notes: String
+        var addedById: UUID?
+        var createdAt: Date
+        var updatedAt: Date
+    }
+
+    @Table("recipePhoto") struct RecipePhoto {
+        let id: UUID
+        var dishId: UUID
+        var recipeId: UUID
+        var sortOrder: Int
+        var createdAt: Date
+        var thumbnail: Data
+        var image: Data
+    }
+
 }
 
 extension SyncMirror {
@@ -306,6 +334,7 @@ extension SyncMirror {
         CompanionPhoto.self, JournalEntryPhotoThumb.self, JournalEntryPhotoImage.self,
         Device.self,
         Dish.self, MealDish.self, MealDishRating.self,
+        Recipe.self, RecipePhoto.self,
     ]
 
     /// The zone the household lives in, the engine's own default.
@@ -331,6 +360,7 @@ extension SyncMirror {
             CompanionPhoto.self, JournalEntryPhotoThumb.self, JournalEntryPhotoImage.self,
             Device.self,
             Dish.self, MealDish.self, MealDishRating.self,
+            Recipe.self, RecipePhoto.self,
             containerIdentifier: SyncController.containerIdentifier,
             defaultZone: zone,
             startImmediately: false,

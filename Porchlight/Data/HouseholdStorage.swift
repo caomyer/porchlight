@@ -39,6 +39,11 @@ extension AppDatabase {
                 SELECT COALESCE(SUM(cp.byteCount), 0) FROM companionPhoto cp
                 JOIN companion c ON c.id = cp.companionId WHERE c.householdId = ?
                 """, arguments: [householdId]) ?? 0
+            // LENGTH of a blob is read from the row's header, without loading the picture.
+            let recipeCards = try Int.fetchOne(db, sql: """
+                SELECT COALESCE(SUM(LENGTH(p.image) + LENGTH(p.thumbnail)), 0) FROM recipePhoto p
+                JOIN dish d ON d.id = p.dishId WHERE d.householdId = ?
+                """, arguments: [householdId]) ?? 0
             let pages = try Int.fetchOne(db, sql: """
                 SELECT COALESCE(SUM(LENGTH(pg.drawing)), 0) FROM journalPage pg
                 JOIN journal j ON j.id = pg.journalId WHERE j.householdId = ?
@@ -59,7 +64,7 @@ extension AppDatabase {
             // What the database file holds in use, less the pictures counted above.
             let pageSize = try Int.fetchOne(db, sql: "PRAGMA page_size") ?? 0
             let used = (try Int.fetchOne(db, sql: "PRAGMA page_count") ?? 0) - (try Int.fetchOne(db, sql: "PRAGMA freelist_count") ?? 0)
-            let photos = meals + companions
+            let photos = meals + companions + recipeCards
             return HouseholdStorage(
                 photos: photos, pages: pages, other: max(used * pageSize - photos - pages, 0),
                 mine: mineBytes, lastMonth: lastMonth

@@ -11,6 +11,8 @@ enum PhotoSource: Hashable, Sendable {
     case mealThumbnail(MealPhoto.ID, byteCount: Int)
     case mealImage(MealPhoto.ID, byteCount: Int)
     case companion(Companion.ID, byteCount: Int)
+    case recipeThumbnail(RecipePhoto.ID, byteCount: Int)
+    case recipeImage(RecipePhoto.ID, byteCount: Int)
     /// Bytes not saved yet, such as a photo just taken or picked.
     case unsaved(Data)
 }
@@ -109,6 +111,10 @@ extension AppDatabase {
         case let .mealThumbnail(photoId, _): (table, key, id) = ("journalEntryPhotoThumb", "photoId", photoId.description)
         case let .mealImage(photoId, _): (table, key, id) = ("journalEntryPhotoImage", "photoId", photoId.description)
         case let .companion(companionId, _): (table, key, id) = ("companionPhoto", "companionId", companionId.description)
+        case let .recipeThumbnail(photoId, _):
+            return try writer.read { db in try Data.fetchOne(db, sql: "SELECT thumbnail FROM recipePhoto WHERE id = ?", arguments: [photoId]) }
+        case let .recipeImage(photoId, _):
+            return try writer.read { db in try Data.fetchOne(db, sql: "SELECT image FROM recipePhoto WHERE id = ?", arguments: [photoId]) }
         case let .unsaved(data): return data
         }
         return try writer.read { db in
