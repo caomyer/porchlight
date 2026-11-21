@@ -39,7 +39,8 @@ final class WallRecipesTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["wall-recipes-empty"].waitForExistence(timeout: 30))
         snapshot("w4-01-empty")
         tap(app.buttons["wall-add-recipe-Oatmeal"])
-        let ingredients = app.textFields["recipe-ingredients"]
+        // A text field that grows: iOS 17 shows it as a text view, later iOS as a text field.
+        let ingredients = app.descendants(matching: .any).matching(identifier: "recipe-ingredients").firstMatch
         tap(ingredients)
         app.typeText("1 cup oats\n2 cups milk")
         tap(app.buttons["save-recipe"])

@@ -282,6 +282,7 @@ struct MealEditor: View {
                     .focused($focused)
                     .submitLabel(.done)
                     .onSubmit(save)
+                    .accessibilityIdentifier("dinner-title")
                     .onChange(of: title) { _, newTitle in
                         // Suggest an emoji as they type, until they pick one themselves.
                         if !emojiTouched { emoji = MealEmoji.guess(newTitle) ?? "" }

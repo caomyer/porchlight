@@ -250,6 +250,16 @@ struct FoodScreen: View {
         case "recipe":
             mode = .recipes
             if let entry = store.recipeBank.entries.first { layer = .recipe(entry.dish.id) }
+        // The recipe with the most ingredients: its kitchen view, its editor, or planning it.
+        case "recipe-long", "recipe-edit", "recipe-plan":
+            mode = .recipes
+            if let entry = store.recipeBank.entries.max(by: { $0.recipe.ingredientLines.count < $1.recipe.ingredientLines.count }) {
+                switch UserDefaults.standard.string(forKey: "debugFoodView") {
+                case "recipe-edit": editingRecipe = RecipeEditing(dish: entry.dish)
+                case "recipe-plan": layer = .plan(entry.dish.id)
+                default: layer = .recipe(entry.dish.id)
+                }
+            }
         default: break
         }
         #endif

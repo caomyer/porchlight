@@ -59,6 +59,7 @@ struct ListsScreen: View {
 
 private struct MealStrip: View {
     @Environment(HomeStore.self) private var store
+    @Environment(FoodStore.self) private var food
     let onEdit: (DayKey) -> Void
 
     var body: some View {
@@ -67,6 +68,8 @@ private struct MealStrip: View {
             ForEach(store.week.days, id: \.self) { day in
                 let meal = store.meal(on: day)
                 let isToday = day == store.today
+                // A dinner of a dish we keep a recipe for says so (docs/design/dishes.md, "Recipes").
+                let hasRecipe = meal.flatMap { PlannedDish.dish(for: $0, in: food.book) }.map { food.book.recipe(of: $0.id) != nil } ?? false
                 Button { onEdit(day) } label: {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(day.formatted(.dateTime.weekday(.abbreviated), calendar: calendar).uppercased())
@@ -109,10 +112,16 @@ private struct MealStrip: View {
                                 .strokeBorder(Theme.accent, lineWidth: 2)
                         }
                     }
+                    .overlay(alignment: .topTrailing) {
+                        if hasRecipe {
+                            Text("📖").font(.system(size: 17)).padding(.top, 10).padding(.trailing, 9)
+                        }
+                    }
                     .contentShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
                 }
                 .buttonStyle(PressableStyle())
                 .accessibilityLabel(day.formatted(.dateTime.weekday(.wide), calendar: calendar) + ": " + (meal?.title ?? "no dinner planned"))
+                .accessibilityValue(hasRecipe ? "Has a recipe" : "")
             }
         }
     }

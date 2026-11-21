@@ -43,7 +43,8 @@ final class PhoneRecipesTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         type("oatmeal", into: name, in: app)
         XCTAssertTrue(app.descendants(matching: .any)["recipe-joins"].waitForExistence(timeout: 5), "It joins the dish we cook")
-        let ingredients = app.textFields["recipe-ingredients"]
+        // A text field that grows: iOS 17 shows it as a text view, later iOS as a text field.
+        let ingredients = app.descendants(matching: .any).matching(identifier: "recipe-ingredients").firstMatch
         ingredients.tap()
         app.typeText("• 1 cup oats\n• 2 cups milk")
         snapshot("recipes-02-editor")

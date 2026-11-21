@@ -85,6 +85,14 @@ struct WallRecipesView: View {
         .background(Theme.warnSoft, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
+    private func words(name: String, line: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(name).font(.display(18)).lineLimit(2).foregroundStyle(Theme.ink)
+            Text(line).font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted).lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func card(_ entry: RecipeBank.Entry) -> some View {
         let addedBy = entry.recipe.addedById.flatMap { id in store.snapshot.everyone.first { $0.id == id }?.name }
         let line = RecipeWords.bankLine(
@@ -100,9 +108,11 @@ struct WallRecipesView: View {
                             Text(face.emoji).font(.system(size: 22)).padding(8)
                         }
                     }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.dish.name).font(.display(18)).lineLimit(2).foregroundStyle(Theme.ink)
-                    Text(line).font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted).lineLimit(2)
+                // As tall as two lines of name and two of line, so every card in a row is one
+                // height, with the line right under a short name.
+                ZStack(alignment: .topLeading) {
+                    words(name: "A\nA", line: "A\nA").hidden().accessibilityHidden(true)
+                    words(name: entry.dish.name, line: line)
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }
@@ -184,7 +194,13 @@ struct WallRecipeSheet: View {
     var body: some View {
         WallSheet(width: 1040, onClose: onClose) {
             if let dish = store.book.dish(dishId), let entry = store.recipeBank.entry(dish) {
-                content(entry)
+                // A long recipe scrolls inside the sheet, which keeps a margin on screen.
+                ViewThatFits(in: .vertical) {
+                    content(entry)
+                    ScrollView { content(entry) }
+                        .scrollBounceBehavior(.basedOnSize)
+                        .containerRelativeFrame(.vertical) { length, _ in length - 100 }
+                }
             } else if let removal {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("The recipe was removed").font(.display(28))
@@ -210,7 +226,11 @@ struct WallRecipeSheet: View {
             HStack(alignment: .top, spacing: 18) {
                 RecipePicture(entry: entry, size: 120)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(entry.dish.name).font(.display(36)).accessibilityAddTraits(.isHeader).accessibilityIdentifier("wall-recipe-title")
+                    // The whole name, readable from the stove, clear of the close button.
+                    Text(entry.dish.name).font(.display(36))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.trailing, 48)
+                        .accessibilityAddTraits(.isHeader).accessibilityIdentifier("wall-recipe-title")
                     Text([addedBy?.possessive, RecipeWords.serves(recipe.serves),
                           RecipeWords.cookedLine(times: entry.times, last: entry.last?.eatenAt, now: CompanionClock.now(), calendar: store.calendar)]
                         .compactMap { $0 }.joined(separator: " · "))

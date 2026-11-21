@@ -61,6 +61,9 @@ enum FoodSamples {
 
     /// `-sampleFood cjk`'s titles: Simplified and Traditional Chinese, Japanese, Korean and
     /// mixed, on the meals the phone's diary and the wall's week show first.
+    /// `-sampleFood long`'s recipe.
+    static let longRecipe = "Grandma Lin's slow-braised pork belly with mustard greens"
+
     private static let cjkTitles: [String: String] = [
         "Avocado toast": "大盘鸡",
         "Oat latte": "Steak",
@@ -192,6 +195,35 @@ enum FoodSamples {
                 steps: ["Salt the cabbage, squeeze it dry.", "Mix with pork, scallions and ginger.", "Fold, then pan-fry and steam."],
                 photos: [.added(SamplePhoto.recipeCard())]
             ), householdId: householdId, addedBy: mia, now: recipeDay)
+
+            // `-sampleFood long`: a recipe as long as they come, cooked once, for reviewing
+            // how a long name and many ingredients and steps lay out.
+            if UserDefaults.standard.string(forKey: "sampleFood") == "long" {
+                _ = try add(home("🥘", Self.longRecipe, nil, 0xE9C9A8, .again), day: today.adding(days: -3, calendar: calendar), slot: 2)
+                try database.saveRecipe(RecipeDraft(
+                    name: Self.longRecipe, serves: 6,
+                    ingredients: [
+                        "2 lb pork belly, skin on, in 2-inch pieces", "1 lb pickled mustard greens, rinsed and chopped",
+                        "3 tbsp Shaoxing wine", "3 tbsp light soy sauce", "1 tbsp dark soy sauce", "40 g rock sugar",
+                        "1 thumb of ginger, sliced", "4 scallions, in lengths", "3 star anise", "1 cinnamon stick",
+                        "2 bay leaves", "1 dried chili", "4 cups hot water", "1 tsp salt",
+                    ],
+                    steps: [
+                        "Blanch the pork in boiling water for 5 min; rinse and drain.",
+                        "Soak the mustard greens 20 min, changing the water twice, then squeeze dry.",
+                        "Melt the rock sugar in a little oil over low heat until amber.",
+                        "Brown the pork in the caramel on every side.",
+                        "Add ginger, scallions and the spices; stir for a minute.",
+                        "Pour in the wine and both soy sauces, then the hot water to cover.",
+                        "Simmer covered on the lowest heat for an hour and a half.",
+                        "Stir in the mustard greens and simmer 30 min more, uncovered.",
+                        "Reduce until the sauce is glossy; salt to taste and serve with rice.",
+                    ],
+                    link: "https://example.com/grandma-lins-pork-belly",
+                    notes: "Better the next day. Grandma leaves out the chili for the kids.",
+                    photos: [.added(SamplePhoto.recipeCard())]
+                ), householdId: householdId, addedBy: mia, now: recipeDay)
+            }
         }
 
         // Today's lunch and dinner in the mixed and Japanese titles, near the top of the
