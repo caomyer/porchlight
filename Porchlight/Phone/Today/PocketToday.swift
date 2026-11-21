@@ -101,7 +101,7 @@ enum PocketToday {
         let candidates = reports.flatMap { report -> [(CompanionReport, MissedCare)] in
             let late = ([report.primary].compactMap { $0 } + report.others).flatMap { today in
                 today.slots.filter {
-                    $0.state == .late && CareLogic.isOwed($0, of: today.routine, on: report.today, since: report.companion.createdAt, calendar: calendar)
+                    $0.state == .late && CareLogic.isOwed($0, of: today.routine, on: report.today, since: report.companion.createdAt, now: report.now, calendar: calendar)
                 }.map { slot in
                     MissedCare(
                         routine: today.routine, day: report.today, slot: slot,

@@ -21,10 +21,15 @@ struct CompanionPersistenceTests {
         return Home(db: db, householdId: household.id, people: people)
     }
 
+    /// A dog added at midnight today, before any window opened, so it owes all of today's
+    /// slots whatever the hour the tests run. Added at the real time, a run late in the
+    /// evening made the arrival later than the tests' pinned 6:30 pm.
     private func dog(_ home: Home, name: String = "Yo-Yo") throws -> Companion.ID {
         var draft = CompanionDraft.new(species: .dog)
         draft.name = name
-        return try home.db.saveCompanion(draft, householdId: home.householdId)
+        let calendar = try #require(try home.db.snapshot().household).calendar
+        let midnight = CareLogic.date(DayKey(.now, calendar: calendar), minute: 0, calendar: calendar)
+        return try home.db.saveCompanion(draft, householdId: home.householdId, now: midnight)
     }
 
     @Test("Saving a companion stores it with its species preset routines")

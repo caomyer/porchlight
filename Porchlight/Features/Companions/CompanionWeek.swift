@@ -45,7 +45,7 @@ struct RoutineWeek: Identifiable {
         let trail = weekDays.map { CareLogic.slots(for: routine, on: $0, byDay: byDay, now: now, calendar: calendar) }
         let today = DayKey(now, calendar: calendar)
         let late = (weekDays.last == today ? trail.last ?? [] : [])
-            .filter { $0.state == .late && CareLogic.isOwed($0, of: routine, on: today, since: added, calendar: calendar) }
+            .filter { $0.state == .late && CareLogic.isOwed($0, of: routine, on: today, since: added, now: now, calendar: calendar) }
             .map { slot in
                 MissedCare(
                     routine: routine, day: today, slot: slot,

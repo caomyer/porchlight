@@ -171,6 +171,19 @@ Slots on time reads "-" until a slot has been owed, so a companion added today h
 
 One rule says whether a slot was owed, `CareLogic.isOwed`: on a routine's first day, a slot whose window closed before the companion was added never was.
 The trail (a plain dot), the week's numbers (`weekStats`), the streak, the on-time run, the missed list and Today's banner all ask it, so Pip, added at 6:30 pm, owes no breakfast and has a whole first day once dinner is logged.
+The arrival is never later than now: a creation stamp ahead of the clock (a device whose clock runs fast, or a time pinned earlier) reads as an arrival now, so a slot still open is always owed.
+
+What follows from it, in every number:
+
+- A slot done counts as done, owed or not: in the numbers ("slots on time"), the on-time run and the streak.
+- A slot not owed and not done counts for nothing: it is not missed, not late, not in "slots on time", and it doesn't end the on-time run.
+- A day counts toward the streak when something was done and nothing owed is undone (`CareLogic.standing` is `.complete`).
+- A day that owed nothing and did nothing (`.neutral`: a routine's first day when the companion arrived after its last window) neither counts nor breaks the streak; the streak passes over it. A companion added at 9 pm starts at 0 days, not 1.
+- A day the routine isn't due at all still counts, as before: the streak is in days, so a fern watered every three days keeps its streak between waterings.
+- Today only counts once complete, and an unfinished today never breaks the streak.
+- The podium counts logs, so it never depended on what was owed.
+
+`OwedSweepTests` checks this on a pinned clock for every half hour of arrival against every half hour of the day.
 
 At the largest text sizes the routines go one under another, the numbers one per row, the hero's face above its words, a missed row's "Log it" under it, and the podium becomes bars, which keep every name whole.
 The trail's letters stop growing at the extra-large size, like the Food tab's week; every slot in it is also a row in the diary, whose words grow all the way.
