@@ -102,20 +102,9 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
         snapshot("phone-31-care-sheet-saved")
     }
 
-    func testCatchingUp() {
-        let app = launch()
-        let banner = element(app, beginningWith: "Yo-Yo's dinner wasn't logged yesterday")
-        XCTAssertTrue(banner.waitForExistence(timeout: 60))
-        banner.tap()
-        XCTAssertTrue(app.staticTexts["For yesterday's dinner"].waitForExistence(timeout: 5), "Catching up opens the care sheet for that slot")
-        XCTAssertTrue(app.buttons["exact-time"].exists, "with the same time pill")
-        snapshot("phone-40-catch-up")
-        app.buttons["save-care"].waitToSettle()
-        app.buttons["save-care"].tap()
-        XCTAssertTrue(app.staticTexts["Dinner logged"].waitForExistence(timeout: 5))
-        XCTAssertFalse(element(app, beginningWith: "Yo-Yo's dinner wasn't logged yesterday").exists, "It doesn't come back")
-        snapshot("phone-41-caught-up")
-    }
+    // Catching up from Today's banner is `PhoneCatchUpTests.testCatchingUpFromTodaysBanner`,
+    // the same journey in full; "For yesterday's dinner" and the other slots' words are
+    // `CareCatchUpTests` (unit), and the sheet itself is `PocketCareSheetScreenTests`.
 
     func testCheckingChores() {
         let app = launch()

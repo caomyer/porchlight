@@ -117,14 +117,8 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Welcome and joining
 
-    func testTheWelcomeExplainsBothWaysIn() {
-        let app = launch(["-resetData"])
-        XCTAssertTrue(app.buttons["start-household"].waitForExistence(timeout: 60), "Two doors: start one here")
-        app.buttons["join-one"].tap()
-        XCTAssertTrue(app.staticTexts["Open the invite someone sent you"].waitForExistence(timeout: 5), "or join one, and how")
-        XCTAssertTrue(app.staticTexts["Or scan your family's code"].exists)
-        snapshot("phone-100-welcome")
-    }
+    // The welcome's two doors, and how to join, are the first steps of
+    // `PhoneSetupTests.testStartingAHouseholdOnThisPhone`.
 
     func testJoiningFromAnInvite() {
         let app = launch(["-resetData", "-debugJoin", "preview"])
@@ -204,15 +198,10 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(lost.isEmpty, "Typed keys never arrived in \(lost.count) of 12 rounds: \(lost)")
     }
 
-    func testAnAccountTheHouseholdKnowsSkipsWhoYouAre() {
-        let app = launch(["-resetData", "-debugJoin", "known"])
-        XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
-        app.buttons["join"].tap()
-        XCTAssertTrue(app.staticTexts["Bringing everything in"].waitForExistence(timeout: 30), "This iCloud user is already Mia")
-        XCTAssertFalse(app.staticTexts["Which one is you?"].exists)
-        app.buttons["go-to-today"].tap()
-        XCTAssertTrue(app.staticTexts["Hi, Mia"].waitForExistence(timeout: 10))
-    }
+    // An iCloud user the household already knows skips "Which one is you?": that is the
+    // flow's decision, held by `JoinFlowTests` ("An iCloud user who already has a phone in
+    // the household keeps the same person"); the screens either side of it are in
+    // `testJoiningFromAnInvite`.
 
     func testAJoinThatFailsCanBeTriedAgain() {
         let app = launch(["-resetData", "-debugJoin", "failing"])
@@ -327,18 +316,8 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertFalse(app.descendants(matching: .any)["invite-blocker"].exists, "Invites can go once sync is on")
     }
 
-    /// As a member, the household is in its owner's iCloud.
-    func testAMemberSeesWhoseICloudItIs() {
-        let app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
-        let home = app.descendants(matching: .any)["household-home"].firstMatch
-        XCTAssertTrue(home.waitForExistence(timeout: 60))
-        XCTAssertTrue(home.label.contains("Stored in James's iCloud"), home.label)
-        // Only the owner can add people to the share: no way in, and who can.
-        XCTAssertFalse(app.buttons["invite-someone"].exists, "A member has nothing to invite with")
-        let invite = app.descendants(matching: .any)["invite-someone"].firstMatch
-        XCTAssertTrue(invite.label.contains("Only James can add people"), invite.label)
-        snapshot("phone-125-you-member")
-    }
+    // What a member sees in You (whose iCloud it is, and no way to invite) is the first part
+    // of `PhoneSetupTests.testAMemberLeaves`, which makes the same launch.
 
     func testRenamingThisPhone() {
         let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-debugSyncStatus", "upToDate", "-startScreen", "you"])

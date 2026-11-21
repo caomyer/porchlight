@@ -36,6 +36,16 @@ final class DayAtAGlanceTests: XCTestCase {
     /// timeline then shows it as done.
     func testCheckingOffAChoreOnToday() {
         let app = launch(["-startScreen", "today"])
+        // A chore's row opens its sheet, and Close puts it away.
+        let row = app.buttons["Open Fix the leaky faucet"]
+        XCTAssertTrue(row.waitForExistence(timeout: 40))
+        row.tap()
+        XCTAssertTrue(app.staticTexts["Who did it?"].waitForExistence(timeout: 5), "The chore's sheet opens")
+        snapshot("71-today-chore-opened")
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Who did it?"].waitForNonExistence(timeout: 5))
+
+        // Its box checks it off.
         let box = app.buttons["Vacuum the living room"]
         XCTAssertTrue(box.waitForExistence(timeout: 40), "Today lists the chores still to do")
         XCTAssertEqual(box.value as? String, "Not done")
@@ -47,18 +57,6 @@ final class DayAtAGlanceTests: XCTestCase {
         XCTAssertTrue(button(app, beginningWith: "Vacuum the living room").exists)
         XCTAssertTrue(app.staticTexts["James pitched in · +2 stars"].waitForExistence(timeout: 5), "The timeline shows who did it")
         snapshot("70-today-chore-done")
-    }
-
-    /// A chore row on Today opens the same sheet as on the board.
-    func testOpeningAChoreFromToday() {
-        let app = launch(["-startScreen", "today"])
-        let row = app.buttons["Open Fix the leaky faucet"]
-        XCTAssertTrue(row.waitForExistence(timeout: 40))
-        row.tap()
-        XCTAssertTrue(app.staticTexts["Who did it?"].waitForExistence(timeout: 5), "The chore's sheet opens")
-        snapshot("71-today-chore-opened")
-        app.buttons["Close"].firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["Who did it?"].waitForNonExistence(timeout: 5))
     }
 
     /// Walks and meals sit in the week grid at their times and open like on Today.

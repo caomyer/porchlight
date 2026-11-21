@@ -135,12 +135,7 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         company.waitToSettle()
         company.tap()
         XCTAssertTrue(delivery.isSelected && company.isSelected, "A second kind joins the first")
-        delivery.tap()
-        XCTAssertTrue(!delivery.isSelected && company.isSelected, "And comes off again")
-        company.tap()
-        XCTAssertTrue(company.isSelected, "The last kind picked stays picked")
-        delivery.tap()
-        XCTAssertTrue(delivery.isSelected && company.isSelected)
+        // What each further tap does (off again, never the last one) is `MealSourcesTests`.
         XCTAssertTrue(app.textFields["Restaurant"].waitForExistence(timeout: 5), "Delivery asks from where")
         snapshot("where-10-phone-two-kinds")
 
@@ -352,11 +347,8 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         snapshot("b5-26-no-photo")
     }
 
-    func testEmptyHousehold() {
-        let app = launch(household: ["-sampleHousehold", "-sampleFood", "none"])
-        XCTAssertTrue(element(app, beginningWith: "Nothing in the diary this week").exists)
-        snapshot("b5-30-empty")
-    }
+    // The empty diary ("Nothing in the diary this week") is checked where a person meets it:
+    // `PhoneSetupTests.testStartingAHouseholdOnThisPhone`, on a household just started.
 
     func testNightLook() {
         XCUIDevice.shared.appearance = .dark

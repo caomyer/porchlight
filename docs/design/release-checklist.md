@@ -217,7 +217,7 @@ To do for dishes: Production needs the record types `dish`, `mealDish` and `meal
 
 Why: the first minute decides whether a stranger keeps the app.
 State: done.
-Evidence: the iPad's onboarding (`FirstRunTests`, `HouseholdTests.testSetupAsksHowThisIPadIsUsed`), the phone's welcome with "Start a household" and "Join one" (`PhoneHouseholdTests.testTheWelcomeExplainsBothWaysIn`), starting a household on the phone (`PhoneSetupTests.testStartingAHouseholdOnThisPhone`), an empty Today that offers setup (`PhoneSetupTests.testAnEmptyTodayOffersSetup`), and a fresh install looking for a household in iCloud first (`SyncSettingsTests.testAFreshInstallLooksForItsHouseholdFirst`).
+Evidence: the iPad's onboarding (`FirstRunTests`, `HouseholdTests.testSetupAsksHowThisIPadIsUsed`), the phone's welcome with "Start a household" and "Join one" (`PhoneSetupTests.testStartingAHouseholdOnThisPhone`), starting a household on the phone (`PhoneSetupTests.testStartingAHouseholdOnThisPhone`), an empty Today that offers setup (`PhoneSetupTests.testAnEmptyTodayOffersSetup`), and a fresh install looking for a household in iCloud first (`SyncSettingsTests.testAFreshInstallLooksForItsHouseholdFirst`).
 
 ### Nothing from our family in a stranger's app
 

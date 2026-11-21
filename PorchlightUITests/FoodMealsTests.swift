@@ -119,11 +119,7 @@ final class FoodMealsTests: XCTestCase, PhoneTestHelpers {
         Thread.sleep(forTimeInterval: 0.5)  // the restaurant field opens under the pills
         company.tap()
         XCTAssertTrue(delivery.isSelected && company.isSelected, "A second kind joins the first")
-        delivery.tap()
-        company.tap()
-        XCTAssertTrue(company.isSelected && !delivery.isSelected, "The last kind picked stays picked")
-        delivery.tap()
-        XCTAssertTrue(delivery.isSelected && company.isSelected)
+        // What each further tap does (off again, never the last one) is `MealSourcesTests`.
         XCTAssertTrue(app.textFields["Restaurant"].waitForExistence(timeout: 5), "Delivery asks from where")
         snapshot("where-30-wall-two-kinds")
 

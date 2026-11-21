@@ -360,14 +360,14 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testWeekAndDiary | 22 | Snap is hittable; "On this day"; "added by you"; the restaurant's name | Merge into testMealPage (same launch); who added and where from are `PocketFoodTests` | 15 | |
 | testMealPage | 59 | Pager swipes between photos; whole photo opens and closes; an edit shows at once | Keep | | |
 | testSnappingAMeal | 46 | Camera ask, shutter, details, save, toast, new meal | Keep (smoke) | | |
-| testWhereTakesSeveralKinds | 115 | Seven toggle steps, then save, page says both, editor shows both | Down for the toggle rules (`MealSourcesTests`: "A tap adds a kind…", "On a new meal the first tap replaces…"); keep pick two, save, see both, edit | 35 | |
+| testWhereTakesSeveralKinds | 115 | Seven toggle steps, then save, page says both, editor shows both | Down for the toggle rules (`MealSourcesTests`: "A tap adds a kind…", "On a new meal the first tap replaces…"); the journey stays: pick two, save, see both, edit | 35 | done |
 | testWhereLooks | 84 | Where pills in dark and at the largest size | One launch, the night look at the largest size (was two) | 40 | done |
 | testCoverAndReframeWhenSnapping | 119 | Two shots, second made cover, reframed, saved framed | Keep | | |
 | testCoverAndReframeWhenEditing | 116 | Same in the editor, saved and shown again | Keep | | |
 | testReframingAnotherPhotoWhenEditing | 42 | Reframe from the action sheet frames that photo only | Merge into testCoverAndReframeWhenEditing (same launch and editor); the order and framing rules are `MealPhotoOrderTests` and `PhotoFramingTests` | 35 | |
 | testPhotoRowAndReframeLooks | 185 | Row and reframe in dark and largest, in four launches | One launch of the editor in the night look at the largest size, Done still in reach; the new meal's row is the same component and is not launched for again. It took 249 seconds in run 44883476613 | 180 | done |
 | testCameraTurnedOff | 48 | Camera denied: Settings, Photos, no photo | Keep (failure path) | | |
-| testEmptyHousehold | 16 | "Nothing in the diary this week" | Delete: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` asserts the same text on the same tab | 16 | |
+| testEmptyHousehold | 16 | "Nothing in the diary this week" | Delete: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` asserts the same text on the same tab | 16 | done |
 | testNightLook | 31 | Shots | Keep (looks) | | |
 | testPaperUnderTheStatusBar | 76 | Four screens scrolled, nothing under the clock, four launches | Merge to one launch by navigating diary, meal, camera, details | 45 | |
 | testPaperUnderTheStatusBarAtNight | 85 | Same in dark | Merged with the largest size into `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: the two looks share their four launches | 80 | done |
@@ -416,17 +416,17 @@ Unfrozen on November 21, when the dish editor landed.
 | testSwitcherNightLook | 23 | Shots | Merge into testNightLook | 15 | |
 | testHeaderAndSlotsLargestText | 24 | Header whole; slot reads without a dot | Merge into testLargestText | 15 | |
 | testOneHouseholdHasNoSwitcher | 27 | No switcher; start another | Keep | | |
-| testTheWelcomeExplainsBothWaysIn | 14 | Two doors, and how to join | Delete: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` opens the same screen and taps the same door; move "Or scan your family's code" there | 14 | |
+| testTheWelcomeExplainsBothWaysIn | 14 | Two doors, and how to join | Delete: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` opens the same screen and taps the same door; move "Or scan your family's code" there | 14 | done |
 | testJoiningFromAnInvite | 36 | Preview, who, bringing in, Today | Keep (smoke) | | |
 | testImNewHere | 35 | A new name joins as that person | Keep | | |
-| testAnAccountTheHouseholdKnowsSkipsWhoYouAre | 21 | The who step is skipped | Down: `JoinFlowTests` "An iCloud user who already has a phone in the household keeps the same person" | 21 | |
+| testAnAccountTheHouseholdKnowsSkipsWhoYouAre | 21 | The who step is skipped | Down: `JoinFlowTests` "An iCloud user who already has a phone in the household keeps the same person" | 21 | done |
 | testAJoinThatFailsCanBeTriedAgain | 26 | Banner, nothing half joined, try again | Keep (failure path) | | |
 | testARemovedHouseholdSaysSoOnce | 16 | Says so, then the welcome | Keep | | |
 | testSyncBannersOnToday | 91 | Six launches, one per sync state, each banner's title | Down for the titles (`ArrivalsTests.banners`, `offlineSince`); keep two launches: a member sees whose iCloud is full, and "Choose" opens the choice | 60 | done, 23 s measured |
 | testYouListsPeopleAndInvites | 33 | People, invite, share sheet | Keep | | |
 | testShowingTheCodeOnThePhone | 21 | The code is drawn | Keep | | |
 | testWithSyncOffTheHouseholdIsOnThisPhoneOnly | 38 | Says so, the switch turns it on, invites can go | Keep; the words are `HouseholdHomeTests` | | |
-| testAMemberSeesWhoseICloudItIs | 18 | Owner's iCloud; no invite for a member | Merge into `PhoneSetupTests.testAMemberLeaves` (identical launch) | 18 | |
+| testAMemberSeesWhoseICloudItIs | 18 | Owner's iCloud; no invite for a member | Merge into `PhoneSetupTests.testAMemberLeaves` (identical launch) | 18 | done |
 | testRenamingThisPhone | 35 | Type a name, saved | Keep | | |
 | testNightLook | 52 | Shots | Keep (looks) | | |
 | testLargestText | 50 | Join and banner fit | Keep (looks) | | |
@@ -483,9 +483,9 @@ Unfrozen on November 21, when the dish editor landed.
 | testTodayWithSomethingDue | 28 | Order of Today's cards | Keep; the order is `PocketTodayTests` | | |
 | testOneTapLogAndUndo | 21 | One tap, toast, undo | Keep (smoke) | | |
 | testCareSheet | 22 | More opens the sheet; save | Keep | | |
-| testCatchingUp | 21 | Banner, sheet, saved | Delete: `PhoneCatchUpTests.testCatchingUpFromTodaysBanner` is the same journey, in full | 21 | |
+| testCatchingUp | 21 | Banner, sheet, saved | Delete: `PhoneCatchUpTests.testCatchingUpFromTodaysBanner` is the same journey, in full | 21 | done |
 | testCheckingChores | 29 | Check, undo, shared chore credited | Keep (smoke) | | |
-| testAllClear | 30 | A finished day folds to one line | Down: `PocketTodayTests` "A card that just finished shows it was logged, then folds to all set" | 30 | |
+| testAllClear | 30 | A finished day folds to one line | Keep for now: "Yo-Yo is all set" and "Nothing else for you today" are written in the views, so nothing below the UI can say them yet; `PocketTodayTests` holds when a card folds | 30 |  |
 | testYouSheet | 29 | Household, role, change who I am | Keep | | |
 | testYouOnEveryTab | 32 | The avatar is on each tab | Merge into `PhoneTabsTests.testPaperUnderTheStatusBar`, which visits each tab | 30 | |
 | testNightLook | 24 | Shots | Keep (looks) | | |
@@ -499,7 +499,7 @@ Unfrozen on November 21, when the dish editor landed.
 |---|---|---|---|---|---|
 | testSeveralDishesInOneMeal | 27 | Stack opens, other dish one tap away, add another | Keep | | |
 | testDineOutWithARestaurant | 48 | Suggestions above the keyboard; saved note | Keep (keyboard) | | |
-| testWhereTakesSeveralKinds | 37 | Toggle rules, then saved "at work" | Down: `MealSourcesTests`; the journey is testEditingWhereIntoTwoKinds | 37 | |
+| testWhereTakesSeveralKinds | 37 | Toggle rules, then saved "at work" | Down for the toggle rules (`MealSourcesTests`); the journey stays, since the saved note's "at work" is built in the view and only this test sees it: pick two, save, read the note | 37 | done |
 | testEditingWhereIntoTwoKinds | 29 | Only kind can't come off; two kinds saved and shown | Keep | | |
 | testLiveRestaurantSearchByHand | 34 | Maps suggests places; used to skip itself offline | By hand: skipped unless `PORCHLIGHT_LIVE_MAPS=1`, and then it fails when Maps can't be reached | 34 | done |
 | testEditingAMealIntoDiningOut | 34 | Field above the keyboard; typed name kept | Keep (keyboard) | | |
@@ -516,10 +516,10 @@ Unfrozen on November 21, when the dish editor landed.
 | testWithSyncOffTheHouseholdIsOnThisIPadOnly | 27 | Invite waits; link scrolls to the switch | Keep | | |
 | testTheOwnerRemovesSomeonesPhone | 29 | Remove asks; the person stays | Keep | | |
 | testRenamingThisIPadFitsAboveTheKeyboard | 63 | Save and title above the keyboard | Keep (keyboard) | | |
-| testSetupAsksHowThisIPadIsUsed | 18 | Role step, shared screen picked | Delete: `FirstRunTests` asserts the same step and default; the default is `DeviceSettingsTests` | 18 | |
+| testSetupAsksHowThisIPadIsUsed | 18 | Role step, shared screen picked | Keep for now: `FirstRunTests` asserts the same step and default, but only this test taps the other role; fold that tap into `FirstRunTests` when it is next touched | 18 |  |
 | testSetupSaysWhereTheHouseholdLives | 31 | iCloud step with and without an account, two launches | Keep the launch without an account; `FirstRunTests` covers the other | 15 | |
 | testRowsFromPhonesAreTaggedAndArrivalsNamed | 28 | Arrival toast comes and goes | Keep; the sentences are `ArrivalsTests` | | |
-| testSampleMealsHaveTheirPhotos | 17 | Breakfast is on the week | Delete: five `MealPhotosTests` open that breakfast | 17 | |
+| testSampleMealsHaveTheirPhotos | 17 | Breakfast is on the week | Delete: five `MealPhotosTests` open that breakfast | 17 | done |
 | testARestoredCopyWaitsForAChoice | 40 | Choice, never "send", keeping brings back the switch | Keep | | |
 
 #### SyncSettingsTests (246 s)
@@ -549,7 +549,7 @@ Unfrozen on November 21, when the dish editor landed.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testCheckingOffAChoreOnToday | 54 | Who did it, done chip, timeline line | Keep (smoke) | | |
-| testOpeningAChoreFromToday | 88 | A row opens the chore's sheet and closes | Merge into testCheckingOffAChoreOnToday (same launch); 88 seconds for one tap needs a look | 75 | |
+| testOpeningAChoreFromToday | 88 | A row opens the chore's sheet and closes | Merge into testCheckingOffAChoreOnToday (same launch); 88 seconds for one tap needs a look | 75 | done |
 | testMomentsInTheWeek | 32 | Walks and meals open from the week grid | Keep | | |
 | testChoresInTheCalendar | 23 | Lane opens a chore and updates | Keep | | |
 
@@ -584,7 +584,7 @@ Unfrozen on November 21, when the dish editor landed.
 |---|---|---|---|---|---|
 | testCatchingUpFromYoYosWeek | 72 | Diary and trail catch up | Keep | | |
 | testLoggingYesterdaysDinnerFromTheCalendar | 30 | Missed mark opens the sheet for that slot | Keep | | |
-| testMissedCareInTheWeek | 22 | Missed slots are marked | Down: `CareCatchUpTests` and `CalendarTests` | 22 | |
+| testMissedCareInTheWeek | 22 | Missed slots are marked | Keep: the rule is `CareCatchUpTests`, but only this test shows the week grid drawing the marks | 22 |  |
 
 #### LoggedEntryTests (114 s)
 
@@ -634,7 +634,7 @@ Landed on November 21; seconds from run 44875496226.
 | PhoneWeekTests, once unfrozen | 600 | 7% |
 | Wall | 489 | 6% |
 | All verdicts | 2,368 | 29% |
-| Done so far (three tests) | 269 measured (run 44860696474; 208 projected) | 3% |
+| Done by run 44883476613 | 1,236 measured (8,041 to 6,805, with four more tests in the suite) | 15% |
 
 The verdicts bring the suite to about 5,700 seconds, short of the 5,400 target.
 Moving checks down and deleting duplicates is worth about 640 seconds (8%) on its own; most of the saving is merging launches and cutting the looks tests' walking.
