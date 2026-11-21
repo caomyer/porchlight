@@ -447,6 +447,33 @@ When a UI test goes over 60 seconds, in this order:
 4. If the time is in looking at the screen (a `reveal` loop on a long page, `descendants(matching: .any)` on a big tree, the largest text size), query by identifier inside a container, and scroll less.
 5. If it is still over, split it into two journeys; a test over 120 seconds is a failure to fix, not a number to record.
 
+### Where a job's time outside its tests goes
+
+Measured step by step in run 44926520595 (November 21, 2026), the five test jobs of a full run.
+
+| Job | Whole job | Tests | Boot step | Of which: boot, first uninstall answering, settle | Fetch and unpack the build | Inside the Test step but not a test |
+|---|---|---|---|---|---|---|
+| Phone UI 2 of 3 | 2,098 s | 1,506 s | 422 s | 254, 116, 46 | 20 s | 126 s |
+| Unit and Wall UI 1 of 2 | 2,113 s | 1,133 s and the unit tests' 368 s step | 434 s | 100, 270, 60 | 77 s | 82 s, and about 170 s of the unit step |
+| Phone UI 3 of 3 | 1,425 s | 878 s | 422 s | | 20 s | 84 s |
+| Phone UI 1 of 3 | 1,573 s | 1,154 s | 192 s | | 19 s | 186 s |
+| Wall UI 2 of 2 | 1,725 s | 1,063 s | 246 s | | 6 s | 383 s |
+
+What it shows:
+
+- **Booting a brand-new simulator is most of it: 3 to 7 minutes a job.**
+  Each job creates its simulator and boots it for the first time; the boot takes 100 to 254 seconds and the simulator then takes 38 to 270 more before it answers its first request.
+  The settle step added 23 to 60 seconds and is gone.
+- **Starting and ending `xcodebuild` is the second part: 1.5 to 6 minutes a job** (installing the app and the runner, the first launch, writing the result bundle, and a second run of any test that could not start its app).
+- **Fetching the build is small**: 6 to 77 seconds.
+- Over the five jobs that is about 50 minutes of Mac time outside the tests in a run whose tests take 96, and 7 to 10 minutes on the longest job.
+
+What could shorten it, none of it tried or decided:
+
+- Fetch the build while the simulator boots, not after it: up to a minute a job, and no risk.
+- Fewer, longer jobs: four test jobs make four boots, and wait for fewer Macs, at the cost of a longer longest job (about 1,770 seconds of tests for two phone shares against 1,230 for three).
+- Keep a simulator that has already had its first boot from one run to the next, so a job starts one that is ready: the largest saving and the least certain, since a cached simulator is several gigabytes and may not survive a new Xcode.
+
 ### Where a slow test's time goes
 
 Each test's steps are in its job's `ui-phone.log` or `ui-wall.log` (the `results-…` artifact), one line a step with its time, so a slow test is read, not guessed at.
