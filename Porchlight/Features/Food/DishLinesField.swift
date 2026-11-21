@@ -118,10 +118,20 @@ struct DishLinesField: View {
                 HStack(spacing: 12) {
                     art(line, dish: dish, size: 40)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(line.name).font(.body(15.5, weight: 700)).lineLimit(1)
-                        Text(hint.map { "\(words) · last time \($0.emoji)" } ?? words)
-                            .font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted).lineLimit(1)
+                        // Never cut short: the name wraps, and the count and last time's
+                        // face each have a line of their own beside the faces.
+                        Text(line.name).font(.body(15.5, weight: 700))
+                        Text(words)
+                            .font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted)
+                            .accessibilityIdentifier("dish-count-\(line.name)")
+                        if let hint {
+                            Text("last time \(hint.emoji)")
+                                .font(.body(12.5, weight: 600)).foregroundStyle(Theme.muted)
+                                .accessibilityIdentifier("dish-last-\(line.name)")
+                        }
                     }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                     Spacer(minLength: 6)
                     FaceChoice(rating: line.rating, size: 34, font: 17) { edit.setRating(line.id, $0) }
                         .accessibilityElement(children: .contain)

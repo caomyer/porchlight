@@ -46,6 +46,22 @@ final class WallDishEditorTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["dish-line-Spring rolls"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Would eat again?"].exists && app.staticTexts["WOULD EAT AGAIN?"].exists, "Faces are on the dishes")
         tap(app.descendants(matching: .any)["dish-faces-Pho tai"].buttons["new favorite"])
+        // The count and last time's face are texts of their own, so neither is cut to fit the
+        // other (XCTest can't see an ellipsis; the screenshot shows them whole).
+        for name in ["Pho tai", "Spring rolls"] {
+            let line = app.descendants(matching: .any)["dish-line-\(name)"]
+            let count = line.staticTexts["dish-count-\(name)"], last = line.staticTexts["dish-last-\(name)"]
+            XCTAssertTrue(count.exists && count.label.hasSuffix("time here"), "\(name): \(count.label)")
+            XCTAssertTrue(last.exists && last.label.hasPrefix("last time "), "\(name): \(last.label)")
+        }
+        // A long name wraps instead of being cut.
+        let long = "Slow-braised beef brisket with star anise"
+        let field = app.textFields["dish"]
+        tap(field)
+        field.typeText(long + "\n")
+        let longLine = app.descendants(matching: .any)["dish-line-\(long)"]
+        XCTAssertTrue(longLine.waitForExistence(timeout: 5))
+        XCTAssertTrue(longLine.staticTexts[long].exists)
         snapshot("wall-editor-01-two-dishes")
         tap(app.buttons["Save"])
         XCTAssertFalse(app.buttons["dish-chip-Pho tai"].waitForExistence(timeout: 3), "The sheet saved and closed")
