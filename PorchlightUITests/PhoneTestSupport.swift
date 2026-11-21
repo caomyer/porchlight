@@ -128,20 +128,17 @@ extension PhoneTestHelpers {
     func reveal(_ element: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         // Every question to the app costs a round trip, so each drag asks only what it needs:
         // the window and what floats over the page's bottom once, then per drag the keyboard
-        // and the element.
-        let window = app.windows.firstMatch.frame
+        // and the element. Every one of them can come and go as the screen changes, so each
+        // is read through `frame(of:)` and `canTap(_:)`, which take that in their stride.
+        let window = frame(of: app.windows.firstMatch) ?? app.frame
         let floor = pageFloor(in: app, window: window)
         let keyboard = app.keyboards.firstMatch
         func visible() -> CGRect {
-            let bottom = min(floor, keyboard.exists ? keyboard.frame.minY : window.maxY)
+            let bottom = min(floor, frame(of: keyboard)?.minY ?? window.maxY)
             return CGRect(x: window.minX, y: window.minY, width: window.width, height: bottom - window.minY)
         }
         /// Where the element is now, nil when it isn't on the page (a lazy list loads it later).
-        func frame() -> CGRect? {
-            guard element.exists else { return nil }
-            let frame = element.frame
-            return frame.isEmpty ? nil : frame
-        }
+        func whereItIs() -> CGRect? { frame(of: element) }
         /// How far it still is from what shows: positive below, negative above.
         func distance(_ frame: CGRect?, _ area: CGRect) -> CGFloat? {
             guard let frame else { return nil }
@@ -153,7 +150,7 @@ extension PhoneTestHelpers {
         let landmark = app.staticTexts.element(boundBy: 0)
 
         var area = visible()
-        var now = frame()
+        var now = whereItIs()
         let height = max(area.height, 1)
         let cap = min(max(14, Int((abs(distance(now, area) ?? 0) / (height * 0.5)).rounded(.up)) + 8), 200)
         var still = 0, farther = 0
@@ -161,7 +158,7 @@ extension PhoneTestHelpers {
         for _ in 0..<cap {
             var gap = distance(now, area)
             if let now, area.contains(now) {
-                if element.isHittable { break }
+                if canTap(element) { break }
                 // In view yet under something that floats (a Snap button over the tab bar):
                 // bring it toward the middle.
                 gap = now.midY - area.midY
@@ -173,7 +170,7 @@ extension PhoneTestHelpers {
             let travel = far ? area.height * 0.7 : min(max(abs(gap ?? area.height) + 24, area.height * 0.2), area.height * 0.6)
             let middle = area.minY + area.height / 2
             let (from, to) = down ? (middle + travel / 2, middle - travel / 2) : (middle - travel / 2, middle + travel / 2)
-            let before = now ?? (landmark.exists ? landmark.frame : .zero)
+            let before = now ?? frame(of: landmark) ?? .zero
             // Within what shows: a drag that starts on the keyboard moves nothing.
             let origin = app.coordinate(withNormalizedOffset: .zero)
             origin.withOffset(CGVector(dx: area.midX, dy: from)).press(
@@ -183,8 +180,8 @@ extension PhoneTestHelpers {
                 thenHoldForDuration: far ? 0 : 0.1
             )
             area = visible()
-            now = frame()
-            still = (now ?? (landmark.exists ? landmark.frame : .zero)) == before ? still + 1 : 0
+            now = whereItIs()
+            still = (now ?? frame(of: landmark) ?? .zero) == before ? still + 1 : 0
             if still >= 2 { break }
             if let gap = distance(now, area).map(abs) {
                 if gap < best { best = gap; farther = 0 } else { farther += 1 }
@@ -193,9 +190,30 @@ extension PhoneTestHelpers {
         }
         // Fails only when it can't be tapped where it is.
         // (A sheet's bottom button can reach past the screen's edge and still be tapped.)
-        if !(element.exists && element.isHittable) {
-            XCTFail("Couldn't bring \(element) into view (exists: \(element.exists), frame: \(element.frame), visible: \(visible()))", file: file, line: line)
+        if !canTap(element) {
+            let at = whereItIs().map { "\($0)" } ?? "not on the page"
+            XCTFail("Couldn't bring \(element) into view (frame: \(at), visible: \(visible()))", file: file, line: line)
         }
+    }
+
+    /// An element's frame, nil when it isn't there or has no size. One snapshot answers, so
+    /// an element that goes between asking whether it exists and where it is can't fail the test.
+    private func frame(of element: XCUIElement) -> CGRect? {
+        guard let frame = try? element.snapshot().frame, !frame.isEmpty else { return nil }
+        return frame
+    }
+
+    /// Whether it can be tapped where it is. XCUITest has no snapshot of that, and records a
+    /// failure when the element goes between asking whether it exists and whether it can be
+    /// tapped, so that one case is expected here and read as "no".
+    private func canTap(_ element: XCUIElement) -> Bool {
+        var hittable = false
+        let options = XCTExpectedFailure.Options()
+        options.isStrict = false
+        XCTExpectFailure("It went while being asked about", options: options) {
+            hittable = element.exists && element.isHittable
+        }
+        return hittable
     }
 
     /// Where the page stops showing at the bottom: the top of the tab bar, and of a bar that
@@ -206,9 +224,9 @@ extension PhoneTestHelpers {
     private func pageFloor(in app: XCUIApplication, window: CGRect) -> CGFloat {
         if app.otherElements["PopoverDismissRegion"].exists { return window.maxY }
         let tabBar = app.tabBars.firstMatch
-        guard tabBar.exists, tabBar.isHittable else { return window.maxY }
-        let floating = app.buttons.matching(NSPredicate(format: "identifier IN %@", ["snap-meal"])).firstMatch
-        return floating.exists ? min(tabBar.frame.minY, floating.frame.minY) : tabBar.frame.minY
+        guard canTap(tabBar), let bar = frame(of: tabBar) else { return window.maxY }
+        let floating = frame(of: app.buttons["snap-meal"].firstMatch)
+        return min(bar.minY, floating?.minY ?? bar.minY)
     }
 
     /// Types into a field a key at a time and checks it all arrived, trying again from a
