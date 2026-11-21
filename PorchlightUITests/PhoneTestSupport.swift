@@ -114,37 +114,83 @@ extension PhoneTestHelpers {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch
     }
 
-    /// Scrolls a little at a time until `element` is wholly in view, above the tab bar and
-    /// the keyboard when they are up: up the page when it is above the screen (a test that
-    /// looked further down first), else down. A tap never relies on XCUITest scrolling for
-    /// it, which on iOS 27, under the floating tab bar, can stop short and tap nothing.
+    /// Scrolls until `element` is wholly in view, above the tab bar and the keyboard when
+    /// they are up: up the page when it is above the screen (a test that looked further down
+    /// first), else down. A tap never relies on XCUITest scrolling for it, which on iOS 27,
+    /// under the floating tab bar, can stop short and tap nothing.
     ///
-    /// It gives up after 14 drags, or as soon as two drags in a row move nothing (the page
-    /// is at its end, or the element isn't on it), and then fails naming the element; it
-    /// never scrolls forever.
+    /// Far from the target each drag is long and quick and lets the page coast; near it, each
+    /// covers the distance still to go and holds at the end so the page doesn't coast past. It tells
+    /// stuck from far: it stops when two drags in a row move nothing (the page is at its end)
+    /// or when four in a row bring the element no closer, and the number of drags is capped
+    /// by the distance it started from, so a page of any honest length is reachable and the
+    /// loop always ends. Then it fails naming the element if it still can't be tapped.
     func reveal(_ element: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        // Every question to the app costs a round trip, so each drag asks only what it needs:
+        // the window and the tab bar once, then per drag the keyboard and the element.
+        let window = app.windows.firstMatch.frame
+        let tabBar = app.tabBars.firstMatch
+        // A tab bar behind a full-screen cover still exists, but covers nothing.
+        let tabTop = tabBar.exists && tabBar.isHittable ? tabBar.frame.minY : window.maxY
+        let keyboard = app.keyboards.firstMatch
         func visible() -> CGRect {
-            let window = app.windows.firstMatch.frame
-            let tabBar = app.tabBars.firstMatch
-            let keyboard = app.keyboards.firstMatch
-            // A tab bar behind a full-screen cover still exists, but covers nothing.
-            let bottom = min(tabBar.exists && tabBar.isHittable ? tabBar.frame.minY : window.maxY, keyboard.exists ? keyboard.frame.minY : window.maxY)
+            let bottom = min(tabTop, keyboard.exists ? keyboard.frame.minY : window.maxY)
             return CGRect(x: window.minX, y: window.minY, width: window.width, height: bottom - window.minY)
         }
-        func inView() -> Bool { element.exists && element.isHittable && visible().contains(element.frame) }
-        var still = 0
-        for _ in 0..<14 where !inView() {
-            let before = element.exists ? element.frame : app.windows.firstMatch.frame
-            let above = element.exists && element.frame.minY < visible().minY
-            let (from, to) = above ? (0.45, 0.7) : (0.7, 0.45)
+        /// Where the element is now, nil when it isn't on the page (a lazy list loads it later).
+        func frame() -> CGRect? {
+            guard element.exists else { return nil }
+            let frame = element.frame
+            return frame.isEmpty ? nil : frame
+        }
+        /// How far it still is from what shows: positive below, negative above.
+        func distance(_ frame: CGRect?, _ area: CGRect) -> CGFloat? {
+            guard let frame else { return nil }
+            if frame.maxY > area.maxY { return frame.maxY - area.maxY }
+            if frame.minY < area.minY { return frame.minY - area.minY }
+            return 0
+        }
+        /// What moves when the page does, for an element that isn't on it yet.
+        let landmark = app.staticTexts.element(boundBy: 0)
+
+        var area = visible()
+        var now = frame()
+        let height = max(area.height, 1)
+        let cap = min(max(14, Int((abs(distance(now, area) ?? 0) / (height * 0.5)).rounded(.up)) + 8), 200)
+        var still = 0, farther = 0
+        var best = abs(distance(now, area) ?? .greatestFiniteMagnitude)
+        for _ in 0..<cap {
+            var gap = distance(now, area)
+            if let now, area.contains(now) {
+                if element.isHittable { break }
+                // In view yet under something that floats (a Snap button over the tab bar):
+                // bring it toward the middle.
+                gap = now.midY - area.midY
+            }
+            let down = (gap ?? 1) >= 0
+            // Far away (or not on the page yet), a long quick drag that lets the page coast;
+            // near, the remaining distance and a little, held so it stops where it should.
+            let far = abs(gap ?? .greatestFiniteMagnitude) > area.height * 1.5
+            let travel = far ? area.height * 0.7 : min(max(abs(gap ?? area.height) + 24, area.height * 0.2), area.height * 0.6)
+            let middle = area.minY + area.height / 2
+            let (from, to) = down ? (middle + travel / 2, middle - travel / 2) : (middle - travel / 2, middle + travel / 2)
+            let before = now ?? (landmark.exists ? landmark.frame : .zero)
             // Within what shows: a drag that starts on the keyboard moves nothing.
-            let area = visible()
             let origin = app.coordinate(withNormalizedOffset: .zero)
-            let start = origin.withOffset(CGVector(dx: area.midX, dy: area.minY + area.height * from))
-            start.press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: area.midX, dy: area.minY + area.height * to)))
-            let after = element.exists ? element.frame : app.windows.firstMatch.frame
-            still = after == before ? still + 1 : 0
+            origin.withOffset(CGVector(dx: area.midX, dy: from)).press(
+                forDuration: 0.05,
+                thenDragTo: origin.withOffset(CGVector(dx: area.midX, dy: to)),
+                withVelocity: far ? .fast : .default,
+                thenHoldForDuration: far ? 0 : 0.1
+            )
+            area = visible()
+            now = frame()
+            still = (now ?? (landmark.exists ? landmark.frame : .zero)) == before ? still + 1 : 0
             if still >= 2 { break }
+            if let gap = distance(now, area).map(abs) {
+                if gap < best { best = gap; farther = 0 } else { farther += 1 }
+                if farther >= 4 { break }
+            }
         }
         // Fails only when it can't be tapped where it is.
         // (A sheet's bottom button can reach past the screen's edge and still be tapped.)
