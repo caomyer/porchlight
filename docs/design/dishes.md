@@ -283,6 +283,9 @@ To be built in this order, each with its hosted looks (light, dark, largest) and
 5. The wall: Recipes beside Week, Month and Dishes as cards; a recipe's kitchen view readable from the stove, ingredients beside steps in large type; the card snapped with the wall's camera; and dinner planned from the bank (W4).
    The wall keeps its one light look.
 6. The night look and the largest text for the recipe screens (P9), with ink-bounds checks wherever the handwriting draws a recipe's name.
+   These are the phone's: the wall has no night look, so its recipe screens are checked in the light only, by design.
+   No recipe screen draws a name in the handwriting, so there is no ink-bounds check to make.
+   The wall's kitchen view is read from the stove: its notes are as large and dark as its steps, under their own heading, and "Tick what to buy" is a sentence until something is ticked, on the phone too.
 
 UI journeys, on the phone and on the wall: adding a recipe to a dish we cook, cooking from the bank, planning a dinner from the bank, and ingredients to the grocery list.
 

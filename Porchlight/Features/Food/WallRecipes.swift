@@ -267,7 +267,10 @@ struct WallRecipeSheet: View {
                         .accessibilityElement(children: .combine)
                     }
                     if !recipe.notes.isEmpty {
-                        Text(recipe.notes).font(.body(17, weight: 500)).foregroundStyle(Theme.muted).padding(.top, 6)
+                        // Cooking information, read from the stove like the steps.
+                        Text("Notes").font(.display(24)).accessibilityAddTraits(.isHeader).padding(.top, 10)
+                        Text(recipe.notes).font(.body(22, weight: 500)).foregroundStyle(Theme.ink)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -314,10 +317,14 @@ struct WallRecipeSheet: View {
                 }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("wall-groceries-added")
+            } else if picked.isEmpty {
+                // A sentence until something is ticked: a button that can't be pressed looks missing.
+                Text("Tick what to buy").font(.body(17, weight: 600)).foregroundStyle(Theme.muted)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("wall-groceries-hint")
             } else {
-                Button(picked.isEmpty ? "Tick what to buy" : "Add \(picked.count) to groceries") { addToGroceries(lines) }
+                Button("Add \(picked.count) to groceries") { addToGroceries(lines) }
                     .buttonStyle(SecondaryButtonStyle())
-                    .disabled(picked.isEmpty)
                     .accessibilityIdentifier("wall-add-to-groceries")
             }
         }

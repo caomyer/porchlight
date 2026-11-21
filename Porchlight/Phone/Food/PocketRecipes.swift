@@ -406,15 +406,22 @@ struct PocketRecipePage: View {
         if !lines.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
                 let title = Text("Ingredients").phoneFont(.display, 17, weight: 600, relativeTo: .headline).accessibilityAddTraits(.isHeader)
-                let groceries = Button(picked.isEmpty ? "Pick for groceries" : "Add \(picked.count) to groceries") {
-                    addToGroceries(lines, dish: dish)
+                // A sentence until something is ticked: a button that can't be pressed looks missing.
+                let groceries = Group {
+                    if picked.isEmpty {
+                        Text("Tick what to buy")
+                            .phoneFont(.body, 13, weight: 600, relativeTo: .footnote)
+                            .foregroundStyle(Theme.muted)
+                            .accessibilityIdentifier("groceries-hint")
+                    } else {
+                        Button("Add \(picked.count) to groceries") { addToGroceries(lines, dish: dish) }
+                            .phoneFont(.body, 13, weight: 800, relativeTo: .footnote)
+                            .foregroundStyle(Theme.accent)
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("add-to-groceries")
+                    }
                 }
-                .phoneFont(.body, 13, weight: 800, relativeTo: .footnote)
-                .foregroundStyle(picked.isEmpty ? Theme.muted : Theme.accent)
-                .buttonStyle(.plain)
-                .disabled(picked.isEmpty)
                 .frame(minHeight: 44)
-                .accessibilityIdentifier("add-to-groceries")
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .firstTextBaseline) { title.fixedSize(); Spacer(minLength: 8); groceries.fixedSize() }
                     VStack(alignment: .leading, spacing: 0) { title; groceries }

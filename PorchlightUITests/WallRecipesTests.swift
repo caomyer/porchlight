@@ -79,6 +79,6 @@ final class WallRecipesTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["🛒 2 items added to groceries"].waitForExistence(timeout: 5))
         snapshot("w4-30-groceries")
         tap(app.buttons["wall-undo-groceries"])
-        XCTAssertTrue(app.buttons["wall-add-to-groceries"].waitForExistence(timeout: 5), "Undo takes them back")
+        XCTAssertTrue(app.staticTexts["wall-groceries-hint"].waitForExistence(timeout: 5), "Undo takes them back")
     }
 }
