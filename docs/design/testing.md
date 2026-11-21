@@ -85,7 +85,7 @@ Coverage is proven, not assumed.
 ## The middle options
 
 These sit between a pure function and a launched app.
-All seven are proven in this repository.
+All eight are proven in this repository.
 
 | Option | Proven by | Use it for |
 |---|---|---|
@@ -95,7 +95,8 @@ All seven are proven in this repository.
 | The fake iCloud | `SyncHarness`, `SyncControllerTests` | What sync sends, receives and says |
 | A SwiftUI view drawn with `ImageRenderer` in the unit bundle | `WidgetRenderTests` | Review shots of self-contained views in light, dark and the largest text, in milliseconds |
 | A component measured in a `UIHostingController` in the unit bundle | `TimeFieldLayoutTests` | A component's layout facts at every Dynamic Type size: it grows, it fits the width, it stacks instead of overlapping |
-| A whole screen hosted in a window in the unit bundle (`HostedScreen`) | `PocketWeekScreenTests` | Where every element of a screen sits, and a picture of the whole page, in light, dark and the largest text |
+| A whole screen hosted in a window in the unit bundle (`HostedScreen`) | `PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketDishesScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests` | Where every element of a screen sits, and a picture of the whole page, in light, dark and the largest text |
+| A line of text laid out with Core Text, its ink measured | `HandwritingTests`, `HandCompanionTests` | Whether a face's ink stays inside the box a `Text` gives it, at every size, with and without a fallback face |
 
 The component option works by size, not by position.
 `UIHostingController.sizeThatFits(in:)` gives the size a view takes in a given width with a text size and size class set in the environment, so "the pill is under its label" is checked as "the row is as tall as the label, the gap and the pill together".
@@ -118,6 +119,8 @@ What the spike of November 20 found, so its limits are known:
   `host(_:look:activating:)` activates one element by its label before reading, as a tap would, which is enough to show a screen's other tab or section; anything longer is a journey and a UI test.
 - **A row that scrolls sideways reaches past the edge.**
   Its later items have frames beyond the screen's width by design (the lists' chips at the largest text), so a "nothing runs off either side" check names such a row and leaves it out; it found that on its first run.
+- **Frames, not ink.**
+  "Nothing runs off either side" compares elements' frames with the screen, and a letter can draw outside its element's frame (hard rule 9); what the ink does is for an ink-bounds test, or for the eye on the page's picture.
 - **Labels, not identifiers.**
   SwiftUI's elements here do not give their accessibility identifiers, so elements are found by label.
 - **It is not the real screen's surroundings.**
@@ -176,7 +179,7 @@ One shot per shape of the screen stays, not one per wording.
 ## Hard rules
 
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
-The last three come from what the UI tests' own comments record.
+The ninth is from a defect found by eye on November 21; the others come from what the UI tests' own comments record.
 
 1. **A test's outcome never depends on the real clock.**
    Pin it and sweep it.
@@ -208,7 +211,13 @@ The last three come from what the UI tests' own comments record.
 8. **No fixed sleeps as a way of waiting.**
    Wait for the thing (`waitForExistence`, `waitForNonExistence`, an expectation on a predicate); a `Thread.sleep` is allowed only to let an animation finish before a screenshot.
    Why: a launch helper that sleeps 4 seconds adds 4 seconds to every test in its class, as `FoodMealsTests` and `MealPhotosTests` did for 17 tests until they waited for the app to answer and for their first element to settle instead.
-9. **A test that needs the network or real delivery timing runs by hand, not in the suite.**
+9. **A frame inside the screen does not prove the ink is inside the frame.**
+   Where a face draws past its letters' own widths, check the ink's bounds, not the element's frame.
+   Why: Caveat's slanted letters reach up to 0.21 em past their advance, and a SwiftUI `Text` is as wide as its letters' advances and draws nothing beyond, so a handwritten title ending in "l", "f" or "i" lost the top of its last letter ("Bagel" drew as "Bagei").
+   Every frame was where it should be; no frame check, on a real screen or a hosted one, could have seen it.
+   `Text(handwritten:)` (`Handwriting.swift`) is now the one way the app writes a handwritten title, with room for the tails, and `HandwritingTests` lays each title out with Core Text at every size and requires the line's ink to sit inside the line's box.
+   Do not write the handwritten face any other way, and when a new face or a new slant arrives, give it an ink-bounds test of its own.
+10. **A test that needs the network or real delivery timing runs by hand, not in the suite.**
    Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
    Why: a test that skips itself when the network is down reports nothing either way.
 
@@ -419,6 +428,7 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testWeekAndDiary | 22 | Snap is hittable; "On this day"; "added by you"; the restaurant's name | Merge into testMealPage (same launch); who added and where from are `PocketFoodTests` | 15 | |
 | testMealPage | 59 | Pager swipes between photos; whole photo opens and closes; an edit shows at once | Keep | | |
 | testSnappingAMeal | 46 | Camera ask, shutter, details, save, toast, new meal | Keep (smoke) | | |
+| testChangingWeeks | 121 | Back a week, a meal opened and Back to the same week, a past slot filled and kept in its week, back to this week | Keep: the journey, new on November 21 (seconds from run 44899330787). It is one second over the 120 limit on its first measured run; if it stays there, split filling the past slot into its own test | | |
 | testWhereTakesSeveralKinds | 115 | Seven toggle steps, then save, page says both, editor shows both | Down for the toggle rules (`MealSourcesTests`: "A tap adds a kind…", "On a new meal the first tap replaces…"); the journey stays: pick two, save, see both, edit | 35 | done |
 | testWhereLooks | 84 | Where pills in dark and at the largest size | One launch, the night look at the largest size (was two) | 40 | done |
 | testCoverAndReframeWhenSnapping | 119 | Two shots, second made cover, reframed, saved framed | Keep | | |
@@ -684,6 +694,18 @@ Landed on November 21; seconds from run 44875496226.
 | WallDishEditorTests.testHomeMealTypedWithASuggestion | 31 | The same on the wall | Keep (keyboard) | | |
 | WallDishEditorTests.testAPhotoAloneIsAWholeMeal | 23 | The same on the wall | Merge into testHomeMealTypedWithASuggestion's launch, or leave: 23 seconds | | |
 | WallDishEditorTests.testEditAddsAndTakesOffADish | 28 | The same on the wall | Keep | | |
+
+### Unit suites that hold what a UI test would otherwise
+
+These arrived on November 21 with the food diary's other weeks and handwritten titles, written to this document's rule from the start, so there is no UI test to move down: they are listed so the audit says where those checks live.
+Seconds are from a local run of the unit suite; all of them together are under two seconds.
+
+| Suite | Kind | Holds | The UI test beside it |
+|---|---|---|---|
+| `PocketFoodWeeksTests` | Pure functions, clock pinned and swept across the day, a daylight saving change and two time zones | Which seven days a week is, how far back the pager goes, which week a saved meal shows in, the pager's words | `PhoneFoodTests.testChangingWeeks`: back a week, a meal opened and Back to the same week, a past slot filled, back to this week |
+| `PocketFoodScreenTests` | Hosted whole screen | The diary on this week, last week and an empty week, in four looks: fits across, says which week | The same test; its shots are `food-week-<n>-<look>.png` |
+| `HandwritingTests` | Core Text ink bounds | Every handwritten title's ink inside its `Text`'s box, at every Dynamic Type size and the wall's sizes, with and without the Chinese and Japanese companion | None: no UI test can see ink |
+| `HandCompanionTests` | Pure functions and a fake font download | Which companion face a reader gets, its weights and line heights against Caveat's, and a download that fails or arrives late | None needed: `PhoneFoodTests` shows a diary with titles drawn |
 
 ### What the audit adds up to
 
