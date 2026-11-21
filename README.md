@@ -90,6 +90,9 @@ The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator (`xcodebuild 
 
 ### Running the tests
 
+Before adding or moving a test, read [docs/design/testing.md](docs/design/testing.md): which checks are unit tests and which are UI tests, the hard rules for both, the time budgets, and the audit of every UI test.
+In short, a check lives at the lowest level that can express it, and a UI test is one journey that asserts only what the real UI can get wrong.
+
 `scripts/test.sh` builds once, then runs the unit tests and the wall's UI suite on an iPad simulator and the phone's UI suite on an iPhone simulator, side by side when the Mac has room for both, and says how long each step took.
 
 ```bash
