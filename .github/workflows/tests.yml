@@ -23,6 +23,13 @@ name: Tests
 
 on:
   push:
+    # A push that changes nothing but the documentation builds and tests nothing: every file
+    # it touched is under docs/ or is the README. Any other file in the push, and it runs.
+    # Only these two places: a Markdown file inside a target's folder would be built into
+    # the app, so "every .md" is not on this list. A run by hand is never filtered.
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
   workflow_dispatch:
     inputs:
       only:

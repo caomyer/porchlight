@@ -141,6 +141,7 @@ The phone suite's food tests are much slower than on November 16 (the meal page 
 #### On GitHub (CI)
 
 Pushes run on GitHub's hosted Macs (`.github/workflows/tests.yml`), on iOS 27.2 with Xcode 27.2, so runs leave the development Mac alone, in two tiers ([docs/design/testing.md](docs/design/testing.md), "Tiers").
+A push that changes only `docs/` or this README runs nothing.
 A push to a working branch runs the unit tests and the smoke set (`scripts/test.sh --smoke`'s 13 UI tests) on three Macs; a push to `integration/next` or `main`, and any run by hand, runs the unit tests and both whole UI suites on five.
 A newer push to the same branch cancels the run before it; a run by hand is never cancelled by, and never cancels, another run.
 Each job is a small Mac (3 cores, 7 GB) that holds one simulator, and the plan runs five at once:

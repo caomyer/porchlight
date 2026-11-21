@@ -214,10 +214,15 @@ Not every push needs every test, and the release line needs all of them.
 
 | What happened | What runs | Macs | For |
 |---|---|---|---|
+| A push that touches only `docs/` or `README.md` | Nothing | 0 | Writing things down costs no Mac |
 | A push to a working branch | The unit tests and the smoke set | 3 | "Did I break something obvious?", in about 20 minutes |
 | A push to `integration/next` or `main` | The full suite: unit tests and both whole UI suites | 5 | The release gate |
 | A run by hand on any branch, "only" left empty | The full suite | 5 | Before asking to merge |
 | A run by hand with "only" set | Just those tests | 1 | Checking a change, or a failure |
+
+A push that changes only the documentation runs nothing at all: when every file in the push is under `docs/` or is the `README.md`, the workflow does not start (`paths-ignore` in `.github/workflows/tests.yml`).
+One file anywhere else in the push, a script or a workflow or a Markdown file inside a target's folder included, and it runs as usual, so a code change cannot be skipped by keeping it company with a document.
+A run by hand is never filtered, so the full run before a merge is still made on the branch's last commit, whatever that commit touched.
 
 The rules that make two tiers safe:
 
