@@ -171,11 +171,15 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["Hi, Ava"].waitForExistence(timeout: 10))
     }
 
-    /// A reproduction, not a check to keep as it is: "I'm new here" twelve times over, each
-    /// from a fresh launch, typing a name once with no second try. On November 20 the name
-    /// field twice showed its cursor with the keyboard up while typed keys never arrived
-    /// (runs 44871628859 and 44864042037). Counts how often that happens.
-    func testImNewHereAgainAndAgain() {
+    /// By hand only: "I'm new here" twelve times over, each from a fresh launch, typing a name
+    /// once with no second try and no tap on the field, and counting the rounds where the
+    /// keys never arrive. On November 20 the name field twice showed its cursor with the
+    /// keyboard up while typed keys went nowhere (docs/design/testing.md, "Known and not
+    /// yet explained"). `testImNewHere` types through a helper that taps the field again
+    /// before a second try, which would hide that; this does not.
+    /// `TEST_RUNNER_PORCHLIGHT_NEW_HERE=1 xcodebuild test ... -only-testing:PorchlightUITests/PhoneHouseholdTests/testImNewHereAgainAndAgainByHand`.
+    func testImNewHereAgainAndAgainByHand() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["PORCHLIGHT_NEW_HERE"] == "1", "Run by hand")
         var lost: [Int] = []
         for round in 1...12 {
             let app = launch(["-resetData", "-debugJoin", "preview"])
