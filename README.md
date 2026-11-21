@@ -116,7 +116,12 @@ How it stays fast and out of everyone's way:
 - **Locks that cannot go stale.** A run holds its simulators with kernel file locks in `/private/tmp/porchlight-simulator-locks`, which the system releases the moment the run ends, however it ends; the old lock folder (`/private/tmp/porchlight-sim.lock`) could outlive a killed run and stall every other run for hours, and the script no longer uses it.
 - **Test slots for memory.** A booted simulator under test takes 1.5 to 3 GB, and with more of them than the Mac can hold everything swaps: queries time out, the test runner fails to start ("Timed out while loading Accessibility"), and tests fail that pass alone.
   So the Mac has one test slot per 8 GB of memory (two on a 16 GB Mac, or `PORCHLIGHT_TEST_SLOTS`), a run boots simulators only into slots, and it shuts them down however it ends.
-  Before taking a slot it shuts down any test simulator that is booted but held by no run (one a run killed outright left behind), and every other booted simulator, one opened by hand or another project's, takes a slot of its own.
+  Before taking a slot it shuts down its own checkout's simulators that are booted but held by no run (ones a run of this checkout left behind when it was killed outright), and only those.
+  Every other booted simulator that no run holds takes a slot of its own, whoever booted it: one opened by hand, another project's, or another checkout's test simulator that someone is driving by hand.
+- **Never another checkout's simulator.** A run waits for a slot other people's simulators hold, says which ones it is waiting for, and never shuts them down: a simulator with no test run holding it is not evidence that nobody is using it (on November 21, 2026 a run shut down another agent's two simulators in the middle of its work, under the rule before this one).
+  To drive this checkout's own simulator by hand while its tests may run, hold it: `scripts/sim-hold.sh ipad` (or `iphone`, or both) boots it, holds it and a test slot, and lets go when it ends.
+  `scripts/sim-clear.sh` lists the booted test simulators that nothing holds, from every checkout, and `scripts/sim-clear.sh --yes` shuts them down: the one explicit way to clear abandoned ones, for a person, or an agent that has asked whose they are.
+  `zsh scripts/ci/check-simulator-rules.sh` checks these rules with stand-ins for the simulators, in a second, and runs with every build on GitHub.
   A run takes two slots when both are free and the memory free right now has room for two simulators (4 GB each), and runs the iPad and the iPhone side by side; otherwise it runs them one after the other, and with no slot free it waits, and says for whom.
   Two simulators with too little memory are slower than one after the other and fail besides: their apps' main threads stall for 30 seconds and more while the system pages them in, and the test runner can fail to start ("Timed out while loading Accessibility"), which `scripts/test.sh` then tries once more.
   It never holds one slot while waiting for a second, so two runs can't wait on each other.
@@ -141,6 +146,7 @@ The phone suite's food tests are much slower than on November 16 (the meal page 
 #### On GitHub (CI)
 
 Pushes run on GitHub's hosted Macs (`.github/workflows/tests.yml`), on iOS 27.2 with Xcode 27.2, so runs leave the development Mac alone, in two tiers ([docs/design/testing.md](docs/design/testing.md), "Tiers").
+A push that changes only `docs/` or this README runs nothing.
 A push to a working branch runs the unit tests and the smoke set (`scripts/test.sh --smoke`'s 13 UI tests) on three Macs; a push to `integration/next` or `main`, and any run by hand, runs the unit tests and both whole UI suites on five.
 A newer push to the same branch cancels the run before it; a run by hand is never cancelled by, and never cancels, another run.
 Each job is a small Mac (3 cores, 7 GB) that holds one simulator, and the plan runs five at once:
@@ -159,15 +165,24 @@ The log prints each test as it ends (`--progress`), and every two minutes a hear
 To run the full suite on a working branch, which every branch does once before asking to merge, use Actions, Tests, Run workflow, on that branch, with "only" left empty (`gh workflow run Tests --ref <branch>`).
 To run only some tests, use Actions, Tests, Run workflow, with "only" set as for `--only` (for example `FirstRunTests PhoneTests/testCheckingChores`): one job builds and runs just those.
 
+**A run in which no test started is run once more.** When the test runner crashes before any test has started ("The test runner crashed while preparing to run tests", or it never loads Accessibility), on a Mac short of memory, `scripts/test.sh` runs that suite again, locally too, and a second time fails saying the runner crashed before any test, twice; a runner that dies after a test has started is a real failure and is not run again (`scripts/lib/runner-start.sh`).
+
+**A boot that stalls fails by name.** Each stage of booting a job's simulator has a limit of its own (booting, then the first uninstall answering), a stage that stalls is named in the log and the simulator is erased and booted once more, and a second stall fails the job saying which stages stalled and that no test ran (`scripts/ci/boot-simulator.sh`); before that, a stalled boot sat until GitHub cancelled the job with "The operation was canceled".
+
+**A build that arrives corrupted is not a red test run.** The build job records its packed build's size and SHA-256, and each test job checks its download against them, downloads again up to twice when they differ, and only then fails, saying "The build's download was corrupted" (`scripts/ci/unpack-build.sh`; `zsh scripts/ci/check-unpack-build.sh` checks that script with a stand-in for the download).
+
 **Reading a failure.** The job's log lists the failed tests and their messages under `[ui-wall]`, `[ui-phone]` or the unit summary.
 Each job uploads an artifact, `results-<job name>` (for example `results-Wall UI 2 of 2`), kept for a week, with the job's `.log` files and, when the job failed, each `.xcresult` bundle zipped.
 Unzip one and open it in Xcode, or export its screenshots with `xcrun xcresulttool export attachments --path ui-wall.xcresult --output-path shots`.
 A failed UI test also keeps a screen recording of itself in its bundle, which `ffmpeg -ss <seconds> -i <recording>.mp4 -frames:v 1 frame.png` turns into a still at any moment.
 The UI tests turn the iPad to landscape before each launch (`XCUIApplication.porchlight()`): a new simulator boots in portrait, and on iPadOS 27 the landscape-only wall then draws sideways under a portrait keyboard.
 
-**What stays local.** The hosted Macs have only iOS 27 simulators, so the iOS 17.5 run, the wall iPad's own OS, stays on the development Mac: run `scripts/test.sh` before deploying to the wall.
+**What stays local.** The hosted Macs have only iOS 27 simulators, so the iOS 17.5 run, the wall iPad's own OS, stays on the development Mac: run `scripts/test.sh` before a build goes to TestFlight, since the wall takes it too.
 
-## Install on the wall iPad
+## Install on the wall iPad by cable
+
+The wall iPad and the phones are all updated through TestFlight (see "TestFlight" below), since November 21, 2026.
+Installing by cable is kept as a developer's option, for trying a build on the wall before it is uploaded, or for the Debug build the device tour and the idle CPU check need:
 
 ```bash
 scripts/deploy-ipad.sh
@@ -175,10 +190,10 @@ scripts/deploy-ipad.sh
 
 This installs a Release build, which costs less CPU and power on a screen that is always on.
 Before installing, it copies the wall's database and photos to `~/Library/Application Support/Porchlight/Backups` and stops if that copy fails.
-`scripts/backup-ipad.sh` makes such a copy on its own, and `scripts/restore-ipad.sh <backup folder>` puts one back.
+A TestFlight update makes no such copy, so `scripts/backup-ipad.sh` is the way to copy the wall's data by hand, and `scripts/restore-ipad.sh <backup folder>` puts a copy back.
 
-`scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror (macOS does not let background jobs read ~/Documents).
-That keeps the wall on the latest commit and backed up twice a week.
+A scheduled reinstall by cable is optional too, and the household's own schedule was removed on November 21, 2026.
+For a wall kept on cable installs, `scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror of `main` (macOS does not let background jobs read ~/Documents), which keeps it on the latest commit and backed up twice a week; `scripts/schedule-deploy.sh --remove` takes the job, its git hook and the mirror's remote away again, from the main checkout or from a worktree.
 An install signed with a paid Apple Developer team lasts a year; with a free Apple ID it expires after 7 days, which the schedule also covers.
 
 ## On iPhone
@@ -196,8 +211,8 @@ scripts/test.sh --phone --ui-only   # the phone's UI tests on an iOS 17.5 iPhone
 
 ## TestFlight
 
-Family phones get builds through TestFlight, without a cable.
-The wall iPad stays on cable installs (`scripts/deploy-ipad.sh`), which are Release builds in the same CloudKit Production environment as TestFlight builds, so the wall and the phones share one household.
+The wall iPad and the family's phones all get builds through TestFlight, without a cable.
+A cable install (`scripts/deploy-ipad.sh`, a developer's option) is a Release build in the same CloudKit Production environment as a TestFlight build, so a wall installed either way shares one household with the phones.
 
 One-time setup:
 - The App Store Connect app is "Porchlight Homes", bundle id `com.mingyucao.porchlight`.
@@ -222,7 +237,7 @@ Settings on the wall and the bottom of You on a phone show the version a device 
 Testers:
 - Internal testers (up to 100 people on the App Store Connect team) get a build as soon as Apple has processed it, with no review.
 - External testers (anyone with an email address or a public link) need the build to pass a short Beta App Review first, once per version.
-- Each build expires 90 days after upload; upload a new one before then, and TestFlight updates the phones.
+- Each build expires 90 days after upload; upload a new one before then, and TestFlight updates the wall and the phones.
 
 ## Layout
 

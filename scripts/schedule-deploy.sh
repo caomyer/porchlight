@@ -1,7 +1,8 @@
 #!/bin/zsh
-# Schedules a reinstall of Porchlight on the wall iPad every Sunday and
-# Wednesday at 3:00 am, so the wall stays on the latest commit and is backed up
-# twice a week (and a free-Apple-ID install never hits its 7-day expiry).
+# Optional: schedules a reinstall of Porchlight on the wall iPad every Sunday and
+# Wednesday at 3:00 am, so a wall kept on cable installs stays on the latest commit
+# and is backed up twice a week (and a free-Apple-ID install never hits its 7-day
+# expiry). The household's own devices update through TestFlight and have no schedule.
 #
 #   scripts/schedule-deploy.sh            install or update the schedule
 #   scripts/schedule-deploy.sh --run-now  install, then run once immediately
@@ -20,10 +21,15 @@ root="${0:A:h:h}"
 support="$HOME/Library/Application Support/Porchlight"
 logs="$HOME/Library/Logs/Porchlight"
 domain="gui/$(id -u)"
+# Where git keeps this repository's hooks. In a worktree `.git` is a file, and the hooks
+# are the main checkout's, so the path is asked for, never built from "$root/.git".
+hook="$(git -C "$root" rev-parse --path-format=absolute --git-path hooks)/post-commit"
 
 if [[ "${1:-}" == "--remove" ]]; then
   launchctl bootout "$domain/$label" 2>/dev/null || true
-  rm -f "$plist" "$root/.git/hooks/post-commit"
+  rm -f "$plist"
+  # Only the hook this script wrote: another post-commit hook is left alone.
+  if [[ -f "$hook" ]] && grep -q "Porchlight deploy mirror" "$hook"; then rm -f "$hook"; fi
   git -C "$root" remote remove deploy 2>/dev/null || true
   echo "Removed the Porchlight deploy schedule (the mirror in $support is left in place)."
   exit 0
@@ -42,14 +48,15 @@ if [[ ! -d "$support/deploy.git" ]]; then
 fi
 git -C "$root" remote remove deploy 2>/dev/null || true
 git -C "$root" remote add deploy "$support/deploy.git"
-cat > "$root/.git/hooks/post-commit" <<'EOF'
+mkdir -p "${hook:h}"
+cat > "$hook" <<'EOF'
 #!/bin/sh
 # Keeps the Porchlight deploy mirror current (see scripts/schedule-deploy.sh).
 # Only main is mirrored: a commit on another branch or in a worktree must never
 # reach the wall through the scheduled install.
 git push -q --force deploy refs/heads/main:refs/heads/main >/dev/null 2>&1 || true
 EOF
-chmod +x "$root/.git/hooks/post-commit"
+chmod +x "$hook"
 git -C "$root" push -q --force deploy refs/heads/main:refs/heads/main
 
 # 2. Signing settings the job needs (git-ignored, so copied separately).

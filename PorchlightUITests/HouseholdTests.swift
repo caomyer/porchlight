@@ -157,14 +157,8 @@ final class HouseholdTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Sample data
 
-    /// Sample meal photos are read back from Caches and stored as photo rows, like a
-    /// camera's: the week's polaroids show them.
-    func testSampleMealsHaveTheirPhotos() {
-        let app = launch(["-startScreen", "food"])
-        let toast = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Avocado toast")).firstMatch
-        XCTAssertTrue(toast.waitForExistence(timeout: 30), "Today's breakfast is on the week")
-        snapshot("91-food-week-sample")
-    }
+    // That the sample week's breakfast is on the Food screen with its photos is where five
+    // `MealPhotosTests` start ("Breakfast: Avocado toast and 1 more, 2 photos").
 
     // MARK: A restored database
 

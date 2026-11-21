@@ -12,12 +12,19 @@ final class WallRecipesTests: XCTestCase {
         try XCTSkipIf(isPhone, "The wall's tests run on an iPad")
     }
 
+    /// Today at 6:40 pm, so a meal cooked from a recipe is guessed to be dinner whenever the
+    /// suite runs (docs/design/testing.md, hard rule 1).
+    private static var dinnerTime: String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
+        return String(format: "%04d-%02d-%02dT18:40", parts.year!, parts.month!, parts.day!)
+    }
+
     private func launch(_ arguments: [String]) -> XCUIApplication {
         let app = XCUIApplication.porchlight()
-        app.launchArguments = ["-sampleHousehold", "-startScreen", "food"] + arguments
+        app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.dinnerTime, "-startScreen", "food"] + arguments
         app.launch()
-        _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
-        Thread.sleep(forTimeInterval: 3)
+        // The Food page's title, then each test waits for its own first element.
+        XCTAssertTrue(app.staticTexts["What we ate"].waitForExistence(timeout: 60), "The Food page opens")
         return app
     }
 

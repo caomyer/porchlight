@@ -110,7 +110,7 @@ Every photo comes through `PhotosPicker`, which runs outside the app and needs n
 
 Why: App Review rejects apps that ask on launch, and people say no to prompts they don't understand.
 State: done.
-Evidence: calendars are asked for from "Allow calendar access" on the wall's calendar step and the phone's Calendars page (`FirstRunTests`, `PhoneTabsTests.testCalendarsFromYou`), notifications from the Notifications page after saying why (`PhoneRemindersTests.testSaysWhyBeforeAsking`), the camera from "Snap a meal" (`PhoneFoodTests.testCameraTurnedOff`), and location once for the weather.
+Evidence: calendars are asked for from "Allow calendar access" on the wall's calendar step and the phone's Calendars page (`FirstRunTests`, `PhoneTests.testYouSheet`), notifications from the Notifications page after saying why (`PhoneRemindersTests.testSaysWhyBeforeAsking`), the camera from "Snap a meal" (`PhoneFoodTests.testCameraTurnedOff`), and location once for the weather.
 
 ## Compliance
 
@@ -217,7 +217,7 @@ To do for dishes: Production needs the record types `dish`, `mealDish` and `meal
 
 Why: the first minute decides whether a stranger keeps the app.
 State: done.
-Evidence: the iPad's onboarding (`FirstRunTests`, `HouseholdTests.testSetupAsksHowThisIPadIsUsed`), the phone's welcome with "Start a household" and "Join one" (`PhoneHouseholdTests.testTheWelcomeExplainsBothWaysIn`), starting a household on the phone (`PhoneSetupTests.testStartingAHouseholdOnThisPhone`), an empty Today that offers setup (`PhoneSetupTests.testAnEmptyTodayOffersSetup`), and a fresh install looking for a household in iCloud first (`SyncSettingsTests.testAFreshInstallLooksForItsHouseholdFirst`).
+Evidence: the iPad's onboarding (`FirstRunTests`, `HouseholdTests.testSetupAsksHowThisIPadIsUsed`), the phone's welcome with "Start a household" and "Join one" (`PhoneSetupTests.testStartingAHouseholdOnThisPhone`), starting a household on the phone (`PhoneSetupTests.testStartingAHouseholdOnThisPhone`), an empty Today that offers setup (`PhoneSetupTests.testAnEmptyTodayOffersSetup`), and a fresh install looking for a household in iCloud first (`SyncSettingsTests.testAFreshInstallLooksForItsHouseholdFirst`).
 
 ### Nothing from our family in a stranger's app
 
@@ -233,7 +233,7 @@ Doc comments mention our names only as examples in code, which ship nowhere.
 
 Why: many people use larger text; App Store review and real use both expect it.
 State: done.
-Evidence: every phone screen is checked at the largest accessibility size (`PhoneTests.testLargestText`, `PhoneTabsTests.testLargestText`, `PhoneFoodTests.testLargestText`, `PhoneHouseholdTests.testLargestText`, `PhoneRemindersTests.testLooks`, the hosted `PocketWeekScreenTests` and `PocketCareSheetScreenTests`, `PhoneFoodTests.testPaperUnderTheStatusBarAtTheLargestSize`).
+Evidence: every phone screen is checked at the largest accessibility size (`PhoneTests.testLooks`, `PhoneTabsTests.testLooks`, `PhoneFoodTests.testLargestText`, `PhoneHouseholdTests.testLooks`, `PhoneRemindersTests.testLooks`, the hosted `PocketWeekScreenTests` and `PocketCareSheetScreenTests`, `PhoneFoodTests.testPaperUnderTheStatusBarAtNightAtTheLargestSize`).
 
 ### Text size on the wall
 

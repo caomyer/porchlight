@@ -1,6 +1,6 @@
 #!/bin/zsh
-# Builds Porchlight for TestFlight and uploads it, so family phones get new builds without
-# a cable. The wall iPad stays on cable installs (scripts/deploy-ipad.sh).
+# Builds Porchlight for TestFlight and uploads it, so the wall iPad and the family's phones
+# get new builds without a cable. A cable install (scripts/deploy-ipad.sh) is a developer's option.
 #
 #   scripts/testflight.sh               archive, export, validate, then upload
 #   scripts/testflight.sh --no-upload   everything up to the upload: a validated .ipa

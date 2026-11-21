@@ -34,6 +34,7 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 # then finds simctl only on the PATH.
 export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 source scripts/lib/simulators.sh
+source scripts/lib/runner-start.sh
 
 unit=1
 ui=1
@@ -161,8 +162,8 @@ for sim in $ipad $iphone; do porchlight_hold_simulator "$sim"; done
 both=$(( ${#ipad} && ${#iphone} ))
 
 # Shut the simulators down on every way out this shell sees, to give the memory back. A run
-# killed outright leaves its simulators booted but no longer held, and the next run's
-# `porchlight_take_slots` shuts them down.
+# killed outright leaves its simulators booted but no longer held, and the next run from
+# this checkout shuts them down (never another checkout's: scripts/lib/simulators.sh).
 cleanup() {
   for sim in $ipad $iphone; do xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true; done
 }
@@ -237,11 +238,19 @@ ui_suite() {
     rm -rf "$results/$name.xcresult"
     xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
       "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult" 2>&1 | record "$results/$name.log" || true
-    # A freshly booted simulator under memory pressure can fail to start the test runner at
-    # all ("Timed out while loading Accessibility", or the runner crashing before it
-    # connects); no test ran, so once is tried again.
-    grep -qE "failed to initialize for UI testing|crashed before establishing connection" "$results/$name.log" && (( attempt == 1 )) || break
-    echo "[$name] The test runner didn't start; trying once more"
+    # A simulator under memory pressure can fail to start the test runner at all ("Timed out
+    # while loading Accessibility", the runner crashing before it connects, or "The test
+    # runner crashed while preparing to run tests"). No test started, so the whole run is
+    # made once more; a second time is a failure that says so. A runner that dies after a
+    # test has started is never run again here: that is a real failure
+    # (scripts/lib/runner-start.sh).
+    porchlight_runner_never_started "$results/$name.log" || break
+    if (( attempt == 2 )); then
+      echo "[$name] The test runner crashed before any test started, twice. No test ran: this is the Mac or the simulator, not a test (docs/design/testing.md, \"Infrastructure failures\")."
+      break
+    fi
+    echo "[$name] The test runner crashed before any test started; running the suite once more"
+    cp "$results/$name.log" "$results/$name-never-started.log"
   done
   summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
   # A test XCTest could not start the app for, on a busy simulator, runs once more on its own; any
@@ -265,6 +274,13 @@ shard_of() {
   local i=${shard%/*} n=${shard#*/} class k least seconds
   local -a weights=() mine=()
   for (( k = 1; k <= n; k++ )); do weights[k]=0; done
+  # The unit tests run on the Mac that runs the wall's first share, so that share starts
+  # with their seconds already counted (the `UnitTests` line), in every job's sums alike.
+  if [[ "$1" == --with-unit-tests ]]; then
+    shift
+    weights[1]=$(awk '$1 == "UnitTests" { print $2 }' scripts/lib/ui-test-seconds)
+    weights[1]=${weights[1]:-0}
+  fi
   for seconds class in $(for class in "$@"; do
       seconds=$(awk -v c="$class" '$1 == c { print $2 }' scripts/lib/ui-test-seconds)
       print -r -- "${seconds:-$(( 30 * $(grep -c 'func test' PorchlightUITests/$class.swift) ))} $class"
@@ -290,7 +306,7 @@ if (( wall )); then
   elif [[ -n "$shard" ]]; then
     wall_classes=(PorchlightUITests/*Tests.swift(:t:r))
     wall_classes=(${wall_classes:|phone_classes})
-    classes=$(shard_of $wall_classes) || exit 1
+    classes=$(shard_of --with-unit-tests $wall_classes) || exit 1
     for class in ${=classes}; do wall_args+=(-only-testing:PorchlightUITests/$class); done
     (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens -skip-testing:PorchlightUITests/WallTourTests/testRecipeScreens)
   else

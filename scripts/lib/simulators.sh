@@ -72,25 +72,58 @@ for devices in json.load(sys.stdin)["devices"].values():
 '
 }
 
-# Shuts down every booted test simulator ("Porchlight <checkout> ...") that no run holds:
-# one a run left behind when it was killed outright, or that was booted by hand. Whoever
-# holds a simulator also holds a test slot, so this keeps booted test simulators within the
-# slots, whatever happened to the runs before.
-porchlight_shut_down_unheld() {
-  local udid name fd file
+# Whether a run holds `udid`: some other process has its lock. Never ask about a simulator
+# this shell holds itself: fcntl locks belong to the process, so asking would succeed, and
+# letting go again would drop the hold.
+porchlight_is_held() {
+  local file="$porchlight_sim_locks/$1.lock" fd
+  mkdir -p "$porchlight_sim_locks"
+  touch "$file"
+  if zsystem flock -t 0 -f fd "$file" 2>/dev/null; then
+    zsystem flock -u "$fd"
+    return 1
+  fi
+  return 0
+}
+
+# This checkout's name in its simulators' names: "Porchlight <checkout> ipad".
+porchlight_own_prefix() {
+  print -r -- "Porchlight $(basename "$PWD") "
+}
+
+# Shuts down this checkout's own booted simulators that no run holds: ones a run of this
+# checkout left behind when it was killed outright. Only its own, ever: another checkout's
+# simulator with no run holding it may be one a person or an agent is driving by hand, and
+# "no lock" is not evidence that it was abandoned. (A run of November 21, 2026 shut down
+# another agent's two simulators in the middle of its work that way.) To drive this
+# checkout's own simulator by hand while its tests may run, hold it: scripts/sim-hold.sh.
+porchlight_shut_down_own_unheld() {
+  local udid name own
+  own=$(porchlight_own_prefix)
   porchlight_booted_simulators | while read -r udid name; do
-    [[ "$name" == "Porchlight "* ]] || continue
-    # fcntl locks belong to the process: asking for one this shell holds would succeed,
-    # and letting it go again would drop the hold.
+    [[ "$name" == "$own"* ]] || continue
     (( ${porchlight_held_simulators[(Ie)$udid]} )) && continue
-    file="$porchlight_sim_locks/$udid.lock"
-    mkdir -p "$porchlight_sim_locks"
-    touch "$file"
-    if zsystem flock -t 0 -f fd "$file" 2>/dev/null; then
-      echo "Shutting down $name: booted, but no run holds it" >&2
-      xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
-      zsystem flock -u "$fd"
+    porchlight_is_held "$udid" && continue
+    echo "Shutting down $name: this checkout's own, booted, and no run holds it" >&2
+    xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
+  done
+}
+
+# The booted simulators that take a test slot without a run holding one for them, one name
+# per line: any simulator that isn't a test simulator (opened by hand, another project's),
+# and another checkout's test simulator that no run holds (driven by hand, or left behind).
+# A simulator a run holds is not listed: its run holds a slot lock for it. Nor are this
+# shell's own.
+porchlight_slots_taken_outside_runs() {
+  local udid name own
+  own=$(porchlight_own_prefix)
+  porchlight_booted_simulators | while read -r udid name; do
+    (( ${porchlight_held_simulators[(Ie)$udid]} )) && continue
+    if [[ "$name" == "Porchlight "* ]]; then
+      [[ "$name" == "$own"* ]] && continue
+      porchlight_is_held "$udid" && continue
     fi
+    print -r -- "$name"
   done
 }
 
@@ -100,13 +133,14 @@ porchlight_shut_down_unheld() {
 # everything swaps and UI tests time out. So a run boots simulators only into slots: one
 # for each 8 GB of memory, or PORCHLIGHT_TEST_SLOTS. Never waiting for a second slot while
 # holding a first means two runs can't each hold one and wait for the other.
-# Test simulators no run holds are shut down first, and every other booted simulator (one
-# opened by hand, another project's) takes a slot of its own. A run also takes a second
+# This checkout's own simulators that no run holds are shut down first. Every other booted
+# simulator that no run holds takes a slot of its own, whoever booted it: the run waits for
+# it and says which it is waiting for, and never shuts it down. A run also takes a second
 # slot only when the memory free right now has room for a second simulator (4 GB each, with its app and test runner):
 # the Mac's other apps can leave too little for two, and two then swap each other into
 # timeouts, as two UI suites did on a 16 GB Mac with a browser and chat apps open.
 porchlight_take_slots() {
-  local want=$1 total slots others slot fd waited=0 room
+  local want=$1 total slots others slot fd waited=0 room outside
   total=${PORCHLIGHT_TEST_SLOTS:-$(( $(sysctl -n hw.memsize) / (8 * 1024 * 1024 * 1024) ))}
   (( total >= 1 )) || total=1
   if (( want > 1 )) && [[ -z "${PORCHLIGHT_TEST_SLOTS:-}" ]]; then
@@ -119,11 +153,12 @@ porchlight_take_slots() {
   typeset -g porchlight_slots=0
   mkdir -p "$porchlight_sim_locks"
   while (( porchlight_slots == 0 )); do
-    porchlight_shut_down_unheld
-    others=$(porchlight_booted_simulators | grep -vc " Porchlight " || true)
+    porchlight_shut_down_own_unheld
+    outside=$(porchlight_slots_taken_outside_runs)
+    others=$(print -r -- "$outside" | grep -c . || true)
     slots=$(( total - others ))
     if (( slots < 1 )); then
-      (( waited )) || echo "Every test slot is taken by simulators booted outside the tests: $(porchlight_booted_simulators | grep -v ' Porchlight ' | cut -d' ' -f2- | tr '\n' ';')" >&2
+      (( waited )) || echo "Every test slot is taken by simulators no test run holds, so this run waits for them: ${outside//$'\n'/; }. One driven by hand goes when its owner shuts it down; scripts/sim-clear.sh lists them and shuts down abandoned ones." >&2
       waited=1
       sleep 5
       continue

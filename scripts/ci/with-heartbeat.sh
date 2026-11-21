@@ -8,5 +8,7 @@ heartbeat() {
 }
 heartbeat &
 beat=$!
-trap 'kill $beat 2>/dev/null' EXIT
+# The loop and the sleep it is in the middle of: a sleep left behind keeps the step's output
+# open after the command has ended, and GitHub then ends it as an orphan.
+trap 'pkill -P $beat 2>/dev/null; kill $beat 2>/dev/null' EXIT
 "$@"

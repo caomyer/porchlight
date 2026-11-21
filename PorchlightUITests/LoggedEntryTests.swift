@@ -20,13 +20,30 @@ final class LoggedEntryTests: XCTestCase {
     /// sample walk has) and changes it to 45, which Yo-Yo's card must show at once.
     func testFixingAWalkFromToday() {
         let app = XCUIApplication.porchlight()
-        app.launchArguments = ["-sampleHousehold", "-startScreen", "today"]
+        // Pinned to 5:20 pm, so an hour ago is today whenever the suite runs. Which choices
+        // the time card offers at each minute of the day is `LogTimeTests` (unit).
+        app.launchArguments = ["-sampleHousehold", "-startScreen", "today", "-debugCompanionNow", Self.evening]
         app.launch()
 
         let log = button(app, containing: "I walked Yo-Yo")
         XCTAssertTrue(log.waitForExistence(timeout: 30))
         log.tap()
         XCTAssertTrue(app.staticTexts["Who walked Yo-Yo?"].waitForExistence(timeout: 5))
+        // When it started: a new walk ends now by default; a suggestion sets the time, closes
+        // the card and is the one marked when the card opens again.
+        let started = app.descendants(matching: .any).matching(identifier: "exact-time").firstMatch
+        started.tap()
+        XCTAssertTrue(app.buttons["Just got back"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Just got back"].isSelected, "A new walk ends now by default")
+        let hourAgo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1 hr ago'")).firstMatch
+        XCTAssertTrue(hourAgo.exists, "At 5:20 pm an hour ago is still today")
+        hourAgo.tap()
+        XCTAssertTrue(hourAgo.waitForNonExistence(timeout: 5), "A suggestion sets the time and closes")
+        started.tap()
+        XCTAssertTrue(hourAgo.waitForExistence(timeout: 5))
+        XCTAssertTrue(hourAgo.isSelected)
+        snapshot("52-new-walk-earlier")
+        app.buttons["time-done"].tap()
         app.buttons["10 min"].tap()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save walk'")).firstMatch.tap()
         // Saving celebrates, and the celebration goes by itself after a few seconds. Wait it
@@ -65,34 +82,6 @@ final class LoggedEntryTests: XCTestCase {
     private static var evening: String {
         let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
         return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
-    }
-
-    func testLoggingAWalkSaysWhenItStarted() {
-        let app = XCUIApplication.porchlight()
-        // Pinned to 5:20 pm, so an hour ago is today whenever the suite runs. Which choices
-        // are offered at each minute of the day is `LogTimeTests` (unit).
-        app.launchArguments = ["-sampleHousehold", "-startScreen", "today", "-debugCompanionNow", Self.evening]
-        app.launch()
-
-        let log = button(app, containing: "I walked Yo-Yo")
-        XCTAssertTrue(log.waitForExistence(timeout: 30))
-        log.tap()
-        XCTAssertTrue(app.staticTexts["Who walked Yo-Yo?"].waitForExistence(timeout: 5))
-        let time = app.descendants(matching: .any).matching(identifier: "exact-time").firstMatch
-        time.tap()
-        XCTAssertTrue(app.buttons["Just got back"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Just got back"].isSelected, "A new walk ends now by default")
-        let hourAgo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1 hr ago'")).firstMatch
-        XCTAssertTrue(hourAgo.exists, "At 5:20 pm an hour ago is still today")
-        hourAgo.tap()
-        XCTAssertTrue(hourAgo.waitForNonExistence(timeout: 5), "A suggestion sets the time and closes")
-        time.tap()
-        XCTAssertTrue(hourAgo.waitForExistence(timeout: 5))
-        XCTAssertTrue(hourAgo.isSelected)
-        snapshot("52-new-walk-earlier")
-        app.buttons["time-done"].tap()
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save walk'")).firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["Who walked Yo-Yo?"].waitForNonExistence(timeout: 5))
     }
 
     func testOpeningMealsFromToday() {

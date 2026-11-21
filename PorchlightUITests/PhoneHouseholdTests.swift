@@ -69,34 +69,6 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertFalse(app.staticTexts["PRODUCE"].exists, "The Lake House's groceries stay there")
     }
 
-    /// The night look of the switcher and the header, for review.
-    func testSwitcherNightLook() {
-        XCUIDevice.shared.appearance = .dark
-        let app = twoHouseholds()
-        XCTAssertTrue(app.buttons["household-switcher"].exists)
-        snapshot("a5-20-today-header-dark")
-        app.buttons["household-switcher"].tap()
-        XCTAssertTrue(app.buttons["household-Grandma Rosa's"].waitForExistence(timeout: 5))
-        snapshot("a5-21-your-households-dark")
-    }
-
-    /// At the largest text: the household under the date, whole, and the slots' times and
-    /// statuses. (Queries of the You sheet at this size take half a minute each, so the
-    /// switcher's list is left to the eye.)
-    func testHeaderAndSlotsLargestText() {
-        let app = twoHouseholds(Self.largestText)
-        XCTAssertEqual(app.buttons["household-switcher"].label, "The Lake House")
-        snapshot("a5-22-today-header-largest")
-        // Too narrow for "5-8pm · open now": the status sits under the time, dot and all gone.
-        // The tile reads as one element: its title, time and status.
-        let evening = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Evening, 5-8pm, open now")).firstMatch
-        // Today builds its cards as they come near the screen, so scroll down to it first.
-        for _ in 0..<8 where !evening.exists { app.swipeUp() }
-        XCTAssertTrue(evening.waitForExistence(timeout: 5), "The evening slot's time and status read without a separator dot")
-        reveal(evening, in: app)
-        snapshot("a5-23-today-slots-largest")
-    }
-
     /// With one household, nothing names it and You has no list, only "Join or start another".
     func testOneHouseholdHasNoSwitcher() {
         let app = launch(["-sampleHousehold", "-me", "James", "-debugCompanionNow", Self.evening])
@@ -117,14 +89,8 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Welcome and joining
 
-    func testTheWelcomeExplainsBothWaysIn() {
-        let app = launch(["-resetData"])
-        XCTAssertTrue(app.buttons["start-household"].waitForExistence(timeout: 60), "Two doors: start one here")
-        app.buttons["join-one"].tap()
-        XCTAssertTrue(app.staticTexts["Open the invite someone sent you"].waitForExistence(timeout: 5), "or join one, and how")
-        XCTAssertTrue(app.staticTexts["Or scan your family's code"].exists)
-        snapshot("phone-100-welcome")
-    }
+    // The welcome's two doors, and how to join, are the first steps of
+    // `PhoneSetupTests.testStartingAHouseholdOnThisPhone`.
 
     func testJoiningFromAnInvite() {
         let app = launch(["-resetData", "-debugJoin", "preview"])
@@ -204,15 +170,10 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(lost.isEmpty, "Typed keys never arrived in \(lost.count) of 12 rounds: \(lost)")
     }
 
-    func testAnAccountTheHouseholdKnowsSkipsWhoYouAre() {
-        let app = launch(["-resetData", "-debugJoin", "known"])
-        XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
-        app.buttons["join"].tap()
-        XCTAssertTrue(app.staticTexts["Bringing everything in"].waitForExistence(timeout: 30), "This iCloud user is already Mia")
-        XCTAssertFalse(app.staticTexts["Which one is you?"].exists)
-        app.buttons["go-to-today"].tap()
-        XCTAssertTrue(app.staticTexts["Hi, Mia"].waitForExistence(timeout: 10))
-    }
+    // An iCloud user the household already knows skips "Which one is you?": that is the
+    // flow's decision, held by `JoinFlowTests` ("An iCloud user who already has a phone in
+    // the household keeps the same person"); the screens either side of it are in
+    // `testJoiningFromAnInvite`.
 
     func testAJoinThatFailsCanBeTriedAgain() {
         let app = launch(["-resetData", "-debugJoin", "failing"])
@@ -327,18 +288,8 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertFalse(app.descendants(matching: .any)["invite-blocker"].exists, "Invites can go once sync is on")
     }
 
-    /// As a member, the household is in its owner's iCloud.
-    func testAMemberSeesWhoseICloudItIs() {
-        let app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
-        let home = app.descendants(matching: .any)["household-home"].firstMatch
-        XCTAssertTrue(home.waitForExistence(timeout: 60))
-        XCTAssertTrue(home.label.contains("Stored in James's iCloud"), home.label)
-        // Only the owner can add people to the share: no way in, and who can.
-        XCTAssertFalse(app.buttons["invite-someone"].exists, "A member has nothing to invite with")
-        let invite = app.descendants(matching: .any)["invite-someone"].firstMatch
-        XCTAssertTrue(invite.label.contains("Only James can add people"), invite.label)
-        snapshot("phone-125-you-member")
-    }
+    // What a member sees in You (whose iCloud it is, and no way to invite) is the first part
+    // of `PhoneSetupTests.testAMemberLeaves`, which makes the same launch.
 
     func testRenamingThisPhone() {
         let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
@@ -357,40 +308,47 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Looks
 
-    func testNightLook() {
+    /// Joining, the sync banner and the household's name on Today, each in the night look at
+    /// the largest text size: one launch for each place a person starts from, where the four
+    /// looks tests before this made six. What is checked is what only the real screens show
+    /// at that size: Join and Continue can be scrolled to, the banner fits with its fix, the
+    /// household is named whole, and a slot's time and status read as one line.
+    /// (Queries of the You sheet at this size take half a minute each, so its list is left
+    /// to `testSwitchingHouseholds` and `testYouListsPeopleAndInvites` at the usual size.)
+    func testLooks() {
         XCUIDevice.shared.appearance = .dark
-        var app = launch(["-resetData", "-debugJoin", "preview"])
-        XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
-        snapshot("phone-130-join-preview-dark")
-        app.buttons["join"].tap()
-        XCTAssertTrue(app.staticTexts["Which one is you?"].waitForExistence(timeout: 30))
-        snapshot("phone-131-join-who-dark")
-        app.terminate()
-
-        app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
-        XCTAssertTrue(app.descendants(matching: .any)["people-card"].waitForExistence(timeout: 60))
-        snapshot("phone-132-you-dark")
-    }
-
-    func testLargestText() {
         var app = launch(["-resetData", "-debugJoin", "preview"] + Self.largestText)
         let join = app.buttons["join"]
         XCTAssertTrue(join.waitForExistence(timeout: 60))
         reveal(join, in: app)
-        snapshot("phone-140-join-preview-largest")
+        snapshot("phone-140-join-preview-largest-dark")
         join.tap()
         let proceed = app.buttons["continue-as"]
         XCTAssertTrue(proceed.waitForExistence(timeout: 30))
         app.buttons["who-Mia"].tap()
         reveal(proceed, in: app)
         XCTAssertEqual(proceed.label, "Continue as Mia")
-        snapshot("phone-141-join-who-largest")
+        snapshot("phone-141-join-who-largest-dark")
         app.terminate()
 
         app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "noAccount"] + Self.largestText)
         let banner = app.descendants(matching: .any)["sync-banner"].firstMatch
         XCTAssertTrue(banner.waitForExistence(timeout: 60))
         XCTAssertTrue(app.windows.firstMatch.frame.contains(banner.frame), "The banner fits, its fix included")
-        snapshot("phone-142-banner-largest")
+        snapshot("phone-142-banner-largest-dark")
+        app.terminate()
+
+        app = twoHouseholds(Self.largestText)
+        XCTAssertEqual(app.buttons["household-switcher"].label, "The Lake House")
+        snapshot("a5-22-today-header-largest-dark")
+        // Too narrow for "5-8pm · open now": the status sits under the time, dot and all gone.
+        // The tile reads as one element: its title, time and status.
+        let evening = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Evening, 5-8pm, open now")).firstMatch
+        // Today builds its cards as they come near the screen, so scroll down to it first.
+        for _ in 0..<8 where !evening.exists { app.swipeUp() }
+        XCTAssertTrue(evening.waitForExistence(timeout: 5), "The evening slot's time and status read without a separator dot")
+        reveal(evening, in: app)
+        snapshot("a5-23-today-slots-largest-dark")
     }
+
 }

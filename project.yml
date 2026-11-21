@@ -102,7 +102,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(PORCHLIGHT_BUNDLE_ID)
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
-        # The wall (Release, by cable) and family phones (TestFlight) must meet in the same
+        # A Release build installed by cable and a TestFlight build must meet in the same
         # CloudKit environment, so Release uses Production; Debug, simulators and tests stay
         # on Development (docs/design/sync-icloud.md, "One iCloud for cable installs and TestFlight").
         Debug:

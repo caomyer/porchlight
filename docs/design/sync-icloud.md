@@ -49,7 +49,8 @@ App code ── GRDB records ──▶ SQLite ◀── triggers ── SyncEngi
 
 CloudKit keeps a Development and a Production side, and they never see each other's data.
 A build installed by cable normally uses Development, and a TestFlight build always uses Production.
-The Release configuration sets `com.apple.developer.icloud-container-environment` to `Production`, so the wall (Release, by cable) and family phones (TestFlight) meet in the same place.
+The Release configuration sets `com.apple.developer.icloud-container-environment` to `Production`, so a Release build installed by cable and a TestFlight build meet in the same place.
+Since November 21, 2026 the wall and the phones are all updated through TestFlight, and a cable install (`scripts/deploy-ipad.sh`) is a developer's option; this setting is what lets a wall installed either way share the household.
 Debug builds, simulators and tests stay on Development.
 This is experiment S4, and it is confirmed on real devices before M2 invites anyone.
 
@@ -375,7 +376,7 @@ A unit test checks that a data migration run after the engine exists is recorded
 
 ## A new column, and older builds
 
-A household can have devices on different builds for a while (the wall updated by cable, phones on TestFlight), so a new column must leave older builds reading and editing every row safely.
+A household can have devices on different builds for a while (TestFlight updates each device in its own time, and a wall may be on a cable install), so a new column must leave older builds reading and editing every row safely.
 What SQLiteData 1.13.0 does, read from its source and checked by tests:
 
 - **A field an older build doesn't know:** it reads only the columns it has, so the row arrives whole minus that field.

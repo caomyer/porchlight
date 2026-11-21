@@ -28,6 +28,8 @@ final class PhoneSetupTests: XCTestCase, PhoneTestHelpers {
         snapshot("a2-01-welcome")
         app.buttons["join-one"].tap()
         XCTAssertTrue(element(app, beginningWith: "Open the invite someone sent you").waitForExistence(timeout: 5), "Join one says how")
+        XCTAssertTrue(app.staticTexts["Or scan your family's code"].exists, "and the other way in")
+        snapshot("phone-100-welcome")
         start.tap()
 
         // You and the household.
@@ -181,6 +183,16 @@ final class PhoneSetupTests: XCTestCase, PhoneTestHelpers {
 
     func testAMemberLeaves() {
         let app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "upToDate", "-startScreen", "you"])
+        // A member's You: the household is in its owner's iCloud, and only the owner can add
+        // people to the share, so there is no way in to invite, and it says who can.
+        let home = app.descendants(matching: .any)["household-home"].firstMatch
+        XCTAssertTrue(home.waitForExistence(timeout: 60))
+        XCTAssertTrue(home.label.contains("Stored in James's iCloud"), home.label)
+        XCTAssertFalse(app.buttons["invite-someone"].exists, "A member has nothing to invite with")
+        let invite = app.descendants(matching: .any)["invite-someone"].firstMatch
+        XCTAssertTrue(invite.label.contains("Only James can add people"), invite.label)
+        snapshot("phone-125-you-member")
+
         let leave = app.buttons["leave-household"]
         XCTAssertTrue(leave.waitForExistence(timeout: 60))
         reveal(leave, in: app)

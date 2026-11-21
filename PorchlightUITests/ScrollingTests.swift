@@ -27,31 +27,45 @@ final class ScrollingTests: XCTestCase {
         XCTAssertLessThan(householdName.frame.maxY, screen.minY + 1, "The household section should have scrolled off the top")
     }
 
-    /// Touches still count as activity: the wall stays put while someone keeps
-    /// dragging, and switches to Ambient once the touches stop. A "minute" here lasts twelve
-    /// seconds (`-debugIdleSecondsPerMinute`), on the wall's real schedule.
-    func testTouchesKeepTheWallAwake() {
-        let minute: TimeInterval = 12
-        let app = XCUIApplication.porchlight()
+    /// What only the real wall can get wrong about going idle, in two launches that no slow
+    /// Mac can fail: a real drag over a scrolling screen reaches the idle watcher, and with
+    /// nobody touching it the wall does go to Ambient.
+    ///
+    /// The rule between the two (a touch starts the wait again; Ambient comes when the wait is
+    /// over) is `IdleRuleTests`, with every time handed in. This test used to touch the wall
+    /// every four seconds of a twelve-second "minute" and assert Ambient had stayed away; a
+    /// hosted Mac that took 50 seconds over one drag made it fail with the app in the right
+    /// (run 44905599973). Nothing here is a race: the first launch's wait is ten real minutes,
+    /// far longer than the test, and the second only waits for Ambient to come.
+    func testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient() {
+        // 1. A drag is seen. The wait is 600 seconds, so Ambient cannot come meanwhile.
+        var app = XCUIApplication.porchlight()
         app.launchArguments = [
-            "-sampleHousehold", "-startScreen", "chores", "-display.ambientMinutes", "1",
-            "-debugIdleSecondsPerMinute", "\(Int(minute))",
+            "-sampleHousehold", "-startScreen", "chores", "-display.ambientMinutes", "1", "-debugIdleSecondsPerMinute", "600",
         ]
         app.launch()
-        let ambient = app.descendants(matching: .any)["ambient"]
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 30))
+        let seen = app.descendants(matching: .any)["wall-touches"]
+        XCTAssertTrue(seen.waitForExistence(timeout: 30), "The idle watcher says how many touches it has seen")
+        let before = Int(seen.value as? String ?? "") ?? -1
+        XCTAssertGreaterThanOrEqual(before, 0, "A count: \(String(describing: seen.value))")
+        let from = window.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.6))
+        from.press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5)), withVelocity: .slow, thenHoldForDuration: 0)
+        let counted = XCTNSPredicateExpectation(
+            predicate: NSPredicate { element, _ in (Int((element as? XCUIElement)?.value as? String ?? "") ?? -1) > before }, object: seen
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [counted], timeout: 30), .completed, "A drag over the board reaches the idle watcher: \(String(describing: seen.value))")
+        XCTAssertFalse(app.descendants(matching: .any)["ambient"].exists, "and the wall stays where it is")
+        app.terminate()
 
-        // A drag every third of a minute, for well over a minute.
-        let start = Date.now
-        while Date.now.timeIntervalSince(start) < minute * 2.5 {
-            let from = window.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.6))
-            let to = window.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5))
-            from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0)
-            Thread.sleep(forTimeInterval: minute / 3)
-        }
-        XCTAssertFalse(ambient.exists, "Regular touches should keep Ambient away")
-
-        XCTAssertTrue(ambient.waitForExistence(timeout: minute * 3), "Ambient should appear about a minute after the last touch")
+        // 2. Nobody touches it: a "minute" of three seconds, and Ambient comes, however long
+        //    this Mac takes to look.
+        app = XCUIApplication.porchlight()
+        app.launchArguments = [
+            "-sampleHousehold", "-startScreen", "chores", "-display.ambientMinutes", "1", "-debugIdleSecondsPerMinute", "3",
+        ]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["ambient"].waitForExistence(timeout: 120), "An untouched wall goes to Ambient")
     }
 }

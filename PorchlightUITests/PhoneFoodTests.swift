@@ -189,12 +189,7 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         company.waitToSettle()
         company.tap()
         XCTAssertTrue(delivery.isSelected && company.isSelected, "A second kind joins the first")
-        delivery.tap()
-        XCTAssertTrue(!delivery.isSelected && company.isSelected, "And comes off again")
-        company.tap()
-        XCTAssertTrue(company.isSelected, "The last kind picked stays picked")
-        delivery.tap()
-        XCTAssertTrue(delivery.isSelected && company.isSelected)
+        // What each further tap does (off again, never the last one) is `MealSourcesTests`.
         XCTAssertTrue(app.textFields["Restaurant"].waitForExistence(timeout: 5), "Delivery asks from where")
         snapshot("where-10-phone-two-kinds")
 
@@ -219,30 +214,28 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         snapshot("where-12-phone-edit")
     }
 
-    /// The Where pills in the night look and at the largest text size.
+    /// The Where pills in the night look at the largest text size, in one launch: both looks
+    /// at once is the hardest case for them, and a look costs a launch.
     func testWhereLooks() {
-        for (look, arguments) in [("dark", [String]()), ("largest", ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])] {
-            if look == "dark" { XCUIDevice.shared.appearance = .dark } else { restoreLightLook() }
-            let app = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"] + arguments)
-            app.buttons["snap-meal"].tap()
-            XCTAssertTrue(app.buttons["shutter"].waitForExistence(timeout: 5))
-            app.buttons["shutter"].tap()
-            let delivery = app.buttons["source-delivery"]
-            XCTAssertTrue(delivery.waitForExistence(timeout: 5))
-            reveal(delivery, in: app)
-            waitUntilResponsive(app)
-            delivery.waitToSettle()
-            delivery.tap()
-            XCTAssertTrue(delivery.wait(for: \.isSelected, toEqual: true, timeout: 10), "Delivery is picked (\(look))")
-            let company = app.buttons["source-company"]
-            reveal(company, in: app)
-            company.waitToSettle()
-            company.tap()
-            XCTAssertTrue(company.wait(for: \.isSelected, toEqual: true, timeout: 10), "Company joins it (\(look))")
-            XCTAssertTrue(delivery.isSelected)
-            snapshot("where-20-phone-\(look)")
-            app.terminate()
-        }
+        XCUIDevice.shared.appearance = .dark
+        let app = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"] + ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        app.buttons["snap-meal"].tap()
+        XCTAssertTrue(app.buttons["shutter"].waitForExistence(timeout: 5))
+        app.buttons["shutter"].tap()
+        let delivery = app.buttons["source-delivery"]
+        XCTAssertTrue(delivery.waitForExistence(timeout: 5))
+        reveal(delivery, in: app)
+        waitUntilResponsive(app)
+        delivery.waitToSettle()
+        delivery.tap()
+        XCTAssertTrue(delivery.wait(for: \.isSelected, toEqual: true, timeout: 10), "Delivery is picked")
+        let company = app.buttons["source-company"]
+        reveal(company, in: app)
+        company.waitToSettle()
+        company.tap()
+        XCTAssertTrue(company.wait(for: \.isSelected, toEqual: true, timeout: 10), "Company joins it")
+        XCTAssertTrue(delivery.isSelected)
+        snapshot("where-20-phone-largest-dark")
     }
 
     // MARK: Cover and reframe, as on the wall
@@ -373,42 +366,28 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         XCTAssertEqual(photo(0, in: app), cover, "Saved with that cover, framed")
     }
 
-    /// The photo row and the reframe screen in the night look and at the largest size.
+    /// The photo row and the reframe screen in the night look at the largest size, in one
+    /// launch of the editor. A new meal's row is the same row (the journeys above use it), so
+    /// it is not launched again here for a second picture of it.
     func testPhotoRowAndReframeLooks() {
-        for (look, appearance, size) in [("dark", XCUIDevice.Appearance.dark, ""), ("largest", .light, "UICTContentSizeCategoryAccessibilityXXXL")] {
-            XCUIDevice.shared.appearance = appearance
-            let app = launch(["-samplePhotoMeals"] + (size.isEmpty ? [] : ["-UIPreferredContentSizeCategoryName", size]))
-            let meal = app.buttons["meal-Avocado toast"]
-            reveal(meal, in: app)
-            meal.tap()
-            let edit = app.buttons["edit-meal"]
-            XCTAssertTrue(edit.waitForExistence(timeout: 10))
-            reveal(edit, in: app)
-            edit.tap()
-            XCTAssertTrue(app.staticTexts["Edit meal"].waitForExistence(timeout: 5))
-            _ = photo(0, in: app)
-            snapshot("parity-30-edit-row-\(look)")
-            tapPhoto(0, in: app)  // the cover opens straight to Reframe
-            XCTAssertTrue(app.descendants(matching: .any)["reframe-window"].firstMatch.waitForExistence(timeout: 10))
-            let done = app.buttons["reframe-done"]
-            reveal(done, in: app)
-            XCTAssertTrue(done.isHittable, "Done is in reach at this size")
-            snapshot("parity-31-reframe-\(look)")
-            app.terminate()
-
-            let snap = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"] + (size.isEmpty ? [] : ["-UIPreferredContentSizeCategoryName", size]))
-            let button = snap.buttons["snap-meal"]
-            reveal(button, in: snap)
-            button.tap()
-            let shutter = snap.buttons["shutter"]
-            XCTAssertTrue(shutter.waitForExistence(timeout: 5))
-            reveal(shutter, in: snap)
-            shutter.tap()
-            _ = photo(0, in: snap)
-            reveal(snap.descendants(matching: .any)["meal-photo-0"].firstMatch, in: snap)
-            snapshot("parity-32-new-row-\(look)")
-            snap.terminate()
-        }
+        XCUIDevice.shared.appearance = .dark
+        let app = launch(["-samplePhotoMeals"] + ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let meal = app.buttons["meal-Avocado toast"]
+        reveal(meal, in: app)
+        meal.tap()
+        let edit = app.buttons["edit-meal"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10))
+        reveal(edit, in: app)
+        edit.tap()
+        XCTAssertTrue(app.staticTexts["Edit meal"].waitForExistence(timeout: 5))
+        _ = photo(0, in: app)
+        snapshot("parity-30-edit-row-largest-dark")
+        tapPhoto(0, in: app)  // the cover opens straight to Reframe
+        XCTAssertTrue(app.descendants(matching: .any)["reframe-window"].firstMatch.waitForExistence(timeout: 10))
+        let done = app.buttons["reframe-done"]
+        reveal(done, in: app)
+        XCTAssertTrue(done.isHittable, "Done is in reach at this size")
+        snapshot("parity-31-reframe-largest-dark")
     }
 
     func testCameraTurnedOff() {
@@ -422,11 +401,8 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         snapshot("b5-26-no-photo")
     }
 
-    func testEmptyHousehold() {
-        let app = launch(household: ["-sampleHousehold", "-sampleFood", "none"])
-        XCTAssertTrue(element(app, beginningWith: "Nothing in the diary this week").exists)
-        snapshot("b5-30-empty")
-    }
+    // The empty diary ("Nothing in the diary this week") is checked where a person meets it:
+    // `PhoneSetupTests.testStartingAHouseholdOnThisPhone`, on a household just started.
 
     func testNightLook() {
         XCUIDevice.shared.appearance = .dark
@@ -443,13 +419,10 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
 
     func testPaperUnderTheStatusBar() { scrolledScreens(look: "light") }
 
-    func testPaperUnderTheStatusBarAtNight() {
+    /// The same in the night look at the largest size: the two looks share their four launches.
+    func testPaperUnderTheStatusBarAtNightAtTheLargestSize() {
         XCUIDevice.shared.appearance = .dark
-        scrolledScreens(look: "dark")
-    }
-
-    func testPaperUnderTheStatusBarAtTheLargestSize() {
-        scrolledScreens(look: "largest", ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        scrolledScreens(look: "largest-dark", ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
     }
 
     /// The diary, a meal's page, the camera and a new meal's details, each scrolled: nothing
