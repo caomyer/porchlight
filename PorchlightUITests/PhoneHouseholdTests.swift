@@ -206,28 +206,25 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Sync banners
 
+    /// One banner on Today, with its fix: a member sees whose iCloud is full, and a restored
+    /// copy's "Choose" opens the choice in You. What the banner says in each of sync's states
+    /// is `ArrivalsTests` (unit), so the app is not launched once per state here.
     func testSyncBannersOnToday() {
-        let states: [(String, String)] = [
-            ("iCloudFull", "Sync paused: James's iCloud is full"),
-            ("noAccount", "iCloud is off for Porchlight"),
-            ("restricted", "iCloud isn't allowed on this iPhone"),
-            ("needsSignIn", "iCloud needs you to sign in again"),
-            ("waiting", "Offline since"),
-            ("restoredCopy", "Sync is waiting for you"),
-        ]
-        for (index, (status, title)) in states.enumerated() {
-            let app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", status])
-            let banner = app.descendants(matching: .any)["sync-banner"].firstMatch
-            XCTAssertTrue(banner.waitForExistence(timeout: 60), status)
-            XCTAssertTrue(banner.label.hasPrefix(title), "\(status): \(banner.label)")
-            snapshot("phone-11\(index)-banner-\(status)")
-            if status == "restoredCopy" {
-                banner.tap()
-                XCTAssertTrue(app.buttons["Use what is in iCloud"].waitForExistence(timeout: 5), "Choose opens the choice")
-                snapshot("phone-119-restored-choice")
-            }
-            app.terminate()
-        }
+        var app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "iCloudFull"])
+        var banner = app.descendants(matching: .any)["sync-banner"].firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 60), "A stuck sync shows on Today")
+        XCTAssertTrue(banner.label.hasPrefix("Sync paused: James's iCloud is full"), "It names the owner to a member: \(banner.label)")
+        snapshot("phone-110-banner-iCloudFull")
+        app.terminate()
+
+        app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "restoredCopy"])
+        banner = app.descendants(matching: .any)["sync-banner"].firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 60))
+        XCTAssertTrue(banner.label.hasPrefix("Sync is waiting for you"), banner.label)
+        snapshot("phone-115-banner-restoredCopy")
+        banner.tap()
+        XCTAssertTrue(app.buttons["Use what is in iCloud"].waitForExistence(timeout: 5), "Choose opens the choice")
+        snapshot("phone-119-restored-choice")
     }
 
     // MARK: You
