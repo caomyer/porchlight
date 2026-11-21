@@ -59,6 +59,21 @@ enum FoodSamples {
         "Taco night": [("Fish tacos", .again), ("Elote", .favorite)],
     ]
 
+    /// `-sampleFood cjk`'s titles: Simplified and Traditional Chinese, Japanese, Korean and
+    /// mixed, on the meals the phone's diary and the wall's week show first.
+    private static let cjkTitles: [String: String] = [
+        "Avocado toast": "大盘鸡",
+        "Oat latte": "Steak",
+        "Falafel wrap": "Steak 牛排",
+        "Sushi night": "親子丼",
+        "Mochi": "滷肉飯",
+        "Miso salmon": "비빔밥",
+        "Pesto pasta": "麻辣烫 & fries",
+        "Chicken curry": "红烧肉",
+        "Pizza": "Pizza 披萨",
+        "Pho": "越南河粉",
+    ]
+
     /// Handwritten lines per day of `week`: text and writer (index into people) or a fixed ink.
     private static let notes: [[(String, Int, PageInk?)]] = [
         [("pancakes ♡", 1, nil), ("cobb salad", 1, nil), ("pesto pasta!", 0, nil)],
@@ -94,6 +109,11 @@ enum FoodSamples {
 
         @discardableResult
         func add(_ dish: Dish, day: DayKey, slot: Int, later minutes: Int = 0) throws -> JournalEntry {
+            var dish = dish
+            // `-sampleFood cjk`: some of the week in Chinese, Japanese and Korean, and mixed.
+            if UserDefaults.standard.string(forKey: "sampleFood") == "cjk", let title = cjkTitles[dish.title] {
+                dish = Dish(emoji: dish.emoji, title: title, who: dish.who, sources: dish.sources, tint: dish.tint, rating: dish.rating, place: dish.place)
+            }
             let eaters = dish.who.map { [people[min($0, people.count - 1)].id] } ?? people.map(\.id)
             let eatenAt = calendar.date(byAdding: .minute, value: times[slot] + minutes, to: day.startDate(in: calendar)) ?? .now
             var draft = MealDraft(
@@ -141,6 +161,14 @@ enum FoodSamples {
 
         for (index, slot, dish) in extras {
             try add(dish, day: today.adding(days: index - 6, calendar: calendar), slot: slot, later: 25)
+        }
+
+        // Today's lunch and dinner in the mixed and Japanese titles, near the top of the
+        // phone's diary, with no "On this day" above them.
+        if UserDefaults.standard.string(forKey: "sampleFood") == "cjk" {
+            try add(home("🥩", "Steak 牛排", nil, 0xF1CFA0), day: today, slot: 1)
+            try add(home("🍲", "親子丼とお味噌汁", nil, 0xF0D5B8), day: today, slot: 2)
+            return
         }
 
         // A memory for "On this day".

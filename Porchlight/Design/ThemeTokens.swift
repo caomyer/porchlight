@@ -129,8 +129,46 @@ extension UIFont {
         if let range = face.opticalSizeRange {
             axes[opticalSizeAxis] = min(max(size, range.lowerBound), range.upperBound)
         }
-        let descriptor = UIFontDescriptor(name: face.postScriptName, size: size)
-            .addingAttributes([UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes])
+        var attributes: [UIFontDescriptor.AttributeName: Any] = [
+            UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes,
+        ]
+        #if DEBUG
+        if face == .hand, let companions = HandCompanionTrial.descriptors(size: size) {
+            attributes[.cascadeList] = companions
+        }
+        #endif
+        let descriptor = UIFontDescriptor(name: face.postScriptName, size: size).addingAttributes(attributes)
         return UIFont(descriptor: descriptor, size: size)
     }
 }
+
+#if DEBUG
+/// A trial of a companion face for the handwriting's Chinese, Japanese and Korean, which
+/// Caveat doesn't have (docs/proposals/food-diary-polish.html): `-handCompanion` names the
+/// faces to fall back to in order, by PostScript name and comma separated,
+/// `-handCompanionFile` the font files to register first (paths on the Mac, which the
+/// simulator can read, comma separated), and `-handCompanionScale` how much smaller or
+/// larger to draw them than Caveat (one for all, or one per face), as Caveat's letters are
+/// small for their point size and each companion's are sized differently again.
+enum HandCompanionTrial {
+    private static var defaults: UserDefaults { .standard }
+    private static let registered: Bool = {
+        for path in (defaults.string(forKey: "handCompanionFile") ?? "").split(separator: ",") {
+            var error: Unmanaged<CFError>?
+            CTFontManagerRegisterFontsForURL(URL(fileURLWithPath: String(path)) as CFURL, .process, &error)
+        }
+        return true
+    }()
+
+    static func descriptors(size: CGFloat) -> [UIFontDescriptor]? {
+        guard let names = defaults.string(forKey: "handCompanion"), registered else { return nil }
+        // One scale for every face, or one per face in the same order ("0.88,1.15").
+        let scales = (defaults.string(forKey: "handCompanionScale") ?? "").split(separator: ",").compactMap { Double($0) }
+        return names.split(separator: ",").enumerated().map { index, name in
+            let descriptor = UIFontDescriptor(name: String(name), size: size)
+            let scale = CGFloat(scales.isEmpty ? 1 : scales[min(index, scales.count - 1)])
+            return scale == 1 ? descriptor : descriptor.withMatrix(CGAffineTransform(scaleX: scale, y: scale))
+        }
+    }
+}
+#endif
