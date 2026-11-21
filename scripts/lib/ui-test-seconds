@@ -1,36 +1,34 @@
 # How long each UI test class took in seconds, for `scripts/test.sh --shard`, which splits a
 # suite into shares of about equal time. Measured on GitHub's hosted Macs on iOS 27.2 on
-# November 21, 2026 (run 44875496226, the first with the rewritten `reveal`), one simulator
-# per Mac. Five classes have since lost looks tests to the hosted screens and carry an
-# estimate until a full run measures them: PhoneWeekTests (987 before), PhoneTabsTests (675),
-# PhoneDishesTests (224), PhoneCatchUpTests (189) and PhoneRemindersTests (177).
+# November 21, 2026 (run 44900373348), one simulator per Mac; PhoneFoodTests has the 121
+# seconds of `testChangingWeeks` added, which arrived after that run (run 44899330787).
 # A class's time moves by a fifth and more from run to run on these Macs, so only a lasting
 # drift is worth a change. A class missing here counts 30 seconds a test, which once put
 # PhoneWeekTests in a share as 150; add a line with every new class, from a run's logs,
 # where each test prints its seconds (docs/design/testing.md, "Budgets").
-PhoneFoodTests 799
-PhoneTabsTests 560
-PhoneHouseholdTests 434
-PhoneDishEditorTests 307
-PhoneSetupTests 307
-PhoneWeekTests 300
-PhoneTests 213
-PhoneDishesTests 160
-PhoneCatchUpTests 130
-PhoneRemindersTests 115
-FoodMealsTests 325
-HouseholdTests 291
-MealPhotosTests 222
-SyncSettingsTests 205
-PhotoFrameTests 151
-TimeFieldTests 135
-CompanionEditorTests 129
-WallDishEditorTests 125
-LoggedEntryTests 110
-WallTourTests 108
-CatchUpTests 96
-DayAtAGlanceTests 92
-PitchInTests 92
-ScrollingTests 91
-FirstRunTests 60
-WallDishesTests 40
+PhoneFoodTests 976
+PhoneTabsTests 547
+PhoneHouseholdTests 487
+PhoneDishEditorTests 475
+PhoneWeekTests 314
+PhoneSetupTests 282
+PhoneDishesTests 216
+PhoneTests 214
+PhoneRemindersTests 143
+PhoneCatchUpTests 139
+FoodMealsTests 341
+MealPhotosTests 280
+HouseholdTests 205
+SyncSettingsTests 194
+TimeFieldTests 174
+PhotoFrameTests 171
+WallDishEditorTests 161
+WallTourTests 138
+LoggedEntryTests 131
+PitchInTests 110
+ScrollingTests 101
+CatchUpTests 95
+CompanionEditorTests 92
+DayAtAGlanceTests 63
+WallDishesTests 52
+FirstRunTests 49

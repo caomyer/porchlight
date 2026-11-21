@@ -333,6 +333,7 @@ A failure that could not be reproduced is written down here with what was ruled 
 Measured on GitHub's hosted Macs (3 cores, 7 GB, iOS 27.2), run 44828667552 of November 20, 2026, the commit this work started from.
 The first batch (run 44860696474) took 42 minutes from start to the last job's end, against 48.6, with the shards reweighed and three tests trimmed.
 By run 44883476613 of November 21, with the looks of the week, the care sheet and the dishes hosted and `reveal` rewritten, the UI tests summed to 6,805 seconds over 154 tests (8,041 over 150 at the start), five tests were over 120 seconds (seven), and the longest was 249 seconds (746).
+By run 44900373348 later that day, with the tabs' and the food's looks at one launch each and the duplicates gone, they summed to 6,031 seconds over 145 tests, a quarter less than at the start: 28 tests over 60 seconds (38), two over 120 (seven), the longest 151, a median of 33, and the five jobs between 1,108 and 1,276 seconds of tests each, where the longest had been 2,153.
 
 | | Measured |
 |---|---|
@@ -431,16 +432,16 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testSnappingAMeal | 46 | Camera ask, shutter, details, save, toast, new meal | Keep (smoke) | | |
 | testChangingWeeks | 121 | Back a week, a meal opened and Back to the same week, a past slot filled and kept in its week, back to this week | Keep: the journey, new on November 21 (seconds from run 44899330787). It is one second over the 120 limit on its first measured run; if it stays there, split filling the past slot into its own test | | |
 | testWhereTakesSeveralKinds | 115 | Seven toggle steps, then save, page says both, editor shows both | Down for the toggle rules (`MealSourcesTests`: "A tap adds a kind…", "On a new meal the first tap replaces…"); the journey stays: pick two, save, see both, edit | 35 | done |
-| testWhereLooks | 84 | Where pills in dark and at the largest size | One launch, the night look at the largest size (was two) | 40 | done |
+| testWhereLooks | 84 | Where pills in dark and at the largest size | One launch, the night look at the largest size (was two) | 40 | done, 37 s measured |
 | testCoverAndReframeWhenSnapping | 119 | Two shots, second made cover, reframed, saved framed | Keep | | |
 | testCoverAndReframeWhenEditing | 116 | Same in the editor, saved and shown again | Keep | | |
 | testReframingAnotherPhotoWhenEditing | 42 | Reframe from the action sheet frames that photo only | Merge into testCoverAndReframeWhenEditing (same launch and editor); the order and framing rules are `MealPhotoOrderTests` and `PhotoFramingTests` | 35 | |
-| testPhotoRowAndReframeLooks | 185 | Row and reframe in dark and largest, in four launches | One launch of the editor in the night look at the largest size, Done still in reach; the new meal's row is the same component and is not launched for again. It took 249 seconds in run 44883476613 | 180 | done |
+| testPhotoRowAndReframeLooks | 185 | Row and reframe in dark and largest, in four launches | One launch of the editor in the night look at the largest size, Done still in reach; the new meal's row is the same component and is not launched for again. It took 249 seconds in run 44883476613 | 180 | done, 94 s measured |
 | testCameraTurnedOff | 48 | Camera denied: Settings, Photos, no photo | Keep (failure path) | | |
 | testEmptyHousehold | 16 | "Nothing in the diary this week" | Delete: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` asserts the same text on the same tab | 16 | done |
 | testNightLook | 31 | Shots | Keep (looks) | | |
 | testPaperUnderTheStatusBar | 76 | Four screens scrolled, nothing under the clock, four launches | Merge to one launch by navigating diary, meal, camera, details | 45 | |
-| testPaperUnderTheStatusBarAtNight | 85 | Same in dark | Merged with the largest size into `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: the two looks share their four launches | 80 | done |
+| testPaperUnderTheStatusBarAtNight | 85 | Same in dark | Merged with the largest size into `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: the two looks share their four launches | 80 | done, 92 s measured for the merged test |
 | testPaperUnderTheStatusBarAtTheLargestSize | 81 | Same at the largest size | Merged as above. A hosted screen has no status bar, so this stays a UI test | | done |
 | testLargestText | 75 | Snap and Save whole on screen | Keep (looks) | | |
 
@@ -462,7 +463,7 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testFixingAWalkOnASharedScreen | 30 | Names, with no "You" | Keep | | |
 | testFixingAWalkLooks | 158 | Fix sheet in dark, largest, largest dark | One launch at the largest size for what only the real sheet shows (the pill among everything else, Save within reach); the looks are hosted in `PocketCareSheetScreenTests` | 100 | done, 38 and 63 s measured (runs 44871628859, 44871628840) |
 | testTheTimePillGrowsWithText | 100 | Pill grows, clear of "Started", on screen; three launches at the largest size | Merge into testFixingAWalkLooks, which already opens the same sheet at the same size in both looks; the rule at every size is `TimeFieldLayoutTests` | 85 | done |
-| testNightLook | 39 | Shots | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size; the pages themselves are hosted in `PocketTabsScreenTests` | 60 | done |
+| testNightLook | 39 | Shots | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size; the pages themselves are hosted in `PocketTabsScreenTests` | 60 | done, 78 s measured for `testLooks` |
 | testPaperUnderTheStatusBar | 95 | Four tabs scrolled, at two sizes | Keep, and take `PhoneTests.testYouOnEveryTab` | | |
 | testLargestText | 81 | Field, cash-in whole on screen | Merged into `testLooks`, which keeps both assertions on the real screen | | done |
 
@@ -619,7 +620,7 @@ Unfrozen on November 21, when the dish editor landed.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testCheckingOffAChoreOnToday | 54 | Who did it, done chip, timeline line | Keep (smoke) | | |
-| testOpeningAChoreFromToday | 88 | A row opens the chore's sheet and closes | Merge into testCheckingOffAChoreOnToday (same launch); 88 seconds for one tap needs a look | 75 | done |
+| testOpeningAChoreFromToday | 88 | A row opens the chore's sheet and closes | Merge into testCheckingOffAChoreOnToday (same launch); 88 seconds for one tap needs a look | 75 | done, 25 s measured for the merged test |
 | testMomentsInTheWeek | 32 | Walks and meals open from the week grid | Keep | | |
 | testChoresInTheCalendar | 23 | Lane opens a chore and updates | Keep | | |
 
@@ -716,9 +717,9 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | PhoneWeekTests, once unfrozen | 600 | 7% |
 | Wall | 489 | 6% |
 | All verdicts | 2,368 | 29% |
-| Done by run 44883476613 | 1,236 measured (8,041 to 6,805, with four more tests in the suite) | 15% |
+| Done by run 44900373348 | 2,010 measured (8,041 to 6,031, with five fewer tests in the suite) | 25% |
 
-The verdicts bring the suite to about 5,700 seconds, short of the 5,400 target.
+The verdicts were projected to bring the suite to about 5,700 seconds, short of the 5,400 target; measured, it stands at 6,031 with the verdicts below still open.
 Moving checks down and deleting duplicates is worth about 640 seconds (8%) on its own; most of the saving is merging launches and cutting the looks tests' walking.
 The rest of the way to the target, and beyond it, is `reveal` (557 seconds in calls that drag fourteen times without getting there, "Where a slow test's time goes"), which no verdict above counts, and checking whole screens' looks without launching the app ("The middle options").
 Removing the 4 second sleep from 17 wall launches is worth up to 68 seconds more, less what waiting for the first element costs.
