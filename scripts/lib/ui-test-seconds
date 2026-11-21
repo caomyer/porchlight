@@ -1,25 +1,31 @@
 # How long each UI test class took in seconds, for `scripts/test.sh --shard`, which splits a
 # suite into shares of about equal time. Measured on GitHub's hosted Macs on iOS 27.2 on
-# November 20, 2026 (run 44764255758), one simulator per Mac, each test's last attempt. A
-# class missing here counts 30 seconds a test; refresh the numbers from a run's logs, where
-# each test prints its seconds, when the shares drift apart.
-PhoneFoodTests 1416
-PhoneTabsTests 1106
-PhoneHouseholdTests 600
-PhoneSetupTests 593
-PhoneTests 275
-PhoneRemindersTests 237
-HouseholdTests 418
-FoodMealsTests 355
-MealPhotosTests 278
-SyncSettingsTests 257
-LoggedEntryTests 205
-CompanionEditorTests 199
-PhotoFrameTests 181
-TimeFieldTests 165
-FirstRunTests 156
-WallTourTests 127
-PitchInTests 117
-ScrollingTests 115
-CatchUpTests 102
-DayAtAGlanceTests 97
+# November 20, 2026 (run 44828667552), one simulator per Mac, less what the tests moved to
+# unit tests since then are projected to save (PhoneTabsTests 85, PhoneHouseholdTests 60,
+# SyncSettingsTests 63; docs/design/testing.md). A class missing here counts 30 seconds a
+# test, which put PhoneWeekTests (952 seconds) in a share as 150; refresh the numbers from a
+# run's logs, where each test prints its seconds, when a class is added or the shares drift.
+PhoneFoodTests 1200
+PhoneWeekTests 952
+PhoneTabsTests 937
+PhoneHouseholdTests 526
+PhoneSetupTests 511
+PhoneRemindersTests 383
+PhoneCatchUpTests 379
+PhoneDishesTests 332
+PhoneTests 296
+FoodMealsTests 319
+HouseholdTests 301
+MealPhotosTests 219
+DayAtAGlanceTests 197
+SyncSettingsTests 183
+PhotoFrameTests 160
+TimeFieldTests 135
+PitchInTests 128
+CatchUpTests 124
+LoggedEntryTests 113
+WallTourTests 108
+CompanionEditorTests 103
+FirstRunTests 101
+ScrollingTests 87
+WallDishesTests 42
