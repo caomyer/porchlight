@@ -171,6 +171,35 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["Hi, Ava"].waitForExistence(timeout: 10))
     }
 
+    /// A reproduction, not a check to keep as it is: "I'm new here" twelve times over, each
+    /// from a fresh launch, typing a name once with no second try. On November 20 the name
+    /// field twice showed its cursor with the keyboard up while typed keys never arrived
+    /// (runs 44871628859 and 44864042037). Counts how often that happens.
+    func testImNewHereAgainAndAgain() {
+        var lost: [Int] = []
+        for round in 1...12 {
+            let app = launch(["-resetData", "-debugJoin", "preview"])
+            XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
+            app.buttons["join"].tap()
+            let new = app.buttons["who-new"]
+            XCTAssertTrue(new.waitForExistence(timeout: 30))
+            new.tap()
+            let name = app.textFields["new-name"]
+            XCTAssertTrue(name.waitForExistence(timeout: 5))
+            let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: name)
+            XCTAssertEqual(XCTWaiter().wait(for: [focused], timeout: 10), .completed, "round \(round): the field takes the focus by itself")
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10), "round \(round): the keyboard comes up")
+            for character in "Ava" { app.typeText(String(character)) }
+            let arrived = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "Ava"), object: name)
+            if XCTWaiter().wait(for: [arrived], timeout: 3) != .completed {
+                lost.append(round)
+                snapshot("new-here-lost-keys-round-\(round)")
+            }
+            app.terminate()
+        }
+        XCTAssertTrue(lost.isEmpty, "Typed keys never arrived in \(lost.count) of 12 rounds: \(lost)")
+    }
+
     func testAnAccountTheHouseholdKnowsSkipsWhoYouAre() {
         let app = launch(["-resetData", "-debugJoin", "known"])
         XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
