@@ -91,20 +91,12 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Lists
 
-    /// The Groceries widget's tap opens Lists: `porchlight://lists`, as the widget's link.
-    func testAWidgetLinkOpensLists() {
-        let app = launch()
-        app.open(URL(string: "porchlight://lists")!)
-        XCTAssertTrue(app.staticTexts["PRODUCE"].waitForExistence(timeout: 10), "The link opens Lists")
-        XCTAssertTrue(app.tabBars.buttons["Lists"].isSelected)
-        app.open(URL(string: "porchlight://today")!)
-        XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 10), "and Today")
-    }
-
     func testListsAndDinners() {
         let app = launch()
-        app.tabBars.buttons["Lists"].tap()
-        XCTAssertTrue(app.staticTexts["Groceries"].waitForExistence(timeout: 5))
+        // Opened as the Groceries widget opens it: `porchlight://lists`.
+        app.open(URL(string: "porchlight://lists")!)
+        XCTAssertTrue(app.staticTexts["Groceries"].waitForExistence(timeout: 10), "The widget's link opens Lists")
+        XCTAssertTrue(app.tabBars.buttons["Lists"].isSelected)
         XCTAssertTrue(app.staticTexts["PRODUCE"].exists, "Groceries go by aisle")
         type("Lemons", into: app.textFields["add-item"], in: app)
         app.buttons["add-item-button"].tap()
@@ -129,6 +121,9 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.buttons["Groceries · 10"].exists, "Both went on the groceries")
         app.buttons["Groceries · 10"].tap()
         XCTAssertTrue(app.buttons["Tortillas"].waitForExistence(timeout: 5))
+        // And the other widgets' link goes back to Today.
+        app.open(URL(string: "porchlight://today")!)
+        XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 10), "porchlight://today opens Today")
     }
 
     // MARK: Glow
@@ -155,16 +150,6 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Calendars
 
-    func testNextSevenDays() {
-        let app = launch()
-        let next = app.buttons["next-7-days"]
-        reveal(next, in: app)
-        next.tap()
-        XCTAssertTrue(app.staticTexts["Next 7 days"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["TODAY"].exists, "Grouped by day")
-        snapshot("m3-50-next-7-days")
-    }
-
     func testChoosingCalendars() {
         let app = launch(["-calendarAccess", "notDetermined"])
         let choose = app.buttons["choose-calendars"]
@@ -181,20 +166,6 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         app.buttons["Just me"].tap()
         XCTAssertTrue(app.buttons["Mia is shared as Just me"].waitForExistence(timeout: 5))
         snapshot("m3-61-calendars")
-    }
-
-    func testCalendarsFromYou() {
-        let app = launch()
-        app.buttons["you"].tap()
-        let calendars = app.buttons["calendars"]
-        XCTAssertTrue(calendars.waitForExistence(timeout: 5))
-        // Below the fold on a small phone: a tap there would land outside the sheet. Into
-        // view first, then settled: an element off screen never settles, and waiting for it
-        // costs twenty looks at the screen.
-        reveal(calendars, in: app)
-        calendars.waitToSettle()
-        calendars.tap()
-        XCTAssertTrue(app.buttons["sharing-Us"].waitForExistence(timeout: 5), "Calendars are in the You sheet")
     }
 
     // MARK: Fixing a log
@@ -348,6 +319,7 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         reveal(next, in: app)
         next.tap()
         XCTAssertTrue(app.staticTexts["Next 7 days"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["TODAY"].exists, "Grouped by day")
         snapshot("m3-94-next-7-days-largest-dark")
     }
 
@@ -358,6 +330,7 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
             for tab in ["Today", "Food", "Lists", "Glow"] {
                 app.tabBars.buttons[tab].tap()
                 Thread.sleep(forTimeInterval: 0.5)
+                XCTAssertTrue(app.buttons["you"].exists, "You is on every tab: \(tab)")
                 expectPaperUnderStatusBar(app, "m3-95-\(tab.lowercased())-scrolled\(size.isEmpty ? "" : "-largest")")
             }
             app.terminate()

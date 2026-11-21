@@ -50,6 +50,12 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(photo(app, 2).waitForExistence(timeout: 20), "Three shots should wait in the Photos row")
         photo(app, 2).waitToSettle()
         XCTAssertTrue(app.staticTexts["3 photos ready. Fill in anything else, then Save."].exists)
+        // The viewfinder shows exactly the square a polaroid keeps, with the shots under it.
+        let viewfinder = app.descendants(matching: .any)["viewfinder-window"]
+        XCTAssertTrue(viewfinder.waitForExistence(timeout: 10))
+        XCTAssertEqual(viewfinder.frame.width, viewfinder.frame.height, accuracy: 2, "The viewfinder shows exactly the polaroid's square")
+        XCTAssertGreaterThan(photo(app, 1).frame.minY, viewfinder.frame.maxY, "Shots line up under the camera")
+        XCTAssertLessThan(photo(app, 1).frame.maxX, viewfinder.frame.maxX + 1, "Shots sit in the camera's column")
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Saved to'")).firstMatch.exists,
                        "Taking photos must not save the meal")
         snapshot("45-capture-three-shots")
@@ -80,30 +86,6 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
         snapshot("47-saved-with-photos")
     }
 
-    /// The × badge hangs over its photo's corner, and a tap on the part over the photo still
-    /// removes it. On iOS 27 the photo's old menu took every touch inside the photo, so that
-    /// tap opened Make cover and Reframe instead.
-    func testTheRemoveBadgeTakesTapsOverThePhoto() {
-        let app = launch(["-startScreen", "food"])
-        let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
-        XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
-        breakfast.waitToSettle()
-        breakfast.tap()
-        let edit = app.buttons["Edit"]
-        XCTAssertTrue(edit.waitForExistence(timeout: 10), "The meal opens")
-        edit.tap()
-        XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5), "Edit shows the photos")
-
-        // The badge is drawn round the middle of its frame, which sits on the photo's corner:
-        // a little left of and below the middle is the badge, over the photo.
-        let badge = app.buttons["Remove photo 2"]
-        let inner = 5 / max(badge.frame.width, 1)
-        badge.coordinate(withNormalizedOffset: CGVector(dx: 0.5 - inner, dy: 0.5 + inner)).tap()
-        XCTAssertTrue(photo(app, 1).waitForNonExistence(timeout: 5), "A tap on the badge over the photo removes it")
-        XCTAssertFalse(app.buttons["Make cover"].exists, "and does not open the photo's choices")
-        snapshot("49b-badge-over-photo")
-    }
-
     /// A saved meal pages through its photos, and Edit removes one only once saved.
     func testPagingAndEditingPhotosOfASavedMeal() {
         let app = launch(["-startScreen", "food"])
@@ -124,8 +106,13 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
 
         app.buttons["Edit"].tap()
         XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5), "Edit shows the photos")
-        removePhoto(app, 2)
-        XCTAssertTrue(photo(app, 1).waitForNonExistence(timeout: 5))
+        // The remove badge overlaps the photo's corner; a tap on the part over the photo must
+        // remove it, not open the photo's choices.
+        let badge = app.buttons["Remove photo 2"]
+        let inner = 5 / max(badge.frame.width, 1)
+        badge.coordinate(withNormalizedOffset: CGVector(dx: 0.5 - inner, dy: 0.5 + inner)).tap()
+        XCTAssertTrue(photo(app, 1).waitForNonExistence(timeout: 5), "A tap on the badge over the photo removes it")
+        XCTAssertFalse(app.buttons["Make cover"].exists, "and does not open the photo's choices")
         snapshot("49-edit-photos")
         app.buttons["Cancel"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["meal-pager"].label.hasSuffix("of 2"), "Cancel keeps both photos")
@@ -136,20 +123,6 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5))
         XCTAssertEqual(app.descendants(matching: .any)["meal-pager"].label, "Avocado toast", "Saving removes the photo")
-    }
-
-    /// The camera window is the polaroid's square, and new shots line up right under it.
-    func testTheViewfinderIsThePolaroidSquare() {
-        let app = launch(["-startScreen", "food", "-debugFoodView", "capture", "-debugCaptureShots", "2"])
-        let window = app.descendants(matching: .any)["viewfinder-window"]
-        XCTAssertTrue(window.waitForExistence(timeout: 20))
-        window.waitToSettle()
-        XCTAssertEqual(window.frame.width, window.frame.height, accuracy: 2, "The viewfinder shows exactly the polaroid's square")
-        let shot = photo(app, 1)
-        XCTAssertTrue(shot.waitForExistence(timeout: 10))
-        XCTAssertGreaterThan(shot.frame.minY, window.frame.maxY, "Shots line up under the camera")
-        XCTAssertLessThan(shot.frame.maxX, window.frame.maxX + 1, "Shots sit in the camera's column")
-        snapshot("48-square-viewfinder")
     }
 
     /// The polaroid opens the whole shot, and a photo can be reframed in Edit.

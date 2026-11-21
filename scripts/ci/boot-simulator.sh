@@ -17,3 +17,19 @@ echo "Booted $1 $udid in $(( SECONDS - step ))s"
 step=$SECONDS
 xcrun simctl uninstall "$udid" com.porchlight.porchlight 2>/dev/null || true
 echo "Ready for installs in $(( SECONDS - step ))s more"
+
+# An experiment, begun November 21, 2026 (docs/design/testing.md, "Infrastructure
+# failures"): the first test class after a boot has twice had its test runner crash before
+# any test started, and twice had a keyboard that took no keys. So before the tests, an app
+# is launched and quit once and the simulator is given a quarter of a minute, to let launch
+# services, the keyboard's and SpringBoard's first-time work happen before a test depends
+# on them. PORCHLIGHT_SETTLE_SECONDS=0 turns it off. It stays only if those failures stop
+# over a few weeks of runs; this line's seconds are its cost for each job.
+settle=${PORCHLIGHT_SETTLE_SECONDS:-15}
+if (( settle > 0 )); then
+  step=$SECONDS
+  xcrun simctl launch "$udid" com.apple.Preferences >/dev/null 2>&1 || true
+  sleep "$settle"
+  xcrun simctl terminate "$udid" com.apple.Preferences >/dev/null 2>&1 || true
+  echo "Settled in $(( SECONDS - step ))s more: Settings launched and quit"
+fi

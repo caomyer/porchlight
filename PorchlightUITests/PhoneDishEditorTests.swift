@@ -152,18 +152,10 @@ final class PhoneDishEditorTests: XCTestCase, PhoneTestHelpers {
     }
 
     func testTheFormAtNightAndAtTheLargestText() {
+        // One launch, both looks at once: the hardest case for the field and its suggestions.
+        // The chips, picked in the usual look, are `testRestaurantMealWithTwoDishesFromLastTime`.
         XCUIDevice.shared.appearance = .dark
-        var app = launch()
-        snap(app)
-        tapWhenSettled(app.buttons["source-dineOut"], in: app)
-        pickPlace("Pho Saigon House", in: app)
-        tapWhenSettled(app.buttons["dish-chip-Pho tai"], in: app)
-        tapWhenSettled(app.buttons["dish-chip-Spring rolls"], in: app)
-        snapshot("editor-20-dark")
-        app.terminate()
-
-        XCUIDevice.shared.appearance = .light
-        app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         snap(app)
         type("Pho tai", into: app.textFields["dish"], in: app)
         app.textFields["dish"].typeText("\n")
@@ -179,6 +171,6 @@ final class PhoneDishEditorTests: XCTestCase, PhoneTestHelpers {
         type("Ri", into: field, in: app)
         let keyboardTop = app.keyboards.firstMatch.frame.minY
         XCTAssertTrue(field.isHittable && field.frame.maxY <= keyboardTop, "The field is over the keyboard: \(field.frame) vs \(keyboardTop)")
-        snapshot("editor-30-largest")
+        snapshot("editor-30-largest-dark")
     }
 }

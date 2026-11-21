@@ -152,8 +152,19 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["The Lake House"].waitForExistence(timeout: 5), "The household's name")
         XCTAssertTrue(element(app, beginningWith: "James's iPhone, Personal").exists, "This phone's role")
         snapshot("phone-60-you")
-        app.buttons["change-me"].waitToSettle()
-        app.buttons["change-me"].tap()
+        // Calendars are in the You sheet: below the fold on a small phone, so into view first.
+        let calendars = app.buttons["calendars"]
+        XCTAssertTrue(calendars.waitForExistence(timeout: 5))
+        reveal(calendars, in: app)
+        calendars.waitToSettle()
+        calendars.tap()
+        XCTAssertTrue(app.buttons["sharing-Us"].waitForExistence(timeout: 5), "Calendars open from the You sheet")
+        app.navigationBars.buttons.firstMatch.tap()
+        let change = app.buttons["change-me"]
+        XCTAssertTrue(change.waitForExistence(timeout: 5), "and Back comes to You")
+        reveal(change, in: app)
+        change.waitToSettle()
+        change.tap()
         XCTAssertTrue(app.staticTexts["Which one is you?"].waitForExistence(timeout: 5))
         app.buttons["who-Mia"].tap()
         app.buttons["continue-as"].tap()
@@ -162,30 +173,16 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["Hi, Mia"].waitForExistence(timeout: 5))
     }
 
-    func testYouOnEveryTab() {
-        let app = launch()
-        XCTAssertTrue(app.staticTexts["Hi, James"].waitForExistence(timeout: 60))
-        app.tabBars.buttons["Food"].tap()
-        XCTAssertTrue(app.staticTexts["What we ate"].waitForExistence(timeout: 5), "Food is on the phone (PhoneFoodTests covers it)")
-        for tab in ["Food", "Lists", "Glow"] {
-            app.tabBars.buttons[tab].tap()
-            XCTAssertTrue(app.buttons["you"].waitForExistence(timeout: 5), "You is on every tab: \(tab)")
-        }
-    }
+    // That the avatar is on every tab is checked where each tab is visited anyway:
+    // `PhoneTabsTests.testPaperUnderTheStatusBar`.
 
     // MARK: Looks
 
-    func testNightLook() {
+    /// Today in the night look at the largest text size, in one launch: the log button whole
+    /// on screen and full width, and my chores reachable. The care sheet in each look is
+    /// `PocketCareSheetScreenTests` (unit bundle).
+    func testLooks() {
         XCUIDevice.shared.appearance = .dark
-        let app = launch()
-        XCTAssertTrue(logButton(app).waitForExistence(timeout: 60))
-        snapshot("phone-80-today-dark")
-        app.buttons["More details for Yo-Yo's walk"].tap()
-        XCTAssertTrue(app.staticTexts["Log a walk"].waitForExistence(timeout: 5))
-        snapshot("phone-81-care-sheet-dark")
-    }
-
-    func testLargestText() {
         let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         let log = logButton(app)
         XCTAssertTrue(log.waitForExistence(timeout: 60))
@@ -194,10 +191,11 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
         let window = app.windows.firstMatch.frame
         XCTAssertTrue(window.contains(log.frame), "The whole button is on screen: \(log.frame) in \(window)")
         XCTAssertGreaterThanOrEqual(log.frame.width, window.width - 2 * 16 - 2 * 14 - 1, "and it keeps its full width")
-        snapshot("phone-90-largest-text")
+        snapshot("phone-90-largest-text-dark")
         let faucet = app.buttons["Check off Fix the leaky faucet"]
         reveal(faucet, in: app)
         XCTAssertTrue(window.contains(faucet.frame))
-        snapshot("phone-91-largest-text-chores")
+        snapshot("phone-91-largest-text-chores-dark")
     }
+
 }
