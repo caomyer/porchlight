@@ -10,8 +10,62 @@ enum PocketFood {
         (-6...0).map { today.adding(days: $0, calendar: calendar) }
     }
 
-    /// "Nov 10 to 16 · 20 meals", or "Oct 27 to Nov 2 · 1 meal".
+    /// The seven days `weeksBack` weeks before the ones ending today: the same seven-day
+    /// steps as the wall's "previous week" (docs/proposals/food-diary-polish.html).
+    static func week(endingOn today: DayKey, weeksBack: Int, calendar: Calendar) -> [DayKey] {
+        week(endingOn: today.adding(days: -7 * weeksBack, calendar: calendar), calendar: calendar)
+    }
+
+    /// How many weeks back the diary goes: to the week holding the household's first meal,
+    /// and no further. With no meals, or none before this week, it stays on this week.
+    static func weeksBackLimit(firstDay: DayKey?, today: DayKey, calendar: Calendar) -> Int {
+        firstDay.map { weeksBack(of: $0, today: today, calendar: calendar) } ?? 0
+    }
+
+    /// Which week a day is in, counted back from the one ending today: after a meal is
+    /// saved the diary shows its week, so "Snap a meal" (which logs now) comes back to this
+    /// week, and a slot filled in a past week stays there.
+    static func weeksBack(of day: DayKey, today: DayKey, calendar: Calendar) -> Int {
+        guard day < today else { return 0 }
+        let days = calendar.dateComponents([.day], from: day.startDate(in: calendar), to: today.startDate(in: calendar)).day ?? 0
+        return max(0, days / 7)
+    }
+
+    /// The week pager's name for a week: "This week", "Last week", "3 weeks ago".
+    static func weekName(weeksBack: Int) -> String {
+        switch weeksBack {
+        case ...0: "This week"
+        case 1: "Last week"
+        default: "\(weeksBack) weeks ago"
+        }
+    }
+
+    /// What the week pager says to VoiceOver: "Last week, Nov 8 to 14, 18 meals".
+    static func weekSpoken(_ days: [DayKey], weeksBack: Int, meals: Int, calendar: Calendar) -> String {
+        "\(weekName(weeksBack: weeksBack)), \(range(days, calendar: calendar)), \(mealCount(meals))"
+    }
+
+    /// A past week with nothing in it: what it says in place of the day cards.
+    static func emptyWeek(_ days: [DayKey], calendar: Calendar) -> (title: String, detail: String) {
+        ("Nothing logged \(range(days, calendar: calendar))", "Tap a slot to add a meal you remember.")
+    }
+
+    /// "Nov 10 to 16 · 20 meals", "Oct 27 to Nov 2 · 1 meal", or "Oct 25 to 31 · no meals".
     static func weekLine(_ days: [DayKey], meals: Int, calendar: Calendar) -> String {
+        guard !days.isEmpty else { return "" }
+        return "\(range(days, calendar: calendar)) · \(mealCount(meals))"
+    }
+
+    private static func mealCount(_ meals: Int) -> String {
+        switch meals {
+        case 0: "no meals"
+        case 1: "1 meal"
+        default: "\(meals) meals"
+        }
+    }
+
+    /// "Nov 10 to 16", or "Oct 27 to Nov 2".
+    static func range(_ days: [DayKey], calendar: Calendar) -> String {
         guard let first = days.first, let last = days.last else { return "" }
         let start = first.startDate(in: calendar)
         let end = last.startDate(in: calendar)
@@ -20,7 +74,7 @@ enum PocketFood {
         let to = sameMonth
             ? "\(calendar.component(.day, from: end))"
             : end.formatted(Date.FormatStyle(timeZone: calendar.timeZone).month(.abbreviated).day())
-        return "\(from) to \(to) · \(meals == 1 ? "1 meal" : "\(meals) meals")"
+        return "\(from) to \(to)"
     }
 
     /// A slot's name where a column of seven is tight: "Bkfst", "Lunch", "Dinner".

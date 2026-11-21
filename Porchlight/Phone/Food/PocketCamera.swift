@@ -99,7 +99,7 @@ struct PocketCameraStep: View {
             window
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 2))
-            Text(caption)
+            Text(handwritten: caption, centered: true)
                 .phoneFont(.hand, 22, weight: 700, relativeTo: .title3)
                 .foregroundStyle(FoodStyle.caption)
                 .lineLimit(1)

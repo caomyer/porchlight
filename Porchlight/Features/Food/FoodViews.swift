@@ -418,7 +418,7 @@ struct FoodOnboardingStep: View {
         VStack(spacing: 0) {
             PlateArt(emoji: emoji, tint: Color(hex: tint), plate: 0.5, emojiSize: 48)
                 .frame(width: 118, height: 118)
-            Text(caption)
+            Text(handwritten: caption, centered: true)
                 .font(.hand(18, weight: 700))
                 .foregroundStyle(FoodStyle.caption)
                 .frame(height: 28)

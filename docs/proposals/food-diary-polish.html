@@ -1,0 +1,439 @@
+<title>Food Diary Polish</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Caveat:wght@600;700&display=swap">
+<style>/* Layout: a proposal in the style of dishes-and-recipes.html. Two gaps James found on the phone's Food tab, each with the options, real renders or drawn frames, a recommendation, costs and decisions, then one build plan. Frames keep the look they are drawn in, whatever the page's. */
+:root {
+  --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB;
+  --accent: #D9653B; --accent-soft: #F8DDD0; --good: #5B9F72; --good-soft: #E3EFE2; --warn: #B7791F; --warn-soft: #F6E7C8;
+  --blue: #4C7BB0; --coral: #DD7558; --ochre: #C2933A;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 1180px; margin: 0 auto; padding-block: 44px 90px; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(32px, 5.4vw, 50px); line-height: 1.08; text-wrap: balance; }
+h2 { font: 600 27px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 20px/1.25 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 5px; }
+a { color: var(--accent); }
+.eyebrow { font: 800 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 18px; max-width: 72ch; }
+.note { font-size: 14.5px; color: var(--muted); max-width: 80ch; }
+code { font: 500 .9em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface2); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+.index { display: flex; flex-wrap: wrap; gap: 6px; }
+.index a { text-decoration: none; background: var(--surface2); color: var(--ink); border-radius: 999px; padding: 7px 12px; font: 800 13px/1 var(--body); }
+.index a:hover { background: var(--accent-soft); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.tile b { font: 600 17px/1.3 var(--display); }
+.tile p, .tile li { font-size: 14.5px; color: var(--muted); }
+.tile.pick { box-shadow: inset 0 0 0 2px var(--good); }
+.rec { color: var(--good); font-weight: 800; font-size: 13px; }
+.not { color: var(--muted); font-weight: 800; font-size: 13px; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 920px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+th { font: 800 11.5px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 800; }
+tr.pick td:first-child { box-shadow: inset 4px 0 0 var(--good); }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.shots.wide { grid-template-columns: minmax(0, 1fr); }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; background: var(--surface); border-radius: 18px; padding: 12px; }
+figure img { width: 100%; height: auto; display: block; border-radius: 10px; }
+figcaption { font-size: 13.5px; line-height: 1.4; }
+figcaption b { display: block; font: 700 14px/1.3 var(--body); }
+figcaption span { color: var(--muted); }
+figure.pick { box-shadow: inset 0 0 0 2px var(--good); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .flow { grid-template-columns: minmax(0, 1fr); } }
+.step { background: var(--surface); border-radius: 18px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; border-top: 4px solid var(--line); }
+.step.s1 { border-top-color: var(--good); } .step.s2 { border-top-color: var(--ochre); } .step.s3 { border-top-color: var(--muted); }
+.step b { font: 600 18px/1.25 var(--display); }
+.step p, .step ul { font-size: 14px; color: var(--muted); }
+.step ul b { color: var(--ink); }
+.decisions { counter-reset: d; list-style: none; padding: 0; display: grid; gap: 10px; }
+.decisions li { background: var(--surface); border-radius: 16px; padding: 14px 16px 14px 56px; position: relative; font-size: 15px; }
+.decisions li::before { counter-increment: d; content: counter(d); position: absolute; left: 16px; top: 13px; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--surface); display: grid; place-items: center; font: 800 13px/1 var(--body); }
+.decisions li small { display: block; color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+
+/* Frames keep their own look */
+.board { display: flex; gap: 18px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; }
+.fr { flex: none; display: grid; gap: 10px; align-content: start; scroll-snap-align: start; margin: 0; background: none; padding: 0; }
+.fr .cap { font-size: 13.5px; line-height: 1.4; width: 286px; }
+.fr .cap b { display: block; font: 700 13.5px/1.3 var(--body); }
+.fr .cap span { color: var(--muted); }
+.sc { --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB; --accent: #D9653B; --accent-soft: #F8DDD0; --pol: #FFFDF8; color-scheme: light; }
+.sc.dark { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --pol: #EFE7DA; color-scheme: dark; }
+.ph { width: 397px; height: 834px; zoom: .72; background: #1d1a18; border-radius: 56px; padding: 11px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.sc { width: 375px; height: 812px; border-radius: 46px; background: var(--paper); color: var(--ink); overflow: hidden; position: relative; display: flex; flex-direction: column; font-family: var(--body); line-height: 1.3; }
+.notch { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; background: #1d1a18; border-radius: 20px; z-index: 9; }
+.status { height: 54px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 8px 34px 0; font: 700 15px/1 var(--body); }
+.status i { font-style: normal; letter-spacing: 1px; font-size: 11px; }
+.pb { flex: 1; overflow: hidden; padding: 4px 16px 16px; display: grid; gap: 12px; align-content: start; position: relative; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phead small { display: block; font: 700 12.5px/1.2 var(--body); color: var(--muted); }
+.phead b { font: 600 28px/1.15 var(--display); }
+.av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); background: var(--blue); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface2); border-radius: 12px; padding: 3px; }
+.seg span { text-align: center; font: 700 13px/1 var(--body); padding: 8px 4px; border-radius: 9px; color: var(--muted); }
+.seg span.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.card { background: var(--surface); border-radius: 20px; padding: 12px 10px; display: grid; gap: 8px; box-shadow: 0 1px 2px rgba(60,40,20,.06); }
+.pager { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; }
+.pager .cv { width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; font: 800 16px/1 var(--body); color: var(--ink); justify-self: center; }
+.pager .cv.gone { visibility: hidden; }
+.pager .lbl { text-align: center; display: grid; gap: 2px; }
+.pager .lbl b { font: 600 17px/1.2 var(--display); }
+.pager .lbl a { font: 800 12px/1.2 var(--body); color: var(--accent); text-decoration: none; }
+.grid7 { display: grid; grid-template-columns: 34px repeat(7, 1fr); gap: 5px; align-items: center; font: 700 10.5px/1 var(--body); color: var(--muted); text-align: center; }
+.mini { aspect-ratio: 1; border-radius: 6px; display: grid; place-items: center; font-size: 15px; line-height: 1; position: relative; }
+.mini.empty { border: 1.5px dashed var(--line); }
+.mini i { position: absolute; right: -3px; bottom: -3px; background: var(--ink); color: var(--surface); font: 800 8px/1 var(--body); font-style: normal; padding: 2px 3px; border-radius: 6px; }
+.t1 { background: #F3D9BE; } .t2 { background: #DCEBD8; } .t3 { background: #F6E1A8; } .t4 { background: #E6E0F0; } .t5 { background: #F8D3C4; } .t6 { background: #D5E4EE; }
+.dch { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 4px 0; }
+.dch b { font: 600 17px/1.2 var(--display); }
+.dch span { font: 700 12px/1.2 var(--body); color: var(--muted); }
+.diary { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 8px 4px; }
+.diary + .diary { border-top: 1px solid var(--line); }
+.diary .art { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; font-size: 20px; }
+.diary b { font: 700 21px/1 var(--hand); }
+.diary small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin-top: 3px; }
+.empty-note { text-align: center; display: grid; gap: 6px; padding: 18px 12px; }
+.empty-note b { font: 600 18px/1.25 var(--display); }
+.empty-note span { font: 600 13.5px/1.4 var(--body); color: var(--muted); }
+.snapbtn { position: absolute; left: 16px; right: 16px; bottom: 96px; border-radius: 999px; background: var(--accent); color: #fff; font: 800 16px/1 var(--body); padding: 15px; text-align: center; z-index: 4; }
+.tabbar { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 10px 28px; background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar span { display: grid; justify-items: center; gap: 3px; font: 700 10.5px/1 var(--body); color: var(--muted); }
+.tabbar span.on { color: var(--accent); }
+.tabbar span i { font-style: normal; font-size: 20px; line-height: 1; filter: grayscale(1); opacity: .65; }
+.tabbar span.on i { filter: none; opacity: 1; }
+.ax .pager { grid-template-columns: 52px 1fr 52px; }
+.ax .pager .cv { width: 48px; height: 48px; font-size: 22px; }
+.ax .pager .lbl b { font-size: 27px; }
+.ax .pager .lbl a { font-size: 19px; }
+.ax .phead small { font-size: 19px; }
+.ax .phead b { font-size: 40px; }
+.ax .seg span { font-size: 20px; padding: 12px 4px; }
+</style>
+
+<div class="page">
+
+<header style="display:grid;gap:14px">
+  <div class="eyebrow">Porchlight · Proposal · Nov 21, 2026 · for James to approve before any code</div>
+  <h1>Food diary polish</h1>
+  <p class="lede">Two gaps on the phone's Food tab, both from a screenshot of a real week.
+  A dish named in Chinese drops out of the handwriting into the phone's plain system face, and the diary can't leave the current week.
+  This proposes a handwritten companion for Chinese, Japanese and Korean, with real renders to judge by eye, and one simple control to move between weeks.</p>
+  <p class="note">The renders are the app itself, running in the simulator with a debug switch (<code>-handCompanion</code>) and sample meals titled in English, Simplified and Traditional Chinese, Japanese, Korean and mixed (<code>-sampleFood cjk</code>).
+  The week frames are drawn, in the app's own type, colors and words; nothing in them is built.</p>
+  <div class="tile pick" style="max-width:880px"><span class="rec">Approved Nov 21, 2026 and built on food/diary-polish</span>
+    <p>James: "Hannotate ok", and no swipe and no month calendar. As built: Hannotate SC (TC for Traditional readers) at 0.88 of Caveat's size, Klee first for Japanese readers at 0.92, fetched on demand (<code>HandCompanion</code>, <code>HandCompanionFonts</code>), its state in Sync details as "Handwriting fonts".
+    Korean stays on the system's face: Nanum Pen Script would need about 1.25 of Caveat's size to match, which makes the line taller than Caveat's, so it isn't used.
+    The week pager is as drawn; it returns to this week on a new day and after "Snap a meal", but not when the Food tab is tapped again (the tab bar has no such signal today).
+    A Japanese reader's title in Simplified Chinese can mix Klee and Hannotate within a word (Klee has 大 but not 盘), as the wall render above shows for Klee.</p></div>
+  <nav class="index" aria-label="Sections">
+    <a href="#problem">The two gaps</a><a href="#fonts">Gap 1: the handwriting's companion</a><a href="#renders">Renders</a><a href="#mechanism">How it works</a>
+    <a href="#weeks">Gap 2: other weeks</a><a href="#frames">Week frames</a><a href="#cases">Hard cases</a><a href="#costs">Costs</a><a href="#decisions">Decisions</a><a href="#plan">Build plan</a><a href="#unverified">Not verified</a>
+  </nav>
+</header>
+
+<section id="problem">
+  <div class="eyebrow">The two gaps</div>
+  <h2>What James saw on Food, in the night look</h2>
+  <div class="tiles">
+    <div class="tile"><span class="eyebrow" style="color:var(--muted)">Gap 1</span><b>"大盘鸡" doesn't look like "Steak"</b>
+      <p>Titles are drawn in Caveat, a handwritten face that has no Chinese, Japanese or Korean.
+      iOS fills those characters in from PingFang, its plain UI face, at the same point size.
+      Caveat's letters are small for their size (its x-height is 0.40 of the em), so the Chinese looks bigger, heavier and upright beside the slanted, light English.
+      James: "I like the English font, can we find something similar to that."</p></div>
+    <div class="tile"><span class="eyebrow" style="color:var(--muted)">Gap 2</span><b>The phone's diary is stuck on this week</b>
+      <p>The Diary shows the last seven days ("Nov 15 to 21 · 4 meals"), the week's grid and the day cards, and nothing earlier.
+      The wall has Week and Month with arrows back as far as the diary goes.
+      On the phone, last Tuesday's dinner is a Dishes search away, and a whole week can't be looked at again.</p></div>
+  </div>
+  <figure style="max-width:880px"><div class="pair"><img src="food-diary-polish/phone-current-light.jpg" alt="The phone's diary today: 大盘鸡 in a plain heavy face above Steak in handwriting"><img src="food-diary-polish/phone-current-dark.jpg" alt="The same in the night look"></div>
+    <figcaption><b>Today, reproduced in the simulator (iOS 27.2), light and night</b><span>"Steak" is Caveat; "大盘鸡", the "牛排" of "Steak 牛排" and the Japanese "親子丼とお味噌汁" are PingFang Semibold, the system's fallback.</span></figcaption></figure>
+</section>
+
+<section id="fonts">
+  <div class="eyebrow">Gap 1 · Where the faces are used</div>
+  <h2>Three faces, and only the handwriting has the problem</h2>
+  <p class="note">Every face goes through one function, <code>UIFont.variable(_:size:weight:)</code> in <code>Porchlight/Design/ThemeTokens.swift</code>, so a fix there reaches every use on the phone and the wall at once.
+  The three are bundled (Fraunces, DM Sans, Caveat, all under the SIL Open Font License), registered by <code>UIAppFonts</code> for the app and the widgets.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Face</th><th>Where it shows a user's words</th><th>Chinese, Japanese, Korean today</th><th>Verdict</th></tr>
+    <tr><td><b>Caveat</b> (handwriting)</td><td>Meal titles in the phone's diary (<code>PocketFoodScreen</code>), the polaroid caption on a meal's page and the camera (<code>PocketCamera</code>, <code>PocketSnap</code>), the wall's week polaroids and month (<code>FoodComponents</code>, <code>FoodWeekView</code>), the wall's meal sheet (<code>FoodViews</code>), the sample handwriting (debug only). Not in any widget.</td><td>No glyphs at all: every character falls back to PingFang (Chinese), Hiragino Sans (Japanese) or Apple SD Gothic Neo (Korean), upright and heavy.</td><td><b>Fix</b>: a handwritten companion.</td></tr>
+    <tr><td><b>Fraunces</b> (serif display)</td><td>A dish's or a place's page title ("Steak 牛排"), "What we had", day headings with no user words.</td><td>PingFang Semibold. Its height matches Fraunces' large x-height and its weight matches 600; it reads as a deliberate pairing (render below).</td><td>Leave as is.</td></tr>
+    <tr><td><b>DM Sans</b> (body)</td><td>Dish names in lists, the Dishes page, "New this week · 비빔밥 rated".</td><td>PingFang, Hiragino Sans, Apple SD Gothic Neo: sans beside sans, same weight. The system's own pairing.</td><td>Leave as is.</td></tr>
+  </table></div>
+  <div class="shots">
+    <figure><img src="food-diary-polish/phone-dish-serif.jpg" alt="A dish page titled Steak 牛排 in Fraunces with PingFang"><figcaption><b>The serif with Chinese, as it is</b><span>A dish page titled "Steak 牛排": Fraunces and PingFang Semibold sit on one baseline at one height. No change proposed.</span></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-dishes-body.jpg" alt="The Dishes list with Chinese names in DM Sans and PingFang"><figcaption><b>The body face with Chinese, as it is</b><span>The Dishes list: "Steak 牛排", "大盘鸡" in DM Sans and PingFang. No change proposed.</span></figcaption></figure>
+  </div>
+</section>
+
+<section id="candidates">
+  <div class="eyebrow">Gap 1 · Candidates</div>
+  <h2>Handwritten faces with Chinese, and what each costs</h2>
+  <p class="note">Two kinds exist.
+  Apple's <b>downloadable system fonts</b> are licensed with iOS, cost no app size, and must be fetched once on the device through Core Text's font download (<code>CTFontDescriptorMatchFontDescriptorsWithProgressHandler</code>); they can't be bundled.
+  <b>Open fonts</b> under the SIL Open Font License 1.1 may be bundled in an App Store app, with the license text shipped, and a modified (for example subset) copy must drop the reserved font name.
+  None of the handwritten Chinese faces is preinstalled: in the iOS 17.5 and 27.2 simulator runtimes the only Chinese, Japanese and Korean faces present are PingFang, Hiragino and Apple SD Gothic Neo.
+  Apple's list (<a href="https://developer.apple.com/fonts/system-fonts/">developer.apple.com/fonts/system-fonts</a>) marks every Apple face below as "iOS downloadable".
+  Coverage was measured with Core Text on the font files themselves, against sample titles in each script.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Face</th><th>Kind and license</th><th>Size</th><th>Simplified / Traditional / Japanese / Korean</th><th>Weights</th><th>Beside Caveat</th></tr>
+    <tr class="pick"><td><b>Hannotate SC / TC</b> (Apple)</td><td>iOS downloadable system font</td><td>0 in the app; 81 MB download (both weights, SC and TC)</td><td>Yes / yes / kana and kanji, in Chinese forms / no</td><td>W5, W7</td><td>The closest: a felt-tip marker, slightly slanted, W7's stroke matches Caveat 700. Upright enough to read at caption size.</td></tr>
+    <tr><td><b>HanziPen SC / TC</b> (Apple)</td><td>iOS downloadable system font</td><td>0; 69 MB download</td><td>Yes / yes / yes / no</td><td>W3, W5</td><td>A fine pen, lighter than Caveat 700 even at W5: reads like a different writer.</td></tr>
+    <tr><td><b>Wawati SC / TC</b> (Apple)</td><td>iOS downloadable system font</td><td>0; 17 MB (SC)</td><td>Yes / yes / SC only / no</td><td>W5</td><td>Round, childlike, thin: playful but light beside Caveat.</td></tr>
+    <tr><td><b>Kaiti SC / TC</b> (Apple)</td><td>iOS downloadable system font</td><td>0; 101 MB</td><td>Yes / yes / yes / no</td><td>Regular, Bold, Black</td><td>Brush calligraphy (楷书): formal, schoolbook. Handwritten, but not this hand.</td></tr>
+    <tr><td><b>Klee</b> (Apple, Fontworks)</td><td>iOS downloadable system font</td><td>0; 14 MB</td><td>Partly (6 of 13 sample characters) / mostly / yes, Japanese forms / no</td><td>Medium, Demibold</td><td>A pencil hand for Japanese. Misses common Simplified characters (鸡), so "大盘鸡" splits mid-word. Right for Japanese users only.</td></tr>
+    <tr><td><b>Nanum Pen Script</b> (Apple)</td><td>iOS downloadable system font</td><td>0; 7 MB (with Nanum Brush)</td><td>No / no / kana / yes</td><td>Regular</td><td>The Korean companion: a quick marker hand, close to Caveat.</td></tr>
+    <tr><td><b>LXGW WenKai</b> (霞鹜文楷)</td><td>Open: SIL OFL 1.1 (<a href="https://github.com/lxgw/LxgwWenKai">github.com/lxgw/LxgwWenKai</a>); embedding in apps allowed, OFL.txt must ship, "LXGW" reserved</td><td>24 MB per weight (v1.530, TTF)</td><td>Yes / yes (TC variant for older forms) / kanji (based on Klee One) / Hangul syllables</td><td>Light, Regular, Medium</td><td>Klee One extended to Chinese: a neat pencil kaishu, thinner and more upright than Caveat. Not rendered yet (see decision 2).</td></tr>
+    <tr><td><b>Ma Shan Zheng, Long Cang, Zhi Mang Xing, Liu Jian Mao Cao</b></td><td>Open: SIL OFL 1.1 (google/fonts)</td><td>4 to 6 MB each</td><td>Simplified only (Google's metadata lists "chinese-simplified" and "latin")</td><td>Regular</td><td>Brush and cursive hands; Traditional, Japanese and rarer characters would fall back mid-word.</td></tr>
+    <tr><td><b>ZCOOL KuaiLe, ZCOOL XiaoWei</b></td><td>Open: SIL OFL 1.1 (google/fonts)</td><td>1.5 MB, 6.3 MB</td><td>Simplified only</td><td>Regular</td><td>Display faces (rounded comic, Song-like), not a handwriting.</td></tr>
+    <tr><td><b>Klee One</b></td><td>Open: SIL OFL 1.1 (google/fonts)</td><td>8.7 MB per weight</td><td>Japanese only</td><td>Regular, SemiBold</td><td>The open twin of Apple's Klee; same gaps in Simplified.</td></tr>
+  </table></div>
+</section>
+
+<section id="renders">
+  <div class="eyebrow">Gap 1 · Renders</div>
+  <h2>The same diary, with each companion</h2>
+  <p class="note">The phone is an iPhone on iOS 27.2; the wall is an iPad on iPadOS 17.5, as the kitchen iPad runs 17.
+  Each companion is drawn at 0.88 of Caveat's point size so its characters stand as tall as Caveat's capitals (see "How it works").
+  On the wall, every cascade ends in Nanum Pen Script for the Korean ("비빔밥"); on the phone's diary there is no Korean title in view.
+  Nanum Pen's Hangul draws small for its size: in these renders it is too small and too thin beside Caveat, and a larger factor for it alone didn't take in the trial (see "Size and baseline").
+  The wall has no night look (it is always light), so the wall is shown in light only.</p>
+  <h3>Phone, light</h3>
+  <div class="shots">
+    <figure><img src="food-diary-polish/phone-current-light.jpg" alt="Current"><figcaption><b>Today: PingFang</b><span>Upright and heavy beside Caveat.</span></figcaption></figure>
+    <figure class="pick"><img src="food-diary-polish/phone-hannotate-light.jpg" alt="Hannotate SC W7"><figcaption><b>Hannotate SC W7 <span class="rec">Recommended</span></b><span>Same marker weight and lean as Caveat; mixed "Steak 牛排" reads as one hand.</span></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-hanzipen-light.jpg" alt="HanziPen SC W5"><figcaption><b>HanziPen SC W5</b><span>A finer pen; pleasant, but lighter than the English.</span></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-wawati-light.jpg" alt="Wawati SC"><figcaption><b>Wawati SC</b><span>Round and thin; too light and too cute beside Caveat 700.</span></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-kaiti-light.jpg" alt="Kaiti SC Bold"><figcaption><b>Kaiti SC Bold</b><span>Calligraphy: elegant, but a brush, not a marker.</span></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-klee-light.jpg" alt="Klee Demibold"><figcaption><b>Klee Demibold (stand-in for LXGW WenKai's style)</b><span>"大盘鸡" splits: Klee has 大 but not 盘 or 鸡. WenKai fills those in, in this same pencil style.</span></figcaption></figure>
+  </div>
+  <h3>Phone, night</h3>
+  <div class="shots">
+    <figure><img src="food-diary-polish/phone-current-dark.jpg" alt="Current, night"><figcaption><b>Today: PingFang</b></figcaption></figure>
+    <figure class="pick"><img src="food-diary-polish/phone-hannotate-dark.jpg" alt="Hannotate, night"><figcaption><b>Hannotate SC W7 <span class="rec">Recommended</span></b></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-hanzipen-dark.jpg" alt="HanziPen, night"><figcaption><b>HanziPen SC W5</b></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-wawati-dark.jpg" alt="Wawati, night"><figcaption><b>Wawati SC</b></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-kaiti-dark.jpg" alt="Kaiti, night"><figcaption><b>Kaiti SC Bold</b></figcaption></figure>
+    <figure><img src="food-diary-polish/phone-klee-dark.jpg" alt="Klee, night"><figcaption><b>Klee Demibold</b></figcaption></figure>
+  </div>
+  <h3>A meal's polaroid on the phone</h3>
+  <div class="shots">
+    <figure><img src="food-diary-polish/phone-detail-current.jpg" alt="Meal page, current"><figcaption><b>Today</b><span>The caption under the photo, "大盘鸡", in PingFang.</span></figcaption></figure>
+    <figure class="pick"><img src="food-diary-polish/phone-detail-hannotate.jpg" alt="Meal page, Hannotate"><figcaption><b>Hannotate SC W7</b><span>The caption reads as written on the polaroid.</span></figcaption></figure>
+  </div>
+  <h3>Wall polaroids (iPadOS 17.5), lunch and dinner rows</h3>
+  <div class="shots wide">
+    <figure><img src="food-diary-polish/wall-current.jpg" alt="Wall, current"><figcaption><b>Today: PingFang, Hiragino, Apple SD Gothic Neo</b><span>"麻辣烫 &amp; fries", "红烧肉", "비빔밥", "Pizza 披萨", "親子丼".</span></figcaption></figure>
+    <figure class="pick"><img src="food-diary-polish/wall-hannotate.jpg" alt="Wall, Hannotate and Nanum Pen"><figcaption><b>Hannotate SC W7, then Nanum Pen Script for Korean <span class="rec">Recommended</span></b></figcaption></figure>
+    <figure><img src="food-diary-polish/wall-hanzipen.jpg" alt="Wall, HanziPen and Nanum Pen"><figcaption><b>HanziPen SC W5, then Nanum Pen Script</b></figcaption></figure>
+    <figure><img src="food-diary-polish/wall-wawati.jpg" alt="Wall, Wawati"><figcaption><b>Wawati SC, then Nanum Pen Script</b></figcaption></figure>
+    <figure><img src="food-diary-polish/wall-kaiti.jpg" alt="Wall, Kaiti"><figcaption><b>Kaiti SC Bold, then Nanum Pen Script</b></figcaption></figure>
+    <figure><img src="food-diary-polish/wall-klee.jpg" alt="Wall, Klee"><figcaption><b>Klee Demibold, then Nanum Pen Script</b><span>Watch "红烧肉", "麻辣烫" and "披萨": Klee lacks 红, 烧, 烫 and 萨, so each splits between two faces.</span></figcaption></figure>
+  </div>
+  <figure style="max-width:520px"><img src="food-diary-polish/phone-hannotate-largest.jpg" alt="Largest text with Hannotate"><figcaption><b>Hannotate at the largest text size</b><span>The companion is sized from Caveat's own size, so it grows with Dynamic Type in step.</span></figcaption></figure>
+</section>
+
+<section id="mechanism">
+  <div class="eyebrow">Gap 1 · How it works</div>
+  <h2>A cascade behind Caveat, fetched once, sized to match</h2>
+  <div class="tiles">
+    <div class="tile"><b>The cascade</b><p>Caveat's font descriptor gets a cascade list (<code>UIFontDescriptor.AttributeName.cascadeList</code>), so Core Text draws each character from Caveat if it can, and from the companion if not.
+      One change in <code>UIFont.variable</code> covers every handwritten title on the phone and the wall, and a mixed title like "Steak 牛排" stays on one line and one baseline, as the renders show.
+      Nothing else in the app changes: the serif and body faces keep the system's fallback.</p></div>
+    <div class="tile"><b>Order by the reader's language</b><p>Simplified Chinese and everyone else: Hannotate SC, then Nanum Pen Script.
+      Traditional Chinese (zh-Hant first in the phone's languages): Hannotate TC first, for Taiwan and Hong Kong forms.
+      Japanese (ja first): Klee Demibold first for Japanese kanji forms and kana, then Hannotate SC for what Klee lacks.
+      Korean: Nanum Pen Script.
+      The list is computed by a pure function from the preferred languages, and unit tested.</p></div>
+    <div class="tile"><b>Size and baseline</b><p>Each companion is drawn at 0.88 of Caveat's size, through a scale matrix on its descriptor, so its characters stand at Caveat's cap height instead of towering over the lowercase.
+      The baseline is shared by Core Text; no line height changes, so polaroids and rows keep their height.
+      Dynamic Type scales Caveat's size, and the companion follows.
+      Korean needs its own, larger factor (Nanum Pen's Hangul is small for its size); in the trial a factor on the second face of the cascade didn't change its size, so if Core Text keeps ignoring it the build draws a title as runs by script, each run in its face at its size, instead of a cascade. Either way it is one function that every handwritten title goes through.</p></div>
+    <div class="tile"><b>Fetched once, on demand</b><p>The app asks Core Text for the companion the first time it is about to draw a title in Chinese, Japanese or Korean (not at launch, so a household that never writes one never downloads anything).
+      Until it arrives the system's fallback draws, as today; when it arrives, the screen redraws.
+      Each later launch asks again, which costs no network once the font is on the device. The widgets show no handwriting, so they need nothing.</p></div>
+    <div class="tile"><b>Bold Text and the night look</b><p>Caveat is drawn at a fixed weight (600 or 700), and the Bold Text setting doesn't change it today; the companion is chosen at the matching weight (W5 for 600, W7 for 700), so nothing changes there.
+      Color comes from the text's style, so the night look is unaffected (renders above).</p></div>
+    <div class="tile"><b>If a face lacks a character</b><p>Hannotate covers Simplified, Traditional and Japanese kana and kanji (Japanese in Chinese forms); Korean goes to Nanum Pen Script.
+      A character none of them has (a rare one, an emoji) falls to the system, as every character does today.
+      No subsetting: every face is the whole font, so ordinary dish names never split mid-word.</p></div>
+  </div>
+</section>
+
+<section id="weeks">
+  <div class="eyebrow">Gap 2 · Other weeks</div>
+  <h2>One pager on the week's card: back, forward, and back to this week</h2>
+  <div class="tiles">
+    <div class="tile pick"><span class="rec">Recommended</span><b>Chevrons on the week's card</b><p>A row at the top of the grid card: "‹ This week ›".
+      Back steps a week at a time to the week of the household's first meal; forward stops at this week (the chevron is hidden there, not disabled).
+      Away from this week, the label says how far ("Last week", "3 weeks ago") and offers "Back to this week".
+      It is visible, one tap, works with VoiceOver and Switch Control as two buttons, and is the wall's control in a phone's shape.</p></div>
+    <div class="tile"><span class="not">Not proposed</span><b>Swiping the grid sideways</b><p>Hidden until discovered, competes with taps on the grid's slots, needs a separate VoiceOver path anyway, and would be a second control for the same thing.
+      The chevrons do all of it.</p></div>
+    <div class="tile"><span class="not">Not now (decision 7)</span><b>Tapping the range for a month calendar</b><p>A sheet with the month's days dotted where meals were, to jump far back.
+      Useful once a household has a year of meals; until then, Dishes search finds any meal by name, and the wall has Month.
+      It can come later without changing the pager.</p></div>
+    <div class="tile"><span class="not">Not proposed</span><b>A Week and Month switch like the wall's</b><p>A month of 31 slots by three meals doesn't fit a phone's width as tiles; the wall's Month is a page of its own.
+      The phone keeps one view, the week, and moves it.</p></div>
+  </div>
+  <p class="note">The week is the same seven days the phone and the wall show today: the six days before today and today, then the seven before those, and so on, so "Last week" on the phone is "previous week" on the wall.</p>
+</section>
+
+<section id="frames">
+  <div class="eyebrow">Gap 2 · Frames</div>
+  <h2>This week, a past week, an empty week, largest text, night</h2>
+  <div class="board" id="board"></div>
+</section>
+
+<section id="cases">
+  <div class="eyebrow">Gap 2 · Hard cases</div>
+  <h2>What each part of the page does away from this week</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Case</th><th>Behaviour</th><th>Why</th></tr>
+    <tr><td><b>Header line</b></td><td>"Nov 8 to 14 · 18 meals": it already names the shown week, and follows it. The pager's label names it relative to now.</td><td>One range on the page, not two.</td></tr>
+    <tr><td><b>How far back</b></td><td>To the seven-day week holding the household's first meal. With no meals at all, the back chevron is hidden.</td><td>Nothing to see before it; an endless run of empty weeks helps nobody.</td></tr>
+    <tr><td><b>Forward</b></td><td>Never past this week. Dinners planned ahead (<code>MealPlan</code>) belong to the dinner plan, not the diary, so there is nothing of the diary's to show ahead.</td><td>The diary records what was eaten.</td></tr>
+    <tr><td><b>An empty week</b></td><td>The grid with every slot dashed, then "Nothing logged Nov 1 to 7" and "Tap a slot to add a meal you remember." in place of the day cards.</td><td>An invitation, not an apology; the slots already log into their day.</td></tr>
+    <tr><td><b>A past day's empty slot</b></td><td>Opens Snap for that day and slot, as this week's empty slots already do (checked: the grid passes the day and slot to <code>CaptureRequest</code>).</td><td>Filling in a week after the fact is the point of looking back.</td></tr>
+    <tr><td><b>"Snap a meal" on a past week</b></td><td>Logs now, as its words say; after saving, the diary returns to this week so the new meal's ring shows where it went. The toast says where it went, as today.</td><td>The button's job is "now"; the week's slots are how to log into the past.</td></tr>
+    <tr><td><b>"On this day"</b></td><td>Shown on this week only.</td><td>It is about today, a year ago.</td></tr>
+    <tr><td><b>Opening a meal and coming back</b></td><td>The shown week stays. It returns to this week when the Food tab is tapped again, or when the app comes back after the day has turned.</td><td>Back should land where you were; a new day starts at today.</td></tr>
+    <tr><td><b>Dishes</b></td><td>Unaffected: the pager is part of the Diary, and Dishes keeps its own header line.</td><td></td></tr>
+    <tr><td><b>VoiceOver</b></td><td>"Previous week" and "Next week" buttons, and the label as a header ("Last week, November 8 to 14, 18 meals"); "Back to this week" is a button. The label also takes the adjustable action (swipe up or down for a later or earlier week). The grid's label, "This week's meals" today, names the shown week.</td><td>The same control, spoken.</td></tr>
+    <tr><td><b>Largest text</b></td><td>The pager grows with Dynamic Type: the chevrons become 48 points at the ends and the label wraps between them. The grid itself stays capped at the xLarge size, as it is today (it is a picture of the week; every meal in it is also a row below at full size).</td><td>Frame 4.</td></tr>
+    <tr><td><b>Loading another week</b></td><td>The diary's meals are already in memory (<code>FoodStore.snapshot</code>); a week is seven filtered days. Photos load as thumbnails only, through <code>PhotoImages</code>, for the tiles and rows on screen, at most about 21 a week.</td><td>No new query, no whole shots.</td></tr>
+    <tr><td><b>Widgets and links</b></td><td>No widget shows the food diary, and the only links are porchlight://today and porchlight://lists; nothing assumes the diary's week.</td><td></td></tr>
+  </table></div>
+</section>
+
+<section id="costs">
+  <div class="eyebrow">Costs</div>
+  <h2>App size, licenses, sync</h2>
+  <div class="tiles">
+    <div class="tile"><b>App size</b><p>Recommended: none. Hannotate, Klee and Nanum Pen are fetched by iOS only on a device that shows such a title (Hannotate is an 81 MB download, once).
+      The bundled alternative, LXGW WenKai, adds about 24 MB per weight to the app and to the widgets' extension unless shared.</p></div>
+    <div class="tile"><b>Licenses</b><p>Apple's downloadable fonts come with iOS and are used through Apple's documented font download; they are not redistributed.
+      LXGW WenKai and the Google faces are SIL OFL 1.1: bundling is allowed, OFL.txt ships beside them as for Caveat today, and a subset copy must be renamed.</p></div>
+    <div class="tile"><b>CloudKit</b><p>None. Both gaps are drawing and navigation only: no new field, record or schema.</p></div>
+  </div>
+</section>
+
+<section id="decisions">
+  <div class="eyebrow">Decisions for James</div>
+  <h2>What to approve</h2>
+  <ol class="decisions">
+    <li>The handwriting's companion is Hannotate (SC, or TC for Traditional readers), drawn at 0.88 of Caveat's size, fetched on demand.<small>Alternatives: HanziPen (lighter pen), or a bundled LXGW WenKai (offline from the first launch, +24 MB).</small></li>
+    <li>Before deciding 1, should LXGW WenKai be rendered too?<small>That needs downloading LXGW WenKai Regular, 24 MB, from the project's GitHub release (lxgw/LxgwWenKai v1.530); I didn't download it without your yes.</small></li>
+    <li>Japanese readers get Klee first, and Korean titles get Nanum Pen Script once it is sized to match.<small>Until then, Korean keeps the system's Apple SD Gothic Neo.</small></li>
+    <li>The serif and body faces keep the system's Chinese, Japanese and Korean (PingFang, Hiragino, Apple SD Gothic Neo).</li>
+    <li>Week navigation is chevrons on the week's card with "Back to this week", and no swipe.</li>
+    <li>"Snap a meal" on a past week logs now and returns the diary to this week.</li>
+    <li>No month calendar on the phone for now.</li>
+  </ol>
+</section>
+
+<section id="plan">
+  <div class="eyebrow">Build plan</div>
+  <h2>Two changes, tests where docs/design/testing.md puts them</h2>
+  <div class="flow">
+    <div class="step s1"><b>1. The handwriting's companion</b>
+      <ul>
+        <li><b>Code</b>: a <code>HandCompanion</code> type picks the cascade from the preferred languages and asks Core Text for the faces on first need; <code>UIFont.variable</code> adds the cascade to Caveat; titles redraw when a face arrives. The debug switch used for these renders goes away.</li>
+        <li><b>Unit</b>: the cascade for Simplified, Traditional, Japanese, Korean and English readers; the size factor; that a mixed title draws from Caveat and the companion and nothing else (Core Text runs, with the face registered from the test bundle's copy of the system font, or skipped where absent); the fallback when the face isn't there.</li>
+        <li><b>Hosted screen</b>: the phone diary with <code>-sampleFood cjk</code> titles, light, dark and largest.</li>
+        <li><b>UI</b>: none; nothing here can go wrong only in the real app.</li>
+      </ul></div>
+    <div class="step s2"><b>2. Other weeks</b>
+      <ul>
+        <li><b>Code</b>: <code>PocketFood.week(endingOn:weeksBack:)</code>, the earliest week from the first meal, the pager row, the empty week, "On this day" on this week only, the return to this week after Snap and on a new day.</li>
+        <li><b>Unit</b>: windows and bounds with the clock pinned and swept across the day and two time zones, a daylight-saving week included; every label ("This week", "Last week", "3 weeks ago") and the header line; the empty week's words; the return-to-this-week rules as flow state.</li>
+        <li><b>Hosted screen</b>: this week, a past week, an empty week, in light, dark, largest and largest-dark.</li>
+        <li><b>UI</b>: one journey in <code>PhoneFoodTests</code>: back a week, open a meal, come back to the same week, fill an empty slot there, "Back to this week".</li>
+      </ul></div>
+    <div class="step s3"><b>Branch and order</b>
+      <ul>
+        <li><b>food/diary-polish</b>, from integration/next, after these decisions.</li>
+        <li>The companion first (small, visible), then the weeks.</li>
+        <li>Tests move as docs/design/testing.md says, on the tests/pyramid pattern (<code>HostedScreen</code>).</li>
+      </ul></div>
+  </div>
+</section>
+
+<section id="unverified">
+  <div class="eyebrow">Not verified</div>
+  <h2>What I couldn't check</h2>
+  <ul class="note" style="max-width:none">
+    <li>Which faces a real iPhone or iPad has preinstalled: I checked the iOS 17.5 and 27.2 simulator runtimes' font folders; Apple's list marks even PingFang "downloadable", so it isn't a reliable list of what ships.</li>
+    <li>The font download itself on a device: its size there, how long it takes, and whether iOS keeps the face after a restart or under storage pressure. The renders register the Mac's copies of the same Apple fonts directly.</li>
+    <li>LXGW WenKai's look: not rendered (decision 2). Klee is shown as a stand-in for its style.</li>
+    <li>The phone's handwriting at the largest size in Japanese and Korean, and the wall's Month view with these titles.</li>
+    <li>Why a size factor on Nanum Pen in the cascade had no visible effect while the same factor on the first companion did.</li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+const days = ['S','M','T','W','T','F','S'];
+const status = '<div class="notch"></div><div class="status"><span>7:40</span><i>●●● ▮</i></div>';
+const tabs = '<div class="tabbar"><span><i>🏠</i>Today</span><span class="on"><i>🍴</i>Food</span><span><i>📋</i>Lists</span><span><i>✨</i>Glow</span></div>';
+const grid = (cells) => {
+  const names = ['Bkfst','Lunch','Dinner'];
+  const head = `<span class="sl"></span>${days.map((d, i) => `<span style="${i === 6 && cells.today ? 'color:var(--accent)' : ''}">${d}</span>`).join('')}`;
+  const rows = cells.rows.map((r, s) => `<span class="sl" style="text-align:left">${names[s]}</span>` +
+    r.map(c => c ? `<div class="mini ${c[0]}">${c[1]}${c[2] ? `<i>+${c[2]}</i>` : ''}</div>` : '<div class="mini empty"></div>').join('')).join('');
+  return `<div class="grid7">${head}${rows}</div>`;
+};
+const pager = (label, sub, back, fwd) => `<div class="pager"><span class="cv ${back ? '' : 'gone'}" aria-label="Previous week">‹</span><span class="lbl"><b>${label}</b>${sub ? `<a>${sub}</a>` : ''}</span><span class="cv ${fwd ? '' : 'gone'}" aria-label="Next week">›</span></div>`;
+const row = (t, e, name, sub, f) => `<div class="diary"><span class="art ${t}">${e}</span><span><b>${name}</b><small>${sub}</small></span><span>${f}</span></div>`;
+const frame = (o) => `<figure class="fr"><div class="ph"><div class="sc ${o.dark ? 'dark' : ''} ${o.ax ? 'ax' : ''}">${status}<div class="pb">
+  <div class="phead"><span><small>${o.range}</small><b>What we ate</b></span><span class="av">J</span></div>
+  <div class="seg"><span class="on">Diary</span><span>Dishes</span></div>
+  <div class="card">${o.pager}${grid(o.cells)}</div>${o.body}</div>
+  ${o.snap === false ? '' : '<div class="snapbtn">📷 Snap a meal</div>'}${tabs}</div></div>
+  <div class="cap"><b>${o.title}</b><span>${o.cap}</span></div></figure>`;
+const thisWeek = { today: true, rows: [
+  [['t3','🥞'],['t1','🥣'],['t3','🥯'],['t3','🍳'],['t1','🥣'],null,['t1','🍽️',1]],
+  [['t2','🥗'],null,['t6','🍱'],['t1','🥪'],['t5','🍜'],['t5','🥩'],['t5','🥩']],
+  [['t3','🍟'],['t5','🍛'],['t5','🌮'],['t4','🍲',1],['t5','🍕'],['t2','🍣',1],null]] };
+const lastWeek = { rows: [
+  [['t3','🍳'],['t1','🥣'],null,['t3','🥞'],['t2','🥑'],['t1','🥣'],null],
+  [null,['t1','🍜'],['t2','🥙'],['t6','🍱'],['t2','🥗'],['t1','🥪'],null],
+  [['t5','🍝'],['t5','🌮'],['t5','🍕'],['t5','🍛'],['t2','🍣'],null,['t4','🍲']]] };
+const emptyWeek = { rows: [Array(7).fill(null), Array(7).fill(null), Array(7).fill(null)] };
+const todayCard = `<div class="card" style="padding:6px 12px"><div class="dch"><b>Today</b><span>Nov 21</span></div>
+  ${row('t5','🍲','大盘鸡','Breakfast · Home-cooked<br>Mia · added by you','😋')}${row('t5','🥩','Steak 牛排','Lunch · Home-cooked<br>You and Mia · added by you','😋')}</div>`;
+const pastCard = `<div class="card" style="padding:6px 12px"><div class="dch"><b>Saturday</b><span>Nov 14</span></div>
+  ${row('t4','🍲','Miso salmon','Dinner · Home-cooked<br>Everyone · added by Mia','🤩')}${row('t1','🥣','Oatmeal','Breakfast · Home-cooked<br>You · added by you','🙂')}</div>`;
+const emptyCard = `<div class="card"><div class="empty-note"><b>Nothing logged Nov 1 to 7</b><span>Tap a slot to add a meal you remember.</span></div></div>`;
+document.getElementById('board').innerHTML = [
+  frame({ range: 'Nov 15 to 21 · 22 meals', pager: pager('This week', '', true, false), cells: thisWeek, body: todayCard,
+    title: '1. This week', cap: 'The pager sits on the week\'s card. Forward is hidden: there is nothing after today. "On this day" and the day cards follow as today.' }),
+  frame({ range: 'Nov 8 to 14 · 18 meals', pager: pager('Last week', 'Back to this week', true, true), cells: lastWeek, body: pastCard,
+    title: '2. A past week', cap: 'One tap back. The header line names the week; the label says how far, with the way back. Empty slots there open Snap for that day and slot.' }),
+  frame({ range: 'Nov 1 to 7 · 0 meals', pager: pager('3 weeks ago', 'Back to this week', true, true), cells: emptyWeek, body: emptyCard,
+    title: '3. An empty week', cap: 'Every slot dashed, and an invitation in place of the day cards. Back stops at the week of the first meal.' }),
+  frame({ ax: true, range: 'Nov 8 to 14 · 18 meals', pager: pager('Last week', 'Back to this week', true, true), cells: lastWeek, body: '', snap: false,
+    title: '4. Largest text', cap: 'The pager grows: 48-point chevrons at the ends, the label wrapping between them. The grid stays capped at xLarge, as today. "Snap a meal" is below, off this crop.' }),
+  frame({ dark: true, range: 'Nov 8 to 14 · 18 meals', pager: pager('Last week', 'Back to this week', true, true), cells: lastWeek, body: pastCard,
+    title: '5. Night', cap: 'The same, in the night look: the chevrons on the card\'s second surface, the link in the accent.' }),
+].join('');
+</script>

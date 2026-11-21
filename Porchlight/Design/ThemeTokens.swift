@@ -110,13 +110,21 @@ extension Font {
         .custom(.body, size: size, weight: weight)
     }
 
-    /// Caveat, used for handwriting-style captions.
+    /// Caveat, used for handwriting-style captions, with Hannotate (or Klee) for Chinese and
+    /// Japanese once iOS has it (`HandCompanion`).
     static func hand(_ size: CGFloat, weight: CGFloat = 600) -> Font {
         .custom(.hand, size: size, weight: weight)
     }
 
     static func custom(_ face: Typeface, size: CGFloat, weight: CGFloat) -> Font {
-        Font(UIFont.variable(face, size: size, weight: weight) as CTFont)
+        #if !WIDGET_EXTENSION
+        // Read in a view's body, this makes every handwritten title draw again when a
+        // companion face arrives (`HandCompanionFonts`). The widgets show no handwriting.
+        if face == .hand, Thread.isMainThread {
+            MainActor.assumeIsolated { _ = HandCompanionFonts.shared.generation }
+        }
+        #endif
+        return Font(UIFont.variable(face, size: size, weight: weight) as CTFont)
     }
 }
 
@@ -129,8 +137,17 @@ extension UIFont {
         if let range = face.opticalSizeRange {
             axes[opticalSizeAxis] = min(max(size, range.lowerBound), range.upperBound)
         }
-        let descriptor = UIFontDescriptor(name: face.postScriptName, size: size)
-            .addingAttributes([UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes])
+        var attributes: [UIFontDescriptor.AttributeName: Any] = [
+            UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes,
+        ]
+        #if !WIDGET_EXTENSION
+        if face == .hand {
+            // Chinese and Japanese from the handwriting's companion, once it is on the device.
+            let companions = HandCompanion.cascade(weight: weight)
+            if !companions.isEmpty { attributes[.cascadeList] = companions }
+        }
+        #endif
+        let descriptor = UIFontDescriptor(name: face.postScriptName, size: size).addingAttributes(attributes)
         return UIFont(descriptor: descriptor, size: size)
     }
 }
