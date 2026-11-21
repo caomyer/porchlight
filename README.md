@@ -162,9 +162,12 @@ Unzip one and open it in Xcode, or export its screenshots with `xcrun xcresultto
 A failed UI test also keeps a screen recording of itself in its bundle, which `ffmpeg -ss <seconds> -i <recording>.mp4 -frames:v 1 frame.png` turns into a still at any moment.
 The UI tests turn the iPad to landscape before each launch (`XCUIApplication.porchlight()`): a new simulator boots in portrait, and on iPadOS 27 the landscape-only wall then draws sideways under a portrait keyboard.
 
-**What stays local.** The hosted Macs have only iOS 27 simulators, so the iOS 17.5 run, the wall iPad's own OS, stays on the development Mac: run `scripts/test.sh` before deploying to the wall.
+**What stays local.** The hosted Macs have only iOS 27 simulators, so the iOS 17.5 run, the wall iPad's own OS, stays on the development Mac: run `scripts/test.sh` before a build goes to TestFlight, since the wall takes it too.
 
-## Install on the wall iPad
+## Install on the wall iPad by cable
+
+The wall iPad and the phones are all updated through TestFlight (see "TestFlight" below), since November 21, 2026.
+Installing by cable is kept as a developer's option, for trying a build on the wall before it is uploaded, or for the Debug build the device tour and the idle CPU check need:
 
 ```bash
 scripts/deploy-ipad.sh
@@ -172,9 +175,9 @@ scripts/deploy-ipad.sh
 
 This installs a Release build, which costs less CPU and power on a screen that is always on.
 Before installing, it copies the wall's database and photos to `~/Library/Application Support/Porchlight/Backups` and stops if that copy fails.
-`scripts/backup-ipad.sh` makes such a copy on its own, and `scripts/restore-ipad.sh <backup folder>` puts one back.
+A TestFlight update makes no such copy, so `scripts/backup-ipad.sh` is the way to copy the wall's data by hand, and `scripts/restore-ipad.sh <backup folder>` puts a copy back.
 
-A scheduled reinstall is optional, and is no longer how the household's devices are kept up to date: they update through TestFlight (below), and the household's own schedule was removed on November 21, 2026.
+A scheduled reinstall by cable is optional too, and the household's own schedule was removed on November 21, 2026.
 For a wall kept on cable installs, `scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror of `main` (macOS does not let background jobs read ~/Documents), which keeps it on the latest commit and backed up twice a week; `scripts/schedule-deploy.sh --remove` takes the job, its git hook and the mirror's remote away again, from the main checkout or from a worktree.
 An install signed with a paid Apple Developer team lasts a year; with a free Apple ID it expires after 7 days, which the schedule also covers.
 
@@ -193,8 +196,8 @@ scripts/test.sh --phone --ui-only   # the phone's UI tests on an iOS 17.5 iPhone
 
 ## TestFlight
 
-Family phones get builds through TestFlight, without a cable.
-The wall iPad stays on cable installs (`scripts/deploy-ipad.sh`), which are Release builds in the same CloudKit Production environment as TestFlight builds, so the wall and the phones share one household.
+The wall iPad and the family's phones all get builds through TestFlight, without a cable.
+A cable install (`scripts/deploy-ipad.sh`, a developer's option) is a Release build in the same CloudKit Production environment as a TestFlight build, so a wall installed either way shares one household with the phones.
 
 One-time setup:
 - The App Store Connect app is "Porchlight Homes", bundle id `com.mingyucao.porchlight`.
@@ -219,7 +222,7 @@ Settings on the wall and the bottom of You on a phone show the version a device 
 Testers:
 - Internal testers (up to 100 people on the App Store Connect team) get a build as soon as Apple has processed it, with no review.
 - External testers (anyone with an email address or a public link) need the build to pass a short Beta App Review first, once per version.
-- Each build expires 90 days after upload; upload a new one before then, and TestFlight updates the phones.
+- Each build expires 90 days after upload; upload a new one before then, and TestFlight updates the wall and the phones.
 
 ## Layout
 

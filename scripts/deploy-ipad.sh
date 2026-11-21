@@ -1,8 +1,9 @@
 #!/bin/zsh
-# Builds Porchlight and installs it on the wall iPad.
+# Builds Porchlight and installs it on the wall iPad by cable: a developer's option, since
+# the wall and the phones are updated through TestFlight (scripts/testflight.sh).
 #
-# Run it by hand, or let scripts/schedule-deploy.sh run it twice a week to keep
-# the wall on the latest commit.
+# Run it by hand to try a build on the wall, or let scripts/schedule-deploy.sh run it twice
+# a week for a wall kept on cable installs.
 #
 # Needs: Xcode, `brew install xcodegen`, Config/Local.xcconfig with your
 # DEVELOPMENT_TEAM, and the iPad paired with this Mac (USB once, then Wi-Fi).
