@@ -207,6 +207,58 @@ The last three come from what the UI tests' own comments record.
    Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
    Why: a test that skips itself when the network is down reports nothing either way.
 
+## Tiers
+
+Not every push needs every test, and the release line needs all of them.
+
+| What happened | What runs | Macs | For |
+|---|---|---|---|
+| A push to a working branch | The unit tests and the smoke set | 3 | "Did I break something obvious?", in about 20 minutes |
+| A push to `integration/next` or `main` | The full suite: unit tests and both whole UI suites | 5 | The release gate |
+| A run by hand on any branch, "only" left empty | The full suite | 5 | Before asking to merge |
+| A run by hand with "only" set | Just those tests | 1 | Checking a change, or a failure |
+
+The rules that make two tiers safe:
+
+1. **The release gate is unchanged.**
+   Nothing reaches `main`, TestFlight or the wall from a commit whose full suite is not green on `integration/next`.
+2. **A branch runs the full suite once before asking to merge.**
+   Its author, person or agent, starts it by hand on the branch's last commit (`gh workflow run Tests --ref <branch>`) and gives the run's id with the request; a branch whose last full run is red, or older than its last commit, is not merged.
+   The smoke set on each push is for the author's own speed and is never the evidence for a merge.
+3. **A red release line is put right within the hour.**
+   The commit that turned `integration/next` or `main` red is reverted, not debugged in place; it comes back through its branch with the fix and a green full run.
+   Whoever merged it does the revert.
+4. **A flaky test is quarantined, with an owner and a week.**
+   A test that fails and then passes with nothing changed is flaky, and a flaky test in the gate teaches everyone to rerun and ignore.
+   It is taken out of the suite the day it is seen (an `XCTSkip` with the reason), and written into "Tests that skip themselves" with its owner and a date one week on.
+   By that date it is fixed and back, or moved down to a unit test, or deleted with the reason recorded; it is never left skipped.
+   A failure that XCTest's own launch retry covers ("could not start the app") is not a flaky test, and one that cannot be reproduced is written into "Known and not yet explained".
+5. **The smoke set is one journey for each major area on each shell, about ten minutes of tests.**
+   It is defined in one place, `scripts/test.sh` (`smoke_wall`, `smoke_phone`), which the script's `--smoke` and the workflow both use.
+   A journey's smoke test is its plain happy path, never a looks test and never one over 120 seconds unless nothing shorter covers the area (the first run's real permission prompt is the one exception).
+
+The smoke set, with seconds from run 44883476613:
+
+| Shell | Area | Test | Seconds |
+|---|---|---|---|
+| Wall | Today and chores | `DayAtAGlanceTests.testCheckingOffAChoreOnToday` | 38 |
+| Wall | The calendar | `DayAtAGlanceTests.testMomentsInTheWeek` | 22 |
+| Wall | Care: log, celebrate, fix | `LoggedEntryTests.testFixingAWalkFromToday` | 33 |
+| Wall | Food: a meal and its dishes | `WallDishEditorTests.testHomeMealTypedWithASuggestion` | 31 |
+| Wall | The household and inviting | `HouseholdTests.testFamilyAndDevicesShowsEveryoneAndBothWaysIn` | 38 |
+| Wall | Sync's states | `SyncSettingsTests.testAFullICloudPausesSync` | 29 |
+| Wall | First run, with the real prompt | `FirstRunTests.testOnboardingWithRealCalendarAccess` | 171 |
+| Phone | Today: care in one tap | `PhoneTests.testOneTapLogAndUndo` | 19 |
+| Phone | Chores | `PhoneTabsTests.testPitchInAndAddingAChore` | 48 |
+| Phone | Lists | `PhoneTabsTests.testListsAndDinners` | 53 |
+| Phone | Food: the camera to the diary | `PhoneFoodTests.testSnappingAMeal` | 41 |
+| Phone | Joining a household | `PhoneHouseholdTests.testJoiningFromAnInvite` | 20 |
+| Phone | Starting a household, every tab empty | `PhoneSetupTests.testStartingAHouseholdOnThisPhone` | 69 |
+
+That is 362 seconds for the wall and 250 for the phone, 612 in all (10 minutes), against 6805 for the full suite in the same run.
+
+What the smoke set leaves to the full suite: Glow, a companion's week, dishes, reminders, catching up, photos, the photo frame, the time pad, every failure path and every looks test.
+
 ## Tests that skip themselves
 
 A skipped test is a decision, so every one is listed here with its reason; a skip that is not in this table is a mistake.
@@ -279,10 +331,8 @@ Targets:
 - **Full suite: 30 minutes from push to green with no queueing.**
   That is the 7 minute build, 5 minutes to boot and unpack, and no shard over 18 minutes of tests.
   With three phone shards and two wall shards, that is at most 3,240 seconds of phone tests (5,662 today) and 2,160 of wall tests (2,390 today): 5,400 seconds in all, a third less than today.
-- **A push: 15 minutes.**
-  A push to a working branch should answer "did I break something obvious" with the unit tests and the smoke set (13 UI tests, 580 seconds today), on three Macs after the build.
-  The full suite then runs on `integration/next` and `main`, by hand on any branch (Actions, Tests, Run workflow), and before every release.
-  This is a proposal: `.github/workflows/tests.yml` still runs everything on every push until James decides.
+- **A push to a working branch: about 20 minutes.**
+  The 7 minute build, 5 minutes to boot and unpack, and then the unit tests (about 7 minutes) or one shell's smoke tests (4 to 7 minutes), each on its own Mac ("Tiers").
 - **Per UI test: 60 seconds on a hosted Mac, and never over 120.**
   The median is 35, so 60 leaves room for a real journey; the 38 tests over it are where more than half the time goes.
   A long test is also a fragile one: the only failure of run 44860696474 was the suite's longest test, 322 seconds into it.

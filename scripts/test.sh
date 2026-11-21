@@ -94,23 +94,26 @@ if (( ${#only} )); then
 fi
 (( ui )) || { wall=0; phone=0; }
 
-# The gate before installing: a few tests across each shell's main paths, a few minutes.
+# The smoke set: one journey for each major area on each shell, about ten minutes of tests
+# in all. It is the gate before installing, and what a push to a working branch runs on
+# GitHub (docs/design/testing.md, "Tiers"). This is the one place it is defined; when a
+# journey's test is renamed or merged, change it here, and keep one per area.
 smoke_wall=(
-  DayAtAGlanceTests/testCheckingOffAChoreOnToday
-  PitchInTests/testFixingWhoDidAChore
-  LoggedEntryTests/testLoggingAWalkSaysWhenItStarted
-  FoodMealsTests/testSeveralDishesOnTodaysPlates
-  HouseholdTests/testFamilyAndDevicesShowsEveryoneAndBothWaysIn
-  SyncSettingsTests/testAFullICloudPausesSync
-  FirstRunTests/testOnboardingWithRealCalendarAccess
+  DayAtAGlanceTests/testCheckingOffAChoreOnToday                  # Today and chores
+  DayAtAGlanceTests/testMomentsInTheWeek                          # the calendar
+  LoggedEntryTests/testFixingAWalkFromToday                       # care: log, celebrate, fix
+  WallDishEditorTests/testHomeMealTypedWithASuggestion            # food: a meal and its dishes
+  HouseholdTests/testFamilyAndDevicesShowsEveryoneAndBothWaysIn   # the household and inviting
+  SyncSettingsTests/testAFullICloudPausesSync                     # sync's states in Settings
+  FirstRunTests/testOnboardingWithRealCalendarAccess              # first run, with the real prompt
 )
 smoke_phone=(
-  PhoneTests/testOneTapLogAndUndo
-  PhoneTests/testCheckingChores
-  PhoneTabsTests/testPitchInAndAddingAChore
-  PhoneFoodTests/testSnappingAMeal
-  PhoneHouseholdTests/testJoiningFromAnInvite
-  PhoneSetupTests/testStartingAHouseholdOnThisPhone
+  PhoneTests/testOneTapLogAndUndo                                 # Today: care in one tap
+  PhoneTabsTests/testPitchInAndAddingAChore                       # chores
+  PhoneTabsTests/testListsAndDinners                              # lists
+  PhoneFoodTests/testSnappingAMeal                                # food: the camera to the diary
+  PhoneHouseholdTests/testJoiningFromAnInvite                     # joining a household
+  PhoneSetupTests/testStartingAHouseholdOnThisPhone               # starting one, and every tab empty
 )
 
 # One build folder per checkout, so worktrees don't overwrite each other's builds.
