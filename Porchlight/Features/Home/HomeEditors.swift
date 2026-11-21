@@ -300,7 +300,7 @@ struct MealEditor: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Text(dish.emoji)
-                                    Text(dish.name).font(.body(15, weight: 700))
+                                    Text(dish.name).font(.body(15, weight: 700)).lineLimit(2).multilineTextAlignment(.leading)
                                     if food.book.recipe(of: dish.id) != nil { Text("📖").accessibilityLabel(", with a recipe") }
                                 }
                                 .padding(.horizontal, 12)

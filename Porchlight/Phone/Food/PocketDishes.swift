@@ -243,13 +243,13 @@ struct PocketDishRow: View {
     @ViewBuilder
     private func face(_ face: MealRating?) -> some View {
         if let face {
-            Text(face.emoji).font(.system(size: 18)).accessibilityLabel(face.phrase)
+            Text(face.emoji).phoneFont(.body, 18, weight: 400, relativeTo: .subheadline).accessibilityLabel(face.phrase)
         }
     }
 
     private var chevron: some View {
         Image(systemName: "chevron.right")
-            .font(.system(size: 12, weight: .bold))
+            .phoneFont(.body, 12, weight: 800, relativeTo: .subheadline)
             .foregroundStyle(Theme.muted)
             .accessibilityHidden(true)
     }
@@ -272,7 +272,8 @@ struct PocketDishRow: View {
                             face(summary.face)
                             chevron
                         }
-                        words(detail)
+                        // Read first, as beside the picture: the name, then the face.
+                        words(detail).accessibilitySortPriority(1)
                     }
                 } else {
                     HStack(spacing: 10) {

@@ -15,6 +15,8 @@ import UIKit
 @Suite("The phone's recipes, the whole pages")
 @MainActor
 struct PocketRecipesScreenTests {
+    static let longName = "Grandma Lin's slow-braised pork belly with mustard greens"
+
     private func page(_ kind: String, _ look: HostedScreen.Look) async throws -> HostedScreen {
         let db = try AppDatabase.inMemory(installId: "recipes")
         let household = try db.createHousehold(
@@ -25,6 +27,13 @@ struct PocketRecipesScreenTests {
         try FoodSamples.seed(db, household: try #require(snapshot.household), people: snapshot.people)
         if kind == "empty" {
             try await db.writer.write { try $0.execute(sql: "DELETE FROM recipePhoto; DELETE FROM recipe") }
+        }
+        if kind == "bank" {
+            // A name and a line as long as they come, to wrap beside the picture.
+            _ = try db.saveRecipe(
+                RecipeDraft(name: Self.longName, ingredients: ["1 lb pork belly"], link: "example.com/pork-belly"),
+                householdId: household.id, addedBy: nil
+            )
         }
         let store = FoodStore(database: db)
         let home = HomeStore(database: db)
@@ -67,6 +76,15 @@ struct PocketRecipesScreenTests {
             #expect(curry.label.contains("Mia's"), "whose it is: \(curry.label)")
             #expect(page.elements.contains { $0.isButton && $0.label.hasPrefix("Grandma Lin's dumplings") }, "a recipe not cooked yet is in the bank")
             #expect(page.elements.contains { $0.isButton && $0.label.contains("New recipe") }, "a way to add one:\n\(page.listing)")
+            // One row layout for the whole list: the words beside the picture, wrapping, at
+            // the standard sizes; below it at the accessibility sizes, for every row.
+            let names = ["Chicken curry", "Pesto pasta", "Miso salmon", "Grandma Lin's dumplings", Self.longName]
+            let expected: HostedRowLayout.Layout = look.textSize.isAccessibilityCategory ? .below : .beside
+            let picture: CGFloat = look.textSize.isAccessibilityCategory ? 52 * 1.4 : 52
+            for name in names {
+                let row = try #require(page.elements.first { $0.isButton && $0.label.hasPrefix(name + ",") }, "\(name)'s row:\n\(page.listing)")
+                #expect(HostedRowLayout.layout(of: row.frame, picture: picture, in: page) == expected, "\(name)'s words are \(expected) its picture (\(look))")
+            }
         case "empty":
             #expect(page.element(beginningWith: "📖") != nil || page.elements.contains { $0.label.contains("Keep the recipes you actually cook") }, "why it is empty:\n\(page.listing)")
             #expect(page.elements.contains { $0.isButton && $0.label.contains("Add a recipe") }, "the way to start:\n\(page.listing)")

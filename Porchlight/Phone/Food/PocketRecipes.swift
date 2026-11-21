@@ -14,7 +14,9 @@ struct PocketRecipesView: View {
     let onPlan: (Dish) -> Void
 
     @Environment(FoodStore.self) private var store
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var query = ""
+    @PhoneMetric(upTo: 1.4) private var oftenArt: CGFloat = 34
 
     var body: some View {
         let bank = store.recipeBank
@@ -123,27 +125,43 @@ struct PocketRecipesView: View {
                 PhoneCardHeader(title: "You cook these often", meta: "no recipe yet")
                 ForEach(Array(often.enumerated()), id: \.element.dish.id) { index, item in
                     if index > 0 { RowDivider() }
-                    HStack(spacing: 10) {
-                        DishArt(dish: item.dish, size: 34)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(item.dish.name).phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
-                            Text(DishWords.times(item.times)).phoneFont(.body, 12, weight: 600, relativeTo: .caption).foregroundStyle(Theme.muted)
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 4)
-                        Button("+ Recipe") { onAdd(item.dish) }
-                            .phoneFont(.body, 13, weight: 800, relativeTo: .footnote)
-                            .foregroundStyle(Theme.accent)
-                            .buttonStyle(.plain)
-                            .frame(minWidth: 44, minHeight: 44)
-                            .contentShape(Rectangle())
-                            .accessibilityLabel("Add a recipe for \(item.dish.name)")
-                            .accessibilityIdentifier("add-recipe-\(item.dish.name)")
-                    }
-                    .padding(.vertical, 2)
+                    cookedOftenRow(item.dish, times: item.times)
+                        .padding(.vertical, 2)
                 }
             }
             .phoneCard()
+        }
+    }
+
+    /// A dish we cook without a recipe: like the bank's rows, the words beside the picture
+    /// (wrapping) at the standard sizes, below it at the accessibility sizes.
+    @ViewBuilder
+    private func cookedOftenRow(_ dish: Dish, times: Int) -> some View {
+        let words = VStack(alignment: .leading, spacing: 1) {
+            Text(dish.name).phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
+            Text(DishWords.times(times)).phoneFont(.body, 12, weight: 600, relativeTo: .caption).foregroundStyle(Theme.muted)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        let add = Button("+ Recipe") { onAdd(dish) }
+            .phoneFont(.body, 13, weight: 800, relativeTo: .footnote)
+            .foregroundStyle(Theme.accent)
+            .buttonStyle(.plain)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+            .accessibilityLabel("Add a recipe for \(dish.name)")
+            .accessibilityIdentifier("add-recipe-\(dish.name)")
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack { DishArt(dish: dish, size: oftenArt); Spacer(minLength: 8); add }
+                words
+            }
+        } else {
+            HStack(spacing: 10) {
+                DishArt(dish: dish, size: oftenArt)
+                words
+                Spacer(minLength: 4)
+                add
+            }
         }
     }
 
@@ -228,7 +246,7 @@ struct PocketRecipeRow: View {
     @ViewBuilder
     private var trailing: some View {
         if let face = entry.face {
-            Text(face.emoji).font(.system(size: 18)).accessibilityLabel(face.phrase)
+            Text(face.emoji).phoneFont(.body, 18, weight: 400, relativeTo: .subheadline).accessibilityLabel(face.phrase)
         } else if entry.times == 0 {
             PhoneTag(text: "New")
         }
