@@ -85,7 +85,7 @@ Coverage is proven, not assumed.
 ## The middle options
 
 These sit between a pure function and a launched app.
-All six are proven in this repository; use them freely.
+All seven are proven in this repository.
 
 | Option | Proven by | Use it for |
 |---|---|---|
@@ -95,19 +95,37 @@ All six are proven in this repository; use them freely.
 | The fake iCloud | `SyncHarness`, `SyncControllerTests` | What sync sends, receives and says |
 | A SwiftUI view drawn with `ImageRenderer` in the unit bundle | `WidgetRenderTests` | Review shots of self-contained views in light, dark and the largest text, in milliseconds |
 | A component measured in a `UIHostingController` in the unit bundle | `TimeFieldLayoutTests` | A component's layout facts at every Dynamic Type size: it grows, it fits the width, it stacks instead of overlapping |
+| A whole screen hosted in a window in the unit bundle (`HostedScreen`) | `PocketWeekScreenTests` | Where every element of a screen sits, and a picture of the whole page, in light, dark and the largest text |
 
-The last one works by size, not by position.
+The component option works by size, not by position.
 `UIHostingController.sizeThatFits(in:)` gives the size a view takes in a given width with a text size and size class set in the environment, so "the pill is under its label" is checked as "the row is as tall as the label, the gap and the pill together".
 It runs all twelve text sizes in a fifth of a second, where the UI test covers one size in a launch.
 It suits a component whose layout rule is its own (`LogTimeField`, a pill, a row, a card).
 
-Not proven yet, so not to be relied on until a working example lands:
+The whole-screen option gives positions and a picture.
+`HostedScreen.host` puts a screen, with its stores on an in-memory database holding sample data, in a 393 by 852 point window inside the unit tests' host app, in a look, and returns every accessibility element's label and frame and an image of the whole page, as tall as its content.
+A companion's week in four looks takes about five seconds; `PhoneWeekTests.testWeekLooks` takes over twelve minutes for three, and failed once on a scroll that fell short (run 44860696474).
+With `TEST_RUNNER_PORCHLIGHT_SCREEN_SHOTS=<folder>` the pages are written as PNGs for review.
 
-- **Where each element sits in a whole screen, without launching the app.**
-  That needs the screen in a window and its accessibility tree, which SwiftUI builds only for an automation client, and a screen needs its stores in the environment.
-  The looks tests are 32% of the UI suite's time, so this is the next experiment.
-- **Review shots of whole screens without launching the app.**
-  `ImageRenderer` does not draw scroll views, navigation or sheets, so a screen needs a hosting controller in a window, drawn with `drawHierarchy`; no example yet.
+What the spike of November 20 found, so its limits are known:
+
+- **It needs one private call.**
+  SwiftUI builds its accessibility tree only for VoiceOver or an automation client, and without `_AXSSetAutomationEnabled` (the switch XCUITest flips in the app it drives) a hosted screen reads as no elements at all.
+  The call is made only in the test bundle, and a test checks that it read elements, so if a future iOS removes it the tests fail instead of passing on nothing.
+- **Frames come with scrolled-off content.**
+  A scroll view's content is all laid out, so an element two screens down has a frame two screens down; nothing needs scrolling.
+- **Labels, not identifiers.**
+  SwiftUI's elements here do not give their accessibility identifiers, so elements are found by label.
+- **It is not the real screen's surroundings.**
+  There is no status bar, tab bar, navigation bar, sheet or keyboard, nothing is hit-tested and no gesture runs, so "can it be tapped", "is it under the keyboard", "does paper show under the status bar" and "does the sheet close" stay UI tests.
+- **The clock is the app's.**
+  The screens and the sample data read `CompanionClock` themselves, which only the process-wide `-debugCompanionNow` pins, so a hosted test asserts where things sit, never a time, a count or a day's name, until the clock can be handed in.
+- **Each screen needs its stores.**
+  The week needs a `CompanionStore`, a `ToastCenter` and `me`; a screen that reads more of the environment needs more, and one that reads `UIDevice` or the real permission state would need a seam first.
+- **The unit tests run on the iPad simulator.**
+  The phone's layout comes from a compact size class set on the hosting controller, which the week's screen follows; a screen that asks the device what it is would not.
+
+It is proven for one screen and is not yet a replacement for any looks test: which looks tests move onto it is decided screen by screen, after review.
 
 When you add a new kind of test, add a working example with it and a row to the table above.
 
@@ -120,6 +138,16 @@ The night look and the largest text size are checked by eye from screenshots, pl
 - Never repeat a journey's steps in a looks test to get to a screen; start there with a debug launch argument (`-debugFoodView`, `-debugCompanionSheet`, `-debugYouPage`).
 - A layout fact that holds for a component everywhere (the time pill, the photo row) is asserted once, in one looks test, not in each class that shows the component.
 
+### Shots that stay when the words move down
+
+When the words of each state move to a unit test, the launches that only compared them go, and their screenshots with them.
+One shot per shape of the screen stays, not one per wording.
+
+| Screen | States that still have a shot | Why those | States without one |
+|---|---|---|---|
+| The phone's sync banner on Today | A full iCloud (`phone-110-banner-iCloudFull`); a restored copy (`phone-115-banner-restoredCopy`) and the choice it opens (`phone-119-restored-choice`); a missing iCloud at the largest text (`phone-142-banner-largest`) | The two shapes of the banner: a warning with no button, which also shows the owner's name reaching it, and a warning with its "Choose" button; and the longest layout | Restricted, needs sign-in, signed out at the usual size, offline: the same banner with other words, held by `ArrivalsTests` |
+| Settings' sync section on the wall | Signed out (`74-sync-icloud-off`), the longest line; a full iCloud (`71-sync-icloud-full`); a different account (`70-sync-needs-decision`) and a restored copy (`90-restored-copy`), each with its buttons | The plain line under the switch at its longest, the paused card, and the two decision cards | Restricted and needs sign-in: the same line with other words, held by `SyncWordingTests` |
+
 ## Hard rules
 
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
@@ -128,7 +156,8 @@ The last three come from what the UI tests' own comments record.
 1. **A test's outcome never depends on the real clock.**
    Pin it and sweep it.
    In a unit test, pass `now` and a `Calendar` with an explicit time zone, and walk the day in half hours in at least two zones when the rule has anything to do with the time of day or the day's edge.
-   In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, and never branch on `Date()`.
+   In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, which the wall and the phone both read, and never branch on `Date()`.
+   The day in that argument is today's, because the sample household is built around today; the time of day is what must not move.
    Why: a log landed in the wrong slot, and a streak was miscounted, only at certain hours, where a test that runs at one hour cannot see it.
    A timestamp that is only stored, never compared, bucketed or formatted (a row's `createdAt`), may be `Date.now`.
 2. **Every loop in a UI test helper has a bound.**
@@ -153,14 +182,15 @@ The last three come from what the UI tests' own comments record.
    Why: a tap computed mid-slide lands outside the sheet and closes it, and under the floating tab bar automatic scrolling stops short and taps nothing.
 8. **No fixed sleeps as a way of waiting.**
    Wait for the thing (`waitForExistence`, `waitForNonExistence`, an expectation on a predicate); a `Thread.sleep` is allowed only to let an animation finish before a screenshot.
-   Why: a launch helper that sleeps 4 seconds adds 4 seconds to every test in its class (`FoodMealsTests` and `MealPhotosTests` do, 17 tests in all).
+   Why: a launch helper that sleeps 4 seconds adds 4 seconds to every test in its class, as `FoodMealsTests` and `MealPhotosTests` did for 17 tests until they waited for the app to answer and for their first element to settle instead.
 9. **A test that needs the network or real delivery timing runs by hand, not in the suite.**
-   Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` does.
+   Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
    Why: a test that skips itself when the network is down reports nothing either way.
 
 ## Budgets
 
 Measured on GitHub's hosted Macs (3 cores, 7 GB, iOS 27.2), run 44828667552 of November 20, 2026, the commit this work started from.
+The first batch (run 44860696474) took 42 minutes from start to the last job's end, against 48.6, with the shards reweighed and three tests trimmed.
 
 | | Measured |
 |---|---|
@@ -186,6 +216,7 @@ Targets:
   This is a proposal: `.github/workflows/tests.yml` still runs everything on every push until James decides.
 - **Per UI test: 60 seconds on a hosted Mac, and never over 120.**
   The median is 35, so 60 leaves room for a real journey; the 38 tests over it are where more than half the time goes.
+  A long test is also a fragile one: the only failure of run 44860696474 was the suite's longest test, 322 seconds into it.
 
 When a UI test goes over 60 seconds, in this order:
 
@@ -195,7 +226,22 @@ When a UI test goes over 60 seconds, in this order:
 4. If the time is in looking at the screen (a `reveal` loop on a long page, `descendants(matching: .any)` on a big tree, the largest text size), query by identifier inside a container, and scroll less.
 5. If it is still over, split it into two journeys; a test over 120 seconds is a failure to fix, not a number to record.
 
-When class times change by more than a fifth, update `scripts/lib/ui-test-seconds` from a run's log, so the shards stay even.
+### Where a slow test's time goes
+
+Each test's steps are in its job's `ui-phone.log` or `ui-wall.log` (the `results-…` artifact), one line a step with its time, so a slow test is read, not guessed at.
+Three causes account for most of what was found on November 20, in run 44828667552:
+
+- **`reveal` on a button that is already in reach.**
+  `reveal` counts an element as in view only above the tab bar, and a sheet covers the tab bar without removing it, so a sheet's own bottom button (Save, Done) never counts and `reveal` drags all fourteen times before the tap.
+  Sixteen calls in the phone suite did that, 557 seconds in all (7% of the UI suite), and the phone suite makes 431 such drags at about four seconds each.
+  The cure belongs in `reveal` itself (a tab bar that is covered does not bound what is visible); until then, a test that knows its button is the sheet's own asks `isHittable` first, as `PhoneSetupTests.bringIntoReach` does.
+- **`waitToSettle` on an element that is off screen.**
+  It waits for an unchanged frame that is also hittable, so an element below the fold uses all twenty looks, each a second or more on a long page.
+  Reveal first, then settle.
+- **Changing the look.**
+  A test in the night look pays for quitting the app before it (20 seconds in one case), quitting it again in teardown (11) and switching the look back (4), so the night look and the largest size of one screen belong in one test.
+
+A class's time moves by a fifth and more between two runs of the same code on these Macs (PhoneRemindersTests took 384 seconds in one run and 217 in the next, untouched), so compare a test with itself over several runs before calling a change a saving, and update `scripts/lib/ui-test-seconds` only for a drift that lasts or a class that is new.
 
 ## Examples from this repository
 
@@ -268,11 +314,11 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testGlowAndCashingIn | 28 | Cash in asks once, celebrates, starts again | Keep | | |
 | testNextSevenDays | 40 | Row opens the page, grouped by day | Merge into `PhoneTests.testTodayWithSomethingDue` (same launch, Today's last row); grouping is `PocketTabsTests` | 25 | |
 | testChoosingCalendars | 33 | Why before asking; sharing choices | Keep (permission) | | |
-| testCalendarsFromYou | 45 | Calendars row in You opens the page | Merge into `PhoneTests.testYouSheet` (same launch) | 30 | |
+| testCalendarsFromYou | 45 | Calendars row in You opens the page | Merge into `PhoneTests.testYouSheet` (same launch); it settled the row before revealing it, now the other way round | 30 | |
 | testFixingAWalkFromToday | 70 | Fix, saved, remove asks, slot open again | Keep | | |
 | testFixingAWalkFromTheWeek | 76 | Diary row opens, Keep it backs out, remove | Keep | | |
 | testFixingAWalkOnASharedScreen | 30 | Names, with no "You" | Keep | | |
-| testFixingAWalkLooks | 158 | Fix sheet in dark, largest, largest dark | Keep (looks), now also holding the time pill's checks; still three launches, so still over 120 seconds until looks get cheaper | | done |
+| testFixingAWalkLooks | 158 | Fix sheet in dark, largest, largest dark | Keep (looks), now also holding the time pill's checks; still three launches, and 115 seconds measured with the pill's checks in it, where the two tests took 258 | | done |
 | testTheTimePillGrowsWithText | 100 | Pill grows, clear of "Started", on screen; three launches at the largest size | Merge into testFixingAWalkLooks, which already opens the same sheet at the same size in both looks; the rule at every size is `TimeFieldLayoutTests` | 85 | done |
 | testNightLook | 39 | Shots | Keep (looks) | | |
 | testPaperUnderTheStatusBar | 95 | Four tabs scrolled, at two sizes | Keep, and take `PhoneTests.testYouOnEveryTab` | | |
@@ -287,7 +333,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testTappingThePawTrail | 74 | A logged, a missed and an open dot each open the right sheet | Keep; the dots' labels are `CompanionWeekTests` | | |
 | testAMealInTheDiaryAndTheTrail | 72 | A dinner logged from the trail shows in trail and diary | Keep | | |
 | testWater | 30 | Water has its week | Down: "Log a refill" and "Water diary" are `CompanionWeekTests`; keep as a tab tap inside testAMealInTheDiaryAndTheTrail | 20 | |
-| testWeekLooks | 746 | Three looks times three routines, each scrolled top to bottom and back | Keep as looks, cut to one full scroll per look and the three tabs checked without scrolling each page; over the 120 second limit six times | 550 | |
+| testWeekLooks | 746 | Three looks times three routines, each scrolled top to bottom and back | Keep as looks, cut to one full scroll per look and the three tabs checked without scrolling each page; over the 120 second limit six times, and the first looks test to restructure once unfrozen. It failed in run 44860696474 after 322 seconds ("Feed's tab is whole on screen: (20.0, -367.7, 353.0, 69.0)": a scroll back up fell short), untouched and passing in the run before: a test this long has that many more places to flake. `PocketWeekScreenTests` checks the same facts hosted, in seconds | 550 | |
 | testAFirstWeek | 30 | First week's words | Down: all three sentences are `CompanionWeekTests`; keep one shot inside testWeekLooks | 30 | |
 
 #### PhoneHouseholdTests (587 s)
@@ -304,7 +350,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testAnAccountTheHouseholdKnowsSkipsWhoYouAre | 21 | The who step is skipped | Down: `JoinFlowTests` "An iCloud user who already has a phone in the household keeps the same person" | 21 | |
 | testAJoinThatFailsCanBeTriedAgain | 26 | Banner, nothing half joined, try again | Keep (failure path) | | |
 | testARemovedHouseholdSaysSoOnce | 16 | Says so, then the welcome | Keep | | |
-| testSyncBannersOnToday | 91 | Six launches, one per sync state, each banner's title | Down for the titles (`ArrivalsTests.banners`, `offlineSince`); keep two launches: a member sees whose iCloud is full, and "Choose" opens the choice | 60 | done |
+| testSyncBannersOnToday | 91 | Six launches, one per sync state, each banner's title | Down for the titles (`ArrivalsTests.banners`, `offlineSince`); keep two launches: a member sees whose iCloud is full, and "Choose" opens the choice | 60 | done, 23 s measured |
 | testYouListsPeopleAndInvites | 33 | People, invite, share sheet | Keep | | |
 | testShowingTheCodeOnThePhone | 21 | The code is drawn | Keep | | |
 | testWithSyncOffTheHouseholdIsOnThisPhoneOnly | 38 | Says so, the switch turns it on, invites can go | Keep; the words are `HouseholdHomeTests` | | |
@@ -320,7 +366,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testStartingAHouseholdOnThisPhone | 76 | A2 from a fresh install to Today and every empty tab | Keep (smoke) | | |
 | testAnEmptyTodayOffersSetup | 19 | Empty Today leads to Household | Keep | | |
 | testSettingUpTheHouseholdFromThePhone | 153 | Add, rename, archive a person; a chore; a list | Keep, split in two (people; chores and lists): over the limit | 30 | |
-| testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep; find why two sheets and one field take 147 seconds | 60 | |
+| testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep; 94 of its seconds were two `reveal` calls dragging fourteen times each for buttons already in reach, now asked for only when the button can't be tapped | 90 | done |
 | testAMemberLeaves | 36 | Leave, confirm, welcome | Keep | | |
 | testTheOwnerIsPointedToRemovingSomeone | 42 | Owner is sent to remove; person stays | Keep | | |
 | testStorage | 21 | Breakdown names photos; whose iCloud | Keep (the page) | | |
@@ -335,7 +381,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testChoosingReminders | 54 | A slot's choice and the chores switch | Merge into testSaysWhyBeforeAsking, which ends on the same page | 45 | |
 | testDeliveryByHand | 0 | Real delivery | By hand already | | |
 | testNamedRemindersByHand | 3 | Real delivery | By hand already | | |
-| testNightLook | 147 | One shot | Merge with testLargestText into one looks test; find why one dark launch takes 147 seconds | 90 | |
+| testNightLook | 147 | One shot | Merge with testLargestText into one looks test. Found: 54 seconds settling a row that was off screen (now revealed first, in every test of the class), 20 quitting the app before it, 15 in teardown for the look | 90 | settle fixed |
 | testLargestText | 69 | The choice is whole on screen | Keep (looks) | | |
 
 #### PhoneCatchUpTests (378 s)
@@ -383,7 +429,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testDineOutWithARestaurant | 48 | Suggestions above the keyboard; saved note | Keep (keyboard) | | |
 | testWhereTakesSeveralKinds | 37 | Toggle rules, then saved "at work" | Down: `MealSourcesTests`; the journey is testEditingWhereIntoTwoKinds | 37 | |
 | testEditingWhereIntoTwoKinds | 29 | Only kind can't come off; two kinds saved and shown | Keep | | |
-| testLiveRestaurantSearch | 34 | Maps suggests places; skips itself offline | By hand | 34 | |
+| testLiveRestaurantSearchByHand | 34 | Maps suggests places; used to skip itself offline | By hand: skipped unless `PORCHLIGHT_LIVE_MAPS=1`, and then it fails when Maps can't be reached | 34 | done |
 | testEditingAMealIntoDiningOut | 34 | Field above the keyboard; typed name kept | Keep (keyboard) | | |
 | testSeveralDishesOnTodaysPlates | 26 | Today's plate opens its stack | Keep (smoke) | | |
 | testSwipingBetweenDishesInTheWeek | 31 | Swipe changes the top dish | Keep (gesture) | | |
@@ -411,7 +457,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testChecksTickOnAnUntouchedWall | 49 | Three polls on a wall nobody touches | Keep: real timers in the real app | | |
 | testADifferentAccountAsksWhatToDo | 38 | Choice; dot comes and goes | Keep | | |
 | testAFullICloudPausesSync | 44 | Paused, dot, nothing on Today | Keep (smoke) | | |
-| testEachMissingICloudSaysWhy | 95 | Three launches, one per account state, each line whole | Down for the words and the dot's rule (`SyncWordingTests`); keep one launch as testAMissingICloudSaysWhy | 63 | done |
+| testEachMissingICloudSaysWhy | 95 | Three launches, one per account state, each line whole | Down for the words and the dot's rule (`SyncWordingTests`); keep one launch as testAMissingICloudSaysWhy | 63 | done, 37 s measured |
 | testAFreshInstallLooksForItsHouseholdFirst | 20 | Looking, then start fresh | Keep | | |
 
 #### MealPhotosTests (220 s)
@@ -456,7 +502,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 |---|---|---|---|---|---|
 | testFixingWhoDidAChore | 23 | Change who; board updates | Keep (smoke) | | |
 | testCheckingOffASharedChore | 23 | Asks who; done by | Keep | | |
-| testLoggingCareFromTheBoard | 26 | Care opens its own sheet | Keep, but pin the time: it branches on what is done at the real time of day | | |
+| testLoggingCareFromTheBoard | 26 | Done care opens its log to fix; care to do opens its own sheet | Keep; pinned to 5:20 pm, so it checks both on every run where it used to check whichever the time of day offered | | done |
 | testCashingInOnGlow | 30 | Cash in; new round | Keep | | |
 | testNewChoreWithAStartDay | 26 | Picker reads back; chore on the board | Keep; the summaries are `RecurrenceTests` | | |
 
@@ -473,7 +519,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testFixingAWalkFromToday | 40 | Log, celebrate, fix who and how long | Keep | | |
-| testLoggingAWalkSaysWhenItStarted | 26 | Suggestions; branches on the real time of day | Down: `LogTimeTests`; testFixingAWalkFromToday already opens the pad and its suggestions. It is in the smoke set, so swap in testFixingAWalkFromToday | 26 | |
+| testLoggingAWalkSaysWhenItStarted | 26 | A suggestion sets the time, closes the card and is marked | Keep, pinned to 5:20 pm; which choices are offered at each minute of the day is `LogTimeTests.suggestionsThroughTheDay`. Later, merge into testFixingAWalkFromToday, which opens the same card | 26 | pinned |
 | testOpeningMealsFromToday | 23 | Timeline and plates open the meal | Keep | | |
 | testFixingAWalkFromTheCompanionPage | 24 | Diary row opens; remove asks | Keep | | |
 
@@ -502,8 +548,9 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | PhoneWeekTests, once unfrozen | 600 | 7% |
 | Wall | 489 | 6% |
 | All verdicts | 2,368 | 29% |
-| Done so far (three tests) | 208 projected | 3% |
+| Done so far (three tests) | 269 measured (run 44860696474; 208 projected) | 3% |
 
 The verdicts bring the suite to about 5,700 seconds, short of the 5,400 target.
 Moving checks down and deleting duplicates is worth about 640 seconds (8%) on its own; most of the saving is merging launches and cutting the looks tests' walking.
-The rest of the way to the target, and beyond it, is checking whole screens' looks without launching the app ("The middle options"), and the two tests that take 147 seconds for reasons not yet understood (`PhoneRemindersTests.testNightLook`, `PhoneSetupTests.testACompanionInTheWallsEditor`).
+The rest of the way to the target, and beyond it, is `reveal` (557 seconds in calls that drag fourteen times for a button already in reach, "Where a slow test's time goes"), which no verdict above counts, and checking whole screens' looks without launching the app ("The middle options").
+Removing the 4 second sleep from 17 wall launches is worth up to 68 seconds more, less what waiting for the first element costs.
