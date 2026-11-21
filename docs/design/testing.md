@@ -116,6 +116,8 @@ What the spike of November 20 found, so its limits are known:
   A scroll view's content is all laid out, so an element two screens down has a frame two screens down; nothing needs scrolling.
 - **It can pick a tab, not drive a journey.**
   `host(_:look:activating:)` activates one element by its label before reading, as a tap would, which is enough to show a screen's other tab or section; anything longer is a journey and a UI test.
+- **A row that scrolls sideways reaches past the edge.**
+  Its later items have frames beyond the screen's width by design (the lists' chips at the largest text), so a "nothing runs off either side" check names such a row and leaves it out; it found that on its first run.
 - **Labels, not identifiers.**
   SwiftUI's elements here do not give their accessibility identifiers, so elements are found by label.
 - **It is not the real screen's surroundings.**
@@ -128,7 +130,7 @@ What the spike of November 20 found, so its limits are known:
 - **The unit tests run on the iPad simulator.**
   The phone's layout comes from a compact size class set on the hosting controller, which the week's screen follows; a screen that asks the device what it is would not.
 
-It is proven for three (a companion's week, the care sheet and the dishes pages), and the care sheet's and the dishes' looks have moved onto it ("Review shots"); other screens move one at a time, each with a hosted test seen failing first and one UI test kept for what only the real screen shows.
+It is proven for three (a companion's week, the care sheet and the dishes pages), and their looks have moved onto it; Lists, Glow and Pitch in are hosted too (`PocketTabsScreenTests`) but have not yet been seen failing, so `PhoneTabsTests`' looks tests stay until they have ("Review shots"); other screens move one at a time, each with a hosted test seen failing first and one UI test kept for what only the real screen shows.
 
 When you add a new kind of test, add a working example with it and a row to the table above.
 
