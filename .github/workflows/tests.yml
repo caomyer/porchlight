@@ -45,6 +45,9 @@ concurrency:
 
 permissions:
   contents: read
+  # For a test job to download the build again when its first download arrives corrupted
+  # (scripts/ci/unpack-build.sh).
+  actions: read
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
@@ -60,6 +63,10 @@ jobs:
     if: ${{ !inputs.only }}
     runs-on: xcode-27
     timeout-minutes: 40
+    # What the packed build is, for the test jobs to check their download against.
+    outputs:
+      sha256: ${{ steps.pack.outputs.sha256 }}
+      bytes: ${{ steps.pack.outputs.bytes }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,9 +80,12 @@ jobs:
           path: ${{ env.PACKAGES }}
           key: spm-${{ hashFiles('project.yml') }}
 
-      # Which simulators a run may shut down and which it waits for, checked with stand-ins.
-      - name: Check the simulator rules
-        run: zsh scripts/ci/check-simulator-rules.sh
+      # Which simulators a run may shut down and which it waits for, and how a corrupted
+      # download of the build is caught and fetched again, each checked with stand-ins.
+      - name: Check the simulator rules and the build's download
+        run: |
+          zsh scripts/ci/check-simulator-rules.sh
+          zsh scripts/ci/check-unpack-build.sh
 
       - name: Build
         run: zsh scripts/test.sh --build-only
@@ -88,9 +98,12 @@ jobs:
           key: spm-${{ hashFiles('project.yml') }}
 
       - name: Pack the build
+        id: pack
         run: |
           tar -cf products.tar -C "$PRODUCTS" .
           ls -lh products.tar
+          echo "sha256=$(shasum -a 256 products.tar | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "bytes=$(stat -f%z products.tar)" >> "$GITHUB_OUTPUT"
 
       - name: Hand the build to the test jobs
         uses: actions/upload-artifact@v4
@@ -139,16 +152,18 @@ jobs:
         timeout-minutes: 15
         run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-simulator.sh ${{ matrix.kind }}
 
+      # A download can arrive cut short, or fail: the next step checks it against what the
+      # build job recorded and downloads again, so this one may fail without failing the job.
       - name: Get the build
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: products
 
-      - name: Unpack the build
-        run: |
-          mkdir -p "$PRODUCTS"
-          tar -xf products.tar -C "$PRODUCTS"
-          rm products.tar
+      - name: Check and unpack the build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: zsh scripts/ci/unpack-build.sh "${{ needs.build.outputs.sha256 }}" "${{ needs.build.outputs.bytes }}"
 
       - name: Test
         run: zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh ${{ matrix.args }} --no-build --progress --runtime "$RUNTIME"
@@ -196,16 +211,18 @@ jobs:
         timeout-minutes: 15
         run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-simulator.sh ${{ matrix.kind }}
 
+      # A download can arrive cut short, or fail: the next step checks it against what the
+      # build job recorded and downloads again, so this one may fail without failing the job.
       - name: Get the build
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: products
 
-      - name: Unpack the build
-        run: |
-          mkdir -p "$PRODUCTS"
-          tar -xf products.tar -C "$PRODUCTS"
-          rm products.tar
+      - name: Check and unpack the build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: zsh scripts/ci/unpack-build.sh "${{ needs.build.outputs.sha256 }}" "${{ needs.build.outputs.bytes }}"
 
       - name: Test
         run: zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh ${{ matrix.args }} --no-build --progress --runtime "$RUNTIME"

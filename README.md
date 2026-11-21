@@ -165,6 +165,8 @@ The log prints each test as it ends (`--progress`), and every two minutes a hear
 To run the full suite on a working branch, which every branch does once before asking to merge, use Actions, Tests, Run workflow, on that branch, with "only" left empty (`gh workflow run Tests --ref <branch>`).
 To run only some tests, use Actions, Tests, Run workflow, with "only" set as for `--only` (for example `FirstRunTests PhoneTests/testCheckingChores`): one job builds and runs just those.
 
+**A build that arrives corrupted is not a red test run.** The build job records its packed build's size and SHA-256, and each test job checks its download against them, downloads again up to twice when they differ, and only then fails, saying "The build's download was corrupted" (`scripts/ci/unpack-build.sh`; `zsh scripts/ci/check-unpack-build.sh` checks that script with a stand-in for the download).
+
 **Reading a failure.** The job's log lists the failed tests and their messages under `[ui-wall]`, `[ui-phone]` or the unit summary.
 Each job uploads an artifact, `results-<job name>` (for example `results-Wall UI 2 of 2`), kept for a week, with the job's `.log` files and, when the job failed, each `.xcresult` bundle zipped.
 Unzip one and open it in Xcode, or export its screenshots with `xcrun xcresulttool export attachments --path ui-wall.xcresult --output-path shots`.

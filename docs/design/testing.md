@@ -252,6 +252,7 @@ The rules that make two tiers safe:
    It is taken out of the suite the day it is seen (an `XCTSkip` with the reason), and written into "Tests that skip themselves" with its owner and a date one week on.
    By that date it is fixed and back, or moved down to a unit test, or deleted with the reason recorded; it is never left skipped.
    A failure that XCTest's own launch retry covers ("could not start the app") is not a flaky test, and one that cannot be reproduced is written into "Known and not yet explained".
+   Nor is a job that failed before any test ran: a build whose download arrived corrupted is checked against the build job's checksum and fetched again, and fails saying so if it cannot be put right (`scripts/ci/unpack-build.sh`), as one smoke job did on November 21 before that check existed.
 5. **The smoke set is one journey for each major area on each shell, about ten minutes of tests.**
    It is defined in one place, `scripts/test.sh` (`smoke_wall`, `smoke_phone`), which the script's `--smoke` and the workflow both use.
    A journey's smoke test is its plain happy path, never a looks test and never one over 120 seconds unless nothing shorter covers the area (the first run's real permission prompt is the one exception).
