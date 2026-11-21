@@ -162,6 +162,9 @@ Review shots come from two places, and each screen's are named so a person knows
 | Food: the Where pills, the photo row and reframing, paper under the status bar | none yet: the status bar is not there in a hosted screen, and the editor's row needs the meal's photos handed in | | `PhoneFoodTests.testWhereLooks`, `testPhotoRowAndReframeLooks` and `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: one look each, the night look at the largest size (`where-20-phone-largest-dark`, `parity-30-edit-row-largest-dark`, `parity-31-reframe-largest-dark`, `b5-60` to `b5-63` `-largest-dark`); `testNightLook` and `testLargestText` for the diary and a meal's page |
 | Lists, Glow, Pitch in | `lists-<look>.png`, `glow-<look>.png`, `pitch-in-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testLooks`: the real tabs in the night look at the largest size, the field and the cash-in button whole, cashing in to the celebration, the next 7 days (`m3-90-lists-largest-dark`, `m3-91-glow-largest-dark`, `m3-83-celebration-largest-dark`, `m3-94-next-7-days-largest-dark`); the journeys for adding, checking off and cashing in |
 | The Food diary on this week, last week and an empty week | `food-week-0-<look>.png`, `food-week-1-<look>.png`, `food-week-3-<look>.png` | light, dark, largest, largest-dark | `PhoneFoodTests.testChangingWeeks`: back a week, a meal opened and Back to the same week, a past slot filled and kept in its week, back to this week (`b5-30-last-week`) |
+| Joining, the sync banner, the household's name on Today | none yet | | `PhoneHouseholdTests.testLooks`: the night look at the largest size, Join and Continue within reach, the banner fitting, the household named whole (`phone-140-join-preview-largest-dark`, `phone-141-join-who-largest-dark`, `phone-142-banner-largest-dark`, `a5-22-today-header-largest-dark`, `a5-23-today-slots-largest-dark`) |
+| Today | none yet | | `PhoneTests.testLooks`: the night look at the largest size, the log button whole and full width (`phone-90-largest-text-dark`, `phone-91-largest-text-chores-dark`); `phone-10` to `phone-12` from the journey |
+| The dish editor's form | none yet | | `PhoneDishEditorTests.testTheFormAtNightAndAtTheLargestText`: one launch, the field and its suggestions over the keyboard (`editor-30-largest-dark`) |
 | Notifications | none: the page reads the permission itself | | `PhoneRemindersTests.testLooks`: night look at the largest size in one launch (`e2-80-choices-largest-dark`); `e2-10-ask`, `e2-11-denied`, `e2-12-choices` from the journeys |
 
 A screen moves to hosted shots when a hosted test of it exists and has been seen failing; until then its looks tests stay as they are.
@@ -319,6 +322,12 @@ Each kind seen is listed here with what the scripts now do about it, so the next
 | "Failed to launch", "Failed to get launch progress", "does not have a process ID", "Failed to terminate", with no crash report | Several runs a day on the hosted Macs | XCTest could not start, or quit, the app for one test | That test runs once more on its own, and the summary says "passed on a second launch" (`scripts/lib/launch_retry.py`); any other failure stands |
 
 `zsh scripts/ci/check-runner-start.sh` and `zsh scripts/ci/check-unpack-build.sh` check the first two rules against sample logs and a stand-in download, and run with every build.
+
+**An experiment in progress, begun November 21, 2026: letting a fresh simulator settle.**
+The two runner crashes above, and the two lost-keys failures in "Known and not yet explained", all happened in the first test class of a job, minutes after its simulator booted.
+So `scripts/ci/boot-simulator.sh` now launches Settings, waits 15 seconds and quits it before the tests (`PORCHLIGHT_SETTLE_SECONDS`, 0 to turn it off), which costs each test job about 20 seconds: under two minutes of Mac time for a full run, none of it on the longest job's critical path beyond those 20 seconds.
+It is not known to help.
+Before it, these four failures came in about fourteen full runs over two days; it stays if none comes in the next thirty full runs, and comes out if one does, with the result written here either way.
 
 ### Tests that wait on the app's own timers
 
@@ -494,12 +503,12 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testSeveralCompanionsGoToAGrid | 19 | Three cards, each with its one tap | Keep | | |
 | testCompanionWeek | 58 | Week opens from a card; a missed slot is caught up | Delete once `PhoneWeekTests` is unfrozen: it opens the week from the card in every test, and `PhoneCatchUpTests.testCatchingUpFromTheWeek` is the same catch-up; "Walker of the week" is `CompanionWeekTests` | 58 | |
 | testPitchInAndAddingAChore | 50 | Yours, everyone, add a chore, it is mine today | Keep (smoke) | | |
-| testAWidgetLinkOpensLists | 48 | `porchlight://lists` and `://today` | Merge into testListsAndDinners (open the link instead of tapping the tab) | 30 | |
+| testAWidgetLinkOpensLists | 48 | `porchlight://lists` and `://today` | Merge into testListsAndDinners (open the link instead of tapping the tab) | 30 | done |
 | testListsAndDinners | 52 | Add, check, dinners' needs, counts | Keep; the counts and aisles are also `PocketTabsTests` | | |
 | testGlowAndCashingIn | 28 | Cash in asks once, celebrates, starts again | Keep | | |
-| testNextSevenDays | 40 | Row opens the page, grouped by day | Merge into `PhoneTests.testTodayWithSomethingDue` (same launch, Today's last row); grouping is `PocketTabsTests` | 25 | |
+| testNextSevenDays | 40 | Row opens the page, grouped by day | Merged into `testLooks`, which reaches the page from Today and keeps "grouped by day"; grouping is `PocketTabsTests` | 25 | done |
 | testChoosingCalendars | 33 | Why before asking; sharing choices | Keep (permission) | | |
-| testCalendarsFromYou | 45 | Calendars row in You opens the page | Merge into `PhoneTests.testYouSheet` (same launch); it settled the row before revealing it, now the other way round | 30 | |
+| testCalendarsFromYou | 45 | Calendars row in You opens the page | Merge into `PhoneTests.testYouSheet` (same launch); it settled the row before revealing it, now the other way round | 30 | done |
 | testFixingAWalkFromToday | 70 | Fix, saved, remove asks, slot open again | Keep | | |
 | testFixingAWalkFromTheWeek | 76 | Diary row opens, Keep it backs out, remove | Keep | | |
 | testFixingAWalkOnASharedScreen | 30 | Names, with no "You" | Keep | | |
@@ -526,8 +535,8 @@ Unfrozen on November 21, when the dish editor landed.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testSwitchingHouseholds | 26 | Header, list, one tap switches every tab | Keep | | |
-| testSwitcherNightLook | 23 | Shots | Merge into testNightLook | 15 | |
-| testHeaderAndSlotsLargestText | 24 | Header whole; slot reads without a dot | Merge into testLargestText | 15 | |
+| testSwitcherNightLook | 23 | Shots | Merged into `testLooks`: three launches in the night look at the largest size, one for each place a person starts from (joining, a member's Today with a banner, two households) | 15 | done |
+| testHeaderAndSlotsLargestText | 24 | Header whole; slot reads without a dot | Merged into `testLooks`, which keeps both assertions | 15 | done |
 | testOneHouseholdHasNoSwitcher | 27 | No switcher; start another | Keep | | |
 | testTheWelcomeExplainsBothWaysIn | 14 | Two doors, and how to join | Delete: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` opens the same screen and taps the same door; move "Or scan your family's code" there | 14 | done |
 | testJoiningFromAnInvite | 36 | Preview, who, bringing in, Today | Keep (smoke) | | |
@@ -541,8 +550,8 @@ Unfrozen on November 21, when the dish editor landed.
 | testWithSyncOffTheHouseholdIsOnThisPhoneOnly | 38 | Says so, the switch turns it on, invites can go | Keep; the words are `HouseholdHomeTests` | | |
 | testAMemberSeesWhoseICloudItIs | 18 | Owner's iCloud; no invite for a member | Merge into `PhoneSetupTests.testAMemberLeaves` (identical launch) | 18 | done |
 | testRenamingThisPhone | 35 | Type a name, saved | Keep | | |
-| testNightLook | 52 | Shots | Keep (looks) | | |
-| testLargestText | 50 | Join and banner fit | Keep (looks) | | |
+| testNightLook | 52 | Shots | Merged into `testLooks`: three launches in the night look at the largest size, one for each place a person starts from (joining, a member's Today with a banner, two households) |  | done |
+| testLargestText | 50 | Join and banner fit | Merged into `testLooks`, which keeps its assertions; it was the slowest test in the suite at 151 seconds in run 44900373348 |  | done |
 
 #### PhoneSetupTests (511 s)
 
@@ -600,9 +609,9 @@ Unfrozen on November 21, when the dish editor landed.
 | testCheckingChores | 29 | Check, undo, shared chore credited | Keep (smoke) | | |
 | testAllClear | 30 | A finished day folds to one line | Keep for now: "Yo-Yo is all set" and "Nothing else for you today" are written in the views, so nothing below the UI can say them yet; `PocketTodayTests` holds when a card folds | 30 |  |
 | testYouSheet | 29 | Household, role, change who I am | Keep | | |
-| testYouOnEveryTab | 32 | The avatar is on each tab | Merge into `PhoneTabsTests.testPaperUnderTheStatusBar`, which visits each tab | 30 | |
-| testNightLook | 24 | Shots | Keep (looks) | | |
-| testLargestText | 41 | Log button whole and full width | Keep (looks) | | |
+| testYouOnEveryTab | 32 | The avatar is on each tab | Merge into `PhoneTabsTests.testPaperUnderTheStatusBar`, which visits each tab | 30 | done |
+| testNightLook | 24 | Shots | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size; the care sheet's look is hosted |  | done |
+| testLargestText | 41 | Log button whole and full width | Merged into `testLooks`, which keeps its assertions |  | done |
 
 ### Wall
 
@@ -650,9 +659,9 @@ Unfrozen on November 21, when the dish editor landed.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testShotsWaitInTheFormUntilSave | 35 | Nothing saves before Save; discard asks | Keep | | |
-| testTheRemoveBadgeTakesTapsOverThePhoto | 26 | Badge wins the tap over the photo | Merge into testPagingAndEditingPhotosOfASavedMeal, which removes the same photo | 26 | |
+| testTheRemoveBadgeTakesTapsOverThePhoto | 26 | Badge wins the tap over the photo | Merge into testPagingAndEditingPhotosOfASavedMeal, which removes the same photo | 26 | done |
 | testPagingAndEditingPhotosOfASavedMeal | 34 | Paging; cancel keeps; save removes | Keep | | |
-| testTheViewfinderIsThePolaroidSquare | 20 | Viewfinder is square; shots under it | Merge into testShotsWaitInTheFormUntilSave (same screen) | 20 | |
+| testTheViewfinderIsThePolaroidSquare | 20 | Viewfinder is square; shots under it | Merge into testShotsWaitInTheFormUntilSave (same screen) | 20 | done |
 | testWholePhotoAndReframing | 35 | Whole photo; drag moves the square | Keep (gesture) | | |
 | testReframingAnotherPhoto | 38 | Reframe frames that photo only | Merge with testMakingAnotherPhotoTheCover into one editor journey | 31 | |
 | testMakingAnotherPhotoTheCover | 31 | No duplicate; one cover | As above; the order rule is `MealPhotoOrderTests` | | |
@@ -733,7 +742,7 @@ Landed on November 21; seconds from run 44875496226.
 | PhoneDishEditorTests.testHomeMealTypedWithASuggestion | 50 | A typed dish, a suggestion taken | Keep (keyboard) | | |
 | PhoneDishEditorTests.testAPhotoAloneIsAWholeMeal | 45 | A meal with no dish saves | Keep; the rule is `DishLinesEditTests` | | |
 | PhoneDishEditorTests.testEditAddsAndTakesOffADish | 61 | An edit adds and removes a line | Keep | | |
-| PhoneDishEditorTests.testTheFormAtNightAndAtTheLargestText | 84 | The form in two looks | Hosted next: the form needs the snap's stores and a photo handed in | 70 | |
+| PhoneDishEditorTests.testTheFormAtNightAndAtTheLargestText | 84 | The form in two looks | One launch in the night look at the largest size, keeping the typed dishes and the field over the keyboard; the chips are the restaurant journey's. It took 133 and 158 seconds in full runs | 70 | done |
 | WallDishEditorTests.testRestaurantMealWithTwoDishesFromLastTime | 42 | The same journey on the wall | Keep | | |
 | WallDishEditorTests.testHomeMealTypedWithASuggestion | 31 | The same on the wall | Keep (keyboard) | | |
 | WallDishEditorTests.testAPhotoAloneIsAWholeMeal | 23 | The same on the wall | Merge into testHomeMealTypedWithASuggestion's launch, or leave: 23 seconds | | |
