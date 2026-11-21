@@ -130,7 +130,7 @@ What the spike of November 20 found, so its limits are known:
 - **The unit tests run on the iPad simulator.**
   The phone's layout comes from a compact size class set on the hosting controller, which the week's screen follows; a screen that asks the device what it is would not.
 
-It is proven for three (a companion's week, the care sheet and the dishes pages), and their looks have moved onto it; Lists, Glow and Pitch in are hosted too (`PocketTabsScreenTests`) but have not yet been seen failing, so `PhoneTabsTests`' looks tests stay until they have ("Review shots"); other screens move one at a time, each with a hosted test seen failing first and one UI test kept for what only the real screen shows.
+It is proven for three (a companion's week, the care sheet and the dishes pages), and their looks have moved onto it, as have those of Lists, Glow and Pitch in (`PocketTabsScreenTests`) ("Review shots"); other screens move one at a time, each with a hosted test seen failing first and one UI test kept for what only the real screen shows.
 
 When you add a new kind of test, add a working example with it and a row to the table above.
 
@@ -157,6 +157,7 @@ Review shots come from two places, and each screen's are named so a person knows
 | The care sheet: new, fixing, catching up | `care-sheet-new-<look>.png`, `care-sheet-fix-<look>.png`, `care-sheet-catchUp-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testFixingAWalkLooks`: the real sheet at the largest size, Save within reach (`edit-40-today-largest`, `edit-41-save-largest`). `PhoneCatchUpTests`, `PhoneTabsTests.testFixingAWalkFromToday`: the sheet opens, saves, asks before removing and closes (`catch-up-10-banner-sheet`, `edit-10-today`, `edit-11-remove`) |
 | Dishes: the list, a dish, a restaurant | `dishes-list-<look>.png`, `dishes-dish-<look>.png`, `dishes-place-<look>.png` | light, dark, largest, largest-dark | `PhoneDishesTests`: search, the star, a restaurant from a dish, each person's face, renaming into a merge, removing with Undo (`dishes-02-list` to `dishes-10-empty`) |
 | Food: the Where pills, the photo row and reframing, paper under the status bar | none yet: the status bar is not there in a hosted screen, and the editor's row needs the meal's photos handed in | | `PhoneFoodTests.testWhereLooks`, `testPhotoRowAndReframeLooks` and `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: one look each, the night look at the largest size (`where-20-phone-largest-dark`, `parity-30-edit-row-largest-dark`, `parity-31-reframe-largest-dark`, `b5-60` to `b5-63` `-largest-dark`); `testNightLook` and `testLargestText` for the diary and a meal's page |
+| Lists, Glow, Pitch in | `lists-<look>.png`, `glow-<look>.png`, `pitch-in-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testLooks`: the real tabs in the night look at the largest size, the field and the cash-in button whole, cashing in to the celebration, the next 7 days (`m3-90-lists-largest-dark`, `m3-91-glow-largest-dark`, `m3-83-celebration-largest-dark`, `m3-94-next-7-days-largest-dark`); the journeys for adding, checking off and cashing in |
 | Notifications | none: the page reads the permission itself | | `PhoneRemindersTests.testLooks`: night look at the largest size in one launch (`e2-80-choices-largest-dark`); `e2-10-ask`, `e2-11-denied`, `e2-12-choices` from the journeys |
 
 A screen moves to hosted shots when a hosted test of it exists and has been seen failing; until then its looks tests stay as they are.
@@ -449,9 +450,9 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testFixingAWalkOnASharedScreen | 30 | Names, with no "You" | Keep | | |
 | testFixingAWalkLooks | 158 | Fix sheet in dark, largest, largest dark | One launch at the largest size for what only the real sheet shows (the pill among everything else, Save within reach); the looks are hosted in `PocketCareSheetScreenTests` | 100 | done, 38 and 63 s measured (runs 44871628859, 44871628840) |
 | testTheTimePillGrowsWithText | 100 | Pill grows, clear of "Started", on screen; three launches at the largest size | Merge into testFixingAWalkLooks, which already opens the same sheet at the same size in both looks; the rule at every size is `TimeFieldLayoutTests` | 85 | done |
-| testNightLook | 39 | Shots | Keep (looks) | | |
+| testNightLook | 39 | Shots | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size; the pages themselves are hosted in `PocketTabsScreenTests` | 60 | done |
 | testPaperUnderTheStatusBar | 95 | Four tabs scrolled, at two sizes | Keep, and take `PhoneTests.testYouOnEveryTab` | | |
-| testLargestText | 81 | Field, cash-in whole on screen | Keep (looks) | | |
+| testLargestText | 81 | Field, cash-in whole on screen | Merged into `testLooks`, which keeps both assertions on the real screen | | done |
 
 #### PhoneWeekTests (953 s)
 

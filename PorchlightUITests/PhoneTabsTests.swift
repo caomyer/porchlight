@@ -310,25 +310,45 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Looks
 
-    func testNightLook() {
+    /// The real tabs in the night look at the largest text size, in one launch, for what only
+    /// they show: the list's field and the cash-in button whole on the real screen with its
+    /// tab bar, cashing in through to the celebration, and the next 7 days reached from
+    /// Today. How Lists, Glow and Pitch in look and fit in each look is
+    /// `PocketTabsScreenTests` (unit bundle), and a companion's week `PocketWeekScreenTests`;
+    /// this class launched twice to photograph them.
+    func testLooks() {
         XCUIDevice.shared.appearance = .dark
-        let app = launch()
-        app.buttons["week-Yo-Yo"].tap()
-        XCTAssertTrue(element(app, beginningWith: "Yo-Yo's week").waitForExistence(timeout: 5))
-        snapshot("m3-80-week-dark")
+        let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let window = app.windows.firstMatch.frame
         app.tabBars.buttons["Lists"].tap()
-        XCTAssertTrue(app.staticTexts["Groceries"].waitForExistence(timeout: 5))
-        snapshot("m3-81-lists-dark")
+        let field = app.textFields["add-item"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(window.contains(field.frame))
+        snapshot("m3-90-lists-largest-dark")
+
         app.tabBars.buttons["Glow"].tap()
-        XCTAssertTrue(element(app, beginningWith: "Saving for").waitForExistence(timeout: 5))
-        snapshot("m3-82-glow-dark")
         let cashIn = app.buttons["Cash in Fancy coffee run"]
         reveal(cashIn, in: app)
+        XCTAssertTrue(window.contains(cashIn.frame), "The cash-in button is whole on screen")
+        snapshot("m3-91-glow-largest-dark")
         cashIn.tap()
-        app.buttons["confirm-cash-in"].waitToSettle()
-        app.buttons["confirm-cash-in"].tap()
+        let confirm = app.buttons["confirm-cash-in"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        reveal(confirm, in: app)
+        confirm.waitToSettle()
+        confirm.tap()
         XCTAssertTrue(app.staticTexts["Fancy coffee run!"].waitForExistence(timeout: 5))
-        snapshot("m3-83-celebration-dark")
+        snapshot("m3-83-celebration-largest-dark")
+        let done = app.buttons["celebration-done"]
+        reveal(done, in: app)
+        done.tap()
+
+        app.tabBars.buttons["Today"].tap()
+        let next = app.buttons["next-7-days"]
+        reveal(next, in: app)
+        next.tap()
+        XCTAssertTrue(app.staticTexts["Next 7 days"].waitForExistence(timeout: 5))
+        snapshot("m3-94-next-7-days-largest-dark")
     }
 
     /// Every tab, scrolled, keeps paper under the status bar, at the usual size and the largest.
@@ -344,34 +364,4 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         }
     }
 
-    func testLargestText() {
-        let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
-        let window = app.windows.firstMatch.frame
-        app.tabBars.buttons["Lists"].tap()
-        let field = app.textFields["add-item"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
-        XCTAssertTrue(window.contains(field.frame))
-        snapshot("m3-90-lists-largest")
-        app.tabBars.buttons["Glow"].tap()
-        let cashIn = app.buttons["Cash in Fancy coffee run"]
-        reveal(cashIn, in: app)
-        XCTAssertTrue(window.contains(cashIn.frame), "The cash-in button is whole on screen")
-        snapshot("m3-91-glow-largest")
-        let everyone = element(app, beginningWith: "You,")
-        reveal(everyone, in: app)
-        snapshot("m3-92-glow-everyone-largest")
-
-        app.tabBars.buttons["Today"].tap()
-        let seeAll = app.buttons["see-all"]
-        reveal(seeAll, in: app)
-        seeAll.tap()
-        XCTAssertTrue(app.staticTexts["Pitch in"].waitForExistence(timeout: 5))
-        snapshot("m3-93-pitch-in-largest")
-        app.navigationBars.buttons.firstMatch.tap()
-        let next = app.buttons["next-7-days"]
-        reveal(next, in: app)
-        next.tap()
-        XCTAssertTrue(app.staticTexts["Next 7 days"].waitForExistence(timeout: 5))
-        snapshot("m3-94-next-7-days-largest")
-    }
 }
