@@ -6,23 +6,26 @@
 # booted, and the first thing asked of it (installing, or uninstalling an app) waits for
 # that; asking here keeps that wait out of the tests' time too.
 #
-# Each stage has a time limit of its own (scripts/lib/stage.sh). A stage that stalls is
-# named in the log; the simulator is then shut down, erased and booted once more, and a
-# second stall fails the job saying which stage it was. Before this, a boot that stalled
-# sat until GitHub cancelled the job with "The operation was canceled" and nothing else
-# (three times by November 21, 2026; docs/design/testing.md, "Infrastructure failures").
+# Each stage has a time limit of its own (scripts/lib/stage.sh), and a stage that stalls is
+# named in the log and fails the job, saying that no test ran. A stall is not tried again:
+# a simulator that is slow is slow because the Mac is short of memory or of processor, and
+# erasing it and booting it once more makes it do all of its first-boot work a second time
+# on that same Mac (measured on November 21, 2026; docs/design/testing.md, "Infrastructure
+# failures"). Only a boot that fails outright, with an error rather than by running out of
+# time, is shut down, erased and tried once more.
 #
-#   PORCHLIGHT_BOOT_SECONDS    the limit for booting (default 540: a new iOS 27 simulator
-#                              has taken up to eight minutes)
-#   PORCHLIGHT_READY_SECONDS   the limit for the first uninstall to answer (default 150)
+#   PORCHLIGHT_BOOT_SECONDS    the limit for booting (default 600: a new iOS 27 simulator
+#                              has taken up to eight and a half minutes)
+#   PORCHLIGHT_READY_SECONDS   the limit for the first uninstall to answer (default 420: it
+#                              has taken up to four minutes)
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 source scripts/lib/simulators.sh
 source scripts/lib/stage.sh
 porchlight_sim_runtime=$RUNTIME
 
-boot_limit=${PORCHLIGHT_BOOT_SECONDS:-540}
-ready_limit=${PORCHLIGHT_READY_SECONDS:-150}
+boot_limit=${PORCHLIGHT_BOOT_SECONDS:-600}
+ready_limit=${PORCHLIGHT_READY_SECONDS:-420}
 kind=$1
 
 udid=$(porchlight_simulator "$kind") || exit 1
@@ -34,24 +37,27 @@ ready_for_installs() {
   return 0
 }
 
-# Boots and waits until installs are answered. Prints the stage that stalled, if one did.
-boot_once() {
-  porchlight_stage "boot the $kind" "$boot_limit" porchlight_boot_simulator "$udid" || { stalled="boot the $kind"; return 1 }
-  porchlight_stage "ready for installs" "$ready_limit" ready_for_installs "$udid" || { stalled="ready for installs"; return 1 }
+stalled() {
+  echo "::error::The $kind simulator stalled at \"$1\": it had not finished after $2 seconds. No test ran: this is the Mac or the simulator, not a test. Run the job again."
+  exit 1
 }
 
 started=$SECONDS
-stalled=""
-if ! boot_once; then
-  first=$stalled
-  echo "::warning::The $kind simulator stalled at \"$first\". Shutting it down, erasing it and booting it once more."
+porchlight_stage "boot the $kind" "$boot_limit" porchlight_boot_simulator "$udid"
+booted=$?
+(( booted == 124 )) && stalled "boot the $kind" "$boot_limit"
+if (( booted != 0 )); then
+  echo "::warning::The $kind simulator failed to boot. Shutting it down, erasing it and booting it once more."
   xcrun simctl shutdown "$udid" >/dev/null 2>&1
   porchlight_stage "erase the $kind" 120 xcrun simctl erase "$udid" || true
-  stalled=""
-  if ! boot_once; then
-    echo "::error::The $kind simulator stalled twice, first at \"$first\" and then at \"$stalled\". No test ran: this is the Mac or the simulator, not a test. Run the job again."
+  porchlight_stage "boot the $kind" "$boot_limit" porchlight_boot_simulator "$udid"
+  booted=$?
+  (( booted == 124 )) && stalled "boot the $kind" "$boot_limit"
+  if (( booted != 0 )); then
+    echo "::error::The $kind simulator failed to boot, twice. No test ran: this is the Mac or the simulator, not a test. Run the job again."
     exit 1
   fi
-  echo "The $kind simulator booted on the second try, after stalling at \"$first\""
+  echo "The $kind simulator booted on the second try"
 fi
+porchlight_stage "ready for installs" "$ready_limit" ready_for_installs "$udid" || stalled "ready for installs" "$ready_limit"
 echo "Booted $kind $udid and ready for installs in $(( SECONDS - started ))s"

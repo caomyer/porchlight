@@ -8,7 +8,7 @@
 #
 # Each keeps its own words when it fails, so a download that could not be put right still
 # reads "The build's download was corrupted", never as a boot that failed, and a boot that
-# stalled twice still names its stage. The fetch's output is printed after the boot's, under
+# stalled still names its stage. The fetch's output is printed after the boot's, under
 # its own heading.
 set -uo pipefail
 here="${0:A:h}"

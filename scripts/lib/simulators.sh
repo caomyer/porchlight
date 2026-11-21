@@ -193,13 +193,17 @@ print(pages * page // 2**30)
 
 # Boots `udid` if it isn't booted, and waits until it is ready.
 #
-# PORCHLIGHT_SIM_DISABLED_DAEMONS, for a measurement only: launchd labels, space separated,
-# that this boot is not to start (com.apple.PosterBoard, say). They are written to the
-# simulator's launchd disabled list before it boots, where launchd_sim reads them as it
-# starts; WebKit's test harness does the same (Tools/Scripts/webkitpy/xcode/
-# simulated_device.py). Unset, as everywhere but a measurement run, nothing is written.
+# PORCHLIGHT_SIM_DISABLED_DAEMONS: launchd labels, space separated, that this boot is not
+# to start. They are written to the simulator's launchd disabled list before it boots,
+# where launchd_sim reads them as it starts; WebKit's test harness does the same
+# (Tools/Scripts/webkitpy/xcode/simulated_device.py). The hosted Macs set it to
+# com.apple.PosterBoard (.github/workflows/tests.yml): on a new simulator's first boot that
+# daemon renders every wallpaper at once, which takes a 7 GB Mac to an eighth of its memory
+# free and into swap, and jobs were cancelled there (docs/design/testing.md,
+# "Infrastructure failures"). The simulator then has a black wallpaper and is otherwise
+# the same. Unset or "none", as on a development Mac, nothing is written.
 porchlight_boot_simulator() {
-  if [[ -n "${PORCHLIGHT_SIM_DISABLED_DAEMONS:-}" ]]; then
+  if [[ -n "${PORCHLIGHT_SIM_DISABLED_DAEMONS:-}" && "$PORCHLIGHT_SIM_DISABLED_DAEMONS" != none ]]; then
     local dir="/private/var/tmp/com.apple.CoreSimulator.SimDevice.$1" label
     mkdir -p "$dir"
     [[ -f "$dir/disabled.plist" ]] || plutil -create xml1 "$dir/disabled.plist"

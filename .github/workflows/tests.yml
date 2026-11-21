@@ -41,7 +41,7 @@ on:
         required: false
         default: ""
       quiet:
-        description: "For a measurement only: launchd labels the simulators are not to start, space separated (e.g. com.apple.PosterBoard com.apple.chronod); empty starts everything"
+        description: "For a measurement only: launchd labels the simulators are not to start, space separated, or \"none\" to start everything; empty is com.apple.PosterBoard, as every run has it"
         required: false
         default: ""
       measure_boots:
@@ -66,7 +66,9 @@ env:
   PORCHLIGHT_TEST_SLOTS: "1"
   RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-2
   PORCHLIGHT_CI_IPAD: ${{ inputs.ipad }}
-  PORCHLIGHT_SIM_DISABLED_DAEMONS: ${{ inputs.quiet }}
+  # A new simulator's wallpaper daemon is not started: its first-boot work took these Macs
+  # into swap, and jobs were cancelled in it (scripts/lib/simulators.sh).
+  PORCHLIGHT_SIM_DISABLED_DAEMONS: ${{ inputs.quiet || 'com.apple.PosterBoard' }}
   # Where scripts/test.sh builds for a checkout named "porchlight".
   PRODUCTS: /Users/runner/Library/Developer/Xcode/DerivedData/Porchlight-porchlight/Build/Products
   PACKAGES: /Users/runner/Library/Developer/Xcode/DerivedData/Porchlight-porchlight/SourcePackages
@@ -162,10 +164,9 @@ jobs:
         run: zsh scripts/ci/pick-simulators.sh
 
       # With the memory heartbeat. The build is fetched, checked against the build job's
-      # checksum and unpacked while the simulator boots (scripts/ci/boot-and-fetch.sh). The
-      # boot has a limit and one more try for each stage and fails naming the stage; a
-      # download that cannot be put right fails saying it was corrupted. This step's limit
-      # is only the backstop.
+      # checksum and unpacked while the simulator boots (scripts/ci/boot-and-fetch.sh). Each
+      # stage of the boot has a limit and fails naming the stage; a download that cannot be
+      # put right fails saying it was corrupted. This step's limit is only the backstop.
       - name: Boot the ${{ matrix.kind }} and fetch the build
         timeout-minutes: 25
         env:
@@ -215,10 +216,9 @@ jobs:
         run: zsh scripts/ci/pick-simulators.sh
 
       # With the memory heartbeat. The build is fetched, checked against the build job's
-      # checksum and unpacked while the simulator boots (scripts/ci/boot-and-fetch.sh). The
-      # boot has a limit and one more try for each stage and fails naming the stage; a
-      # download that cannot be put right fails saying it was corrupted. This step's limit
-      # is only the backstop.
+      # checksum and unpacked while the simulator boots (scripts/ci/boot-and-fetch.sh). Each
+      # stage of the boot has a limit and fails naming the stage; a download that cannot be
+      # put right fails saying it was corrupted. This step's limit is only the backstop.
       - name: Boot the ${{ matrix.kind }} and fetch the build
         timeout-minutes: 25
         env:
@@ -300,7 +300,7 @@ jobs:
         trial: [1, 2, 3]
         include:
           - name: as it is
-            quiet: ""
+            quiet: none
           - name: no widgets
             quiet: com.apple.chronod com.apple.liveactivitiesd
           - name: no wallpapers

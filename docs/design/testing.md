@@ -106,7 +106,7 @@ Coverage is proven, not assumed.
 ## The middle options
 
 These sit between a pure function and a launched app.
-All eight are proven in this repository.
+All nine are proven in this repository.
 
 | Option | Proven by | Use it for |
 |---|---|---|
@@ -349,10 +349,77 @@ Each kind seen is listed here with what the scripts now do about it, so the next
 |---|---|---|---|
 | "The test runner crashed while preparing to run tests: PorchlightUITests-Runner at -[XCTWaiter(StallHandling) handleStalledWait:]", then "UI phone: 0/1 passed, 1 failed" | November 20, 2026, and November 21 (run 44909007366, Phone UI 1 of 3), the first class of the same phone shard both times; on the 21st the Mac's free memory fell from 63% to 19% and swap began just before | The test runner died before any test started, on a Mac short of memory | `scripts/test.sh` runs the suite once more when the log says the runner failed to start and holds no "Test Case ... started" line (`scripts/lib/runner-start.sh`), keeping the first log as `<suite>-never-started.log`. A second time fails saying "The test runner crashed before any test started, twice". A runner that dies after a test has started is never run again by this |
 | "Truncated tar archive" in "Unpack the build" | November 21, 2026 (run 44900372201, Wall smoke), while the other jobs of the run unpacked the same build | One download of the build arrived cut short and was reported as a success | The download is checked against the build job's size and SHA-256 and fetched again up to twice (`scripts/ci/unpack-build.sh`); then it fails saying "The build's download was corrupted" |
-| "The operation was canceled" in "Boot the ipad", and nothing else | November 20, 2026, twice, in jobs that had also built on the same Mac, with free memory near its lowest; November 21 (run 44926520830, Wall smoke), in a job that had not built, after the settle experiment's launch took 406 seconds and swap began | A boot step that stalled on a Mac short of memory until the job was cancelled from outside, with no word of where. The third shows it does not need a build on the same Mac, as the first two were thought to; what the three share is the 13-inch iPad simulator's first minutes on a 7 GB Mac, with memory falling | Each stage of the boot has its own limit (`scripts/ci/boot-simulator.sh`, `scripts/lib/stage.sh`): booting, 540 seconds, and the first uninstall answering, 150. A stage that stalls is named, the simulator is shut down, erased and booted once more, and a second stall fails the job saying "The ipad simulator stalled twice, first at ... and then at ...". The step's own 25 minute limit is only the backstop |
+| "The operation was canceled" in "Boot the ipad", and nothing else | Five jobs and one measurement: November 20, 2026, twice, in jobs that had also built on the same Mac; November 21, in run 44926520830 (Wall smoke, during the settle experiment), run 44944065349 (Unit and Wall UI 1 of 2, 10 minutes 44 seconds into the step), run 44949978616 (Wall smoke, 8 minutes 32 seconds in) and the measurement run 44949978636 (12 minutes 15 seconds in, still booting). About one iPad job in five that evening | A new simulator's first boot renders every wallpaper at once, which takes a 7 GB Mac to an eighth of its memory free and into swap, and the job is cancelled from outside while it is there. "What a new simulator's first boot costs", below, has the measurements, and what is and is not known about who cancels | The hosted Macs do not start the simulator's wallpaper daemon (`PORCHLIGHT_SIM_DISABLED_DAEMONS: com.apple.PosterBoard` in the workflow, written to the simulator's launchd disabled list before it boots by `scripts/lib/simulators.sh`). Each stage of the boot has its own limit (`scripts/ci/boot-simulator.sh`, `scripts/lib/stage.sh`): booting, 600 seconds, and the first uninstall answering, 420. A stage that stalls fails the job naming it, "The ipad simulator stalled at ...", and is not tried again; only a boot that fails outright, with an error, is erased and booted once more. The step's own 25 minute limit is only the backstop |
 | "Failed to launch", "Failed to get launch progress", "does not have a process ID", "Failed to terminate", with no crash report | Several runs a day on the hosted Macs | XCTest could not start, or quit, the app for one test | That test runs once more on its own, and the summary says "passed on a second launch" (`scripts/lib/launch_retry.py`); any other failure stands |
 
 `zsh scripts/ci/check-runner-start.sh`, `zsh scripts/ci/check-unpack-build.sh` and `zsh scripts/ci/check-boot-simulator.sh` check the first three rules against sample logs, a stand-in download and a stand-in simulator, and run with every build.
+
+#### What a new simulator's first boot costs
+
+Measured on November 21, 2026, after the fourth cancelled boot, with a job that does nothing but boot (`measure_boots` in the workflow, run by hand): each boot on a new hosted Mac with nothing else running, long limits so that nothing is tried again, and the free memory, the swap, the load and the five largest processes said every 15 seconds through the boot and for three minutes after.
+
+**What happens.**
+Every boot goes the same way.
+SpringBoard comes up, and then PosterBoard, the daemon behind the wallpapers, starts a dozen and more wallpaper extensions at once (the Mercury, Gradient, Pride, Unity, Rhizome, Aegir, Emoji, Photos, Weather and Kaleidoscope posters), each holding 150 to 350 MB and often two of each.
+Free memory falls from about 65% to between 12% and 24%, swap reaches 0.4 to 1.8 GB, and the load average on these three cores passes 400 and has reached 947.
+Then a wave of widget extensions (News, Fitness, Wallet, Health), and memory comes back to between 62% and 70% free.
+It lasts five to eight minutes from the start of the boot.
+`simctl bootstatus` sometimes answers before the trough (93 to 185 seconds) and sometimes after it (512 seconds), which is why "ready for installs" sometimes stalls and sometimes does not, and why the first class of a job sometimes starts in the middle of it.
+
+**It is not the iPad's model** (run 44949978636, three boots of each).
+
+| Model | Boot, s | Ready for installs, s | Lowest free memory | Most swap | |
+|---|---|---|---|---|---|
+| iPad Pro 13-inch (M5) 16GB, the wall's | 512, 111, 185 | 20, 49, 25 | 56%, 20%, 13% | 1,234 MB, 414 MB, 532 MB | |
+| iPad Pro 13-inch (M5) 12GB | 241, 123, none | 60, 249, none | 56%, 24%, 12% | 0, 1,030 MB, 1,428 MB | The third was cancelled by GitHub, still booting |
+| iPad Air 13-inch (M4) | 141, 363, 112 | 219, 52, 57 | 15%, 17%, 32% | 1,786 MB, 1,062 MB, 0 | |
+| iPad Air 11-inch (M4) | 93, 125, 132 | 134, 34, 43 | 16%, 19%, 53% | 833 MB, 1,317 MB, 0 | |
+
+A smaller iPad falls as far as the wall's own, so the wall's tests stay on the 13-inch iPad Pro.
+
+**It is the wallpaper daemon** (run 44954533328, three boots of the wall's iPad each way).
+A simulator's launchd reads a list of daemons it is not to start, `disabled.plist` in `/private/var/tmp/com.apple.CoreSimulator.SimDevice.<udid>/`, as it starts, so a label written there before the boot never launches.
+WebKit's own test harness does this for its simulators ([`simulated_device.py`](https://github.com/WebKit/WebKit/blob/main/Tools/Scripts/webkitpy/xcode/simulated_device.py), [`simulator_daemons.py`](https://github.com/WebKit/WebKit/blob/main/Tools/Scripts/webkitpy/xcode/simulator_daemons.py)), with a far longer list than ours and without PosterBoard in it.
+
+| Not started | Boot, s | Ready for installs, s | Lowest free memory | Most swap |
+|---|---|---|---|---|
+| Nothing: as it was | 206, 244, 128 | 6, 9, 51 | 64%, 53%, 42% | 0, 0, 0 |
+| `com.apple.chronod`, `com.apple.liveactivitiesd` (the widgets) | 94, 179, 453 | 8, 197, 9 | 50%, 13%, 23% | 1,180 MB, 1,616 MB, 1,195 MB |
+| `com.apple.PosterBoard` (the wallpapers) | 83, 139, 96 | 68, 51, 37 | 52%, 59%, 53% | 0, 0, 0 |
+| All three | 174, 175, 165 | 24, 5, 19 | 54%, 56%, 56% | 0, 0, 0 |
+
+Over both runs, of the 18 boots that started PosterBoard, 10 fell to 24% free or lower, 11 swapped and one was cancelled; of the 6 that did not start it, none fell below 52% and none swapped.
+Leaving out the widget daemons alone changed nothing, and the app has widgets, so they stay.
+Without PosterBoard the simulator's wallpaper is black and everything else is as before: the home screen, its widgets, Settings.
+So the hosted Macs do not start it, and a development Mac, which has the memory, is unchanged.
+
+**The limits of this.**
+Six boots is a small number; the memory was sampled every 15 seconds, and on a starved Mac a sample has taken minutes to arrive, so a trough can fall between two of them; the three boots "as it was" in the second run had ended their three minutes before any deep trough, which the first run shows can come later.
+What follows is to keep counting: boots, lowest free memory and cancellations in the full runs after the change.
+
+**The second try was the wrong answer.**
+In run 44944065349 the boot was done in 208 seconds, "ready for installs" stalled at its 150, and the simulator was shut down to be erased and booted again; the job was cancelled 61 seconds later.
+The heartbeat that reads 21% free and 1.4 GB of swap is stamped 20:23:40, in the middle of the first wait, and reached the log four minutes late: the Mac was already in the trough before anything was tried again.
+Erasing a simulator there makes it do all of its first-boot work again on the same Mac, and the measurements show the Mac comes back by itself when left alone.
+So a stall is no longer tried again; the limit for "ready for installs" went from 150 to 420 seconds, above the 249 it has been seen to take, and for booting from 540 to 600.
+
+**Who cancels, and what is documented.**
+Not known, and what follows is a correlation only: all five cancellations fell in the trough, between eight and a half and twelve and a quarter minutes into the step, with heartbeats arriving minutes late.
+In each, the runner was alive afterwards and ran the steps marked `always()`, so the job was cancelled on a living runner, which is not the "hosted runner lost communication with the server" case.
+- GitHub documents the standard macOS runner as a virtual machine with 3 cores and 7 GB, and the next size up as 5 cores and 14 GB ([GitHub-hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners), [larger runners](https://docs.github.com/en/actions/reference/runners/larger-runners)).
+  Nothing there says what happens when a job runs the machine out of memory, or that it produces "The operation was canceled".
+- The only text of GitHub's own that ties a starved machine to a job ending is the annotation for a lost runner, which lists starving it of processor or memory among three possible causes ([actions/runner#2040](https://github.com/actions/runner/issues/2040)).
+- [actions/runner-images#13263](https://github.com/actions/runner-images/issues/13263), "Error: The operation was canceled.", on these macOS images among others, was closed without a cause: its maintainer found no fault in the image and wrote "something happens on the service layer as it seems" and "Something sends cancellation signal."
+  One case there was the repository's own concurrency group cancelling the job; ours is not that, since a run by hand is in a group of its own and was cancelled the same way.
+- [actions/runner#2468](https://github.com/actions/runner/issues/2468), still open, has people reporting the same message when a Linux job ran out of memory, and no answer from GitHub on the cause.
+
+If another job is cancelled this way, run it again once with `gh run rerun <run> --job <job> --debug`: the runner's diagnostic log then says what it was told.
+Do not provoke one for the purpose.
+
+**Counting since the change.**
+
+| Run | Wallpaper daemon | Simulators booted | Lowest free memory in a boot step | Cancelled boots | The runner crashing before any test, or "I'm new here" losing its keys |
+|---|---|---|---|---|---|
 
 **An experiment that was tried and taken out the same day, November 21, 2026: letting a fresh simulator settle.**
 The two runner crashes above, and the two lost-keys failures in "Known and not yet explained", all happened in the first test class of a job, minutes after its simulator booted.
@@ -480,7 +547,7 @@ What it shows:
 What was decided about it, November 21, 2026:
 
 - **Done: the build is fetched while the simulator boots**, not after it (`scripts/ci/boot-and-fetch.sh`): up to a minute and a half a job.
-  The checksum check and the two further tries are as before, and each failure keeps its own words, so a download that cannot be put right reads "The build's download was corrupted" and a boot that stalled twice names its stage.
+  The checksum check and the two further tries are as before, and each failure keeps its own words, so a download that cannot be put right reads "The build's download was corrupted" and a boot that stalled names its stage.
 - **Declined: four test jobs in place of five.**
   One boot fewer, but a longer longest job and less room; with tiering live the queue is not what it was.
 - **Not available: keeping a booted simulator from one run to the next.**
