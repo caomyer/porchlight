@@ -94,7 +94,14 @@ final class SyncHarness {
         try database.cashInReward(id: reward.id, stars: 20, day: today, after: nil)
         let list = try database.createList(title: "Groceries", kind: .grocery, householdId: household.id)
         _ = try database.addListItem(title: "Basil", to: list.id, addedBy: people[0])
-        try database.setMeal(day: today, title: "Tacos", emoji: "🌮", householdId: household.id)
+        let tacos = try database.saveRecipe(
+            RecipeDraft(
+                name: "Tacos", serves: 4, ingredients: ["8 tortillas", "2 limes"], steps: ["Warm the tortillas."],
+                photos: [.added(NewRecipePhoto(image: try #require(Self.image().jpegData(compressionQuality: 0.8)), thumbnail: Data("small".utf8)))]
+            ),
+            householdId: household.id, addedBy: people[1]
+        )
+        try database.setMeal(day: today, title: "Tacos", emoji: "🌮", householdId: household.id, dishId: tacos.dish.id)
 
         let journal = try database.ensureFoodJournal(householdId: household.id)
         var dinner = MealDraft(

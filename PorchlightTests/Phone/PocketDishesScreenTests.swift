@@ -16,6 +16,8 @@ import UIKit
 @Suite("The phone's dishes, the whole pages")
 @MainActor
 struct PocketDishesScreenTests {
+    static let longName = "Grandma Lin's slow-braised pork belly with mustard greens"
+
     private func page(_ kind: String, _ look: HostedScreen.Look) async throws -> HostedScreen {
         let db = try AppDatabase.inMemory(installId: "dishes")
         let household = try db.createHousehold(
@@ -24,6 +26,16 @@ struct PocketDishesScreenTests {
         try db.markSetupCompleted(householdId: household.id)
         let snapshot = try db.snapshot()
         try FoodSamples.seed(db, household: try #require(snapshot.household), people: snapshot.people)
+        if kind == "list" {
+            // A name as long as they come, to wrap beside the picture.
+            let journal = try db.ensureFoodJournal(householdId: household.id)
+            var draft = MealDraft(
+                day: DayKey(.now, calendar: household.calendar), slot: "Dinner", sources: MealSources(.home),
+                eaterIds: snapshot.people.map(\.id), eatenAt: .now
+            )
+            draft.dishes = [DishLineDraft(name: Self.longName, rating: .again)]
+            _ = try db.addMeal(draft, journalId: journal.id)
+        }
         let store = FoodStore(database: db)
         let toasts = ToastCenter()
         let photos = PhotoImages(database: db)
@@ -71,6 +83,17 @@ struct PocketDishesScreenTests {
         default:
             #expect(page.elements.contains { $0.isButton && $0.label.contains("Pho tai") }, "a dish's row:\n\(page.listing)")
             #expect(page.elements.contains { $0.label.contains("Pho Saigon House") }, "its restaurant:\n\(page.listing)")
+            // One row layout for the whole list: the words beside the picture, wrapping, at
+            // the standard sizes; below it at the accessibility sizes, for every dish's row.
+            let expected: HostedRowLayout.Layout = look.textSize.isAccessibilityCategory ? .below : .beside
+            let picture: CGFloat = look.textSize.isAccessibilityCategory ? 36 * 1.4 : 36
+            let rows = page.elements.filter { element in
+                element.isButton && ["Pho tai", "Oatmeal", Self.longName].contains { element.label.hasPrefix($0) }
+            }
+            #expect(rows.count >= 3, "the dishes' rows, the long one among them:\n\(page.listing)")
+            for row in rows {
+                #expect(HostedRowLayout.layout(of: row.frame, picture: picture, in: page) == expected, "\(row.label.prefix(40))'s words are \(expected) its picture (\(look))")
+            }
         }
     }
 }

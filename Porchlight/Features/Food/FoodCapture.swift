@@ -6,6 +6,8 @@ struct CaptureRequest: Identifiable, Equatable {
     let id = UUID()
     var day: DayKey
     var slot: String?
+    /// The home dish the meal is of, already on it: "We made this" from a recipe.
+    var dish: Dish?
 }
 
 /// Everything the capture form edits, with smart defaults.
@@ -59,6 +61,10 @@ final class CaptureForm: StoredFirstObservable {
         time = request.day == store.today(now) ? .justNow : .at(MealSlot.usualTime(of: slot, on: request.day, calendar: store.calendar))
         slotWasPicked = request.slot != nil
         eaterIds = Set(store.people.map(\.id))
+        if let dish = request.dish {
+            // Home-cooked is the form's own default; the dish starts the meal.
+            _ = dishes.add(dish.name, dishId: dish.id)
+        }
     }
 
     /// The new meal's name as its polaroid will say it: the dishes added so far, not the

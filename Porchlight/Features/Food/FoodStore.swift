@@ -376,6 +376,37 @@ final class FoodStore: StoredFirstObservable {
         perform { try database.restore(removal) }
     }
 
+    // MARK: Recipes (docs/design/dishes.md, "Recipes")
+
+    /// The recipe bank, read from this snapshot's dish book.
+    var recipeBank: RecipeBank { RecipeBank(book) }
+
+    /// Adds or edits a recipe; throws so the editor can say why, and offer the dish a name
+    /// is taken by.
+    @discardableResult
+    func saveRecipe(_ draft: RecipeDraft, addedBy: Person.ID?) throws -> Dish {
+        guard let householdId = snapshot.household?.id else { throw DishError.dishNotFound }
+        let saved = try database.saveRecipe(draft, householdId: householdId, addedBy: addedBy)
+        lastError = nil
+        return saved.dish
+    }
+
+    /// Removes a dish's recipe; nil when it couldn't.
+    func removeRecipe(of dishId: Dish.ID) -> RecipeRemoval? {
+        do {
+            let removal = try database.removeRecipe(dishId: dishId)
+            lastError = nil
+            return removal
+        } catch {
+            lastError = error.userMessage
+            return nil
+        }
+    }
+
+    func restore(_ removal: RecipeRemoval) {
+        perform { try database.restore(removal) }
+    }
+
     func setTableFace(_ line: MealDish, _ rating: MealRating?) {
         perform { try database.setTableFace(lineId: line.id, rating) }
     }

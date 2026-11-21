@@ -127,6 +127,10 @@ struct FoodSnapshot: Equatable, Sendable {
     var lines: [JournalEntry.ID: [MealDish]] = [:]
     /// Each person's own faces, by line id.
     var faces: [MealDish.ID: [MealDishRating]] = [:]
+    /// The household's recipes, each on its dish (a merged dish's included).
+    var recipes: [Recipe] = []
+    /// Each recipe's card photos, in order, by recipe id (the pictures load lazily).
+    var recipePhotos: [Recipe.ID: [RecipePhoto]] = [:]
 
     static let empty = FoodSnapshot(household: nil, people: [], journal: nil, entries: [], eaters: [:], pages: [:])
 
@@ -195,10 +199,25 @@ struct FoodSnapshot: Equatable, Sendable {
                 """,
             arguments: [journal.id]
         )
+        let recipes = try Recipe.fetchAll(
+            db,
+            sql: "SELECT r.* FROM recipe r JOIN dish d ON d.id = r.dishId WHERE d.householdId = ? ORDER BY r.createdAt, r.id",
+            arguments: [householdId]
+        )
+        // Without the pictures, which load when a view shows them.
+        let recipePhotoList = try RecipePhoto.fetchAll(
+            db,
+            sql: """
+                SELECT p.id, p.dishId, p.recipeId, p.sortOrder, p.createdAt FROM recipePhoto p JOIN dish d ON d.id = p.dishId
+                WHERE d.householdId = ? ORDER BY p.recipeId, p.sortOrder, p.createdAt, p.id
+                """,
+            arguments: [householdId]
+        )
         return FoodSnapshot(
             household: household, people: people, everyone: everyone, journal: journal, entries: entries, eaters: eaters,
             photos: photos, photoSizes: photoSizes, pages: pages, places: places,
-            dishes: dishes, lines: Dictionary(grouping: lineList, by: \.entryId), faces: Dictionary(grouping: faceList, by: \.mealDishId)
+            dishes: dishes, lines: Dictionary(grouping: lineList, by: \.entryId), faces: Dictionary(grouping: faceList, by: \.mealDishId),
+            recipes: recipes, recipePhotos: Dictionary(grouping: recipePhotoList, by: \.recipeId)
         )
     }
 }

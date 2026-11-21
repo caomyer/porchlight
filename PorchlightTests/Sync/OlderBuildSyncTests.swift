@@ -1,4 +1,5 @@
 import CloudKit
+import Dependencies
 import Foundation
 import GRDB
 import OSLog
@@ -10,17 +11,17 @@ import Testing
 /// it has no table for, and new fields on a record it knows (docs/design/dishes.md,
 /// "Older builds").
 ///
-/// Two devices share one stand-in for iCloud: the newer one is today's app, with the dish
-/// tables and `otherSources` on the meal; the older one is the build from before both, with
-/// neither the tables nor the field.
+/// Two devices share one stand-in for iCloud: the newer one is today's app; the older one
+/// is the build from before dishes (no dish tables, no `otherSources` on the meal), or the
+/// one from before recipes (no recipe tables, no `dishId` on a planned dinner).
 @MainActor
 @Suite("Older builds", .serialized)
 struct OlderBuildSyncTests {
     @Test("An older build keeps records it doesn't know, and a meal it edits keeps the newer fields")
     func olderBuildEditsAMeal() async throws {
         let cloud = Cloud()
-        let newer = try await Phone(cloud, newer: true)
-        let older = try await Phone(cloud, newer: false)
+        let newer = try await Phone(cloud, build: .today)
+        let older = try await Phone(cloud, build: .beforeDishes)
         let entryId = try newer.logMealWithDish()
         try await newer.engine.sendChanges()
 
@@ -49,8 +50,8 @@ struct OlderBuildSyncTests {
     @Test("Updating to the newer build brings in the records an older build kept waiting")
     func updatingAppliesWaitingRecords() async throws {
         let cloud = Cloud()
-        let newer = try await Phone(cloud, newer: true)
-        var older = try await Phone(cloud, newer: false)
+        let newer = try await Phone(cloud, build: .today)
+        var older = try await Phone(cloud, build: .beforeDishes)
         let entryId = try newer.logMealWithDish()
         try await newer.engine.sendChanges()
         try await older.engine.fetchChanges()
@@ -64,8 +65,8 @@ struct OlderBuildSyncTests {
     @Test("An older build can't remove a meal that has dishes: iCloud keeps it, and it comes back there")
     func olderBuildRemovesAMeal() async throws {
         let cloud = Cloud()
-        let newer = try await Phone(cloud, newer: true)
-        var older = try await Phone(cloud, newer: false)
+        let newer = try await Phone(cloud, build: .today)
+        var older = try await Phone(cloud, build: .beforeDishes)
         let entryId = try newer.logMealWithDish()
         try await newer.engine.sendChanges()
         try await older.engine.fetchChanges()
@@ -94,6 +95,87 @@ struct OlderBuildSyncTests {
         #expect(try newer.count("SELECT COUNT(*) FROM mealDish") == 0)
         // The dishes belong to the household and stay.
         #expect(try newer.count("SELECT COUNT(*) FROM dish") == 2)
+    }
+}
+
+// MARK: - Recipes
+
+extension OlderBuildSyncTests {
+    @Test("A build before recipes keeps them waiting, and a planned dinner it edits keeps its dish")
+    func olderBuildKeepsRecipes() async throws {
+        let cloud = Cloud()
+        let newer = try await Phone(cloud, build: .today)
+        let older = try await Phone(cloud, build: .beforeRecipes)
+        let dishId = try newer.cookCurryWithRecipe()
+        try await newer.engine.sendChanges()
+
+        try await older.engine.fetchChanges()
+        #expect(try older.count("SELECT COUNT(*) FROM dish WHERE id = ?", dishId) == 1)
+        #expect(try older.hasTable("recipe") == false)
+        for type in ["recipe", "recipePhoto"] {
+            #expect(try older.waiting(recordType: type) == 1, "\(type) waits in the engine's metadata")
+        }
+
+        // Friday's dinner gets a new emoji on the older build: it sends what it changed.
+        try older.write("UPDATE mealPlan SET emoji = '🍲'")
+        try await older.engine.sendChanges()
+        let plan = try #require(cloud.records(type: "mealPlan").first)
+        #expect(plan.encryptedValues["dishId"] as? String == dishId.description, "iCloud keeps the dish")
+        #expect(plan.encryptedValues["emoji"] as? String == "🍲")
+
+        try await newer.engine.fetchChanges()
+        #expect(try newer.string("SELECT dishId FROM mealPlan") == dishId.description)
+        #expect(try newer.string("SELECT emoji FROM mealPlan") == "🍲")
+        #expect(try newer.count("SELECT COUNT(*) FROM recipe WHERE dishId = ?", dishId) == 1)
+    }
+
+    @Test("A build before recipes can't remove a dish that has one: iCloud keeps it, and the recipe is never lost")
+    func olderBuildRemovesADishWithARecipe() async throws {
+        let cloud = Cloud()
+        let newer = try await Phone(cloud, build: .today)
+        let older = try await Phone(cloud, build: .beforeRecipes)
+        let dishId = try newer.cookCurryWithRecipe()
+        try await newer.engine.sendChanges()
+        try await older.engine.fetchChanges()
+
+        // What its "Remove dish" does: the lines and the dish, not the recipe it doesn't know.
+        try older.write("DELETE FROM mealDish WHERE dishId = ?", dishId)
+        try older.write("DELETE FROM dish WHERE id = ?", dishId)
+        try await older.engine.sendChanges()
+        #expect(cloud.record(dishId, type: "dish") != nil, "iCloud keeps the dish its recipe hangs off")
+        #expect(cloud.records(type: "recipe").count == 1)
+        #expect(cloud.records(type: "recipePhoto").count == 1)
+        try await older.engine.fetchChanges()
+        #expect(try older.count("SELECT COUNT(*) FROM dish WHERE id = ?", dishId) == 1, "and it comes back on the older device")
+
+        try await newer.engine.fetchChanges()
+        #expect(try newer.count("SELECT COUNT(*) FROM dish WHERE id = ?", dishId) == 1)
+        #expect(try newer.count("SELECT COUNT(*) FROM recipe WHERE dishId = ?", dishId) == 1, "the recipe is never lost")
+        #expect(try newer.count("SELECT COUNT(*) FROM recipePhoto") == 1)
+    }
+
+    @Test("Updating to today's build brings in the waiting recipe and the planned dinner's dish")
+    func updatingBringsInRecipes() async throws {
+        // A new engine on the same device files the waiting card photo as an asset, which
+        // the stand-in for iCloud names with a fresh id.
+        try await withDependencies { $0.uuid = .incrementing } operation: {
+            try await bringsInRecipes()
+        }
+    }
+
+    private func bringsInRecipes() async throws {
+        let cloud = Cloud()
+        let newer = try await Phone(cloud, build: .today)
+        var older = try await Phone(cloud, build: .beforeRecipes)
+        let dishId = try newer.cookCurryWithRecipe()
+        try await newer.engine.sendChanges()
+        try await older.engine.fetchChanges()
+
+        older = try await older.updated()
+        #expect(try older.count("SELECT COUNT(*) FROM recipe WHERE dishId = ?", dishId) == 1)
+        #expect(try older.string("SELECT CAST(image AS TEXT) FROM recipePhoto") == "card", "the card photo, with its picture")
+        #expect(try older.string("SELECT CAST(thumbnail AS TEXT) FROM recipePhoto") == "small")
+        #expect(try older.string("SELECT dishId FROM mealPlan") == dishId.description)
     }
 }
 
@@ -132,15 +214,30 @@ private final class Phone {
     let folder: URL
     let database: AppDatabase
     let engine: SyncEngine
-    let newer: Bool
+    let build: Build
 
-    init(_ cloud: Cloud, newer: Bool, folder: URL? = nil) async throws {
+    /// Which build a device runs: today's, the one from before recipes (dishes, but no
+    /// recipe tables and no planned dinner's dish), or the one from before dishes.
+    enum Build { case today, beforeRecipes, beforeDishes }
+
+    init(_ cloud: Cloud, build: Build, folder: URL? = nil) async throws {
         self.cloud = cloud
-        self.newer = newer
+        self.build = build
         self.folder = folder ?? FileManager.default.temporaryDirectory
             .appendingPathComponent("older-build-\(UUID().uuidString)", isDirectory: true)
         database = try AppDatabase.openOnDisk(folder: self.folder)
-        if !newer {
+        if build != .today {
+            // Before recipes: no recipe tables and no `dishId` on a planned dinner. Updating
+            // runs that migration again.
+            try await database.writer.write { db in
+                try db.execute(sql: """
+                    DROP TABLE "recipePhoto"; DROP TABLE "recipe";
+                    ALTER TABLE "mealPlan" DROP COLUMN "dishId";
+                    DELETE FROM grdb_migrations WHERE identifier = ?;
+                    """, arguments: [AppDatabase.recipeMigration])
+            }
+        }
+        if build == .beforeDishes {
             // The schema from before dishes and before a meal could come from several places:
             // no dish tables, and no `otherSources` on the meal. Updating runs both again.
             try await database.writer.write { db in
@@ -164,7 +261,13 @@ private final class Phone {
             userDatabase: UserDatabase(database: database.writer),
             logger: Logger(.disabled),
             delegate: nil,
-            tables: newer ? Self.newerTables : Self.olderTables
+            tables: {
+                switch build {
+                case .today: Self.newerTables
+                case .beforeRecipes: Self.beforeRecipesTables
+                case .beforeDishes: Self.olderTables
+                }
+            }()
         )
         try engine.setUpSyncEngine()
         try await engine.start()
@@ -175,7 +278,7 @@ private final class Phone {
     func updated() async throws -> Phone {
         engine.stop()
         try database.writer.close()
-        return try await Phone(cloud, newer: true, folder: folder)
+        return try await Phone(cloud, build: .today, folder: folder)
     }
 
     static var olderTables: [any SynchronizableTable] {
@@ -186,14 +289,48 @@ private final class Phone {
         ]
     }
 
+    static var beforeRecipesTables: [any SynchronizableTable] {
+        [
+            SynchronizedTable(for: SyncMirror.Household.self), SynchronizedTable(for: SyncMirror.Person.self),
+            SynchronizedTable(for: SyncMirror.Journal.self), SynchronizedTable(for: SyncMirror.FoodPlace.self),
+            SynchronizedTable(for: SyncMirror.JournalEntry.self), SynchronizedTable(for: SyncMirror.JournalEntryEater.self),
+            SynchronizedTable(for: OlderMirror.MealPlan.self),
+            SynchronizedTable(for: SyncMirror.Dish.self), SynchronizedTable(for: SyncMirror.MealDish.self),
+            SynchronizedTable(for: SyncMirror.MealDishRating.self),
+        ]
+    }
+
     static var newerTables: [any SynchronizableTable] {
         [
             SynchronizedTable(for: SyncMirror.Household.self), SynchronizedTable(for: SyncMirror.Person.self),
             SynchronizedTable(for: SyncMirror.Journal.self), SynchronizedTable(for: SyncMirror.FoodPlace.self),
             SynchronizedTable(for: SyncMirror.JournalEntry.self), SynchronizedTable(for: SyncMirror.JournalEntryEater.self),
+            SynchronizedTable(for: SyncMirror.MealPlan.self),
             SynchronizedTable(for: SyncMirror.Dish.self), SynchronizedTable(for: SyncMirror.MealDish.self),
             SynchronizedTable(for: SyncMirror.MealDishRating.self),
+            SynchronizedTable(for: SyncMirror.Recipe.self), SynchronizedTable(for: SyncMirror.RecipePhoto.self),
         ]
+    }
+
+    /// A household, a home dinner of chicken curry, its recipe with a photo of the card,
+    /// and Friday's dinner planned from it. Returns the dish.
+    func cookCurryWithRecipe() throws -> Dish.ID {
+        let household = try database.createHousehold(name: "The Lake House", people: [PersonDraft(name: "Mia", color: .coral)])
+        try database.markSetupCompleted(householdId: household.id)
+        let people = try database.snapshot().people.map(\.id)
+        let journal = try database.ensureFoodJournal(householdId: household.id)
+        var draft = MealDraft(day: DayKey(rawValue: "2026-11-02"), slot: "Dinner", eaterIds: people, eatenAt: .now)
+        draft.dishes = [DishLineDraft(name: "Chicken curry", rating: .again)]
+        _ = try database.addMeal(draft, journalId: journal.id)
+        let saved = try database.saveRecipe(
+            RecipeDraft(
+                name: "Chicken curry", serves: 4, ingredients: ["2 lb chicken thighs", "1 can coconut milk"], steps: ["Brown the chicken."],
+                photos: [.added(NewRecipePhoto(image: Data("card".utf8), thumbnail: Data("small".utf8)))]
+            ),
+            householdId: household.id, addedBy: people[0]
+        )
+        try database.setMeal(day: DayKey(rawValue: "2026-11-27"), title: "Chicken curry", emoji: "🍛", householdId: household.id, dishId: saved.dish.id)
+        return saved.dish.id
     }
 
     /// A household, a dinner out with two dishes, and a field the older build lacks.
@@ -241,8 +378,16 @@ private final class Phone {
     }
 }
 
-/// The older build's meal: today's, without `otherSources`.
+/// The older builds' rows: a meal without `otherSources`, and a planned dinner without its dish.
 private enum OlderMirror {
+    @Table("mealPlan") struct MealPlan {
+        let id: UUID
+        var householdId: UUID
+        var day: String
+        var title: String
+        var emoji: String?
+    }
+
     @Table("journalEntry") struct JournalEntry {
         let id: UUID
         var journalId: UUID

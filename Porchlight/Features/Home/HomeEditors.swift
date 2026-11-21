@@ -250,6 +250,7 @@ struct RewardEditor: View {
 
 struct MealEditor: View {
     @Environment(HomeStore.self) private var store
+    @Environment(FoodStore.self) private var food
     @Environment(\.closeWallSheet) private var close
     @Environment(\.colorScheme) private var scheme
     let day: DayKey
@@ -257,10 +258,15 @@ struct MealEditor: View {
     @State private var title = ""
     @State private var emoji = ""
     @State private var emojiTouched = false
+    /// The dish picked from what we cook, kept while the words still name it.
+    @State private var picked: Dish?
+    /// The planned dinner's own words: what we cook narrows only once they change.
+    @State private var planned = ""
     @State private var error: String?
     @FocusState private var focused: Bool
 
     var body: some View {
+        let cooked = PlannedDish.suggestions(for: title == planned ? "" : title, in: food.book)
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Dinner").font(.display(28))
@@ -276,10 +282,38 @@ struct MealEditor: View {
                     .focused($focused)
                     .submitLabel(.done)
                     .onSubmit(save)
+                    .accessibilityIdentifier("dinner-title")
                     .onChange(of: title) { _, newTitle in
                         // Suggest an emoji as they type, until they pick one themselves.
                         if !emojiTouched { emoji = MealEmoji.guess(newTitle) ?? "" }
                     }
+            }
+            if !cooked.isEmpty {
+                // What we cook, so a dinner names its dish (docs/design/dishes.md, "Planned dinners").
+                EditorRow(label: "What we cook") {
+                    FlowLayout(spacing: 6) {
+                        ForEach(cooked) { dish in
+                            Button {
+                                picked = dish
+                                title = dish.name
+                                emoji = dish.emoji
+                                emojiTouched = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Text(dish.emoji)
+                                    Text(dish.name).font(.body(15, weight: 700)).lineLimit(2).multilineTextAlignment(.leading)
+                                    if food.book.recipe(of: dish.id) != nil { Text("📖").accessibilityLabel(", with a recipe") }
+                                }
+                                .padding(.horizontal, 12)
+                                .frame(minHeight: 44)
+                                .background(Theme.surface2, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("dinner-dish-\(dish.name)")
+                        }
+                    }
+                }
             }
             EditorRow(label: "Pick an emoji") {
                 FlowLayout(spacing: 6) {
@@ -317,6 +351,7 @@ struct MealEditor: View {
         .foregroundStyle(Theme.ink)
         .onAppear {
             if let meal = store.meal(on: day) {
+                planned = meal.title
                 title = meal.title
                 emoji = meal.emoji ?? ""
                 emojiTouched = true
@@ -332,7 +367,8 @@ struct MealEditor: View {
     }
 
     private func save() {
-        if store.setMeal(on: day, title: title, emoji: emoji.isEmpty ? nil : emoji) {
+        let dishId = picked.flatMap { DishName.key(title) == $0.key ? $0.id : nil }
+        if store.setMeal(on: day, title: title, emoji: emoji.isEmpty ? nil : emoji, dishId: dishId) {
             close()
         } else {
             error = store.lastError

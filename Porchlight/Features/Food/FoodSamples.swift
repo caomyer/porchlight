@@ -61,6 +61,9 @@ enum FoodSamples {
 
     /// `-sampleFood cjk`'s titles: Simplified and Traditional Chinese, Japanese, Korean and
     /// mixed, on the meals the phone's diary and the wall's week show first.
+    /// `-sampleFood long`'s recipe.
+    static let longRecipe = "Grandma Lin's slow-braised pork belly with mustard greens"
+
     private static let cjkTitles: [String: String] = [
         "Avocado toast": "大盘鸡",
         "Oat latte": "Steak",
@@ -163,6 +166,66 @@ enum FoodSamples {
             try add(dish, day: today.adding(days: index - 6, calendar: calendar), slot: slot, later: 25)
         }
 
+        // Recipes (docs/design/dishes.md, "Recipes"): two dishes we cook, one from a link,
+        // and Grandma's dumplings, not cooked yet. `-sampleFood norecipes` leaves the bank empty.
+        if UserDefaults.standard.string(forKey: "sampleFood") != "norecipes" {
+            let mia = people[min(1, people.count - 1)].id
+            let recipeDay = today.adding(days: -20, calendar: calendar).startDate(in: calendar)
+            try database.saveRecipe(RecipeDraft(
+                name: "Chicken curry", serves: 4,
+                ingredients: ["2 lb chicken thighs", "1 onion", "4 cloves garlic", "1 thumb of ginger", "3 tbsp curry powder", "1 can coconut milk", "2 potatoes"],
+                steps: ["Brown the chicken in batches, set aside.", "Soften onion, garlic and ginger, 5 min.", "Stir in the curry powder for a minute.",
+                        "Add the coconut milk, potatoes and chicken; simmer 30 min.", "Serve with rice."],
+                notes: "Ava likes it mild: 2 tbsp curry powder."
+            ), householdId: householdId, addedBy: mia, now: recipeDay)
+            try database.saveRecipe(RecipeDraft(
+                name: "Pesto pasta", serves: 4,
+                ingredients: ["1 lb spaghetti", "2 cups basil", "1/2 cup parmesan", "1/3 cup pine nuts", "2 cloves garlic", "1/2 cup olive oil"],
+                steps: ["Blend basil, nuts, garlic and cheese with the oil.", "Cook the pasta; keep a cup of its water.", "Toss with the pesto, loosening with the water."],
+                link: "https://example.com/pesto-pasta"
+            ), householdId: householdId, addedBy: nil, now: recipeDay)
+            try database.saveRecipe(RecipeDraft(
+                name: "Miso salmon", serves: 2,
+                ingredients: ["2 salmon fillets", "2 tbsp white miso", "1 tbsp mirin", "1 tsp honey"],
+                steps: ["Whisk miso, mirin and honey.", "Brush on the salmon; rest 20 min.", "Broil 8 min."]
+            ), householdId: householdId, addedBy: people[0].id, now: recipeDay)
+            try database.saveRecipe(RecipeDraft(
+                name: "Grandma Lin's dumplings", serves: 6,
+                ingredients: ["1 lb ground pork", "2 cups napa cabbage", "3 scallions", "1 thumb of ginger", "50 dumpling wrappers"],
+                steps: ["Salt the cabbage, squeeze it dry.", "Mix with pork, scallions and ginger.", "Fold, then pan-fry and steam."],
+                photos: [.added(SamplePhoto.recipeCard())]
+            ), householdId: householdId, addedBy: mia, now: recipeDay)
+
+            // `-sampleFood long`: a recipe as long as they come, cooked once, for reviewing
+            // how a long name and many ingredients and steps lay out.
+            if UserDefaults.standard.string(forKey: "sampleFood") == "long" {
+                _ = try add(home("🥘", Self.longRecipe, nil, 0xE9C9A8, .again), day: today.adding(days: -3, calendar: calendar), slot: 2)
+                try database.saveRecipe(RecipeDraft(
+                    name: Self.longRecipe, serves: 6,
+                    ingredients: [
+                        "2 lb pork belly, skin on, in 2-inch pieces", "1 lb pickled mustard greens, rinsed and chopped",
+                        "3 tbsp Shaoxing wine", "3 tbsp light soy sauce", "1 tbsp dark soy sauce", "40 g rock sugar",
+                        "1 thumb of ginger, sliced", "4 scallions, in lengths", "3 star anise", "1 cinnamon stick",
+                        "2 bay leaves", "1 dried chili", "4 cups hot water", "1 tsp salt",
+                    ],
+                    steps: [
+                        "Blanch the pork in boiling water for 5 min; rinse and drain.",
+                        "Soak the mustard greens 20 min, changing the water twice, then squeeze dry.",
+                        "Melt the rock sugar in a little oil over low heat until amber.",
+                        "Brown the pork in the caramel on every side.",
+                        "Add ginger, scallions and the spices; stir for a minute.",
+                        "Pour in the wine and both soy sauces, then the hot water to cover.",
+                        "Simmer covered on the lowest heat for an hour and a half.",
+                        "Stir in the mustard greens and simmer 30 min more, uncovered.",
+                        "Reduce until the sauce is glossy; salt to taste and serve with rice.",
+                    ],
+                    link: "https://example.com/grandma-lins-pork-belly",
+                    notes: "Better the next day. Grandma leaves out the chili for the kids.",
+                    photos: [.added(SamplePhoto.recipeCard())]
+                ), householdId: householdId, addedBy: mia, now: recipeDay)
+            }
+        }
+
         // Today's lunch and dinner in the mixed and Japanese titles, near the top of the
         // phone's diary, with no "On this day" above them.
         if UserDefaults.standard.string(forKey: "sampleFood") == "cjk" {
@@ -181,6 +244,13 @@ enum FoodSamples {
 /// A generated "photo" of a dish: a table, a plate seen from above and the dish's emoji,
 /// lit warm, so sample meals can have photos without a camera.
 enum SamplePhoto {
+    /// A recipe card for the samples: the generated photo of a plate, prepared as cards are.
+    static func recipeCard() -> NewRecipePhoto {
+        let image = image(palette: 3, emoji: "🥟")
+        let prepared = try? MealPhotoImaging.prepare(image)
+        return NewRecipePhoto(image: prepared?.image ?? Data(), thumbnail: prepared?.thumbnail ?? Data())
+    }
+
     private static let tables: [(UInt32, UInt32)] = [
         (0x6D4A32, 0x3D2A1E), (0x8A6A4A, 0x4A3424), (0x5A6B55, 0x2F3A2C),
         (0x9B5D3C, 0x522F1E), (0x444F63, 0x232A38), (0x7C6A4D, 0x3E3424),

@@ -226,13 +226,18 @@ struct MealPlan: Codable, Equatable, Identifiable, Sendable {
     var day: String
     var title: String
     var emoji: String?
+    /// The home dish it names, when it was planned from one (a plain id, "recipes v1").
+    /// It counts only while the title still names that dish (`PlannedDish.dish`): an older
+    /// build renaming the dinner keeps the id on iCloud but not the words.
+    var dishId: Dish.ID? = nil
 
-    init(householdId: Household.ID, day: DayKey, title: String, emoji: String?) {
+    init(householdId: Household.ID, day: DayKey, title: String, emoji: String?, dishId: Dish.ID? = nil) {
         id = Self.id(householdId: householdId, day: day)
         self.householdId = householdId
         self.day = day.rawValue
         self.title = title
         self.emoji = emoji
+        self.dishId = dishId
     }
 
     static func id(householdId: Household.ID, day: DayKey) -> ID {

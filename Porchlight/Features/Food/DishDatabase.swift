@@ -44,6 +44,10 @@ struct DishRemoval: Equatable, Sendable {
     var dish: Dish
     var lines: [MealDish]
     var faces: [MealDishRating]
+    /// Its recipe (and any on a dish merged into it), which go with it.
+    var recipes: [RecipeRemoval] = []
+    /// The planned dinners that named it, which keep their words but no longer link.
+    var plans: [MealPlan] = []
 }
 
 extension AppDatabase {
@@ -129,13 +133,7 @@ extension AppDatabase {
             if let other = try DishTidy.named(name, kitchen: dish.kitchen, householdId: dish.householdId, db: db), other.id != dish.id {
                 throw DishError.nameTaken(other.id)
             }
-            let illustrated = DishIllustration.suggestEmoji(for: dish.name) == dish.emoji
-            dish.name = name
-            if illustrated {
-                dish.emoji = DishIllustration.suggestEmoji(for: name) ?? dish.emoji
-            }
-            try dish.update(db)
-            try DishTidy.rewriteCopies(ofMealsWith: [dish.id], db: db)
+            try DishTidy.rename(&dish, to: name, db: db)
         }
     }
 
@@ -163,13 +161,22 @@ extension AppDatabase {
             guard let dish = try Dish.fetchOne(db, id: id) else { throw DishError.dishNotFound }
             let lines = try MealDish.filter(Column("dishId") == id).fetchAll(db)
             let faces = try MealDishRating.filter(lines.map(\.id).contains(Column("mealDishId"))).fetchAll(db)
+            let dishIds = [id] + (try RecipeTidy.mergedInto(id, db: db))
+            let recipes = try Recipe.filter(dishIds.contains(Column("dishId"))).fetchAll(db)
+            let recipeRemovals = try recipes.map { try RecipeTidy.removal(of: $0, db: db) }
+            let plans = try MealPlan.filter(Column("householdId") == dish.householdId && dishIds.contains(Column("dishId"))).fetchAll(db)
             for line in lines { _ = try line.delete(db) }
+            for recipe in recipes { try RecipeTidy.delete(recipe, db: db) }
+            for var plan in plans {
+                plan.dishId = nil
+                try plan.update(db)
+            }
             _ = try dish.delete(db)
             for entryId in Set(lines.map(\.entryId)) {
                 guard var entry = try JournalEntry.fetchOne(db, id: entryId) else { continue }
                 try DishTidy.writeCopies(of: &entry, db: db)
             }
-            return DishRemoval(dish: dish, lines: lines, faces: faces)
+            return DishRemoval(dish: dish, lines: lines, faces: faces, recipes: recipeRemovals, plans: plans)
         }
     }
 
@@ -184,6 +191,13 @@ extension AppDatabase {
             for face in removal.faces {
                 guard try MealDish.exists(db, id: face.mealDishId) else { continue }
                 try face.upsert(db)
+            }
+            for recipe in removal.recipes { try RecipeTidy.restore(recipe, db: db) }
+            for plan in removal.plans {
+                // Only a dinner that is still planned, with the same words, links again.
+                guard var current = try MealPlan.fetchOne(db, id: plan.id), current.dishId == nil, DishName.key(current.title) == DishName.key(plan.title) else { continue }
+                current.dishId = plan.dishId
+                try current.update(db)
             }
             try DishTidy.rewriteCopies(ofMealsWith: [removal.dish.id], db: db)
         }
@@ -277,11 +291,26 @@ enum DishTidy {
         return dish
     }
 
-    /// Removes a dish nobody eats any more, unless it is a favourite.
+    /// Removes a dish nobody eats any more, unless it is a favourite or has a recipe.
     static func dropIfUnused(_ id: Dish.ID, db: Database) throws {
         guard let dish = try Dish.fetchOne(db, id: id), !dish.favorite, dish.mergedInto == nil else { return }
         guard try MealDish.filter(Column("dishId") == id).fetchCount(db) == 0 else { return }
+        guard try RecipeTidy.recipe(ofLive: id, db: db) == nil else { return }
         _ = try dish.delete(db)
+    }
+
+    /// Renames a dish: every meal's title written from it follows, and every dinner
+    /// planned from it under its old name.
+    static func rename(_ dish: inout Dish, to name: String, db: Database) throws {
+        let oldName = dish.name
+        let illustrated = DishIllustration.suggestEmoji(for: dish.name) == dish.emoji
+        dish.name = name
+        if illustrated {
+            dish.emoji = DishIllustration.suggestEmoji(for: name) ?? dish.emoji
+        }
+        try dish.update(db)
+        try rewriteCopies(ofMealsWith: [dish.id], db: db)
+        try PlannedDish.rename(plansOf: Set([dish.id] + (try RecipeTidy.mergedInto(dish.id, db: db))), from: oldName, to: dish, db: db)
     }
 
     static func merge(_ id: Dish.ID, into survivorId: Dish.ID, db: Database) throws {
@@ -315,6 +344,9 @@ enum DishTidy {
         merged.favorite = false
         try merged.update(db)
         try rewriteCopies(ofMealsWith: [survivor.id], db: db)
+        // Dinners planned from the merged dish name the survivor now. Its recipe stays where
+        // it is: the survivor's own recipe wins, else readers find it through the merge.
+        try PlannedDish.rename(plansOf: [merged.id], from: merged.name, to: survivor, db: db)
     }
 
     // MARK: Copies

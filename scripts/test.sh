@@ -308,10 +308,10 @@ if (( wall )); then
     wall_classes=(${wall_classes:|phone_classes})
     classes=$(shard_of --with-unit-tests $wall_classes) || exit 1
     for class in ${=classes}; do wall_args+=(-only-testing:PorchlightUITests/$class); done
-    (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
+    (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens -skip-testing:PorchlightUITests/WallTourTests/testRecipeScreens)
   else
     for class in $phone_classes; do wall_args+=(-skip-testing:PorchlightUITests/$class); done
-    (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
+    (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens -skip-testing:PorchlightUITests/WallTourTests/testRecipeScreens)
   fi
 fi
 if (( phone )); then

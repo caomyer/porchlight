@@ -304,9 +304,29 @@ final class HomeStore: StoredFirstObservable {
     // MARK: Meals
 
     @discardableResult
-    func setMeal(on day: DayKey, title: String, emoji: String?) -> Bool {
+    func setMeal(on day: DayKey, title: String, emoji: String?, dishId: Dish.ID? = nil) -> Bool {
         guard let householdId else { return false }
-        return perform { try database.setMeal(day: day, title: title, emoji: emoji, householdId: householdId) }
+        return perform { try database.setMeal(day: day, title: title, emoji: emoji, householdId: householdId, dishId: dishId) }
+    }
+
+    /// Adds a recipe's ingredients to a list as items to buy, one each, in their aisles
+    /// (docs/design/dishes.md, "Recipes"). Returns the items added, for Undo.
+    func addIngredients(_ lines: [String], to list: HomeList, addedBy: Person.ID?) -> [ListItem] {
+        let titles = lines.map(Ingredient.groceryName)
+        do {
+            let added = try database.addListItems(titles: titles, to: list.id, addedBy: addedBy)
+            lastError = nil
+            return added
+        } catch {
+            lastError = error.userMessage
+            return []
+        }
+    }
+
+    /// Takes back what `addIngredients` added.
+    func removeItems(_ items: [ListItem]) {
+        let ids = items.map(\.id)
+        perform { try database.deleteListItems(ids: ids) }
     }
 
     // MARK: Ambient photos

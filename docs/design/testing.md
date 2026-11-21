@@ -116,7 +116,8 @@ All eight are proven in this repository.
 | The fake iCloud | `SyncHarness`, `SyncControllerTests` | What sync sends, receives and says |
 | A SwiftUI view drawn with `ImageRenderer` in the unit bundle | `WidgetRenderTests` | Review shots of self-contained views in light, dark and the largest text, in milliseconds |
 | A component measured in a `UIHostingController` in the unit bundle | `TimeFieldLayoutTests` | A component's layout facts at every Dynamic Type size: it grows, it fits the width, it stacks instead of overlapping |
-| A whole screen hosted in a window in the unit bundle (`HostedScreen`) | `PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketDishesScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests` | Where every element of a screen sits, and a picture of the whole page, in light, dark and the largest text |
+| A whole screen hosted in a window in the unit bundle (`HostedScreen`) | `PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketDishesScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketRecipesScreenTests` | Where every element of a screen sits, and a picture of the whole page, in light, dark and the largest text |
+| A list row's layout read from that hosted page's picture (`HostedRowLayout`) | `PocketRecipesScreenTests` (the bank), `PocketDishesScreenTests` (the dishes list), each with a name and a line as long as they come, and seen failing with a fit-or-stack switch put back | Whether every row of a list keeps one layout at a given text size (the words beside the picture at the standard sizes, below it at the accessibility sizes), where a row reads to VoiceOver as one element and its picture and name have no frames of their own |
 | A line of text laid out with Core Text, its ink measured | `HandwritingTests`, `HandCompanionTests` | Whether a face's ink stays inside the box a `Text` gives it, at every size, with and without a fallback face |
 
 The component option works by size, not by position.
@@ -165,6 +166,7 @@ The night look and the largest text size are checked by eye from screenshots, pl
 - One looks test per class at most, visiting the class's screens in as few launches as it can: navigate between screens inside a launch instead of launching once per screen.
 - A look is a launch, so three looks of one screen are three launches; do not also launch per screen.
 - Never repeat a journey's steps in a looks test to get to a screen; start there with a debug launch argument (`-debugFoodView`, `-debugCompanionSheet`, `-debugYouPage`).
+  The recipes add `-debugFoodView recipes|recipe|recipe-long|recipe-edit|recipe-plan` (the bank, the first recipe, or the recipe with the most ingredients opened, in its editor, or being planned) and `-sampleFood norecipes|long` (an empty bank, or a recipe as long as they come, cooked once, with a card).
 - A layout fact that holds for a component everywhere (the time pill, the photo row) is asserted once, in one looks test, not in each class that shows the component.
 
 ### Review shots
@@ -183,6 +185,7 @@ Review shots come from two places, and each screen's are named so a person knows
 | Food: the Where pills, the photo row and reframing, paper under the status bar | none yet: the status bar is not there in a hosted screen, and the editor's row needs the meal's photos handed in | | `PhoneFoodTests.testWhereLooks`, `testPhotoRowAndReframeLooks` and `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: one look each, the night look at the largest size (`where-20-phone-largest-dark`, `parity-30-edit-row-largest-dark`, `parity-31-reframe-largest-dark`, `b5-60` to `b5-63` `-largest-dark`); `testNightLook` and `testLargestText` for the diary and a meal's page |
 | Lists, Glow, Pitch in | `lists-<look>.png`, `glow-<look>.png`, `pitch-in-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testLooks`: the real tabs in the night look at the largest size, the field and the cash-in button whole, cashing in to the celebration, the next 7 days (`m3-90-lists-largest-dark`, `m3-91-glow-largest-dark`, `m3-83-celebration-largest-dark`, `m3-94-next-7-days-largest-dark`); the journeys for adding, checking off and cashing in |
 | The Food diary on this week, last week and an empty week | `food-week-0-<look>.png`, `food-week-1-<look>.png`, `food-week-3-<look>.png` | light, dark, largest, largest-dark | `PhoneFoodTests.testChangingWeeks`: back a week, a meal opened and Back to the same week, a past slot filled and kept in its week, back to this week (`b5-30-last-week`) |
+| Recipes: the bank, an empty bank, a recipe's page, a home dish's way to its recipe | `recipes-bank-<look>.png`, `recipes-empty-<look>.png`, `recipes-page-<look>.png`, `recipes-dish-<look>.png`, `recipes-dish-none-<look>.png` | light, dark, largest, largest-dark | `PhoneRecipesTests`: adding a recipe to a dish we cook, cooking from the bank, planning a dinner from the bank and from "What we cook", ingredients to the grocery list (`recipes-01-empty` to `recipes-30-picked`). The wall has no hosted looks and no night look: `WallRecipesTests` keeps the same four journeys (`w4-01-empty` to `w4-30-groceries`), and `WallTourTests.testRecipeScreens` photographs the wall's recipe screens with `-sampleFood long` for review, by hand with `--tour` |
 | Joining, the sync banner, the household's name on Today | none yet | | `PhoneHouseholdTests.testLooks`: the night look at the largest size, Join and Continue within reach, the banner fitting, the household named whole (`phone-140-join-preview-largest-dark`, `phone-141-join-who-largest-dark`, `phone-142-banner-largest-dark`, `a5-22-today-header-largest-dark`, `a5-23-today-slots-largest-dark`) |
 | Today | none yet | | `PhoneTests.testLooks`: the night look at the largest size, the log button whole and full width (`phone-90-largest-text-dark`, `phone-91-largest-text-chores-dark`); `phone-10` to `phone-12` from the journey |
 | The dish editor's form | none yet | | `PhoneDishEditorTests.testTheFormAtNightAndAtTheLargestText`: one launch, the field and its suggestions over the keyboard (`editor-30-largest-dark`) |
@@ -681,6 +684,18 @@ Unfrozen on November 21, when the dish editor landed.
 | testNightLook | 24 | Shots | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size; the care sheet's look is hosted |  | done |
 | testLargestText | 41 | Log button whole and full width | Merged into `testLooks`, which keeps its assertions |  | done, 41 s measured for `testLooks` |
 
+#### PhoneRecipesTests (112 s)
+
+Added with recipes on November 21, 2026, and measured in run 44931660927; every one is under the 120 second limit.
+Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a look shot of its own.
+
+| Test | s | Asserts | Verdict | Saves | Status |
+|---|---|---|---|---|---|
+| testAddingARecipeToADishWeCook | 27 | A recipe named like a dish we cook joins it, with its history | Keep; the joining is `RecipeDatabaseTests` | | |
+| testCookingFromTheBank | 27 | We made this opens Snap with the dish; the recipe counts one more time | Keep | | |
+| testPlanningADinnerFromTheBank | 27 | Plan it, tonight, said; Lists › Dinners marks it 📖; Sunday planned from "What we cook"; "What does it need?" starts from its ingredients | Keep; the suggestions' order is `RecipeDatabaseTests` | | |
+| testIngredientsToTheGroceryList | 31 | Two ticked go to the list without their amounts; on the grocery list | Keep; the grocery names are `RecipeLogicTests` | | |
+
 ### Wall
 
 #### FoodMealsTests (320 s)
@@ -793,6 +808,11 @@ Unfrozen on November 21, when the dish editor landed.
 | WallTourTests.testHandwritingOnDayPage | 32 | Strokes, Done | Keep (gesture) | | |
 | WallTourTests.testSheetsWithTheKeyboardUp | 44 | Two sheets' fields above the keyboard | Keep (keyboard) | | |
 | WallTourTests.testScreens | 0 | Screenshots only | Not in the suite; `--tour` | | |
+| WallTourTests.testRecipeScreens | 0 | Screenshots only: the bank with a long name, the empty bank, the kitchen view at its top and scrolled, the editor with a card, planning, "What we cook", the week's dinners marked 📖 | Not in the suite; `--tour` | | |
+| WallRecipesTests.testAddingARecipeToADishWeCook | 24 | A recipe typed for a dish we cook joins it, with its history | Keep | | |
+| WallRecipesTests.testCookingFromTheBank | 29 | We made this opens Snap with the dish on the meal; it saves | Keep | | |
+| WallRecipesTests.testPlanningADinnerFromTheBank | 26 | Plan it, tonight, said | Keep | | |
+| WallRecipesTests.testIngredientsToTheGroceryList | 24 | Two ticked go to groceries; Undo takes them back | Keep; the grocery names are `RecipeLogicTests` | | |
 | CompanionEditorTests.testAddingARoutineFromSettings | 103 | Editor, routine, photo picker, save | Keep; over the limit, split at the photo picker | 20 | |
 | FirstRunTests.testOnboardingWithRealCalendarAccess | 101 | First run with the real prompt | Keep (smoke); its length is the system prompt's | | |
 | ScrollingTests.testSettingsScrollsToTheLastSection | 32 | Settings scrolls to the end | Keep (scrolling) | | |
@@ -827,6 +847,10 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | `PocketFoodScreenTests` | Hosted whole screen | The diary on this week, last week and an empty week, in four looks: fits across, says which week | The same test; its shots are `food-week-<n>-<look>.png` |
 | `HandwritingTests` | Core Text ink bounds | Every handwritten title's ink inside its `Text`'s box, at every Dynamic Type size and the wall's sizes, with and without the Chinese and Japanese companion | None: no UI test can see ink |
 | `HandCompanionTests` | Pure functions and a fake font download | Which companion face a reader gets, its weights and line heights against Caveat's, and a download that fails or arrives late | None needed: `PhoneFoodTests` shows a diary with titles drawn |
+| `RecipeLogicTests`, `RecipeBankTests` | Pure functions, clock pinned and swept | A pasted recipe's lines and steps, a link, grocery names without amounts, the bank's words, "Haven't made in a while" at the day's edge | `PhoneRecipesTests` and `WallRecipesTests`: the journeys only |
+| `RecipeDatabaseTests` | The real database in memory | Saving, joining a dish we cook, card photos, removing with Undo, what removing, merging and renaming a dish do to its recipe and planned dinners, what we cook suggested for a dinner | The same journeys |
+| `OlderBuildSyncTests` (recipes) | The fake iCloud, with older builds' tables | An older build keeps a recipe, its card photo and a dinner's dish, and an updated device brings them in | None: no UI test can run an older build |
+| `PocketRecipesScreenTests` | Hosted whole screen, with `HostedRowLayout` | The bank (a name and a line as long as they come), an empty bank, a recipe's page and a home dish's way to its recipe, in four looks; one row layout per list at each size | `PhoneRecipesTests`; its shots are `recipes-<kind>-<look>.png` |
 
 ### What the audit adds up to
 

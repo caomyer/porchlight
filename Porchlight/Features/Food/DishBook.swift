@@ -9,6 +9,8 @@ struct DishBook: Sendable {
     private let entriesById: [JournalEntry.ID: JournalEntry]
     /// Every line, by the live dish it names.
     private let linesByDish: [Dish.ID: [MealDish]]
+    /// Each live dish's recipe: its own, else the latest edited of a dish merged into it.
+    private let recipesByDish: [Dish.ID: Recipe]
 
     init(_ snapshot: FoodSnapshot) {
         self.snapshot = snapshot
@@ -26,6 +28,23 @@ struct DishBook: Sendable {
             if let id = live(line.dishId) { linesByDish[id, default: []].append(line) }
         }
         self.linesByDish = linesByDish
+        var recipesByDish: [Dish.ID: Recipe] = [:]
+        for recipe in snapshot.recipes {
+            guard let id = live(recipe.dishId) else { continue }
+            if let other = recipesByDish[id] {
+                let ownWins = other.dishId == id
+                let thisIsOwn = recipe.dishId == id
+                if ownWins && !thisIsOwn { continue }
+                if ownWins == thisIsOwn && other.updatedAt >= recipe.updatedAt { continue }
+            }
+            recipesByDish[id] = recipe
+        }
+        self.recipesByDish = recipesByDish
+    }
+
+    /// A live dish's recipe, if it has one (docs/design/dishes.md, "Recipes").
+    func recipe(of dishId: Dish.ID) -> Recipe? {
+        dish(dishId).flatMap { recipesByDish[$0.id] }
     }
 
     // MARK: Dishes

@@ -59,6 +59,47 @@ final class WallTourTests: XCTestCase {
         }
     }
 
+    /// The wall's recipes for review (docs/design/dishes.md, "Recipes"), with a recipe as long
+    /// as they come (`-sampleFood long`): the bank, the empty bank, the kitchen view at its top
+    /// and scrolled, the editor with a card photo, planning from the bank, the dinner editor's
+    /// "What we cook" with the long name, and the week's dinners marked 📖.
+    func testRecipeScreens() {
+        let food = ["-startScreen", "food", "-sampleFood", "long"]
+        let screens: [(String, [String])] = [
+            ("r01-recipes", food + ["-debugFoodView", "recipes"]),
+            ("r02-recipes-empty", ["-startScreen", "food", "-sampleFood", "norecipes", "-debugFoodView", "recipes"]),
+            ("r05-editor-card", food + ["-debugFoodView", "recipe-edit"]),
+            ("r06-plan", food + ["-debugFoodView", "recipe-plan"]),
+        ]
+        for (name, arguments) in screens {
+            let app = launch(arguments)
+            snapshot(name)
+            app.terminate()
+        }
+
+        let kitchen = launch(food + ["-debugFoodView", "recipe-long"])
+        snapshot("r03-kitchen")
+        kitchen.swipeUp()
+        Thread.sleep(forTimeInterval: 1)
+        snapshot("r04-kitchen-scrolled")
+        kitchen.terminate()
+
+        let lists = launch(["-startScreen", "lists", "-sampleFood", "long"])
+        snapshot("r08-dinners")
+        let day = lists.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Sunday: ")).firstMatch
+        XCTAssertTrue(day.waitForExistence(timeout: 10), "Sunday's dinner")
+        day.tap()
+        let field = lists.textFields["dinner-title"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10), "The dinner editor")
+        // The cursor at the end, then the planned words deleted and the new ones typed.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        let typed = field.value as? String ?? ""
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: typed.count + 2) + "grandma")
+        Thread.sleep(forTimeInterval: 1)
+        snapshot("r07-what-we-cook")
+        lists.terminate()
+    }
+
     /// Draws on today's page with a finger (as Apple Pencil would) and checks the
     /// ink shows in the zoomed editor and, after Done, in the handwritten month.
     func testHandwritingOnDayPage() throws {

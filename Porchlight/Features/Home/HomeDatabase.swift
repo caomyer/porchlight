@@ -366,6 +366,44 @@ extension AppDatabase {
         }
     }
 
+    /// Adds several items in one go, each in its guessed aisle on a grocery list, in order
+    /// (a recipe's ingredients, docs/design/dishes.md, "Recipes"). A title the list already
+    /// has unchecked, in any case, isn't added twice. Returns the items added, for Undo.
+    @discardableResult
+    func addListItems(titles: [String], to listId: HomeList.ID, addedBy: Person.ID?, now: Date = .now) throws -> [ListItem] {
+        let titles = try titles.map(Self.validatedTitle)
+        return try writer.write { db in
+            guard let list = try HomeList.fetchOne(db, id: listId) else { throw HomeValidationError.notFound }
+            try Self.requirePerson(addedBy, in: list.householdId, db)
+            var have = Set(try ListItem.filter(Column("listId") == listId && Column("checked") == false).fetchAll(db).map { $0.title.lowercased() })
+            var order = try Self.nextOrder(db, table: "listItem", where: "listId", listId)
+            var added: [ListItem] = []
+            for title in titles where have.insert(title.lowercased()).inserted {
+                let item = ListItem(
+                    listId: listId,
+                    title: title,
+                    section: list.kind == .grocery ? Self.section(nil, guessingFrom: title) : nil,
+                    addedById: addedBy,
+                    checked: false,
+                    sortOrder: order,
+                    createdAt: now,
+                    deviceId: stamp(in: list.householdId)
+                )
+                try item.insert(db)
+                added.append(item)
+                order += 1
+            }
+            return added
+        }
+    }
+
+    /// Removes items by id, as Undo after `addListItems`.
+    func deleteListItems(ids: [ListItem.ID]) throws {
+        try writer.write { db in
+            for id in ids { _ = try ListItem.deleteOne(db, id: id) }
+        }
+    }
+
     private static func section(_ raw: String?, guessingFrom title: String) -> String {
         let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? GrocerySections.guess(title) : String(trimmed.prefix(HomeLimits.title))
@@ -402,8 +440,9 @@ extension AppDatabase {
 
     // MARK: Meals
 
-    /// Plans dinner for a day; an empty title clears it.
-    func setMeal(day: DayKey, title rawTitle: String, emoji: String?, householdId: Household.ID) throws {
+    /// Plans dinner for a day; an empty title clears it. `dishId` names the home dish it was
+    /// planned from (a recipe in the bank, or a suggestion); nil plans it by its words.
+    func setMeal(day: DayKey, title rawTitle: String, emoji: String?, householdId: Household.ID, dishId: Dish.ID? = nil) throws {
         let day = try Self.validatedDay(day)
         let trimmed = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         try writer.write { db in
@@ -415,9 +454,16 @@ extension AppDatabase {
                 householdId: householdId,
                 day: day,
                 title: try Self.validatedTitle(trimmed),
-                emoji: HomeText.emoji(emoji) ?? MealEmoji.guess(trimmed)
+                emoji: HomeText.emoji(emoji) ?? MealEmoji.guess(trimmed),
+                dishId: dishId
             )
-            try meal.upsert(db)
+            // Edited by its words, a dinner planned from a dish keeps the dish while it
+            // still names it.
+            var planned = meal
+            if dishId == nil, let existing = try MealPlan.fetchOne(db, id: meal.id), DishName.key(existing.title) == DishName.key(meal.title) {
+                planned.dishId = existing.dishId
+            }
+            try planned.upsert(db)
         }
     }
 
