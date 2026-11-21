@@ -243,6 +243,19 @@ In Lists › Dinners a dinner of a dish with a recipe says 📖 Recipe, and "Wha
 - Search matches every word typed against the name or any ingredient ("curry powder" finds the chicken curry).
 - Words (`RecipeWords`): "Mia's · cooked 6 times · last Nov 2", "From a link · cooked twice", "📷 Card photo · not cooked yet", and on the dish page "Cooked 6 times, last on Nov 2".
 
+### Opening a recipe's link
+
+A recipe's link opens in the app that claims it first, and in the browser otherwise (`RecipeLinkOpener`).
+A short link is often claimed by no app itself but redirects to a page its app does claim: xhslink.com/o/… is not in its host's apple-app-site-association, while the www.xiaohongshu.com/discovery/item/… it redirects to is claimed by Xiaohongshu.
+So the link, upgraded to https, is offered to the apps as a universal link only; then its redirects are followed, one hop at a time, and each https hop is offered in turn.
+The lookup is a GET with mobile Safari's user agent (the short-link host answers HEAD with 404), reads only the headers, and stops at the first hop an app takes, at the last hop, at five hops, at a loop, or after three seconds.
+Then the browser opens the link as it was saved; nothing is ever stored but what was pasted.
+The request goes only to the link's own hosts, in an ephemeral session with no cookies and no user data.
+There is no list of apps: whichever app the system says claims a page opens it.
+The button shows that it is working while the lookup runs and ignores a second tap.
+The opener and the network are protocols, so `RecipeLinkTests` covers each way it can end; only a device with the app installed can show the hand-off itself.
+The wall's kitchen view shows no link, so this is the phone's.
+
 ### Older builds
 
 `OlderBuildSyncTests` adds a device on the build before recipes: dishes, but no recipe tables and no `mealPlan.dishId`.

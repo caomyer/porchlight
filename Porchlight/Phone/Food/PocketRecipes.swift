@@ -286,10 +286,11 @@ struct PocketRecipePage: View {
     @Environment(ToastCenter.self) private var toasts
     @Environment(\.me) private var me
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
     @State private var picked: Set<Int> = []
     @State private var confirmingRemove = false
     @State private var wholeCard: RecipePhoto?
+    /// The link is being followed to the app that claims it.
+    @State private var openingLink = false
     @PhoneMetric(upTo: 1.3) private var hero: CGFloat = 96
     /// The tick box beside an ingredient, grown with its words.
     @PhoneMetric(upTo: 2.2) private var box: CGFloat = 18
@@ -334,13 +335,26 @@ struct PocketRecipePage: View {
                 }
                 cards(entry.photos)
                 if let link = recipe.link, let url = URL(string: link) {
-                    Button { openURL(url) } label: {
-                        Label(url.host() ?? link, systemImage: "link")
-                            .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                            .frame(minHeight: 44)
+                    // In the app that claims it, else the browser (`RecipeLinkOpener`); a
+                    // short link takes a moment to follow, and a second tap waits for the first.
+                    Button {
+                        guard !openingLink else { return }
+                        openingLink = true
+                        Task {
+                            _ = await RecipeLinkOpener.live.open(url)
+                            openingLink = false
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Label(url.host() ?? link, systemImage: "link")
+                                .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                            if openingLink { ProgressView().controlSize(.small) }
+                        }
+                        .frame(minHeight: 44)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(Theme.accent)
+                    .accessibilityValue(openingLink ? "Opening" : "")
                     .accessibilityIdentifier("recipe-link")
                 }
                 FlowLayout(spacing: 8, lineSpacing: 4) {
