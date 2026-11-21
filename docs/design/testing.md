@@ -114,6 +114,8 @@ What the spike of November 20 found, so its limits are known:
   The call is made only in the test bundle, and a test checks that it read elements, so if a future iOS removes it the tests fail instead of passing on nothing.
 - **Frames come with scrolled-off content.**
   A scroll view's content is all laid out, so an element two screens down has a frame two screens down; nothing needs scrolling.
+- **It can pick a tab, not drive a journey.**
+  `host(_:look:activating:)` activates one element by its label before reading, as a tap would, which is enough to show a screen's other tab or section; anything longer is a journey and a UI test.
 - **Labels, not identifiers.**
   SwiftUI's elements here do not give their accessibility identifiers, so elements are found by label.
 - **It is not the real screen's surroundings.**
@@ -149,7 +151,7 @@ Review shots come from two places, and each screen's are named so a person knows
 
 | Screen | Hosted shots | Looks | UI test that stays, and what only it shows |
 |---|---|---|---|
-| A companion's week | `week-<look>.png` | light, dark, largest, largest-dark | `PhoneWeekTests` (frozen): the trail's dots open the right sheet, a log shows in trail and diary |
+| A companion's week, walks and meals | `week-walk-<look>.png`, `week-feed-<look>.png` | light, dark, largest, largest-dark | `PhoneWeekTests.testWeekLooks`: the real page in the night look at the largest size, each routine's tab and log button within reach, water included (`week-40-largest-dark-top`, `week-41-largest-dark-<routine>`). The other tests of the class: the trail's dots open the right sheet, a log shows in trail and diary |
 | The care sheet: new, fixing, catching up | `care-sheet-new-<look>.png`, `care-sheet-fix-<look>.png`, `care-sheet-catchUp-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testFixingAWalkLooks`: the real sheet at the largest size, Save within reach (`edit-40-today-largest`, `edit-41-save-largest`). `PhoneCatchUpTests`, `PhoneTabsTests.testFixingAWalkFromToday`: the sheet opens, saves, asks before removing and closes (`catch-up-10-banner-sheet`, `edit-10-today`, `edit-11-remove`) |
 | Dishes: the list, a dish, a restaurant | `dishes-list-<look>.png`, `dishes-dish-<look>.png`, `dishes-place-<look>.png` | light, dark, largest, largest-dark | `PhoneDishesTests`: search, the star, a restaurant from a dish, each person's face, renaming into a merge, removing with Undo (`dishes-02-list` to `dishes-10-empty`) |
 | Notifications | none: the page reads the permission itself | | `PhoneRemindersTests.testLooks`: night look at the largest size in one launch (`e2-80-choices-largest-dark`); `e2-10-ask`, `e2-11-denied`, `e2-12-choices` from the journeys |
@@ -208,17 +210,51 @@ The last three come from what the UI tests' own comments record.
 ## Tests that skip themselves
 
 A skipped test is a decision, so every one is listed here with its reason; a skip that is not in this table is a mistake.
-A full run reports exactly these: two skipped in the unit tests, two in the phone's UI suite, one in the wall's.
+A full run reports exactly these: two skipped in the unit tests, three in the phone's UI suite, one in the wall's.
 
 | Test | Skipped unless | Why |
 |---|---|---|
 | `PhoneRemindersTests.testDeliveryByHand` | `PORCHLIGHT_DELIVERY=1` | Real notification delivery; iOS's timing is not reliable enough for the suite |
 | `PhoneRemindersTests.testNamedRemindersByHand` | `PORCHLIGHT_DELIVERY=1` | The same, for two households' reminders |
 | `FoodMealsTests.testLiveRestaurantSearchByHand` | `PORCHLIGHT_LIVE_MAPS=1` | Needs the network and Apple Maps' own answer |
+| `PhoneHouseholdTests.testImNewHereAgainAndAgainByHand` | `PORCHLIGHT_NEW_HERE=1` | A twelve-launch reproduction for a failure not yet explained ("Known and not yet explained") |
 | `PhotoMigrationTests`, "A copy of the wall's real data keeps every photo file's bytes in a row" | `PORCHLIGHT_REAL_DATA_DIR` is set | Runs against a copy of the household's real data, which is never in the repository |
 | `SyncMigrationTests`, "A copy of the wall's real data migrates without losing anything" | `PORCHLIGHT_REAL_DB` is set | The same |
 
 A phone class on the iPad, or a wall class on the iPhone, also skips itself, but `scripts/test.sh` never sends a class to the wrong device, so those skips do not appear in a run.
+
+## Known and not yet explained
+
+A failure that could not be reproduced is written down here with what was ruled out, so the next occurrence is recognised and not rediscovered.
+
+### "I'm new here": the name field shows its cursor, the keyboard is up, and typed keys never arrive
+
+- **Seen**: `PhoneHouseholdTests.testImNewHere`, twice on November 20-21, 2026, on two unrelated branches (runs 44871628859 and 44864042037), on hosted Macs on iOS 27.2.
+  Not seen before that day.
+- **What the artifacts show**: the same steps as a passing run.
+  "I'm new here" is tapped, the field appears and reports the keyboard focus by itself (the app focuses it, so the test never taps it), and `A`, `v`, `a` are typed three times over; the field stays empty each time.
+  The recording's last frame shows the row picked, the cursor in the empty field and the keyboard up.
+- **The code in question**: `WhoAreYouView` asks for the field's focus in the same update that adds the field (`choice = .new; nameFocused = true`).
+- **Ruled out**:
+  - The first responder.
+    Hosted in the unit bundle, ten times, the text field is the window's first responder at once after the row is picked, and text given to the first responder reaches the name.
+    Whatever loses the keys is between the keyboard and the field, which a hosted screen cannot see.
+  - The screen alone.
+    Twelve fresh launches in a row, one try at typing each, lost no round, twice (runs 44877585751 and 44877595687, 24 launches).
+  - Memory.
+    Both failing Macs had 48% and 51% of memory free and no swap at the time (the heartbeat lines).
+  - The test before it.
+    `testHeaderAndSlotsLargestText` ran just before it in both failures, but also in the runs that passed: the class runs in alphabetical order.
+  - Asking for the focus later.
+    A change to focus the field a turn after it appears was tried and taken out again: with no failure in 24 launches of the old code there was nothing for it to be measured against.
+- **What both failures share, and the leads left**: `PhoneHouseholdTests` was the first class in its job both times, so this was the first time the keyboard came up on a simulator booted about three minutes earlier, and it came up for a field the app focused, not one a tap focused.
+  No other test meets a cold keyboard that way: every other field is tapped first.
+  The same was true of a run that passed (44860696474), and in another that passed (44828667552) the class ran later in its job but was still the first to bring the keyboard up, so it is a condition, not a cause.
+- **Whether a person can hit it**: not shown either way.
+  A phone's keyboard is not cold the way a simulator's is three minutes after boot, which makes it less likely, not impossible.
+- **What may hide it now**: the typing helper (`type(_:into:in:)`) taps the field again before a second try.
+  That is right for the tests, and it means this failure would now pass on its second round.
+  If a new member reports a name field that looks ready and takes no keys, or the by-hand reproduction loses a round, this is that; the reproduction never taps and never retries.
 
 ## Budgets
 
@@ -265,9 +301,10 @@ Each test's steps are in its job's `ui-phone.log` or `ui-wall.log` (the `results
 Three causes account for most of what was found on November 20, in run 44828667552:
 
 - **`reveal` dragging to its limit without getting there.**
-  Sixteen calls in the phone suite used all fourteen drags, 557 seconds in all (7% of the UI suite), and the tap that followed still worked, because XCUITest scrolled to the element itself at the tap.
-  They are mostly a sheet's own bottom button (Save, Done): `reveal` drags the middle of the app, which does not move the sheet's content to where `reveal` counts the button as in view (above the tab bar the sheet covers).
-  The button is not hittable where it starts, so asking `isHittable` first does not avoid it (tried on `PhoneSetupTests.testACompanionInTheWallsEditor`, which stayed at 143 seconds); the cure is in `reveal` itself, which is being rewritten to notice when its drags make no progress.
+  In the run of November 20, sixteen calls in the phone suite used all fourteen drags, 557 seconds in all (7% of the UI suite), and the tap that followed still worked, because XCUITest scrolled to the element itself at the tap.
+  They were mostly a sheet's own bottom button (Save, Done), which the old `reveal` never counted as in view.
+  `reveal` was rewritten on November 21 to stop when its drags make no progress and to know a sheet's floor; `PhoneSetupTests.testACompanionInTheWallsEditor` went from 143 seconds to 48 with it, and PhoneFoodTests from about 1,180 to 800.
+  When a test is slow, count its drags in the log first.
 - **`waitToSettle` on an element that is off screen.**
   It waits for an unchanged frame that is also hittable, so an element below the fold uses all twenty looks, each a second or more on a long page.
   Reveal first, then settle.
@@ -359,14 +396,14 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 
 #### PhoneWeekTests (953 s)
 
-Frozen while `dishes/editor` is in flight; verdicts only.
+Unfrozen on November 21, when the dish editor landed.
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testTappingThePawTrail | 74 | A logged, a missed and an open dot each open the right sheet | Keep; the dots' labels are `CompanionWeekTests` | | |
 | testAMealInTheDiaryAndTheTrail | 72 | A dinner logged from the trail shows in trail and diary | Keep | | |
 | testWater | 30 | Water has its week | Down: "Log a refill" and "Water diary" are `CompanionWeekTests`; keep as a tab tap inside testAMealInTheDiaryAndTheTrail | 20 | |
-| testWeekLooks | 746 | Three looks times three routines, each scrolled top to bottom and back | Keep as looks, cut to one full scroll per look and the three tabs checked without scrolling each page; over the 120 second limit six times, and the first looks test to restructure once unfrozen. It failed in run 44860696474 after 322 seconds ("Feed's tab is whole on screen: (20.0, -367.7, 353.0, 69.0)": a scroll back up fell short), untouched and passing in the run before: a test this long has that many more places to flake. `PocketWeekScreenTests` checks the same facts hosted, in seconds | 550 | |
+| testWeekLooks | 746 | Three looks times three routines, each scrolled top to bottom and back | One launch, night look at the largest size, for what only the real page shows: each routine's tab and log button can be scrolled to and reached, water included. The whole page in each look, for walks and meals, is hosted in `PocketWeekScreenTests`. It took 385 to 786 seconds from run to run and failed twice on November 20 for reasons that were not the app's (in run 44860696474, on a scroll that fell short) | 650 | done |
 | testAFirstWeek | 30 | First week's words | Down: all three sentences are `CompanionWeekTests`; keep one shot inside testWeekLooks | 30 | |
 
 #### PhoneHouseholdTests (587 s)
@@ -399,7 +436,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testStartingAHouseholdOnThisPhone | 76 | A2 from a fresh install to Today and every empty tab | Keep (smoke) | | |
 | testAnEmptyTodayOffersSetup | 19 | Empty Today leads to Household | Keep | | |
 | testSettingUpTheHouseholdFromThePhone | 153 | Add, rename, archive a person; a chore; a list | Keep, split in two (people; chores and lists): over the limit | 30 | |
-| testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep; 94 of its seconds are two `reveal` calls that drag fourteen times each without bringing a sheet's bottom button into view. Asking `isHittable` first did not help (143 seconds after); it waits for the rewritten `reveal` | 90 | |
+| testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep. 94 of its seconds were two `reveal` calls dragging fourteen times each without getting there; with the rewritten `reveal` it took 48 seconds (run 44875496226) | 95 | done by the rewrite |
 | testAMemberLeaves | 36 | Leave, confirm, welcome | Keep | | |
 | testTheOwnerIsPointedToRemovingSomeone | 42 | Owner is sent to remove; person stays | Keep | | |
 | testStorage | 21 | Breakdown names photos; whose iCloud | Keep (the page) | | |
@@ -571,7 +608,21 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | WallDishesTests.testDishesAPlaceAndADish | 21 | Dishes, a place, a dish | Keep | | |
 | WallDishesTests.testEveryoneSaysHowItWas | 21 | Own face saved | Keep | | |
 
-`PhoneDishEditorTests` and `WallDishEditorTests` are on `dishes/editor` and are audited when that branch lands.
+#### PhoneDishEditorTests (307 s) and WallDishEditorTests (125 s)
+
+Landed on November 21; seconds from run 44875496226.
+
+| Test | s | Asserts | Verdict | Saves | Status |
+|---|---|---|---|---|---|
+| PhoneDishEditorTests.testRestaurantMealWithTwoDishesFromLastTime | 66 | A restaurant, two dishes from last time, saved | Keep | | |
+| PhoneDishEditorTests.testHomeMealTypedWithASuggestion | 50 | A typed dish, a suggestion taken | Keep (keyboard) | | |
+| PhoneDishEditorTests.testAPhotoAloneIsAWholeMeal | 45 | A meal with no dish saves | Keep; the rule is `DishLinesEditTests` | | |
+| PhoneDishEditorTests.testEditAddsAndTakesOffADish | 61 | An edit adds and removes a line | Keep | | |
+| PhoneDishEditorTests.testTheFormAtNightAndAtTheLargestText | 84 | The form in two looks | Hosted next: the form needs the snap's stores and a photo handed in | 70 | |
+| WallDishEditorTests.testRestaurantMealWithTwoDishesFromLastTime | 42 | The same journey on the wall | Keep | | |
+| WallDishEditorTests.testHomeMealTypedWithASuggestion | 31 | The same on the wall | Keep (keyboard) | | |
+| WallDishEditorTests.testAPhotoAloneIsAWholeMeal | 23 | The same on the wall | Merge into testHomeMealTypedWithASuggestion's launch, or leave: 23 seconds | | |
+| WallDishEditorTests.testEditAddsAndTakesOffADish | 28 | The same on the wall | Keep | | |
 
 ### What the audit adds up to
 

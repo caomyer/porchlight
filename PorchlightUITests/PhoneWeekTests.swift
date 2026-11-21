@@ -157,36 +157,28 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Looks
 
-    /// Walks, meals and water in the night look and at the largest text size: nothing runs
-    /// off the screen, and the trail, tabs and log button stay reachable.
+    /// The real page in the night look at the largest text size, for what only it shows: each
+    /// routine's tab and its log button can be scrolled to and reached, with walks, meals and
+    /// water. One launch. How the whole page looks and fits in each look is
+    /// `PocketWeekScreenTests` (unit bundle), which hosts and draws it; this test used to
+    /// scroll the page top to bottom and back nine times over three launches, six to twelve
+    /// minutes, and failed twice on a scroll that fell short.
     func testWeekLooks() {
-        let looks: [(name: String, appearance: XCUIDevice.Appearance, arguments: [String])] = [
-            ("dark", .dark, []), ("largest", .light, Self.largest), ("largest-dark", .dark, Self.largest),
-        ]
-        for look in looks {
-            XCUIDevice.shared.appearance = look.appearance
-            let app = launch(Self.water + look.arguments)
-            let window = app.windows.firstMatch.frame
-            openWeek(app)
-            snapshot("week-40-\(look.name)-top")
-            for routine in ["Walk", "Feed", "Water"] {
-                let tab = app.buttons["routine-\(routine)"]
-                reveal(tab, in: app)
-                XCTAssertTrue(window.contains(tab.frame), "\(routine)'s tab is whole on screen: \(tab.frame)")
-                tab.tap()
-                let log = app.buttons["log-routine"]
-                reveal(log, in: app)
-                XCTAssertTrue(log.isHittable && window.contains(log.frame), "The log button is whole on screen")
-                let today = dot(app, routine, day: 6, slot: 0)
-                XCTAssertLessThanOrEqual(today.frame.maxX, window.maxX + 1, "The trail fits across the screen")
-                snapshot("week-41-\(look.name)-\(routine.lowercased())-trail")
-                let milestones = element(app, beginningWith: "Little milestones")
-                reveal(milestones, in: app)
-                snapshot("week-42-\(look.name)-\(routine.lowercased())-end")
-                let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
-                for _ in 0..<6 { top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))) }
-            }
-            app.terminate()
+        XCUIDevice.shared.appearance = .dark
+        let app = launch(Self.water + Self.largest)
+        let window = app.windows.firstMatch.frame
+        openWeek(app)
+        snapshot("week-40-largest-dark-top")
+        for routine in ["Walk", "Feed", "Water"] {
+            let tab = app.buttons["routine-\(routine)"]
+            reveal(tab, in: app)
+            XCTAssertTrue(window.contains(tab.frame), "\(routine)'s tab is whole on screen: \(tab.frame)")
+            tab.tap()
+            XCTAssertTrue(tab.isSelected, "\(routine) is picked")
+            let log = app.buttons["log-routine"]
+            reveal(log, in: app)
+            XCTAssertTrue(log.isHittable && window.contains(log.frame), "The log button is whole on screen")
+            snapshot("week-41-largest-dark-\(routine.lowercased())")
         }
     }
 

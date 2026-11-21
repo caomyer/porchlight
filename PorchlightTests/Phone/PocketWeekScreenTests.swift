@@ -9,10 +9,10 @@ import UIKit
 /// screen's layout checked, and its review shots drawn, without launching the app.
 ///
 /// The facts are the ones `PhoneWeekTests.testWeekLooks` checks by scrolling the real page
-/// in each look: the routine tabs and the log button are whole across the screen, the paw
-/// trail fits, and nothing runs off either side. The looks take about five seconds here
-/// and over twelve minutes there. That UI test is not replaced by this; what moves is
-/// decided once this example has been reviewed.
+/// in each look, for walks and for meals: the routine tabs and the log button are whole
+/// across the screen, the trail fits, and nothing runs off either side. That took the UI
+/// test six to twelve minutes; it keeps one launch now, for what only the real page shows
+/// (the tabs and the log button within reach by scrolling at the largest size, water too).
 ///
 /// With `TEST_RUNNER_PORCHLIGHT_SCREEN_SHOTS=<folder>` set for `xcodebuild test`, each
 /// look's whole page is written there as a PNG, as `WidgetRenderTests` does for widgets.
@@ -22,7 +22,7 @@ import UIKit
 @Suite("A companion's week, the whole screen")
 @MainActor
 struct PocketWeekScreenTests {
-    private func week(_ look: HostedScreen.Look) async throws -> HostedScreen {
+    private func week(_ look: HostedScreen.Look, routine: String = "Walk") async throws -> HostedScreen {
         let db = try AppDatabase.inMemory(installId: "screen")
         let household = try db.createHousehold(
             name: "The Lake House", people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)]
@@ -40,18 +40,19 @@ struct PocketWeekScreenTests {
         .environment(store)
         .environment(toasts)
         .environment(\.me, me)
-        let hosted = try await HostedScreen.host(screen, look: look)
-        if let folder = ProcessInfo.processInfo.environment["PORCHLIGHT_SCREEN_SHOTS"].map({ URL(fileURLWithPath: $0, isDirectory: true) }) {
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try hosted.image.pngData()?.write(to: folder.appendingPathComponent("week-\(look.name).png"))
-        }
+        // The page opens on the first routine; another is picked as a tap on its tab would.
+        let hosted = try await HostedScreen.host(screen, look: look, activating: routine == "Walk" ? nil : routine)
+        try hosted.saveShot("week-\(routine.lowercased())-\(look.name)")
         return hosted
     }
 
-    @Test("Nothing runs off either side, and the tabs, the log button and the trail are whole, in every look", arguments: ["light", "dark", "largest", "largest-dark"])
-    func fitsAcross(lookName: String) async throws {
+    @Test(
+        "Nothing runs off either side, and the tabs, the log button and the trail are whole, for walks and for meals in every look",
+        arguments: ["Walk", "Feed"], ["light", "dark", "largest", "largest-dark"]
+    )
+    func fitsAcross(routine: String, lookName: String) async throws {
         let look = HostedScreen.Look.named(lookName)
-        let screen = try await week(look)
+        let screen = try await week(look, routine: routine)
         let width = HostedScreen.size.width
         #expect(screen.elements.count > 30, "the screen was read: \(screen.elements.count) elements")
         for element in screen.elements {
@@ -60,12 +61,15 @@ struct PocketWeekScreenTests {
         }
         let walk = try #require(screen.element(beginningWith: "Walk"))
         let feed = try #require(screen.element(beginningWith: "Feed"))
-        let log = try #require(screen.element(beginningWith: "Log a walk"))
+        let log = try #require(screen.elements.first { $0.isButton && $0.label.hasPrefix(routine == "Walk" ? "Log a walk" : "Log a meal") }, "the log button:\n\(screen.listing)")
+        #expect(log.frame.width > width / 2, "the log button is a full button: \(log.frame)")
+        #expect(screen.elements.contains { $0.label.hasPrefix(routine == "Walk" ? "Walk diary" : "Meal diary") }, "the routine's own diary:\n\(screen.listing)")
         let title = try #require(screen.element(beginningWith: "Yo-Yo's week"))
         #expect(!walk.frame.intersects(feed.frame), "the routine tabs don't cover each other: \(walk.frame), \(feed.frame)")
         #expect(title.frame.maxY <= walk.frame.minY && walk.frame.maxY <= log.frame.minY, "the title, then the tabs, then the log button")
-        let dots = screen.elements.filter { $0.label.hasPrefix("Morning walk, ") || $0.label.hasPrefix("Evening walk, ") }
-        #expect(dots.count == 14, "a week of two slots a day: \(dots.count)")
+        let slots = routine == "Walk" ? ["Morning walk, ", "Evening walk, "] : ["Breakfast, ", "Dinner, "]
+        let dots = screen.elements.filter { element in element.isButton && slots.contains { element.label.hasPrefix($0) } }
+        #expect(dots.count == 14, "a week of two slots a day: \(dots.count)\n\(screen.listing)")
         for (first, second) in zip(dots, dots.dropFirst()) where abs(first.frame.minY - second.frame.minY) < 1 {
             #expect(first.frame.maxX <= second.frame.minX + 1, "the trail's dots sit side by side: \(first.frame), \(second.frame)")
         }

@@ -68,8 +68,10 @@ struct HostedScreen {
         elements.map { "\($0.isButton ? "button" : "text") \"\($0.label.prefix(50))\" \($0.frame.integral)" }.joined(separator: "\n")
     }
 
-    /// Hosts `screen` in `look`, lets it draw, and reads it.
-    static func host(_ screen: some View, look: Look) async throws -> HostedScreen {
+    /// Hosts `screen` in `look`, lets it draw, and reads it. With `activating`, the element
+    /// whose label begins with that is activated first, as a tap or VoiceOver's double tap
+    /// would (a tab picked, a section opened), and the screen is read after it has redrawn.
+    static func host(_ screen: some View, look: Look, activating: String? = nil) async throws -> HostedScreen {
         enableAccessibility()
         guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
             throw Failure.noScene
@@ -89,6 +91,15 @@ struct HostedScreen {
             window.layoutIfNeeded()
             try await Task.sleep(for: .milliseconds(100))
         }
+        if let activating {
+            guard let target = find(host.view as Any, beginningWith: activating), target.accessibilityActivate() else {
+                throw Failure.nothingToActivate(activating)
+            }
+            for _ in 0..<3 {
+                window.layoutIfNeeded()
+                try await Task.sleep(for: .milliseconds(100))
+            }
+        }
         let elements = read(host.view as Any)
         // As tall as the content, so the image is the whole page.
         let bottom = elements.map(\.frame.maxY).max() ?? size.height
@@ -101,7 +112,20 @@ struct HostedScreen {
         return HostedScreen(elements: elements, image: image)
     }
 
-    enum Failure: Error { case noScene }
+    enum Failure: Error {
+        case noScene
+        case nothingToActivate(String)
+    }
+
+    private static func find(_ root: Any, beginningWith prefix: String, depth: Int = 0) -> NSObject? {
+        guard depth < 40, let object = root as? NSObject else { return nil }
+        if object.isAccessibilityElement, (object.accessibilityLabel ?? "").hasPrefix(prefix) { return object }
+        let children: [Any] = object.accessibilityElements ?? (object as? UIView)?.subviews ?? []
+        for child in children {
+            if let found = find(child, beginningWith: prefix, depth: depth + 1) { return found }
+        }
+        return nil
+    }
 
     /// SwiftUI builds its accessibility tree only for a client that asks: VoiceOver, or
     /// automation. This is the switch XCUITest flips in an app it drives. It is a private

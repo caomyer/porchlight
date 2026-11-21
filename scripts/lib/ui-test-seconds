@@ -1,32 +1,36 @@
 # How long each UI test class took in seconds, for `scripts/test.sh --shard`, which splits a
 # suite into shares of about equal time. Measured on GitHub's hosted Macs on iOS 27.2 on
-# November 20, 2026 (run 44860696474), one simulator per Mac; PhoneWeekTests from the run
-# before (44828667552), since its longest test failed early in this one. A class's time
-# moves by a fifth and more from run to run on these Macs, so only a lasting drift is worth
-# a change. A class missing here counts 30 seconds a test, which once put PhoneWeekTests in
-# a share as 150; add a line with every new class, from a run's logs, where each test prints
-# its seconds (docs/design/testing.md, "Budgets").
-PhoneFoodTests 1183
-PhoneWeekTests 952
-PhoneTabsTests 621
-PhoneSetupTests 477
-PhoneCatchUpTests 462
-PhoneHouseholdTests 453
-PhoneDishesTests 343
-PhoneTests 243
-PhoneRemindersTests 217
-HouseholdTests 424
-FoodMealsTests 332
-MealPhotosTests 251
-SyncSettingsTests 184
-CompanionEditorTests 141
-PhotoFrameTests 138
-LoggedEntryTests 129
-PitchInTests 116
-TimeFieldTests 114
-WallTourTests 105
-DayAtAGlanceTests 103
-CatchUpTests 95
-ScrollingTests 83
-FirstRunTests 58
-WallDishesTests 39
+# November 21, 2026 (run 44875496226, the first with the rewritten `reveal`), one simulator
+# per Mac. Five classes have since lost looks tests to the hosted screens and carry an
+# estimate until a full run measures them: PhoneWeekTests (987 before), PhoneTabsTests (675),
+# PhoneDishesTests (224), PhoneCatchUpTests (189) and PhoneRemindersTests (177).
+# A class's time moves by a fifth and more from run to run on these Macs, so only a lasting
+# drift is worth a change. A class missing here counts 30 seconds a test, which once put
+# PhoneWeekTests in a share as 150; add a line with every new class, from a run's logs,
+# where each test prints its seconds (docs/design/testing.md, "Budgets").
+PhoneFoodTests 799
+PhoneTabsTests 560
+PhoneHouseholdTests 434
+PhoneDishEditorTests 307
+PhoneSetupTests 307
+PhoneWeekTests 300
+PhoneTests 213
+PhoneDishesTests 160
+PhoneCatchUpTests 130
+PhoneRemindersTests 115
+FoodMealsTests 325
+HouseholdTests 291
+MealPhotosTests 222
+SyncSettingsTests 205
+PhotoFrameTests 151
+TimeFieldTests 135
+CompanionEditorTests 129
+WallDishEditorTests 125
+LoggedEntryTests 110
+WallTourTests 108
+CatchUpTests 96
+DayAtAGlanceTests 92
+PitchInTests 92
+ScrollingTests 91
+FirstRunTests 60
+WallDishesTests 40
