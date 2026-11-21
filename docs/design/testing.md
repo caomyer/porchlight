@@ -154,6 +154,7 @@ Review shots come from two places, and each screen's are named so a person knows
 | A companion's week, walks and meals | `week-walk-<look>.png`, `week-feed-<look>.png` | light, dark, largest, largest-dark | `PhoneWeekTests.testWeekLooks`: the real page in the night look at the largest size, each routine's tab and log button within reach, water included (`week-40-largest-dark-top`, `week-41-largest-dark-<routine>`). The other tests of the class: the trail's dots open the right sheet, a log shows in trail and diary |
 | The care sheet: new, fixing, catching up | `care-sheet-new-<look>.png`, `care-sheet-fix-<look>.png`, `care-sheet-catchUp-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testFixingAWalkLooks`: the real sheet at the largest size, Save within reach (`edit-40-today-largest`, `edit-41-save-largest`). `PhoneCatchUpTests`, `PhoneTabsTests.testFixingAWalkFromToday`: the sheet opens, saves, asks before removing and closes (`catch-up-10-banner-sheet`, `edit-10-today`, `edit-11-remove`) |
 | Dishes: the list, a dish, a restaurant | `dishes-list-<look>.png`, `dishes-dish-<look>.png`, `dishes-place-<look>.png` | light, dark, largest, largest-dark | `PhoneDishesTests`: search, the star, a restaurant from a dish, each person's face, renaming into a merge, removing with Undo (`dishes-02-list` to `dishes-10-empty`) |
+| Food: the Where pills, the photo row and reframing, paper under the status bar | none yet: the status bar is not there in a hosted screen, and the editor's row needs the meal's photos handed in | | `PhoneFoodTests.testWhereLooks`, `testPhotoRowAndReframeLooks` and `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: one look each, the night look at the largest size (`where-20-phone-largest-dark`, `parity-30-edit-row-largest-dark`, `parity-31-reframe-largest-dark`, `b5-60` to `b5-63` `-largest-dark`); `testNightLook` and `testLargestText` for the diary and a meal's page |
 | Notifications | none: the page reads the permission itself | | `PhoneRemindersTests.testLooks`: night look at the largest size in one launch (`e2-80-choices-largest-dark`); `e2-10-ask`, `e2-11-denied`, `e2-12-choices` from the journeys |
 
 A screen moves to hosted shots when a hosted test of it exists and has been seen failing; until then its looks tests stay as they are.
@@ -260,6 +261,7 @@ A failure that could not be reproduced is written down here with what was ruled 
 
 Measured on GitHub's hosted Macs (3 cores, 7 GB, iOS 27.2), run 44828667552 of November 20, 2026, the commit this work started from.
 The first batch (run 44860696474) took 42 minutes from start to the last job's end, against 48.6, with the shards reweighed and three tests trimmed.
+By run 44883476613 of November 21, with the looks of the week, the care sheet and the dishes hosted and `reveal` rewritten, the UI tests summed to 6,805 seconds over 154 tests (8,041 over 150 at the start), five tests were over 120 seconds (seven), and the longest was 249 seconds (746).
 
 | | Measured |
 |---|---|
@@ -359,17 +361,17 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testMealPage | 59 | Pager swipes between photos; whole photo opens and closes; an edit shows at once | Keep | | |
 | testSnappingAMeal | 46 | Camera ask, shutter, details, save, toast, new meal | Keep (smoke) | | |
 | testWhereTakesSeveralKinds | 115 | Seven toggle steps, then save, page says both, editor shows both | Down for the toggle rules (`MealSourcesTests`: "A tap adds a kind…", "On a new meal the first tap replaces…"); keep pick two, save, see both, edit | 35 | |
-| testWhereLooks | 84 | Where pills in dark and at the largest size | Merge into testLargestText and testNightLook, which reach the same details screen | 64 | |
+| testWhereLooks | 84 | Where pills in dark and at the largest size | One launch, the night look at the largest size (was two) | 40 | done |
 | testCoverAndReframeWhenSnapping | 119 | Two shots, second made cover, reframed, saved framed | Keep | | |
 | testCoverAndReframeWhenEditing | 116 | Same in the editor, saved and shown again | Keep | | |
 | testReframingAnotherPhotoWhenEditing | 42 | Reframe from the action sheet frames that photo only | Merge into testCoverAndReframeWhenEditing (same launch and editor); the order and framing rules are `MealPhotoOrderTests` and `PhotoFramingTests` | 35 | |
-| testPhotoRowAndReframeLooks | 185 | Row and reframe in dark and largest, in four launches | Merge to two launches: the new meal's row is the same component as the editor's | 80 | |
+| testPhotoRowAndReframeLooks | 185 | Row and reframe in dark and largest, in four launches | One launch of the editor in the night look at the largest size, Done still in reach; the new meal's row is the same component and is not launched for again. It took 249 seconds in run 44883476613 | 180 | done |
 | testCameraTurnedOff | 48 | Camera denied: Settings, Photos, no photo | Keep (failure path) | | |
 | testEmptyHousehold | 16 | "Nothing in the diary this week" | Delete: `PhoneSetupTests.testStartingAHouseholdOnThisPhone` asserts the same text on the same tab | 16 | |
 | testNightLook | 31 | Shots | Keep (looks) | | |
 | testPaperUnderTheStatusBar | 76 | Four screens scrolled, nothing under the clock, four launches | Merge to one launch by navigating diary, meal, camera, details | 45 | |
-| testPaperUnderTheStatusBarAtNight | 85 | Same in dark | Merge with the largest size into one dark, largest launch | 85 | |
-| testPaperUnderTheStatusBarAtTheLargestSize | 81 | Same at the largest size | Merge as above, one launch | 45 | |
+| testPaperUnderTheStatusBarAtNight | 85 | Same in dark | Merged with the largest size into `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: the two looks share their four launches | 80 | done |
+| testPaperUnderTheStatusBarAtTheLargestSize | 81 | Same at the largest size | Merged as above. A hosted screen has no status bar, so this stays a UI test | | done |
 | testLargestText | 75 | Snap and Save whole on screen | Keep (looks) | | |
 
 #### PhoneTabsTests (1,022 s)
@@ -403,7 +405,7 @@ Unfrozen on November 21, when the dish editor landed.
 | testTappingThePawTrail | 74 | A logged, a missed and an open dot each open the right sheet | Keep; the dots' labels are `CompanionWeekTests` | | |
 | testAMealInTheDiaryAndTheTrail | 72 | A dinner logged from the trail shows in trail and diary | Keep | | |
 | testWater | 30 | Water has its week | Down: "Log a refill" and "Water diary" are `CompanionWeekTests`; keep as a tab tap inside testAMealInTheDiaryAndTheTrail | 20 | |
-| testWeekLooks | 746 | Three looks times three routines, each scrolled top to bottom and back | One launch, night look at the largest size, for what only the real page shows: each routine's tab and log button can be scrolled to and reached, water included. The whole page in each look, for walks and meals, is hosted in `PocketWeekScreenTests`. It took 385 to 786 seconds from run to run and failed twice on November 20 for reasons that were not the app's (in run 44860696474, on a scroll that fell short) | 650 | done |
+| testWeekLooks | 746 | Three looks times three routines, each scrolled top to bottom and back | One launch, night look at the largest size, for what only the real page shows: each routine's tab and log button can be scrolled to and reached, water included. The whole page in each look, for walks and meals, is hosted in `PocketWeekScreenTests`. It took 385 to 786 seconds from run to run and failed twice on November 20 for reasons that were not the app's (in run 44860696474, on a scroll that fell short) | 650 | done, 88 s measured (run 44883476613) |
 | testAFirstWeek | 30 | First week's words | Down: all three sentences are `CompanionWeekTests`; keep one shot inside testWeekLooks | 30 | |
 
 #### PhoneHouseholdTests (587 s)
@@ -436,7 +438,7 @@ Unfrozen on November 21, when the dish editor landed.
 | testStartingAHouseholdOnThisPhone | 76 | A2 from a fresh install to Today and every empty tab | Keep (smoke) | | |
 | testAnEmptyTodayOffersSetup | 19 | Empty Today leads to Household | Keep | | |
 | testSettingUpTheHouseholdFromThePhone | 153 | Add, rename, archive a person; a chore; a list | Keep, split in two (people; chores and lists): over the limit | 30 | |
-| testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep. 94 of its seconds were two `reveal` calls dragging fourteen times each without getting there; with the rewritten `reveal` it took 48 seconds (run 44875496226) | 95 | done by the rewrite |
+| testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep. 94 of its seconds were two `reveal` calls dragging fourteen times each without getting there; with the rewritten `reveal` it took 48 and 68 seconds (runs 44875496226 and 44883476613) | 95 | done by the rewrite |
 | testAMemberLeaves | 36 | Leave, confirm, welcome | Keep | | |
 | testTheOwnerIsPointedToRemovingSomeone | 42 | Owner is sent to remove; person stays | Keep | | |
 | testStorage | 21 | Breakdown names photos; whose iCloud | Keep (the page) | | |
