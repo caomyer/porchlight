@@ -420,6 +420,11 @@ Do not provoke one for the purpose.
 
 | Run | Wallpaper daemon | Simulators booted | Lowest free memory in a boot step | Cancelled boots | The runner crashing before any test, or "I'm new here" losing its keys |
 |---|---|---|---|---|---|
+| 44956641573, November 21, the full suite, before recipes | Not started | 5 (2 iPads in 139 and 171 s, 3 iPhones in 135 to 251 s) | 59% in a boot step; 45% in any test step, where the wall's shares had gone to 18% and 29% the run before | 0 | Neither, and no test needed a second launch |
+
+That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
+The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
+The one visible difference is in review shots taken on the home screen, the notification banners: their background is black on GitHub.
 
 **An experiment that was tried and taken out the same day, November 21, 2026: letting a fresh simulator settle.**
 The two runner crashes above, and the two lost-keys failures in "Known and not yet explained", all happened in the first test class of a job, minutes after its simulator booted.
