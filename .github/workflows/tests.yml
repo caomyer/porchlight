@@ -82,10 +82,11 @@ jobs:
 
       # Which simulators a run may shut down and which it waits for, and how a corrupted
       # download of the build is caught and fetched again, each checked with stand-ins.
-      - name: Check the simulator rules and the build's download
+      - name: Check the simulator rules, the build's download and the runner's start
         run: |
           zsh scripts/ci/check-simulator-rules.sh
           zsh scripts/ci/check-unpack-build.sh
+          zsh scripts/ci/check-runner-start.sh
 
       - name: Build
         run: zsh scripts/test.sh --build-only

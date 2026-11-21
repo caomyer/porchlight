@@ -165,6 +165,8 @@ The log prints each test as it ends (`--progress`), and every two minutes a hear
 To run the full suite on a working branch, which every branch does once before asking to merge, use Actions, Tests, Run workflow, on that branch, with "only" left empty (`gh workflow run Tests --ref <branch>`).
 To run only some tests, use Actions, Tests, Run workflow, with "only" set as for `--only` (for example `FirstRunTests PhoneTests/testCheckingChores`): one job builds and runs just those.
 
+**A run in which no test started is run once more.** When the test runner crashes before any test has started ("The test runner crashed while preparing to run tests", or it never loads Accessibility), on a Mac short of memory, `scripts/test.sh` runs that suite again, locally too, and a second time fails saying the runner crashed before any test, twice; a runner that dies after a test has started is a real failure and is not run again (`scripts/lib/runner-start.sh`).
+
 **A build that arrives corrupted is not a red test run.** The build job records its packed build's size and SHA-256, and each test job checks its download against them, downloads again up to twice when they differ, and only then fails, saying "The build's download was corrupted" (`scripts/ci/unpack-build.sh`; `zsh scripts/ci/check-unpack-build.sh` checks that script with a stand-in for the download).
 
 **Reading a failure.** The job's log lists the failed tests and their messages under `[ui-wall]`, `[ui-phone]` or the unit summary.

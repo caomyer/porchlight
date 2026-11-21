@@ -307,6 +307,19 @@ A test listed as quarantined is skipped in the suite and has a date by which it 
 |---|---|---|---|---|---|
 | `ScrollingTests.testTouchesKeepTheWallAwake` | November 21, 2026, on the release line (run 44905599973, 146 s where it takes 51 to 58); the same commit had passed its full run an hour earlier | The agent on `tests/pyramid` | The test raced two clocks: it touched the wall every 4 seconds of a 12 second "minute" and then asserted Ambient had stayed away. In the failing run the touches came 10 seconds apart, and then one drag took 51 seconds on the hosted Mac, so the wall's timer rightly ran out. The app was right and the test was wrong: it broke hard rule 1 from the other side, by letting the outcome depend on how fast the test itself ran | The rule moved to `IdleRuleTests` (dates handed in, seen failing with the rule broken). The UI test was rewritten as `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: one launch with a ten minute wait where a drag must be counted by the idle watcher, one with a three second "minute" where Ambient must come, each a one-sided wait | Fixed the same day; not quarantined |
 
+### Infrastructure failures
+
+A job can go red without a test having failed.
+Each kind seen is listed here with what the scripts now do about it, so the next one is recognised; none of these is a flaky test, and none is retried in a way that could hide a test's failure.
+
+| What the job said | Seen | What it was | What happens now |
+|---|---|---|---|
+| "The test runner crashed while preparing to run tests: PorchlightUITests-Runner at -[XCTWaiter(StallHandling) handleStalledWait:]", then "UI phone: 0/1 passed, 1 failed" | November 20, 2026, and November 21 (run 44909007366, Phone UI 1 of 3), the first class of the same phone shard both times; on the 21st the Mac's free memory fell from 63% to 19% and swap began just before | The test runner died before any test started, on a Mac short of memory | `scripts/test.sh` runs the suite once more when the log says the runner failed to start and holds no "Test Case ... started" line (`scripts/lib/runner-start.sh`), keeping the first log as `<suite>-never-started.log`. A second time fails saying "The test runner crashed before any test started, twice". A runner that dies after a test has started is never run again by this |
+| "Truncated tar archive" in "Unpack the build" | November 21, 2026 (run 44900372201, Wall smoke), while the other jobs of the run unpacked the same build | One download of the build arrived cut short and was reported as a success | The download is checked against the build job's size and SHA-256 and fetched again up to twice (`scripts/ci/unpack-build.sh`); then it fails saying "The build's download was corrupted" |
+| "Failed to launch", "Failed to get launch progress", "does not have a process ID", "Failed to terminate", with no crash report | Several runs a day on the hosted Macs | XCTest could not start, or quit, the app for one test | That test runs once more on its own, and the summary says "passed on a second launch" (`scripts/lib/launch_retry.py`); any other failure stands |
+
+`zsh scripts/ci/check-runner-start.sh` and `zsh scripts/ci/check-unpack-build.sh` check the first two rules against sample logs and a stand-in download, and run with every build.
+
 ### Tests that wait on the app's own timers
 
 The idle test was the only one that could fail by being slow against a timer that was right.

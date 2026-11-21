@@ -34,6 +34,7 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 # then finds simctl only on the PATH.
 export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 source scripts/lib/simulators.sh
+source scripts/lib/runner-start.sh
 
 unit=1
 ui=1
@@ -237,11 +238,19 @@ ui_suite() {
     rm -rf "$results/$name.xcresult"
     xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
       "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult" 2>&1 | record "$results/$name.log" || true
-    # A freshly booted simulator under memory pressure can fail to start the test runner at
-    # all ("Timed out while loading Accessibility", or the runner crashing before it
-    # connects); no test ran, so once is tried again.
-    grep -qE "failed to initialize for UI testing|crashed before establishing connection" "$results/$name.log" && (( attempt == 1 )) || break
-    echo "[$name] The test runner didn't start; trying once more"
+    # A simulator under memory pressure can fail to start the test runner at all ("Timed out
+    # while loading Accessibility", the runner crashing before it connects, or "The test
+    # runner crashed while preparing to run tests"). No test started, so the whole run is
+    # made once more; a second time is a failure that says so. A runner that dies after a
+    # test has started is never run again here: that is a real failure
+    # (scripts/lib/runner-start.sh).
+    porchlight_runner_never_started "$results/$name.log" || break
+    if (( attempt == 2 )); then
+      echo "[$name] The test runner crashed before any test started, twice. No test ran: this is the Mac or the simulator, not a test (docs/design/testing.md, \"Infrastructure failures\")."
+      break
+    fi
+    echo "[$name] The test runner crashed before any test started; running the suite once more"
+    cp "$results/$name.log" "$results/$name-never-started.log"
   done
   summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
   # A test XCTest could not start the app for, on a busy simulator, runs once more on its own; any
