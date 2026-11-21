@@ -44,6 +44,33 @@ expect "a whole download unpacks" "$(run "$work/good.tar")" 0
 expect "without downloading again" "$(calls)" 0
 expect "and the build is there" "$(cat "$work/job/products/Debug/App.o")" "the app"
 
+# 1b. Nothing downloaded yet: fetched once, with no talk of corruption, then unpacked.
+cp "$work/good.tar" "$work/served.tar"
+rm -rf "$work/job" "$GH_CALLS"; mkdir -p "$work/job"; export PRODUCTS="$work/job/products"
+rc=0; ( cd "$work/job" && zsh "$script" "$sha" "$size" ) > "$work/out" 2>&1 || rc=$?; expect "a build not yet downloaded is fetched and unpacks" $rc 0
+expect "with one download" "$(calls)" 1
+grep -q "corrupted" "$work/out" && { echo "FAILED: a first fetch was called corrupted"; failures=$(( failures + 1 )); } || echo "ok: and a first fetch is not called a corrupted one"
+
+# 1c. Fetched while a simulator boots: each failure keeps its own words.
+mkdir -p "$work/ci"
+cp "$script" "$work/ci/unpack-build.sh"
+cp "${script:h}/boot-and-fetch.sh" "$work/ci/boot-and-fetch.sh"
+print -r -- '#!/bin/zsh
+echo "Booted $1 and ready for installs"' > "$work/ci/boot-simulator.sh"
+rm -rf "$work/job" "$GH_CALLS"; mkdir -p "$work/job"
+rc=0; ( cd "$work/job" && zsh "$work/ci/boot-and-fetch.sh" ipad "$sha" "$size" ) > "$work/out" 2>&1 || rc=$?; expect "booting and fetching together pass when both do" $rc 0
+cp "$work/good.tar" "$work/keep.tar"; head -c 100000 "$work/good.tar" > "$work/served.tar"
+rm -rf "$work/job" "$GH_CALLS"; mkdir -p "$work/job"
+rc=0; ( cd "$work/job" && zsh "$work/ci/boot-and-fetch.sh" ipad "$sha" "$size" ) > "$work/out" 2>&1 || rc=$?; expect "a download that stays corrupted fails the step" $rc 1
+grep -q "The build's download was corrupted 3 times" "$work/out" && grep -q "The simulator's boot is not what failed" "$work/out" \
+  && echo "ok: and reads as the download's failure, not the boot's" || { echo "FAILED: the message: $(cat "$work/out")"; failures=$(( failures + 1 )); }
+print -r -- '#!/bin/zsh
+echo "::error::The ipad simulator stalled twice"; exit 1' > "$work/ci/boot-simulator.sh"
+cp "$work/keep.tar" "$work/served.tar"
+rm -rf "$work/job" "$GH_CALLS"; mkdir -p "$work/job"
+rc=0; ( cd "$work/job" && zsh "$work/ci/boot-and-fetch.sh" ipad "$sha" "$size" ) > "$work/out" 2>&1 || rc=$?; expect "a boot that fails fails the step" $rc 1
+grep -q "The build's download is not what failed" "$work/out" && echo "ok: and reads as the boot's failure, not the download's" || { echo "FAILED: the message: $(cat "$work/out")"; failures=$(( failures + 1 )); }
+
 # 2. A download cut short, as on November 21: fetched again, then unpacked.
 head -c 100000 "$work/good.tar" > "$work/short.tar"
 cp "$work/good.tar" "$work/served.tar"

@@ -1,5 +1,23 @@
 import XCTest
 
+extension XCTestCase {
+    /// Call at the start of a wall test that changes a display setting (what the photo frame
+    /// shows, the night's hours, the idle minutes). Those are the device's own, kept in the
+    /// simulator's defaults, so they outlive the test and the launch: after this test, pass
+    /// or fail, the app is launched once more to forget them (`-debugForgetDisplay YES`),
+    /// and the next test starts from a new install's settings.
+    @MainActor
+    func forgetDisplaySettingsAfterwards() {
+        addTeardownBlock { @MainActor in
+            let app = XCUIApplication.porchlight()
+            app.launchArguments = ["-sampleHousehold", "-debugForgetDisplay", "YES"]
+            app.launch()
+            _ = app.windows.firstMatch.waitForExistence(timeout: 30)
+            app.terminate()
+        }
+    }
+}
+
 extension XCUIApplication {
     /// The app under test, with its logging turned off.
     ///

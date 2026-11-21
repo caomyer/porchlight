@@ -9,6 +9,8 @@ import UserNotifications
 ///   -samplePhotos N     with -sampleHousehold, also put N painted photos in the photo frame
 ///   -me NAME            on a phone, belong to the person called NAME (skips "Which one is you?")
 ///   -debugRemoved       this device's household was removed by its owner (journey A6)
+///   -debugForgetDisplay YES   with either of the first two: the wall's display settings
+///                       (photo frame, night hours, idle minutes) as on a new install
 /// `-debugSharing` and `-debugJoin` are in `DebugSharing`.
 enum DebugLaunch {
     /// `-onboardingStep calendars|companions|journals|display` shows that onboarding
@@ -29,6 +31,18 @@ enum DebugLaunch {
     static func clearSandbox(_ arguments: [String]) {
         guard AppFiles.isSandboxed, arguments.contains("-resetData") || arguments.contains("-sampleHousehold") else { return }
         try? FileManager.default.removeItem(at: AppFiles.root)
+        // `-debugForgetDisplay YES`: the wall's display settings back to what a new install
+        // has. They are this device's own, kept in UserDefaults, so they outlive a sample
+        // launch; a UI test that changes one asks for this afterwards, so the next test
+        // never starts from what the last one left (`forgetDisplaySettingsAfterwards`).
+        if UserDefaults.standard.bool(forKey: "debugForgetDisplay") {
+            for key in [
+                AmbientSettings.showKey, AmbientSettings.nightEnabledKey, AmbientSettings.nightStartKey, AmbientSettings.nightEndKey,
+                DisplaySettings.ambientMinutesKey, DisplaySettings.keepAwakeKey,
+            ] {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
     }
 
     @MainActor

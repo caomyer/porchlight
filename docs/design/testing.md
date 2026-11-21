@@ -203,7 +203,7 @@ One shot per shape of the screen stays, not one per wording.
 ## Hard rules
 
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
-The ninth is from a defect found by eye on November 21; the others come from what the UI tests' own comments record.
+The ninth is from a defect found by eye on November 21, the tenth from reading two tests that day; the others come from what the UI tests' own comments record.
 
 1. **A test's outcome never depends on the real clock.**
    Pin it and sweep it.
@@ -243,7 +243,12 @@ The ninth is from a defect found by eye on November 21; the others come from wha
    Every frame was where it should be; no frame check, on a real screen or a hosted one, could have seen it.
    `Text(handwritten:)` (`Handwriting.swift`) is now the one way the app writes a handwritten title, with room for the tails, and `HandwritingTests` lays each title out with Core Text at every size and requires the line's ink to sit inside the line's box.
    Do not write the handwritten face any other way, and when a new face or a new slant arrives, give it an ink-bounds test of its own.
-10. **A test that needs the network or real delivery timing runs by hand, not in the suite.**
+10. **A test leaves the simulator as it found it.**
+   The database is new at every sample launch, but the device's own settings are not: what the photo frame shows, the night's hours and the idle minutes live in the simulator's defaults and outlive the test and the launch.
+   A test that changes one calls `forgetDisplaySettingsAfterwards()` first, which launches the app once more after the test, pass or fail, with `-debugForgetDisplay YES`.
+   Never put a setting back by hand at the end of the test: a test that fails halfway never reaches its end, and the next test starts from what it left.
+   Why: `PhotoFrameTests.testChoosingThePorchView` and `TimeFieldTests.testNightHoursCrossMidnight` each ended by tapping their setting back, which a failure in the middle would have skipped.
+11. **A test that needs the network or real delivery timing runs by hand, not in the suite.**
    Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
    Why: a test that skips itself when the network is down reports nothing either way.
 
@@ -468,11 +473,17 @@ What it shows:
 - **Fetching the build is small**: 6 to 77 seconds.
 - Over the five jobs that is about 50 minutes of Mac time outside the tests in a run whose tests take 96, and 7 to 10 minutes on the longest job.
 
-What could shorten it, none of it tried or decided:
+What was decided about it, November 21, 2026:
 
-- Fetch the build while the simulator boots, not after it: up to a minute a job, and no risk.
-- Fewer, longer jobs: four test jobs make four boots, and wait for fewer Macs, at the cost of a longer longest job (about 1,770 seconds of tests for two phone shares against 1,230 for three).
-- Keep a simulator that has already had its first boot from one run to the next, so a job starts one that is ready: the largest saving and the least certain, since a cached simulator is several gigabytes and may not survive a new Xcode.
+- **Done: the build is fetched while the simulator boots**, not after it (`scripts/ci/boot-and-fetch.sh`): up to a minute and a half a job.
+  The checksum check and the two further tries are as before, and each failure keeps its own words, so a download that cannot be put right reads "The build's download was corrupted" and a boot that stalled twice names its stage.
+- **Declined: four test jobs in place of five.**
+  One boot fewer, but a longer longest job and less room; with tiering live the queue is not what it was.
+- **Not available: keeping a booted simulator from one run to the next.**
+  Every job gets a fresh Mac.
+- **Being measured: a smaller iPad for the wall's simulator.**
+  The wall's jobs boot the 13-inch iPad Pro on a 7 GB Mac.
+  A run by hand can name another model (the workflow's "ipad" input) so its boot time and the tests' results can be compared before anything changes; the 13-inch stays the default, and stays what the local Mac uses.
 
 ### Where a slow test's time goes
 
@@ -735,7 +746,7 @@ Unfrozen on November 21, when the dish editor landed.
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
-| testChoosingThePorchView | 108 | Choice survives a relaunch, both ways, four launches | Keep as it is: the choice is kept in the simulator's defaults between tests, so the test has to end on Our photos again, and its second half is that. Its seconds are four launches of Settings and Ambient | 50 |  |
+| testChoosingThePorchView | 108 | Choice survives a relaunch, both ways, four launches | Keep. It no longer taps the choice back at its end: it starts from a new install's settings, checks the photos show, chooses the porch view, checks that after a relaunch, and the settings are forgotten afterwards, pass or fail (hard rule 10) | 50 | done |
 | testRemovingSeveralPhotos | 52 | Select three, remove, counts | Keep | | |
 
 #### TimeFieldTests (135 s)
@@ -743,7 +754,7 @@ Unfrozen on November 21, when the dish editor landed.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testTypingAMealTime | 43 | Pad not keyboard; then eight digit rules | Down for the digit rules (`TimeEntryTests`); keep open, type, Done | 15 | |
-| testNightHoursCrossMidnight | 63 | Suggestion sets; "next day"; then puts both back | Keep as it is, for the same reason: it puts both hours back because the next test would read them | 20 |  |
+| testNightHoursCrossMidnight | 63 | Suggestion sets; "next day"; then puts both back | Keep. It no longer sets both hours back at its end; they are forgotten afterwards, pass or fail (hard rule 10) | 20 | done |
 | testARoutineWindow | 29 | A refused time is explained and can't be kept | Keep | | |
 
 #### PitchInTests (128 s)

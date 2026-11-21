@@ -41,30 +41,32 @@ final class PhotoFrameTests: XCTestCase {
         return app
     }
 
-    private func expectAmbient(_ identifier: String, _ message: String) {
-        let app = launch(["-startScreen", "photos", "-ambient.nightEnabled", "NO", "-samplePhotos", "3"])
+    private func expectAmbient(_ identifier: String, _ message: String, _ extra: [String] = []) {
+        let app = launch(["-startScreen", "photos", "-ambient.nightEnabled", "NO", "-samplePhotos", "3"] + extra)
         XCTAssertTrue(element(app, identifier).waitForExistence(timeout: 30), message)
     }
 
     func testChoosingThePorchView() {
-        var app = openPhotoFrameSettings(["-samplePhotos", "3"])
-        // Saved settings carry over between runs, so start from, and end on, Our photos.
+        // The choice is the device's own and outlives this test; it is forgotten afterwards,
+        // pass or fail, so nothing here has to put it back.
+        forgetDisplaySettingsAfterwards()
+        // As a new install has it (asked for, in case a run that was killed left a choice
+        // behind): Our photos, so the idle wall shows the photos.
+        expectAmbient("photoSlideshow", "With Our photos, the idle wall shows the photos", ["-debugForgetDisplay", "YES"])
+
+        let app = openPhotoFrameSettings(["-samplePhotos", "3"])
         element(app, "show-photos").tap()
         XCTAssertTrue(element(app, "managePhotos").waitForExistence(timeout: 5), "Our photos lists the photos")
         XCTAssertEqual(element(app, "photoCount").label, "3 photos")
+        snapshot("102-photo-frame-our-photos")
 
         element(app, "show-porchView").tap()
         XCTAssertTrue(element(app, "managePhotos").waitForNonExistence(timeout: 5), "The porch view needs no photo list")
         XCTAssertTrue(element(app, "show-porchView").isSelected)
         snapshot("100-photo-frame-porch-view")
+        // Chosen in Settings and still chosen on the next launch.
         expectAmbient("porchView", "The idle wall shows the porch view, even with photos added")
         snapshot("101-porch-view")
-
-        app = openPhotoFrameSettings(["-samplePhotos", "3"])
-        element(app, "show-photos").tap()
-        XCTAssertTrue(element(app, "managePhotos").waitForExistence(timeout: 5))
-        snapshot("102-photo-frame-our-photos")
-        expectAmbient("photoSlideshow", "Back on Our photos, the idle wall shows the photos")
     }
 
     func testRemovingSeveralPhotos() {

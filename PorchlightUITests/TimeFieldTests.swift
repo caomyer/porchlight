@@ -99,6 +99,9 @@ final class TimeFieldTests: XCTestCase {
 
     /// The night runs past midnight: an end before the start is the next day.
     func testNightHoursCrossMidnight() {
+        // The night's hours are the device's own and outlive this test; they are forgotten
+        // afterwards, pass or fail, so nothing here has to put them back.
+        forgetDisplaySettingsAfterwards()
         let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-startScreen", "settings"]
         app.launch()
@@ -111,9 +114,6 @@ final class TimeFieldTests: XCTestCase {
                 .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)), withVelocity: .slow, thenHoldForDuration: 0.1)
         }
         Thread.sleep(forTimeInterval: 1) // let the scroll settle, or the tap only stops it
-        // Saved settings carry over between runs, so put them back at the end.
-        let (startBefore, endBefore) = (value(start), value(end))
-
         start.tap()
         XCTAssertTrue(app.buttons["10:00 PM"].waitForExistence(timeout: 5), "The night suggests evening starts")
         app.buttons["10:00 PM"].tap()
@@ -121,9 +121,6 @@ final class TimeFieldTests: XCTestCase {
 
         set(app, end, to: "1:00 AM, next day")
         snapshot("72-night-hours")
-
-        set(app, start, to: startBefore)
-        set(app, end, to: endBefore)
     }
 
     /// A routine's window can't end before it starts, and says so.
