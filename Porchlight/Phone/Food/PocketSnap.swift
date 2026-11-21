@@ -146,6 +146,7 @@ private struct PocketSnapDetails: View {
     var body: some View {
         let now = CompanionClock.now()
         let mealName = PocketFood.mealName(day: form.day, slot: form.slot, calendar: store.calendar)
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
@@ -168,7 +169,7 @@ private struct PocketSnapDetails: View {
                         .tracking(1.1)
                         .foregroundStyle(Theme.muted)
                     PocketMealFields(
-                        title: $form.title,
+                        dishes: $form.dishes,
                         slot: $form.slot,
                         time: $form.time,
                         sources: $form.sources,
@@ -201,7 +202,11 @@ private struct PocketSnapDetails: View {
             .padding(.bottom, 24)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // As across the app, a drag down into the keyboard takes it away; scrolling the form
+        // while typing keeps it, and Done on the dish field puts it away.
         .scrollDismissesKeyboard(.interactively)
+        .keepsDishFieldInView(proxy)
+        }
         // A full-screen cover stands outside the tabs: keep scrolled text out from
         // under the clock, as the welcome screens do.
         .clipped()
@@ -273,7 +278,7 @@ private struct PocketSnapDetails: View {
 /// A meal's details as the phone edits them, for a new meal and for fixing one: the same
 /// fields as the wall's capture form, laid out for a compact width.
 struct PocketMealFields: View {
-    @Binding var title: String
+    @Binding var dishes: DishLinesEdit
     @Binding var slot: String
     @Binding var time: LogTime
     @Binding var sources: MealSources
@@ -286,36 +291,16 @@ struct PocketMealFields: View {
     let range: ClosedRange<Date>
     let now: Date
     let slots: [String]
+    /// The meal being edited, so its own visit isn't "last time here".
+    var entryId: JournalEntry.ID? = nil
 
     @Environment(FoodStore.self) private var store
     @Environment(\.me) private var me
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Text(DishIllustration.suggestEmoji(for: title) ?? DishIllustration.fallbackEmoji)
-                    .phoneFont(.body, 22)
-                    .accessibilityHidden(true)
-                TextField("What was it? e.g. Pho", text: $title)
-                    .phoneFont(.body, 16, weight: 600)
-                    .textInputAutocapitalization(.sentences)
-                    .submitLabel(.done)
-                    .accessibilityIdentifier("dish")
-            }
-            .fieldStyle()
-            LogTimeField(
-                time: $time, range: range, now: now,
-                suggestions: MealSlot.timeSuggestions(slot: slot, day: day, calendar: store.calendar),
-                accessibilityLabel: "Time eaten", identifier: "time-eaten", calendar: store.calendar
-            ) {
-                label("When")
-            }
-            group("Meal") {
-                ForEach(slots, id: \.self) { name in
-                    PhoneChoice(title: "\(MealSlot.named(name).emoji) \(name)", isOn: slot == name) { slot = name }
-                }
-            }
-            // Any number of kinds, never none: a tap on the last one picked does nothing.
+            // Where first: the dishes' kitchen follows from it, so suggestions and "Last
+            // time here" know where we are before the first letter.
             group("Where") {
                 ForEach(MealSource.allCases, id: \.self) { kind in
                     PhoneChoice(title: "\(kind.emoji) \(kind.label)", isOn: sources.contains(kind)) {
@@ -330,6 +315,19 @@ struct PocketMealFields: View {
                 RestaurantField(place: $place, prompt: sources.placePrompt)
                     .zIndex(1)
             }
+            dishLines
+            LogTimeField(
+                time: $time, range: range, now: now,
+                suggestions: MealSlot.timeSuggestions(slot: slot, day: day, calendar: store.calendar),
+                accessibilityLabel: "Time eaten", identifier: "time-eaten", calendar: store.calendar
+            ) {
+                label("When")
+            }
+            group("Meal") {
+                ForEach(slots, id: \.self) { name in
+                    PhoneChoice(title: "\(MealSlot.named(name).emoji) \(name)", isOn: slot == name) { slot = name }
+                }
+            }
             group("Who ate") {
                 ForEach(people) { person in
                     PersonPill(person: person, title: person.id == me?.id ? "You" : nil, isOn: eaterIds.contains(person.id)) {
@@ -337,13 +335,26 @@ struct PocketMealFields: View {
                     }
                 }
             }
-            group("Would eat again?") {
-                ForEach(MealRating.allCases, id: \.self) { choice in
-                    PhoneChoice(title: choice.emoji, isOn: rating == choice) { rating = choice }
-                        .accessibilityLabel(choice.phrase)
+            // With dishes, the faces are on them.
+            if dishes.isEmpty {
+                group("Would eat again?") {
+                    ForEach(MealRating.allCases, id: \.self) { choice in
+                        PhoneChoice(title: choice.emoji, isOn: rating == choice) { rating = choice }
+                            .accessibilityLabel(choice.phrase)
+                    }
                 }
             }
         }
+    }
+
+    private var dishLines: some View {
+        let known = store.place(matching: sources.hasPlace ? place : nil)
+        return DishLinesField(
+            style: .phone,
+            edit: $dishes,
+            kitchen: DishFormKitchen.of(sources: sources, place: sources.hasPlace ? place : nil, known: known),
+            lastTime: known.flatMap { store.book.lastTime(at: $0.id, excluding: entryId)?.dishes } ?? []
+        )
     }
 
     /// You first, then everyone else in the household's order.

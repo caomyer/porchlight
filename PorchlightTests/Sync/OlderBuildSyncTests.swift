@@ -10,9 +10,9 @@ import Testing
 /// it has no table for, and new fields on a record it knows (docs/design/dishes.md,
 /// "Older builds").
 ///
-/// Two devices share one stand-in for iCloud: the newer one knows a `dish` table, a
-/// `mealDish` table under each meal, and a new `otherSources` column on the meal; the older one
-/// is today's schema. Nothing here is the dish feature itself, only the shapes it adds.
+/// Two devices share one stand-in for iCloud: the newer one is today's app, with the dish
+/// tables and `otherSources` on the meal; the older one is the build from before both, with
+/// neither the tables nor the field.
 @MainActor
 @Suite("Older builds", .serialized)
 struct OlderBuildSyncTests {
@@ -140,18 +140,15 @@ private final class Phone {
         self.folder = folder ?? FileManager.default.temporaryDirectory
             .appendingPathComponent("older-build-\(UUID().uuidString)", isDirectory: true)
         database = try AppDatabase.openOnDisk(folder: self.folder)
-        try await database.writer.write { db in
-            if newer {
-                // A field the newer build adds to a record the older one knows.
-                if try !db.columns(in: "journalEntry").contains(where: { $0.name == "otherSources" }) {
-                    try db.execute(sql: #"ALTER TABLE "journalEntry" ADD COLUMN "otherSources" TEXT"#)
-                }
-            } else {
-                // Today's schema, from before dishes.
+        if !newer {
+            // The schema from before dishes and before a meal could come from several places:
+            // no dish tables, and no `otherSources` on the meal. Updating runs both again.
+            try await database.writer.write { db in
                 try db.execute(sql: """
                     DROP TABLE "mealDishRating"; DROP TABLE "mealDish"; DROP TABLE "dish";
-                    DELETE FROM grdb_migrations WHERE identifier = ?;
-                    """, arguments: [AppDatabase.dishMigration])
+                    ALTER TABLE "journalEntry" DROP COLUMN "otherSources";
+                    DELETE FROM grdb_migrations WHERE identifier IN (?, ?);
+                    """, arguments: [AppDatabase.dishMigration, AppDatabase.severalPlacesMigration])
             }
         }
         let container = cloud.container
@@ -185,7 +182,7 @@ private final class Phone {
         [
             SynchronizedTable(for: SyncMirror.Household.self), SynchronizedTable(for: SyncMirror.Person.self),
             SynchronizedTable(for: SyncMirror.Journal.self), SynchronizedTable(for: SyncMirror.FoodPlace.self),
-            SynchronizedTable(for: SyncMirror.JournalEntry.self), SynchronizedTable(for: SyncMirror.JournalEntryEater.self),
+            SynchronizedTable(for: OlderMirror.JournalEntry.self), SynchronizedTable(for: SyncMirror.JournalEntryEater.self),
         ]
     }
 
@@ -193,7 +190,7 @@ private final class Phone {
         [
             SynchronizedTable(for: SyncMirror.Household.self), SynchronizedTable(for: SyncMirror.Person.self),
             SynchronizedTable(for: SyncMirror.Journal.self), SynchronizedTable(for: SyncMirror.FoodPlace.self),
-            SynchronizedTable(for: NewerMirror.JournalEntry.self), SynchronizedTable(for: SyncMirror.JournalEntryEater.self),
+            SynchronizedTable(for: SyncMirror.JournalEntry.self), SynchronizedTable(for: SyncMirror.JournalEntryEater.self),
             SynchronizedTable(for: SyncMirror.Dish.self), SynchronizedTable(for: SyncMirror.MealDish.self),
             SynchronizedTable(for: SyncMirror.MealDishRating.self),
         ]
@@ -244,8 +241,8 @@ private final class Phone {
     }
 }
 
-/// The newer build's meal: one more column than today's.
-private enum NewerMirror {
+/// The older build's meal: today's, without `otherSources`.
+private enum OlderMirror {
     @Table("journalEntry") struct JournalEntry {
         let id: UUID
         var journalId: UUID
@@ -260,6 +257,5 @@ private enum NewerMirror {
         var createdAt: Date
         var placeId: UUID?
         var deviceId: UUID?
-        var otherSources: String?
     }
 }

@@ -89,33 +89,38 @@ final class WallTourTests: XCTestCase {
         }
     }
 
-    /// Opens a logged meal, renames it, marks it delivery and saves; the detail shows the edit.
+    /// Opens a logged meal, swaps its dish for another, marks it delivery and saves; the
+    /// detail shows the edit. Since dishes the name is the meal's dish lines: Edit takes the
+    /// old dish off and names the new one in the dish field.
     func testEditingAMeal() {
         let app = launch(["-startScreen", "food", "-debugFoodView", "detail"])
         let edit = app.buttons["Edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 20), "The meal detail should offer Edit")
         edit.tap()
 
-        let title = app.textFields["What was it?"]
-        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        let field = app.textFields["dish"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "Edit names the meal's dishes")
         // Before the keyboard opens: the sheet stays put for it, and iOS 27's taller keyboard
         // covers the row this button is in.
         app.buttons["🛵 Delivery"].tap()
         // Editing adds a kind; the meal was home-cooked, so that comes off.
         if app.buttons["source-home"].isSelected { app.buttons["source-home"].tap() }
-        title.tap()
-        let current = title.value as? String ?? ""
-        title.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
-        title.typeText("Leftover curry")
+        // Today's breakfast is one dish: take it off, then name the new one.
+        let old = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'remove-dish-'")).firstMatch
+        XCTAssertTrue(old.waitForExistence(timeout: 5), "The meal's dish is a line with a way off")
+        old.tap()
+        field.tap()
+        field.typeText("Leftover curry")
         assertOnScreen(app.staticTexts["Edit meal"], in: app, "The sheet title should stay on screen with the keyboard up")
-        assertOnScreen(title, in: app, "The name field should stay on screen with the keyboard up")
+        assertOnScreen(field, in: app, "The dish field should stay on screen with the keyboard up")
         snapshot("23-meal-edit")
 
-        title.typeText("\n")  // "done" puts the keyboard away, revealing Save
+        field.typeText("\n")  // Done adds the dish and puts the keyboard away, revealing Save
+        XCTAssertTrue(app.descendants(matching: .any)["dish-line-Leftover curry"].waitForExistence(timeout: 5))
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts["Leftover curry"].waitForExistence(timeout: 5), "The detail should show the new name")
         XCTAssertTrue(app.staticTexts["Delivery"].exists, "The detail should show the new maker")
-        XCTAssertFalse(app.textFields["What was it?"].exists, "Saving should leave edit mode")
+        XCTAssertFalse(app.textFields["dish"].exists, "Saving should leave edit mode")
         snapshot("24-meal-edited")
     }
 

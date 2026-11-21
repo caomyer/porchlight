@@ -114,21 +114,119 @@ extension PhoneTestHelpers {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch
     }
 
-    /// Scrolls a little at a time until `element` is wholly in view, above the tab bar
-    /// when there is one: up the page when it is above the screen (a test that looked
-    /// further down first), else down. A tap never relies on XCUITest scrolling for it,
-    /// which on iOS 27, under the floating tab bar, can stop short and tap nothing.
-    func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        let window = app.windows.firstMatch.frame
-        let tabBar = app.tabBars.firstMatch
-        let bottom = tabBar.exists ? tabBar.frame.minY : window.maxY
-        let visible = CGRect(x: window.minX, y: window.minY, width: window.width, height: bottom - window.minY)
-        for _ in 0..<14 where !(element.exists && element.isHittable && visible.contains(element.frame)) {
-            let above = element.exists && element.frame.minY < visible.minY
-            let (from, to) = above ? (0.45, 0.7) : (0.7, 0.45)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: from))
-            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: to)))
+    /// Scrolls until `element` is wholly in view, above the tab bar and the keyboard when
+    /// they are up: up the page when it is above the screen (a test that looked further down
+    /// first), else down. A tap never relies on XCUITest scrolling for it, which on iOS 27,
+    /// under the floating tab bar, can stop short and tap nothing.
+    ///
+    /// Far from the target each drag is long and quick and lets the page coast; near it, each
+    /// covers the distance still to go and holds at the end so the page doesn't coast past. It tells
+    /// stuck from far: it stops when two drags in a row move nothing (the page is at its end)
+    /// or when four in a row bring the element no closer, and the number of drags is capped
+    /// by the distance it started from, so a page of any honest length is reachable and the
+    /// loop always ends. Then it fails naming the element if it still can't be tapped.
+    func reveal(_ element: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        // Every question to the app costs a round trip, so each drag asks only what it needs:
+        // the window and what floats over the page's bottom once, then per drag the keyboard
+        // and the element. Every one of them can come and go as the screen changes, so each
+        // is read through `frame(of:)` and `canTap(_:)`, which take that in their stride.
+        let window = frame(of: app.windows.firstMatch) ?? app.frame
+        let floor = pageFloor(in: app, window: window)
+        let keyboard = app.keyboards.firstMatch
+        func visible() -> CGRect {
+            let bottom = min(floor, frame(of: keyboard)?.minY ?? window.maxY)
+            return CGRect(x: window.minX, y: window.minY, width: window.width, height: bottom - window.minY)
         }
+        /// Where the element is now, nil when it isn't on the page (a lazy list loads it later).
+        func whereItIs() -> CGRect? { frame(of: element) }
+        /// How far it still is from what shows: positive below, negative above.
+        func distance(_ frame: CGRect?, _ area: CGRect) -> CGFloat? {
+            guard let frame else { return nil }
+            if frame.maxY > area.maxY { return frame.maxY - area.maxY }
+            if frame.minY < area.minY { return frame.minY - area.minY }
+            return 0
+        }
+        /// What moves when the page does, for an element that isn't on it yet.
+        let landmark = app.staticTexts.element(boundBy: 0)
+
+        var area = visible()
+        var now = whereItIs()
+        let height = max(area.height, 1)
+        let cap = min(max(14, Int((abs(distance(now, area) ?? 0) / (height * 0.5)).rounded(.up)) + 8), 200)
+        var still = 0, farther = 0
+        var best = abs(distance(now, area) ?? .greatestFiniteMagnitude)
+        for _ in 0..<cap {
+            var gap = distance(now, area)
+            if let now, area.contains(now) {
+                if canTap(element) { break }
+                // In view yet under something that floats (a Snap button over the tab bar):
+                // bring it toward the middle.
+                gap = now.midY - area.midY
+            }
+            let down = (gap ?? 1) >= 0
+            // Far away (or not on the page yet), a long quick drag that lets the page coast;
+            // near, the remaining distance and a little, held so it stops where it should.
+            let far = abs(gap ?? .greatestFiniteMagnitude) > area.height * 1.5
+            let travel = far ? area.height * 0.7 : min(max(abs(gap ?? area.height) + 24, area.height * 0.2), area.height * 0.6)
+            let middle = area.minY + area.height / 2
+            let (from, to) = down ? (middle + travel / 2, middle - travel / 2) : (middle - travel / 2, middle + travel / 2)
+            let before = now ?? frame(of: landmark) ?? .zero
+            // Within what shows: a drag that starts on the keyboard moves nothing.
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            origin.withOffset(CGVector(dx: area.midX, dy: from)).press(
+                forDuration: 0.05,
+                thenDragTo: origin.withOffset(CGVector(dx: area.midX, dy: to)),
+                withVelocity: far ? .fast : .default,
+                thenHoldForDuration: far ? 0 : 0.1
+            )
+            area = visible()
+            now = whereItIs()
+            still = (now ?? frame(of: landmark) ?? .zero) == before ? still + 1 : 0
+            if still >= 2 { break }
+            if let gap = distance(now, area).map(abs) {
+                if gap < best { best = gap; farther = 0 } else { farther += 1 }
+                if farther >= 4 { break }
+            }
+        }
+        // Fails only when it can't be tapped where it is.
+        // (A sheet's bottom button can reach past the screen's edge and still be tapped.)
+        if !canTap(element) {
+            let at = whereItIs().map { "\($0)" } ?? "not on the page"
+            XCTFail("Couldn't bring \(element) into view (frame: \(at), visible: \(visible()))", file: file, line: line)
+        }
+    }
+
+    /// An element's frame, nil when it isn't there or has no size. One snapshot answers, so
+    /// an element that goes between asking whether it exists and where it is can't fail the test.
+    private func frame(of element: XCUIElement) -> CGRect? {
+        guard let frame = try? element.snapshot().frame, !frame.isEmpty else { return nil }
+        return frame
+    }
+
+    /// Whether it can be tapped where it is. XCUITest has no snapshot of that, and records a
+    /// failure when the element goes between asking whether it exists and whether it can be
+    /// tapped, so that one case is expected here and read as "no".
+    private func canTap(_ element: XCUIElement) -> Bool {
+        var hittable = false
+        let options = XCTExpectedFailure.Options()
+        options.isStrict = false
+        XCTExpectFailure("It went while being asked about", options: options) {
+            hittable = element.exists && element.isHittable
+        }
+        return hittable
+    }
+
+    /// Where the page stops showing at the bottom: the top of the tab bar, and of a bar that
+    /// floats over the page above it ("Snap a meal") which the page scrolls under. Neither
+    /// counts under a sheet or a full-screen cover, which hide them without removing them:
+    /// a sheet is marked by the region that dismisses it, and a cover leaves the tab bar
+    /// unhittable. XCUITest calls a row under a floating bar hittable, so its frame is what tells.
+    private func pageFloor(in app: XCUIApplication, window: CGRect) -> CGFloat {
+        if app.otherElements["PopoverDismissRegion"].exists { return window.maxY }
+        let tabBar = app.tabBars.firstMatch
+        guard canTap(tabBar), let bar = frame(of: tabBar) else { return window.maxY }
+        let floating = frame(of: app.buttons["snap-meal"].firstMatch)
+        return min(bar.minY, floating?.minY ?? bar.minY)
     }
 
     /// Types into a field a key at a time and checks it all arrived, trying again from a
@@ -141,8 +239,10 @@ extension PhoneTestHelpers {
     /// screen still shows there, like the "Add someone" a new row is replacing.
     func type(_ text: String, into field: XCUIElement, in app: XCUIApplication) {
         XCTAssertTrue(field.waitForExistence(timeout: 10), "The field should be there to type into")
-        for _ in 0..<3 {
-            if !hasFocus(field, within: 1) {
+        for attempt in 0..<3 {
+            // A field can hold the focus while its keys go nowhere (the keyboard's session
+            // not yet joined to it): after a try that didn't arrive, tap it to join them again.
+            if attempt > 0 || !hasFocus(field, within: 1) {
                 field.tap()
                 XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
                 guard hasFocus(field, within: 10) else { continue }
