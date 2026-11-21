@@ -39,8 +39,9 @@ struct PhoneSheet<Content: View, Footer: View>: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         }
         .scrollBounceBehavior(.basedOnSize)
-        // Dragging the sheet's content puts the keyboard away, uncovering its button.
-        .scrollDismissesKeyboard(.immediately)
+        // As across the app, a drag down into the keyboard takes it away; scrolling while
+        // typing keeps it.
+        .scrollDismissesKeyboard(.interactively)
         // A dish field in the sheet (Edit meal) stays over the keyboard as it suggests.
         .keepsDishFieldInView(proxy)
         }

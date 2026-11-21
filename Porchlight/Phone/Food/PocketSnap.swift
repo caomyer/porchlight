@@ -202,9 +202,9 @@ private struct PocketSnapDetails: View {
             .padding(.bottom, 24)
         }
         .scrollBounceBehavior(.basedOnSize)
-        // A drag puts the keyboard away, uncovering Save; the field's own scrolling, as it
-        // suggests, isn't a drag and keeps it.
-        .scrollDismissesKeyboard(.immediately)
+        // As across the app, a drag down into the keyboard takes it away; scrolling the form
+        // while typing keeps it, and Done on the dish field puts it away.
+        .scrollDismissesKeyboard(.interactively)
         .keepsDishFieldInView(proxy)
         }
         // A full-screen cover stands outside the tabs: keep scrolled text out from

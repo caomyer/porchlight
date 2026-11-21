@@ -127,14 +127,13 @@ extension PhoneTestHelpers {
     /// loop always ends. Then it fails naming the element if it still can't be tapped.
     func reveal(_ element: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         // Every question to the app costs a round trip, so each drag asks only what it needs:
-        // the window and the tab bar once, then per drag the keyboard and the element.
+        // the window and what floats over the page's bottom once, then per drag the keyboard
+        // and the element.
         let window = app.windows.firstMatch.frame
-        let tabBar = app.tabBars.firstMatch
-        // A tab bar behind a full-screen cover still exists, but covers nothing.
-        let tabTop = tabBar.exists && tabBar.isHittable ? tabBar.frame.minY : window.maxY
+        let floor = pageFloor(in: app, window: window)
         let keyboard = app.keyboards.firstMatch
         func visible() -> CGRect {
-            let bottom = min(tabTop, keyboard.exists ? keyboard.frame.minY : window.maxY)
+            let bottom = min(floor, keyboard.exists ? keyboard.frame.minY : window.maxY)
             return CGRect(x: window.minX, y: window.minY, width: window.width, height: bottom - window.minY)
         }
         /// Where the element is now, nil when it isn't on the page (a lazy list loads it later).
@@ -199,6 +198,19 @@ extension PhoneTestHelpers {
         }
     }
 
+    /// Where the page stops showing at the bottom: the top of the tab bar, and of a bar that
+    /// floats over the page above it ("Snap a meal") which the page scrolls under. Neither
+    /// counts under a sheet or a full-screen cover, which hide them without removing them:
+    /// a sheet is marked by the region that dismisses it, and a cover leaves the tab bar
+    /// unhittable. XCUITest calls a row under a floating bar hittable, so its frame is what tells.
+    private func pageFloor(in app: XCUIApplication, window: CGRect) -> CGFloat {
+        if app.otherElements["PopoverDismissRegion"].exists { return window.maxY }
+        let tabBar = app.tabBars.firstMatch
+        guard tabBar.exists, tabBar.isHittable else { return window.maxY }
+        let floating = app.buttons.matching(NSPredicate(format: "identifier IN %@", ["snap-meal"])).firstMatch
+        return floating.exists ? min(tabBar.frame.minY, floating.frame.minY) : tabBar.frame.minY
+    }
+
     /// Types into a field a key at a time and checks it all arrived, trying again from a
     /// cleared field if not: on a busy simulator a fast `typeText` can drop keys, and so
     /// can typing while a field that focuses itself is still taking focus.
@@ -209,8 +221,10 @@ extension PhoneTestHelpers {
     /// screen still shows there, like the "Add someone" a new row is replacing.
     func type(_ text: String, into field: XCUIElement, in app: XCUIApplication) {
         XCTAssertTrue(field.waitForExistence(timeout: 10), "The field should be there to type into")
-        for _ in 0..<3 {
-            if !hasFocus(field, within: 1) {
+        for attempt in 0..<3 {
+            // A field can hold the focus while its keys go nowhere (the keyboard's session
+            // not yet joined to it): after a try that didn't arrive, tap it to join them again.
+            if attempt > 0 || !hasFocus(field, within: 1) {
                 field.tap()
                 XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
                 guard hasFocus(field, within: 10) else { continue }
