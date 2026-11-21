@@ -140,12 +140,14 @@ The phone suite's food tests are much slower than on November 16 (the meal page 
 
 #### On GitHub (CI)
 
-Every push to any branch runs the unit tests and both UI suites on GitHub's hosted Macs (`.github/workflows/tests.yml`), on iOS 27.2 with Xcode 27.2, so full runs leave the development Mac alone.
+Pushes run on GitHub's hosted Macs (`.github/workflows/tests.yml`), on iOS 27.2 with Xcode 27.2, so runs leave the development Mac alone, in two tiers ([docs/design/testing.md](docs/design/testing.md), "Tiers").
+A push to a working branch runs the unit tests and the smoke set (`scripts/test.sh --smoke`'s 13 UI tests) on three Macs; a push to `integration/next` or `main`, and any run by hand, runs the unit tests and both whole UI suites on five.
 A newer push to the same branch cancels the run before it; a run by hand is never cancelled by, and never cancels, another run.
 Each job is a small Mac (3 cores, 7 GB) that holds one simulator, and the plan runs five at once:
 
 - **Build** builds once (`scripts/test.sh --build-only`) and hands the build to the test jobs as the `products` artifact.
-- **Unit and Wall UI 1 of 2, Wall UI 2 of 2, Phone UI 1 of 3, 2 of 3, 3 of 3** start once the build is done (`needs: build`), boot their simulator (2 to 8 minutes for a new iOS 27 simulator), and run the unit tests or a share of a UI suite's test classes (`--shard`) on that build (`--no-build`).
+- For a working branch's push, **Unit, Wall smoke and Phone smoke** start once the build is done, each on its own Mac.
+- For the full suite, **Unit and Wall UI 1 of 2, Wall UI 2 of 2, Phone UI 1 of 3, 2 of 3, 3 of 3** start once the build is done (`needs: build`), boot their simulator (2 to 8 minutes for a new iOS 27 simulator), and run the unit tests or a share of a UI suite's test classes (`--shard`) on that build (`--no-build`).
   They used to boot while the build ran, which saved those minutes, but with several branches pushing, a test job then held a Mac for as long as the build waited in the queue for one.
 
 The shares are of about equal time, from each class's measured seconds in `scripts/lib/ui-test-seconds`; when a class grows, update its line from a run's log, where each test prints its seconds.
@@ -154,6 +156,7 @@ The suites take about 35 minutes of tests for the wall and 75 for the phone on t
 The jobs go through `scripts/test.sh` like a local run; the steps around it live in `scripts/ci`.
 A UI test that failed only because XCTest could not start the app, or quit the one before it ("Failed to launch", "Failed to get launch progress", "does not have a process ID", "Failed to terminate"), and left no crash report, which a busy hosted Mac does now and then, runs once more on its own, locally too; the summary names it ("passed on a second launch"), its second run is the `-retry` bundle and log, and any other failure stands (`scripts/lib/launch_retry.py`).
 The log prints each test as it ends (`--progress`), and every two minutes a heartbeat line with the free memory, so a hang or a Mac out of memory shows.
+To run the full suite on a working branch, which every branch does once before asking to merge, use Actions, Tests, Run workflow, on that branch, with "only" left empty (`gh workflow run Tests --ref <branch>`).
 To run only some tests, use Actions, Tests, Run workflow, with "only" set as for `--only` (for example `FirstRunTests PhoneTests/testCheckingChores`): one job builds and runs just those.
 
 **Reading a failure.** The job's log lists the failed tests and their messages under `[ui-wall]`, `[ui-phone]` or the unit summary.
