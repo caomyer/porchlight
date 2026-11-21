@@ -60,9 +60,18 @@ final class LoggedEntryTests: XCTestCase {
         snapshot("51-walk-fixed")
     }
 
+    /// Today at 5:20 pm for `-debugCompanionNow`: the day is today's, as the sample household's
+    /// is, and the time of day is fixed, so nothing here depends on when the suite runs.
+    private static var evening: String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
+        return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
+    }
+
     func testLoggingAWalkSaysWhenItStarted() {
         let app = XCUIApplication.porchlight()
-        app.launchArguments = ["-sampleHousehold", "-startScreen", "today"]
+        // Pinned to 5:20 pm, so an hour ago is today whenever the suite runs. Which choices
+        // are offered at each minute of the day is `LogTimeTests` (unit).
+        app.launchArguments = ["-sampleHousehold", "-startScreen", "today", "-debugCompanionNow", Self.evening]
         app.launch()
 
         let log = button(app, containing: "I walked Yo-Yo")
@@ -73,19 +82,13 @@ final class LoggedEntryTests: XCTestCase {
         time.tap()
         XCTAssertTrue(app.buttons["Just got back"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Just got back"].isSelected, "A new walk ends now by default")
-        // "1 hr ago" is only offered when an hour ago is still today. Near the
-        // one-hour mark the answer can change mid-test, so that minute is skipped.
         let hourAgo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1 hr ago'")).firstMatch
-        let minutesToday = Date().timeIntervalSince(Calendar.current.startOfDay(for: Date())) / 60
-        if minutesToday >= 62 {
-            hourAgo.tap()
-            XCTAssertTrue(hourAgo.waitForNonExistence(timeout: 5), "A suggestion sets the time and closes")
-            time.tap()
-            XCTAssertTrue(hourAgo.waitForExistence(timeout: 5))
-            XCTAssertTrue(hourAgo.isSelected)
-        } else if minutesToday < 59 {
-            XCTAssertFalse(hourAgo.exists, "Yesterday's times aren't offered for today")
-        }
+        XCTAssertTrue(hourAgo.exists, "At 5:20 pm an hour ago is still today")
+        hourAgo.tap()
+        XCTAssertTrue(hourAgo.waitForNonExistence(timeout: 5), "A suggestion sets the time and closes")
+        time.tap()
+        XCTAssertTrue(hourAgo.waitForExistence(timeout: 5))
+        XCTAssertTrue(hourAgo.isSelected)
         snapshot("52-new-walk-earlier")
         app.buttons["time-done"].tap()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save walk'")).firstMatch.tap()

@@ -124,5 +124,31 @@ struct ArrivalsTests {
         #expect(pick(.account(.couldNotCheck), stuck: true)?.title == "Can't check iCloud")
         #expect(pick(.account(.couldNotCheck), stuck: true)?.fix == nil, "and has nothing to fix in Settings")
         #expect(pick(.needsDecision(.restoredCopy))?.fix == .openYou)
+        #expect(pick(.needsDecision(.restoredCopy))?.title == "Sync is waiting for you")
+        #expect(pick(.needsDecision(.accountChanged))?.title == "Sync is waiting for you")
+        #expect(pick(.needsDecision(.accountChanged))?.detail == "Choose what to do with The Lake House on this iPhone.")
+    }
+
+    /// "Offline since 4:55 PM" while the last sync was today, "Offline since Nov 6" after
+    /// midnight, with the clock pinned and swept across the day in two time zones: the day
+    /// is the calendar's, never the test machine's.
+    @Test("Offline says since when: a time today, a day once it was before today", arguments: ["America/Los_Angeles", "Pacific/Auckland"])
+    func offlineSince(zone: String) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: zone))
+        let midnight = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 7)))
+        func title(lastSynced: Date, now: Date) -> String? {
+            PocketSyncNotice.pick(
+                .waiting(lastSynced: lastSynced), stuckLong: true, householdName: "The Lake House", ownerName: nil, device: "iPhone",
+                now: now, calendar: calendar
+            )?.title
+        }
+        for halfHour in 0..<48 {
+            let now = midnight.addingTimeInterval(Double(halfHour) * 30 * 60)
+            let today = midnight.addingTimeInterval(60)
+            let yesterday = midnight.addingTimeInterval(-60)
+            #expect(title(lastSynced: today, now: now) == "Offline since \(today.formatted(date: .omitted, time: .shortened))", "at \(halfHour / 2):\(halfHour % 2 * 30)")
+            #expect(title(lastSynced: yesterday, now: now) == "Offline since \(yesterday.formatted(.dateTime.month(.abbreviated).day()))", "at \(halfHour / 2):\(halfHour % 2 * 30)")
+        }
     }
 }

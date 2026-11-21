@@ -202,7 +202,7 @@ To do: on James's iPhone, turn Porchlight's iCloud switch off and confirm the ph
 Why: Screen Time or a managed device can forbid iCloud, which CloudKit reports as `restricted`, and an account needing a new password reports `temporarilyUnavailable`.
 State: done.
 Evidence: `restricted` says "iCloud isn't allowed on this iPhone" (Screen Time, or whoever manages it), `temporarilyUnavailable` says "iCloud needs you to sign in again", and an account that can't be checked says nothing until it has lasted an hour, then "Can't check iCloud", without claiming the household is on this device only (`SyncControllerTests.accountProblems`, `SyncControllerTests.checkFails`, `ArrivalsTests`, `HouseholdHomeTests`).
-Each has a `-debugSyncStatus` value (`restricted`, `needsSignIn`, `couldNotCheck`) and a UI test on both shells (`PhoneHouseholdTests.testSyncBannersOnToday`, `SyncSettingsTests.testEachMissingICloudSaysWhy`).
+Each has a `-debugSyncStatus` value (`restricted`, `needsSignIn`, `couldNotCheck`) and its words are unit tested for both shells (`ArrivalsTests`, `SyncWordingTests`), with one UI test on each showing a state on screen (`PhoneHouseholdTests.testSyncBannersOnToday`, `SyncSettingsTests.testAMissingICloudSaysWhy`).
 
 ### CloudKit production schema before each release
 
@@ -233,7 +233,7 @@ Doc comments mention our names only as examples in code, which ship nowhere.
 
 Why: many people use larger text; App Store review and real use both expect it.
 State: done.
-Evidence: every phone screen is checked at the largest accessibility size (`PhoneTests.testLargestText`, `PhoneTabsTests.testLargestText`, `PhoneFoodTests.testLargestText`, `PhoneHouseholdTests.testLargestText`, `PhoneRemindersTests.testLargestText`, `PhoneFoodTests.testPaperUnderTheStatusBarAtTheLargestSize`).
+Evidence: every phone screen is checked at the largest accessibility size (`PhoneTests.testLargestText`, `PhoneTabsTests.testLargestText`, `PhoneFoodTests.testLargestText`, `PhoneHouseholdTests.testLargestText`, `PhoneRemindersTests.testLooks`, the hosted `PocketWeekScreenTests` and `PocketCareSheetScreenTests`, `PhoneFoodTests.testPaperUnderTheStatusBarAtTheLargestSize`).
 
 ### Text size on the wall
 

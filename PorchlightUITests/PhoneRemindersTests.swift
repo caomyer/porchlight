@@ -30,9 +30,11 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         app.buttons["you"].tap()
         let row = app.buttons["notifications"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
-        row.waitToSettle()
-        // Below the household, storage and people now, so scrolled into view first.
+        // Below the household, storage and people now, so scrolled into view first, then
+        // settled. The other way round, the row is off screen and never settles: twenty looks
+        // at the screen, 54 of this page's 147 seconds on a hosted Mac in the night look.
         reveal(row, in: app)
+        row.waitToSettle()
         row.tap()
         XCTAssertTrue(app.navigationBars.buttons["You"].waitForExistence(timeout: 5), "On the Notifications page")
         return app
@@ -147,18 +149,16 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         snapshot(dark ? "a5-43-named-reminder-other-dark" : "a5-42-named-reminder-other")
     }
 
-    func testNightLook() {
+    /// The choices in the night look at the largest text size, in one launch: a look costs a
+    /// launch and, for the night look, quitting the app twice more, so the two looks of this
+    /// one page share it.
+    func testLooks() {
         XCUIDevice.shared.appearance = .dark
-        let app = openNotifications("allowed")
-        XCTAssertTrue(app.buttons["remind-chores"].waitForExistence(timeout: 5))
-        snapshot("e2-80-choices-dark")
-    }
-
-    func testLargestText() {
         let app = openNotifications("allowed", ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         let evening = app.buttons["remind-Yo-Yo · evening walk"]
         XCTAssertTrue(evening.waitForExistence(timeout: 5))
         XCTAssertTrue(app.windows.firstMatch.frame.contains(evening.frame), "The choice is whole on screen")
-        snapshot("e2-90-choices-largest")
+        XCTAssertTrue(app.buttons["remind-chores"].exists)
+        snapshot("e2-80-choices-largest-dark")
     }
 }

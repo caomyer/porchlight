@@ -171,6 +171,39 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts["Hi, Ava"].waitForExistence(timeout: 10))
     }
 
+    /// By hand only: "I'm new here" twelve times over, each from a fresh launch, typing a name
+    /// once with no second try and no tap on the field, and counting the rounds where the
+    /// keys never arrive. On November 20 the name field twice showed its cursor with the
+    /// keyboard up while typed keys went nowhere (docs/design/testing.md, "Known and not
+    /// yet explained"). `testImNewHere` types through a helper that taps the field again
+    /// before a second try, which would hide that; this does not.
+    /// `TEST_RUNNER_PORCHLIGHT_NEW_HERE=1 xcodebuild test ... -only-testing:PorchlightUITests/PhoneHouseholdTests/testImNewHereAgainAndAgainByHand`.
+    func testImNewHereAgainAndAgainByHand() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["PORCHLIGHT_NEW_HERE"] == "1", "Run by hand")
+        var lost: [Int] = []
+        for round in 1...12 {
+            let app = launch(["-resetData", "-debugJoin", "preview"])
+            XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
+            app.buttons["join"].tap()
+            let new = app.buttons["who-new"]
+            XCTAssertTrue(new.waitForExistence(timeout: 30))
+            new.tap()
+            let name = app.textFields["new-name"]
+            XCTAssertTrue(name.waitForExistence(timeout: 5))
+            let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: name)
+            XCTAssertEqual(XCTWaiter().wait(for: [focused], timeout: 10), .completed, "round \(round): the field takes the focus by itself")
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10), "round \(round): the keyboard comes up")
+            for character in "Ava" { app.typeText(String(character)) }
+            let arrived = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "Ava"), object: name)
+            if XCTWaiter().wait(for: [arrived], timeout: 3) != .completed {
+                lost.append(round)
+                snapshot("new-here-lost-keys-round-\(round)")
+            }
+            app.terminate()
+        }
+        XCTAssertTrue(lost.isEmpty, "Typed keys never arrived in \(lost.count) of 12 rounds: \(lost)")
+    }
+
     func testAnAccountTheHouseholdKnowsSkipsWhoYouAre() {
         let app = launch(["-resetData", "-debugJoin", "known"])
         XCTAssertTrue(app.buttons["join"].waitForExistence(timeout: 60))
@@ -206,28 +239,25 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
 
     // MARK: Sync banners
 
+    /// One banner on Today, with its fix: a member sees whose iCloud is full, and a restored
+    /// copy's "Choose" opens the choice in You. What the banner says in each of sync's states
+    /// is `ArrivalsTests` (unit), so the app is not launched once per state here.
     func testSyncBannersOnToday() {
-        let states: [(String, String)] = [
-            ("iCloudFull", "Sync paused: James's iCloud is full"),
-            ("noAccount", "iCloud is off for Porchlight"),
-            ("restricted", "iCloud isn't allowed on this iPhone"),
-            ("needsSignIn", "iCloud needs you to sign in again"),
-            ("waiting", "Offline since"),
-            ("restoredCopy", "Sync is waiting for you"),
-        ]
-        for (index, (status, title)) in states.enumerated() {
-            let app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", status])
-            let banner = app.descendants(matching: .any)["sync-banner"].firstMatch
-            XCTAssertTrue(banner.waitForExistence(timeout: 60), status)
-            XCTAssertTrue(banner.label.hasPrefix(title), "\(status): \(banner.label)")
-            snapshot("phone-11\(index)-banner-\(status)")
-            if status == "restoredCopy" {
-                banner.tap()
-                XCTAssertTrue(app.buttons["Use what is in iCloud"].waitForExistence(timeout: 5), "Choose opens the choice")
-                snapshot("phone-119-restored-choice")
-            }
-            app.terminate()
-        }
+        var app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "iCloudFull"])
+        var banner = app.descendants(matching: .any)["sync-banner"].firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 60), "A stuck sync shows on Today")
+        XCTAssertTrue(banner.label.hasPrefix("Sync paused: James's iCloud is full"), "It names the owner to a member: \(banner.label)")
+        snapshot("phone-110-banner-iCloudFull")
+        app.terminate()
+
+        app = launch(["-sampleHousehold", "-me", "Mia", "-debugSharing", "member", "-debugSyncStatus", "restoredCopy"])
+        banner = app.descendants(matching: .any)["sync-banner"].firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 60))
+        XCTAssertTrue(banner.label.hasPrefix("Sync is waiting for you"), banner.label)
+        snapshot("phone-115-banner-restoredCopy")
+        banner.tap()
+        XCTAssertTrue(app.buttons["Use what is in iCloud"].waitForExistence(timeout: 5), "Choose opens the choice")
+        snapshot("phone-119-restored-choice")
     }
 
     // MARK: You

@@ -282,7 +282,7 @@ final class CompanionStore: StoredFirstObservable {
     }
 
     @discardableResult
-    func log(routineId: CareRoutine.ID, _ draft: CareLogDraft, now: Date = .now) -> CareLog? {
+    func log(routineId: CareRoutine.ID, _ draft: CareLogDraft, now: Date = CompanionClock.now()) -> CareLog? {
         do {
             let log = try database.logCare(routineId: routineId, draft, now: now)
             lastError = nil

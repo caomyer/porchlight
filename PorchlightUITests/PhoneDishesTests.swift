@@ -132,31 +132,9 @@ final class PhoneDishesTests: XCTestCase, PhoneTestHelpers {
         snapshot("dishes-10-empty")
     }
 
-    func testNightAndLargestText() {
-        XCUIDevice.shared.appearance = .dark
-        var app = launch(["-debugFoodView", "dishes"])
-        snapshot("dishes-20-list-dark")
-        app.terminate()
-        app = launch(["-debugFoodView", "dish"])
-        XCTAssertTrue(app.staticTexts["dish-title"].waitForExistence(timeout: 10))
-        snapshot("dishes-21-dish-dark")
-        app.terminate()
-        app = launch(["-debugFoodView", "place"])
-        XCTAssertTrue(app.staticTexts["place-title"].waitForExistence(timeout: 10))
-        snapshot("dishes-22-place-dark")
-        app.terminate()
-
-        XCUIDevice.shared.appearance = .light
-        let largest = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
-        app = launch(["-debugFoodView", "dish"] + largest)
-        XCTAssertTrue(app.staticTexts["dish-title"].waitForExistence(timeout: 10))
-        snapshot("dishes-30-dish-largest")
-        app.swipeUp()
-        snapshot("dishes-31-dish-largest-scrolled")
-        app.terminate()
-        app = launch(["-debugFoodView", "dishes"] + largest)
-        snapshot("dishes-32-list-largest")
-    }
+    // The list, a dish's page and a restaurant's page in the night look and at the largest
+    // text size are `PocketDishesScreenTests` (unit bundle), which hosts and draws each in
+    // four looks; this class launched the app five times for those shots.
 }
 
 extension XCUIElement {

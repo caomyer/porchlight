@@ -60,19 +60,28 @@ final class PitchInTests: XCTestCase {
         XCTAssertEqual(app.buttons["Vacuum the living room"].value as? String, "Done")
     }
 
-    /// Companion care is on the board, and checking it opens the companion's log sheet.
+    /// Today at 5:20 pm for `-debugCompanionNow`: the morning walk is done, and the evening
+    /// walk and dinner are open, whenever the suite runs.
+    private static var evening: String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
+        return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
+    }
+
+    /// Companion care is on the board: done care opens its log to fix, and care still to do
+    /// opens the companion's log sheet. The clock is pinned, so both are there on every run;
+    /// the test used to take whichever the real time of day offered.
     func testLoggingCareFromTheBoard() {
-        let app = launch(["-startScreen", "chores"])
-        let walk = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Walk Yo-Yo'")).firstMatch
-        XCTAssertTrue(walk.waitForExistence(timeout: 40), "Yo-Yo's walks sit on the board")
+        let app = launch(["-startScreen", "chores", "-debugCompanionNow", Self.evening])
+        let walked = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Walk Yo-Yo' AND value == 'Done'")).firstMatch
+        XCTAssertTrue(walked.waitForExistence(timeout: 40), "This morning's walk sits on the board, done")
+        walked.tap()
+        XCTAssertTrue(app.buttons["Save changes"].waitForExistence(timeout: 5), "Done care opens its log to fix it")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons["Save changes"].waitForNonExistence(timeout: 5))
         let feed = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Feed Yo-Yo' AND value == 'Not done'")).firstMatch
-        if feed.exists {
-            feed.tap()
-            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save'")).firstMatch.waitForExistence(timeout: 5), "Care is logged with the companion's own sheet")
-        } else {
-            walk.tap()
-            XCTAssertTrue(app.buttons["Save changes"].waitForExistence(timeout: 5), "Done care opens its log to fix it")
-        }
+        XCTAssertTrue(feed.waitForExistence(timeout: 5), "Tonight's dinner is still to do")
+        feed.tap()
+        XCTAssertTrue(app.buttons["Save meal"].waitForExistence(timeout: 5), "Care is logged with the companion's own sheet")
         snapshot("62-care-from-board")
     }
 

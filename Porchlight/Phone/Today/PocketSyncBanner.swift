@@ -28,9 +28,10 @@ struct PocketSyncNotice: Equatable {
     /// - Parameters:
     ///   - stuckLong: Sync has been stuck an hour (`SyncController.needsAttention`).
     ///   - ownerName: Whose iCloud holds the household, when it isn't this user's.
+    ///   - now: The moment the banner is read at, so "since" names a time today or a day.
     static func pick(
         _ status: SyncStatus, stuckLong: Bool, householdName: String, ownerName: String?, device: String,
-        calendar: Calendar = .current
+        now: Date = .now, calendar: Calendar = .current
     ) -> PocketSyncNotice? {
         switch status {
         case .needsDecision:
@@ -75,7 +76,7 @@ struct PocketSyncNotice: Equatable {
             )
         case let .waiting(lastSynced) where stuckLong:
             let since = lastSynced.map { date in
-                calendar.isDateInToday(date)
+                calendar.isDate(date, inSameDayAs: now)
                     ? "since \(date.formatted(date: .omitted, time: .shortened))"
                     : "since \(date.formatted(.dateTime.month(.abbreviated).day()))"
             }
