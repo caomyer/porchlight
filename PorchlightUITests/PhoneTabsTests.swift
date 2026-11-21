@@ -281,7 +281,10 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         saveFix(app)
     }
 
-    /// The fix sheet in the night look and at the largest text size.
+    /// The fix sheet in the night look and at the largest text size, and the time pill at
+    /// that size: it grows with the text beside it and goes under "Started" instead of
+    /// squeezing it, in both looks, on the fix sheet and the new-log sheet alike. One launch
+    /// per look: the pill is checked on the sheets these launches already open.
     func testFixingAWalkLooks() {
         XCUIDevice.shared.appearance = .dark
         var app = launch()
@@ -297,38 +300,27 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         XCUIDevice.shared.appearance = .light
         app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         openMorningWalk(app)
+        checkTimePill(app)
         snapshot("edit-40-today-largest")
         let save = app.buttons["save-care"]
         reveal(save, in: app)
         XCTAssertTrue(save.isHittable, "Save changes is reachable at the largest size")
         snapshot("edit-41-save-largest")
-        app.terminate()
-
-        XCUIDevice.shared.appearance = .dark
-        app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
-        openMorningWalk(app)
-        snapshot("edit-42-today-largest-dark")
-    }
-
-    /// The time pill grows with the text beside it, and at the largest size goes under
-    /// "Started" instead of squeezing it, on the fix sheet and the new-log sheet alike.
-    func testTheTimePillGrowsWithText() {
-        for (look, appearance) in [("light", XCUIDevice.Appearance.light), ("dark", .dark)] {
-            XCUIDevice.shared.appearance = appearance
-            let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
-            openMorningWalk(app)
-            checkTimePill(app)
-            snapshot("pill-1\(look == "light" ? 0 : 1)-edit-largest-\(look)")
-            app.terminate()
-        }
-        XCUIDevice.shared.appearance = .light
-        let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        // The same pill on a new log: saving the fix as it is closes its sheet.
+        saveFix(app)
         let more = app.buttons["more-Yo-Yo"]
         reveal(more, in: app)
         more.tap()
         XCTAssertTrue(app.staticTexts["Log a walk"].waitForExistence(timeout: 5))
         checkTimePill(app)
         snapshot("pill-12-new-largest-light")
+        app.terminate()
+
+        XCUIDevice.shared.appearance = .dark
+        app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        openMorningWalk(app)
+        checkTimePill(app)
+        snapshot("edit-42-today-largest-dark")
     }
 
     /// The pill's time is set large enough to read at this size, and it sits clear of its label.
