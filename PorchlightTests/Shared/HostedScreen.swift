@@ -49,6 +49,20 @@ struct HostedScreen {
         elements.first { $0.label.hasPrefix(prefix) }
     }
 
+    /// The elements that run off either side of the screen; none, on a screen that fits.
+    var offSides: [Element] {
+        elements.filter { $0.frame.minX < 0 || $0.frame.maxX > Self.size.width }
+    }
+
+    /// Writes the page to `TEST_RUNNER_PORCHLIGHT_SCREEN_SHOTS=<folder>` as `<name>.png`, when
+    /// that is set for `xcodebuild test`: the review shots (docs/design/testing.md).
+    func saveShot(_ name: String) throws {
+        guard let path = ProcessInfo.processInfo.environment["PORCHLIGHT_SCREEN_SHOTS"] else { return }
+        let folder = URL(fileURLWithPath: path, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try image.pngData()?.write(to: folder.appendingPathComponent("\(name).png"))
+    }
+
     /// Every element, a line each, for a failure's message.
     var listing: String {
         elements.map { "\($0.isButton ? "button" : "text") \"\($0.label.prefix(50))\" \($0.frame.integral)" }.joined(separator: "\n")

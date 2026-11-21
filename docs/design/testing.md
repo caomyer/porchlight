@@ -120,12 +120,13 @@ What the spike of November 20 found, so its limits are known:
   There is no status bar, tab bar, navigation bar, sheet or keyboard, nothing is hit-tested and no gesture runs, so "can it be tapped", "is it under the keyboard", "does paper show under the status bar" and "does the sheet close" stay UI tests.
 - **The clock is the app's.**
   The screens and the sample data read `CompanionClock` themselves, which only the process-wide `-debugCompanionNow` pins, so a hosted test asserts where things sit, never a time, a count or a day's name, until the clock can be handed in.
-- **Each screen needs its stores.**
+- **Each screen needs its stores, and a missing one stops the whole run.**
+  A screen hosted without an environment object it reads does not fail its test: SwiftUI stops the process, and every unit test after it is lost with it, so add the store the crash names and run again.
   The week needs a `CompanionStore`, a `ToastCenter` and `me`; a screen that reads more of the environment needs more, and one that reads `UIDevice` or the real permission state would need a seam first.
 - **The unit tests run on the iPad simulator.**
   The phone's layout comes from a compact size class set on the hosting controller, which the week's screen follows; a screen that asks the device what it is would not.
 
-It is proven for two screens (a companion's week and the care sheet), and the care sheet's looks have moved onto it ("Review shots"); other screens move one at a time, each with a hosted test seen failing first and one UI test kept for what only the real screen shows.
+It is proven for three (a companion's week, the care sheet and the dishes pages), and the care sheet's and the dishes' looks have moved onto it ("Review shots"); other screens move one at a time, each with a hosted test seen failing first and one UI test kept for what only the real screen shows.
 
 When you add a new kind of test, add a working example with it and a row to the table above.
 
@@ -150,6 +151,7 @@ Review shots come from two places, and each screen's are named so a person knows
 |---|---|---|---|
 | A companion's week | `week-<look>.png` | light, dark, largest, largest-dark | `PhoneWeekTests` (frozen): the trail's dots open the right sheet, a log shows in trail and diary |
 | The care sheet: new, fixing, catching up | `care-sheet-new-<look>.png`, `care-sheet-fix-<look>.png`, `care-sheet-catchUp-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testFixingAWalkLooks`: the real sheet at the largest size, Save within reach (`edit-40-today-largest`, `edit-41-save-largest`). `PhoneCatchUpTests`, `PhoneTabsTests.testFixingAWalkFromToday`: the sheet opens, saves, asks before removing and closes (`catch-up-10-banner-sheet`, `edit-10-today`, `edit-11-remove`) |
+| Dishes: the list, a dish, a restaurant | `dishes-list-<look>.png`, `dishes-dish-<look>.png`, `dishes-place-<look>.png` | light, dark, largest, largest-dark | `PhoneDishesTests`: search, the star, a restaurant from a dish, each person's face, renaming into a merge, removing with Undo (`dishes-02-list` to `dishes-10-empty`) |
 | Notifications | none: the page reads the permission itself | | `PhoneRemindersTests.testLooks`: night look at the largest size in one launch (`e2-80-choices-largest-dark`); `e2-10-ask`, `e2-11-denied`, `e2-12-choices` from the journeys |
 
 A screen moves to hosted shots when a hosted test of it exists and has been seen failing; until then its looks tests stay as they are.
@@ -262,10 +264,10 @@ When a UI test goes over 60 seconds, in this order:
 Each test's steps are in its job's `ui-phone.log` or `ui-wall.log` (the `results-…` artifact), one line a step with its time, so a slow test is read, not guessed at.
 Three causes account for most of what was found on November 20, in run 44828667552:
 
-- **`reveal` on a button that is already in reach.**
-  `reveal` counts an element as in view only above the tab bar, and a sheet covers the tab bar without removing it, so a sheet's own bottom button (Save, Done) never counts and `reveal` drags all fourteen times before the tap.
-  Sixteen calls in the phone suite did that, 557 seconds in all (7% of the UI suite), and the phone suite makes 431 such drags at about four seconds each.
-  The cure belongs in `reveal` itself (a tab bar that is covered does not bound what is visible); until then, a test that knows its button is the sheet's own asks `isHittable` first, as `PhoneSetupTests.bringIntoReach` does.
+- **`reveal` dragging to its limit without getting there.**
+  Sixteen calls in the phone suite used all fourteen drags, 557 seconds in all (7% of the UI suite), and the tap that followed still worked, because XCUITest scrolled to the element itself at the tap.
+  They are mostly a sheet's own bottom button (Save, Done): `reveal` drags the middle of the app, which does not move the sheet's content to where `reveal` counts the button as in view (above the tab bar the sheet covers).
+  The button is not hittable where it starts, so asking `isHittable` first does not avoid it (tried on `PhoneSetupTests.testACompanionInTheWallsEditor`, which stayed at 143 seconds); the cure is in `reveal` itself, which is being rewritten to notice when its drags make no progress.
 - **`waitToSettle` on an element that is off screen.**
   It waits for an unchanged frame that is also hittable, so an element below the fold uses all twenty looks, each a second or more on a long page.
   Reveal first, then settle.
@@ -349,7 +351,7 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testFixingAWalkFromToday | 70 | Fix, saved, remove asks, slot open again | Keep | | |
 | testFixingAWalkFromTheWeek | 76 | Diary row opens, Keep it backs out, remove | Keep | | |
 | testFixingAWalkOnASharedScreen | 30 | Names, with no "You" | Keep | | |
-| testFixingAWalkLooks | 158 | Fix sheet in dark, largest, largest dark | One launch at the largest size for what only the real sheet shows (the pill among everything else, Save within reach); the looks are hosted in `PocketCareSheetScreenTests` | 100 | done |
+| testFixingAWalkLooks | 158 | Fix sheet in dark, largest, largest dark | One launch at the largest size for what only the real sheet shows (the pill among everything else, Save within reach); the looks are hosted in `PocketCareSheetScreenTests` | 100 | done, 38 and 63 s measured (runs 44871628859, 44871628840) |
 | testTheTimePillGrowsWithText | 100 | Pill grows, clear of "Started", on screen; three launches at the largest size | Merge into testFixingAWalkLooks, which already opens the same sheet at the same size in both looks; the rule at every size is `TimeFieldLayoutTests` | 85 | done |
 | testNightLook | 39 | Shots | Keep (looks) | | |
 | testPaperUnderTheStatusBar | 95 | Four tabs scrolled, at two sizes | Keep, and take `PhoneTests.testYouOnEveryTab` | | |
@@ -397,7 +399,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testStartingAHouseholdOnThisPhone | 76 | A2 from a fresh install to Today and every empty tab | Keep (smoke) | | |
 | testAnEmptyTodayOffersSetup | 19 | Empty Today leads to Household | Keep | | |
 | testSettingUpTheHouseholdFromThePhone | 153 | Add, rename, archive a person; a chore; a list | Keep, split in two (people; chores and lists): over the limit | 30 | |
-| testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep; 94 of its seconds were two `reveal` calls dragging fourteen times each for buttons already in reach, now asked for only when the button can't be tapped | 90 | done |
+| testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep; 94 of its seconds are two `reveal` calls that drag fourteen times each without bringing a sheet's bottom button into view. Asking `isHittable` first did not help (143 seconds after); it waits for the rewritten `reveal` | 90 | |
 | testAMemberLeaves | 36 | Leave, confirm, welcome | Keep | | |
 | testTheOwnerIsPointedToRemovingSomeone | 42 | Owner is sent to remove; person stays | Keep | | |
 | testStorage | 21 | Breakdown names photos; whose iCloud | Keep (the page) | | |
@@ -412,7 +414,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testChoosingReminders | 54 | A slot's choice and the chores switch | Merge into testSaysWhyBeforeAsking, which ends on the same page | 45 | |
 | testDeliveryByHand | 0 | Real delivery | By hand already | | |
 | testNamedRemindersByHand | 3 | Real delivery | By hand already | | |
-| testNightLook | 147 | One shot | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size. The page reads the phone's notification permission itself, so it can't be hosted until that has a seam | 150 | done |
+| testNightLook | 147 | One shot | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size. The page reads the phone's notification permission itself, so it can't be hosted until that has a seam | 150 | done, 43 and 67 s measured for testLooks |
 | testLargestText | 69 | The choice is whole on screen | Merged into `testLooks`, which keeps the assertion | | done |
 
 #### PhoneCatchUpTests (378 s)
@@ -421,7 +423,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 |---|---|---|---|---|---|
 | testCatchingUpFromTodaysBanner | 105 | Banner, sheet for the slot, saved as chosen | Keep | | |
 | testCatchingUpFromTheWeek | 88 | Missed row, sheet, saved | Keep | | |
-| testCatchingUpLooks | 186 | Sheet in dark and largest, each after removing a walk by hand | Hosted: `PocketCareSheetScreenTests` draws and checks the catch-up sheet in four looks; the two journeys above stay as the real sheet's UI tests | 186 | done |
+| testCatchingUpLooks | 186 | Sheet in dark and largest, each after removing a walk by hand | Hosted: `PocketCareSheetScreenTests` draws and checks the catch-up sheet in four looks; the two journeys above stay as the real sheet's UI tests | 186 | done, gone from the suite |
 
 #### PhoneDishesTests (332 s)
 
@@ -432,7 +434,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testEveryoneRatesAMeal | 38 | Own face saved and shown | Keep | | |
 | testRenameIntoAMergeAndRemoveWithUndo | 82 | Rename offers a merge; remove with undo | Keep | | |
 | testEmpty | 22 | Empty state | Keep | | |
-| testNightAndLargestText | 91 | Five launches for five shots | Merge to two launches, navigating list, dish, place | 45 | |
+| testNightAndLargestText | 91 | Five launches for five shots | Hosted: `PocketDishesScreenTests` draws and checks the list, a dish and a restaurant in four looks; the journeys above stay as the real screens' UI tests | 91 | done |
 
 #### PhoneTests (295 s)
 
@@ -583,5 +585,5 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 
 The verdicts bring the suite to about 5,700 seconds, short of the 5,400 target.
 Moving checks down and deleting duplicates is worth about 640 seconds (8%) on its own; most of the saving is merging launches and cutting the looks tests' walking.
-The rest of the way to the target, and beyond it, is `reveal` (557 seconds in calls that drag fourteen times for a button already in reach, "Where a slow test's time goes"), which no verdict above counts, and checking whole screens' looks without launching the app ("The middle options").
+The rest of the way to the target, and beyond it, is `reveal` (557 seconds in calls that drag fourteen times without getting there, "Where a slow test's time goes"), which no verdict above counts, and checking whole screens' looks without launching the app ("The middle options").
 Removing the 4 second sleep from 17 wall launches is worth up to 68 seconds more, less what waiting for the first element costs.
