@@ -145,6 +145,15 @@ enum RecipeError: Error, Equatable, LocalizedError {
 
 /// The words recipes are shown with.
 enum RecipeWords {
+    /// Over the bank: "No recipes yet", "1 recipe", "4 recipes".
+    static func count(_ count: Int) -> String {
+        switch count {
+        case ...0: "No recipes yet"
+        case 1: "1 recipe"
+        default: "\(count) recipes"
+        }
+    }
+
     /// "cooked once", "cooked twice", "cooked 6 times", or "not cooked yet".
     static func cooked(_ times: Int) -> String {
         switch times {

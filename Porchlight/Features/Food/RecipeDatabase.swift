@@ -218,6 +218,28 @@ enum PlannedDish {
         return book.liveDishes.first { $0.kitchen == .home && $0.key == key }
     }
 
+    /// What we cook, to plan a dinner from (docs/design/dishes.md, "Planned dinners"): home
+    /// dishes we have had or keep a recipe for, most cooked first, those with a recipe ahead
+    /// of those without at the same count, narrowed by what is typed, leaving out the one it
+    /// already names.
+    static func suggestions(for title: String, in book: DishBook, limit: Int = 8) -> [Dish] {
+        let key = DishName.key(title)
+        let cooked = book.homeDishes
+        let cookedIds = Set(cooked.map(\.id))
+        // A recipe not cooked yet is a dinner to plan too.
+        let notYet = book.liveDishes.filter { $0.kitchen == .home && !cookedIds.contains($0.id) && book.recipe(of: $0.id) != nil }
+        let ranked = (cooked + notYet)
+            .filter { key.isEmpty || ($0.key != key && DishBook.matches(key, $0.key)) }
+            .enumerated()
+            .map { (offset: $0.offset, dish: $0.element, times: book.summary(of: $0.element.id).count, recipe: book.recipe(of: $0.element.id) != nil) }
+            .sorted { a, b in
+                if a.times != b.times { return a.times > b.times }
+                if a.recipe != b.recipe { return a.recipe }
+                return a.offset < b.offset
+            }
+        return ranked.prefix(limit).map(\.dish)
+    }
+
     /// Follows a dish's new name in every planned dinner of it that still had its old one,
     /// so renaming a dish renames the dinners planned from it.
     static func rename(plansOf dishIds: Set<Dish.ID>, from oldName: String, to dish: Dish, db: Database) throws {

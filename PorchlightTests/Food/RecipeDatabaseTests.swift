@@ -251,6 +251,23 @@ struct RecipeDatabaseTests {
         #expect(PlannedDish.dish(for: try plan(), in: try book()) == nil)
     }
 
+    @Test("Planning a dinner suggests what we cook: most cooked first, a recipe ahead at the same count, narrowed by what is typed")
+    func plannedSuggestions() throws {
+        _ = try homeMeal(["Pesto pasta", "Garlic bread"], day: "2026-11-02", at: 1_000)
+        _ = try homeMeal(["Pesto pasta"], day: "2026-11-03", at: 2_000)
+        _ = try homeMeal(["Green salad"], day: "2026-11-04", at: 3_000)
+        _ = try db.saveRecipe(curry(), householdId: householdId, addedBy: mia)
+        _ = try db.saveRecipe(curry("Green salad"), householdId: householdId, addedBy: mia)
+
+        let all = PlannedDish.suggestions(for: "", in: try book()).map(\.name)
+        #expect(all == ["Pesto pasta", "Green salad", "Garlic bread", "Chicken curry"])
+        #expect(PlannedDish.suggestions(for: "", in: try book(), limit: 2).map(\.name) == ["Pesto pasta", "Green salad"])
+        #expect(PlannedDish.suggestions(for: "gr", in: try book()).map(\.name) == ["Green salad"])
+        #expect(PlannedDish.suggestions(for: "pes", in: try book()).map(\.name) == ["Pesto pasta"])
+        #expect(PlannedDish.suggestions(for: "  pesto PASTA ", in: try book()).isEmpty, "not the one it already names")
+        #expect(PlannedDish.suggestions(for: "tacos", in: try book()).isEmpty)
+    }
+
     // MARK: Groceries
 
     @Test("Ingredients go to the grocery list one item each, in their aisles, never twice")

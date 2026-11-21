@@ -230,6 +230,9 @@ Saving again edits that row; it never makes a second.
 A planned dinner names a home dish when it was planned from one (`mealPlan.dishId`), and the link holds only while its title still names that dish (`PlannedDish.dish`).
 Otherwise a dinner whose words match a home dish links to it, which is how dinners planned before recipes link too.
 The title is checked because an older build that renames the dinner sends only the title: iCloud keeps the id, but the words have moved on.
+The dinner editor, on the wall and the phone, suggests what we cook (`PlannedDish.suggestions`): home dishes we have had or keep a recipe for, most cooked first, one with a recipe ahead at the same count, narrowed by the words once they differ from the dinner's own.
+Picking one plans the dish by name and id.
+In Lists › Dinners a dinner of a dish with a recipe says 📖 Recipe, and "What does it need?" starts from that recipe's ingredients without their amounts.
 
 ### The bank
 

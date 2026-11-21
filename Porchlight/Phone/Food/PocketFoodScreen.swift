@@ -4,13 +4,22 @@ import SwiftUI
 enum PocketFoodRoute: Hashable {
     case meal(JournalEntry.ID)
     case dish(Dish.ID)
+    case recipe(Dish.ID)
     case place(FoodPlace.ID)
 }
 
-/// The Food tab's two views: the diary, and the dishes it remembers.
+/// The Food tab's three views: the diary, the dishes it remembers, and the recipes of the
+/// dishes we cook.
 enum PocketFoodView: String, CaseIterable {
     case diary = "Diary"
     case dishes = "Dishes"
+    case recipes = "Recipes"
+}
+
+/// A recipe to add or edit: the dish it is for, if there is one yet.
+struct RecipeEditing: Identifiable {
+    let id = UUID()
+    var dish: Dish?
 }
 
 /// The Food tab (`b5week`): the week's plates as the wall's grid at phone size, with empty
@@ -27,6 +36,8 @@ struct PocketFoodScreen: View {
     /// The meal just saved, ringed in the grid for a moment (`b5saved`).
     @State private var fresh: JournalEntry.ID?
     @State private var view: PocketFoodView = .diary
+    @State private var editing: RecipeEditing?
+    @State private var planning: Dish?
     /// How many weeks before this one the diary shows: 0 is the seven days ending today.
     @State private var weeksBack: Int
 
@@ -44,6 +55,13 @@ struct PocketFoodScreen: View {
                         switch route {
                         case let .meal(id): PocketMealDetail(entryId: id) { addingPhoto = $0 }
                         case let .dish(id): PocketDishDetail(dishId: id)
+                        case let .recipe(id):
+                            PocketRecipePage(
+                                dishId: id,
+                                onCook: { dish in snap = CaptureRequest(day: store.today(CompanionClock.now()), dish: dish) },
+                                onPlan: { planning = $0 },
+                                onEdit: { editing = RecipeEditing(dish: $0) }
+                            )
                         case let .place(id): PocketPlaceDetail(placeId: id)
                         }
                     }
@@ -58,6 +76,8 @@ struct PocketFoodScreen: View {
         .fullScreenCover(item: $snap, onDismiss: toasts.showPending) { request in
             PocketSnap(request: request, onSaved: saved)
         }
+        .sheet(item: $editing) { target in PocketRecipeEditor(dish: target.dish) }
+        .sheet(item: $planning, onDismiss: toasts.showPending) { dish in PocketPlanDinner(dish: dish) }
         .fullScreenCover(item: $addingPhoto) { entry in
             PocketCameraStep(
                 small: entry.title,
@@ -104,6 +124,8 @@ struct PocketFoodScreen: View {
                             PocketFoodDays(days: days.reversed(), today: today, isThisWeek: shown == 0, onOpen: open)
                         case .dishes:
                             PocketDishesView()
+                        case .recipes:
+                            PocketRecipesView(onAdd: { editing = RecipeEditing(dish: $0) }, onPlan: { planning = $0 })
                         }
                     } else {
                         off
@@ -128,6 +150,8 @@ struct PocketFoodScreen: View {
     private func headerLine(days: [DayKey], meals: Int) -> String {
         switch view {
         case .diary: return PocketFood.weekLine(days, meals: meals, calendar: store.calendar)
+        case .recipes:
+            return RecipeWords.count(store.recipeBank.entries.count)
         case .dishes:
             let book = store.book
             let dishes = book.mostHad.count
@@ -205,6 +229,10 @@ struct PocketFoodScreen: View {
         case "detail":
             if let entry = store.entries(on: today).first ?? store.snapshot.entries.last { path = [.meal(entry.id)] }
         case "dishes": view = .dishes
+        case "recipes": view = .recipes
+        case "recipe":
+            view = .recipes
+            if let entry = store.recipeBank.entries.first { path = [.recipe(entry.dish.id)] }
         case "dish":
             view = .dishes
             if let dish = store.book.liveDishes.first(where: { $0.name == "Pho tai" }) ?? store.book.mostHad.first { path = [.dish(dish.id)] }

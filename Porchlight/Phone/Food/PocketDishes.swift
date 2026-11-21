@@ -336,6 +336,7 @@ struct PocketDishDetail: View {
     @Environment(\.dismiss) private var dismiss
     @State private var renaming = false
     @State private var confirmingRemove = false
+    @State private var addingRecipe = false
     @PhoneMetric(upTo: 1.3) private var hero: CGFloat = 96
 
     var body: some View {
@@ -361,6 +362,7 @@ struct PocketDishDetail: View {
             VStack(alignment: .leading, spacing: 12) {
                 header(dish)
                 stats(summary, today: today)
+                recipe(dish)
                 faces(dish)
                 photos(times)
                 history(times, today: today)
@@ -379,6 +381,7 @@ struct PocketDishDetail: View {
         // The title names the back button of the next page; the page shows its own.
         .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
         .sheet(isPresented: $renaming) { PocketRenameDish(dish: dish) }
+        .sheet(isPresented: $addingRecipe) { PocketRecipeEditor(dish: dish) }
         .confirmationDialog(removeTitle(dish, count: summary.count), isPresented: $confirmingRemove, titleVisibility: .visible) {
             Button("Remove dish", role: .destructive) { remove(dish) }
             Button("Keep it", role: .cancel) {}
@@ -386,6 +389,39 @@ struct PocketDishDetail: View {
             Text(summary.count == 1 ? "The meal stays, with its photos and its other dishes." : "The meals stay, with their photos and their other dishes.")
         }
         .onAppear { store.lastError = nil }
+    }
+
+    /// A home dish's recipe, or the way to add one (docs/design/dishes.md, "Recipes").
+    @ViewBuilder
+    private func recipe(_ dish: Dish) -> some View {
+        if dish.kitchen == .home {
+            if store.book.recipe(of: dish.id) != nil {
+                NavigationLink(value: PocketFoodRoute.recipe(dish.id)) {
+                    recipeRow(title: "The recipe", color: Theme.ink, mark: "chevron.right")
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("dish-recipe")
+            } else {
+                Button { addingRecipe = true } label: {
+                    recipeRow(title: "Add a recipe", color: Theme.accent, mark: "plus")
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("dish-add-recipe")
+            }
+        }
+    }
+
+    /// One line in a card, the card's own padding making it a whole touch.
+    private func recipeRow(title: String, color: Color, mark: String) -> some View {
+        HStack(spacing: 10) {
+            Text("📖").phoneFont(.body, 18, weight: 400, relativeTo: .subheadline).accessibilityHidden(true)
+            Text(title).phoneFont(.body, 15, weight: 700, relativeTo: .subheadline).foregroundStyle(color)
+            Spacer(minLength: 8)
+            Image(systemName: mark).phoneFont(.body, 12, weight: 800, relativeTo: .subheadline).foregroundStyle(color == Theme.ink ? Theme.muted : color)
+                .accessibilityHidden(true)
+        }
+        .phoneCard()
+        .contentShape(Rectangle())
     }
 
     private func removeTitle(_ dish: Dish, count: Int) -> String {
@@ -478,7 +514,7 @@ struct PocketDishDetail: View {
                         HStack(spacing: 8) {
                             PersonAvatar(person, size: .small)
                             Text(person.id == me?.id ? "You" : person.name).phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
-                            Text(face.rating.emoji).font(.system(size: 18))
+                            Text(face.rating.emoji).phoneFont(.body, 18, weight: 400, relativeTo: .subheadline)
                             Spacer(minLength: 8)
                             Text("\(face.count) of \(face.of)").phoneFont(.body, 12, weight: 600, relativeTo: .caption).foregroundStyle(Theme.muted)
                         }
@@ -486,7 +522,7 @@ struct PocketDishDetail: View {
                             HStack(spacing: 8) {
                                 PersonAvatar(person, size: .small)
                                 Text(person.id == me?.id ? "You" : person.name).phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
-                                Text(face.rating.emoji).font(.system(size: 18))
+                                Text(face.rating.emoji).phoneFont(.body, 18, weight: 400, relativeTo: .subheadline)
                             }
                             Text("\(face.count) of \(face.of)").phoneFont(.body, 12, weight: 600, relativeTo: .caption).foregroundStyle(Theme.muted)
                         }
@@ -541,7 +577,7 @@ struct PocketDishDetail: View {
                             .fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 4)
                             if let face = time.line.rating ?? time.faces.values.max(by: { $0.rawValue < $1.rawValue }) {
-                                Text(face.emoji).font(.system(size: 17))
+                                Text(face.emoji).phoneFont(.body, 17, weight: 400, relativeTo: .subheadline)
                             }
                         }
                         .padding(.vertical, 6)

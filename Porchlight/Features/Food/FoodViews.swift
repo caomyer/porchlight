@@ -4,12 +4,14 @@ import SwiftUI
 struct FoodScreen: View {
     @Environment(FoodStore.self) private var store
 
-    enum Mode { case week, month, dishes }
+    enum Mode { case week, month, dishes, recipes }
 
     /// A dish or a restaurant open over the wall, from the Dishes view.
     enum Layer: Identifiable, Hashable {
         case dish(Dish.ID)
         case place(FoodPlace.ID)
+        case recipe(Dish.ID)
+        case plan(Dish.ID)
 
         var id: Self { self }
     }
@@ -22,6 +24,7 @@ struct FoodScreen: View {
     @State private var openEntry: JournalEntry?
     @State private var debugSaved: JournalEntry?
     @State private var layer: Layer?
+    @State private var editingRecipe: RecipeEditing?
 
     var body: some View {
         TimelineView(.everyMinute) { context in
@@ -58,8 +61,25 @@ struct FoodScreen: View {
                 WallPlaceSheet(placeId: id, onOpenDish: { dish in self.layer = .dish(dish.id) }) {
                     CompanionCover.instantly { self.layer = nil }
                 }
+            case let .recipe(id):
+                WallRecipeSheet(
+                    dishId: id,
+                    onCook: { dish in
+                        CompanionCover.instantly { self.layer = nil }
+                        capture = CaptureRequest(day: store.today(), dish: dish)
+                    },
+                    onPlan: { dish in self.layer = .plan(dish.id) },
+                    onEdit: { dish in editingRecipe = RecipeEditing(dish: dish) }
+                ) {
+                    CompanionCover.instantly { self.layer = nil }
+                }
+            case let .plan(id):
+                if let dish = store.book.dish(id) {
+                    WallPlanDinnerSheet(dish: dish) { CompanionCover.instantly { self.layer = nil } }
+                }
             }
         }
+        .sheet(item: $editingRecipe) { target in PocketRecipeEditor(dish: target.dish) }
         .onAppear(perform: applyDebugLaunch)
         #if DEBUG
         .task { await FoodDebugPhoto.injectIfRequested(into: store) }
@@ -80,7 +100,7 @@ struct FoodScreen: View {
                 .padding(.bottom, 6)
             Spacer(minLength: 8)
             HStack(spacing: 6) {
-                if mode != .dishes {
+                if mode == .week || mode == .month {
                     PagerButton(symbol: "chevron.left", label: mode == .week ? "Previous week" : "Previous month") { offset -= 1 }
                     if offset < 0 {
                         PagerButton(symbol: "chevron.right", label: mode == .week ? "Next week" : "Next month") { offset += 1 }
@@ -90,6 +110,7 @@ struct FoodScreen: View {
                 FoodHeaderChip(title: "Week", isSelected: mode == .week) { select(.week) }
                 FoodHeaderChip(title: "Month", isSelected: mode == .month) { select(.month) }
                 FoodHeaderChip(title: "Dishes", isSelected: mode == .dishes) { select(.dishes) }
+                FoodHeaderChip(title: "Recipes", isSelected: mode == .recipes) { select(.recipes) }
                 Button {
                     capture = CaptureRequest(day: today)
                 } label: {
@@ -131,6 +152,8 @@ struct FoodScreen: View {
             let book = store.book
             let dishes = book.mostHad.count, places = book.placesWithDishes.count
             return "\(dishes == 1 ? "1 dish" : "\(dishes) dishes") · \(places == 1 ? "1 place" : "\(places) places")"
+        case .recipes:
+            return RecipeWords.count(store.recipeBank.entries.count)
         }
     }
 
@@ -154,6 +177,12 @@ struct FoodScreen: View {
                 }
         case .dishes:
             WallDishesView(onOpenDish: { layer = .dish($0.id) }, onOpenPlace: { layer = .place($0.id) })
+        case .recipes:
+            WallRecipesView(
+                onOpen: { layer = .recipe($0.id) },
+                onAdd: { editingRecipe = RecipeEditing(dish: $0) },
+                onPlan: { layer = .plan($0.id) }
+            )
         }
     }
 
@@ -217,6 +246,10 @@ struct FoodScreen: View {
         case "detail": openEntry = store.entries(on: today).first ?? store.snapshot.entries.last
         case "detail-pho": openEntry = store.snapshot.entries.last { $0.title.hasPrefix("Pho tai") }
         case "dishes": mode = .dishes
+        case "recipes": mode = .recipes
+        case "recipe":
+            mode = .recipes
+            if let entry = store.recipeBank.entries.first { layer = .recipe(entry.dish.id) }
         default: break
         }
         #endif

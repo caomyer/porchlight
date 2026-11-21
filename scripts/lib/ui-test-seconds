@@ -18,6 +18,7 @@ PhoneTests 213
 PhoneDishesTests 160
 PhoneCatchUpTests 130
 PhoneRemindersTests 115
+PhoneRecipesTests 110
 FoodMealsTests 325
 HouseholdTests 291
 MealPhotosTests 222
@@ -26,6 +27,7 @@ PhotoFrameTests 151
 TimeFieldTests 135
 CompanionEditorTests 129
 WallDishEditorTests 125
+WallRecipesTests 120
 LoggedEntryTests 110
 WallTourTests 108
 CatchUpTests 96
