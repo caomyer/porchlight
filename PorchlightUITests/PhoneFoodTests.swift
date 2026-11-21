@@ -112,6 +112,60 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         snapshot("b5-24-new-meal")
     }
 
+    // MARK: Other weeks
+
+    /// Back a week on the week's card, open one of its meals and come back to the same
+    /// week, fill an empty slot there (the saved meal stays in its week), then back to
+    /// this week. The pager's words and limits are PocketFoodWeeksTests'; its looks are
+    /// PocketFoodScreenTests'.
+    func testChangingWeeks() {
+        let app = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"])
+        let name = app.staticTexts["week-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertTrue(name.label.hasPrefix("This week"), name.label)
+        XCTAssertFalse(app.buttons["week-forward"].exists, "Nothing after today")
+        app.buttons["week-back"].tap()
+        XCTAssertTrue(app.buttons["week-this"].waitForExistence(timeout: 5), "Away from this week, the way back")
+        XCTAssertTrue(name.label.hasPrefix("Last week"), name.label)
+        snapshot("b5-30-last-week")
+
+        // Last week's bento box opens, and Back comes to the same week.
+        let bento = app.buttons["meal-Bento box"]
+        reveal(bento, in: app)
+        bento.tap()
+        XCTAssertTrue(app.buttons["edit-meal"].waitForExistence(timeout: 5), "On the meal's page")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertTrue(name.label.hasPrefix("Last week"), "Back lands on the week it left: \(name.label)")
+
+        // A slot nobody filled thirteen days ago: snapped into, the meal stays in that week.
+        let thirteen = Calendar.current.date(byAdding: .day, value: -13, to: .now)!
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: thirteen)
+        let slot = app.buttons[String(format: "plate-%04d-%02d-%02d-Lunch", parts.year!, parts.month!, parts.day!)]
+        reveal(slot, in: app)
+        slot.tap()
+        XCTAssertTrue(app.buttons["shutter"].waitForExistence(timeout: 5))
+        app.buttons["shutter"].tap()
+        let dish = app.textFields["dish"]
+        XCTAssertTrue(dish.waitForExistence(timeout: 5))
+        type("Leftover soup", into: dish, in: app)
+        app.typeText("\n")
+        let save = app.buttons["save-meal"]
+        reveal(save, in: app)
+        save.tap()
+        XCTAssertTrue(app.otherElements["toast"].waitForExistence(timeout: 8))
+        XCTAssertTrue(name.label.hasPrefix("Last week"), "A past slot's meal shows in its week: \(name.label)")
+        // Sunday is the week's last day card, and the diary builds its cards as they scroll in.
+        let soup = app.buttons["meal-Leftover soup"]
+        reveal(soup, in: app)
+        XCTAssertTrue(soup.exists, "It is in last week's diary")
+
+        app.buttons["week-this"].tap()
+        XCTAssertTrue(name.label.hasPrefix("This week"), name.label)
+        XCTAssertFalse(app.buttons["week-this"].exists)
+        XCTAssertTrue(element(app, beginningWith: "On this day").exists, "This week has \"On this day\" again")
+    }
+
     // MARK: Where, one kind or several
 
     /// A delivery dinner at the office: Delivery and Company picked together, saved,

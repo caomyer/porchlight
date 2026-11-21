@@ -67,6 +67,9 @@ private struct SyncDetailsBody: View {
             row("Low Power Mode", trace.lowPowerMode ? "on" : "off")
             row("Not yet in iCloud", counts.map { "\($0.unconfirmed) rows" } ?? "…")
             row("Queued while paused", counts.map { "\($0.queued) changes" } ?? "…")
+            // Not sync, but the one other thing this device fetches from Apple on its own.
+            row("Handwriting fonts", HandCompanionFonts.shared.summary)
+                .accessibilityIdentifier("sync-details-hand-fonts")
             Button {
                 checking = true
                 Task {

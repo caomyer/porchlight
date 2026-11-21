@@ -19,6 +19,8 @@ final class FoodStore: StoredFirstObservable {
             storedSnapshot = newValue
             storedBook = nil
             withMutation(keyPath: \.snapshot) {}
+            // A title in Chinese or Japanese asks iOS for the handwriting's companion, once.
+            HandCompanionFonts.shared.note(titles: newValue.entries.lazy.map(\.title))
         }
     }
 

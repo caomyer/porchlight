@@ -138,6 +138,11 @@ figure.pick { box-shadow: inset 0 0 0 2px var(--good); }
   This proposes a handwritten companion for Chinese, Japanese and Korean, with real renders to judge by eye, and one simple control to move between weeks.</p>
   <p class="note">The renders are the app itself, running in the simulator with a debug switch (<code>-handCompanion</code>) and sample meals titled in English, Simplified and Traditional Chinese, Japanese, Korean and mixed (<code>-sampleFood cjk</code>).
   The week frames are drawn, in the app's own type, colors and words; nothing in them is built.</p>
+  <div class="tile pick" style="max-width:880px"><span class="rec">Approved Nov 21, 2026 and built on food/diary-polish</span>
+    <p>James: "Hannotate ok", and no swipe and no month calendar. As built: Hannotate SC (TC for Traditional readers) at 0.88 of Caveat's size, Klee first for Japanese readers at 0.92, fetched on demand (<code>HandCompanion</code>, <code>HandCompanionFonts</code>), its state in Sync details as "Handwriting fonts".
+    Korean stays on the system's face: Nanum Pen Script would need about 1.25 of Caveat's size to match, which makes the line taller than Caveat's, so it isn't used.
+    The week pager is as drawn; it returns to this week on a new day and after "Snap a meal", but not when the Food tab is tapped again (the tab bar has no such signal today).
+    A Japanese reader's title in Simplified Chinese can mix Klee and Hannotate within a word (Klee has 大 but not 盘), as the wall render above shows for Klee.</p></div>
   <nav class="index" aria-label="Sections">
     <a href="#problem">The two gaps</a><a href="#fonts">Gap 1: the handwriting's companion</a><a href="#renders">Renders</a><a href="#mechanism">How it works</a>
     <a href="#weeks">Gap 2: other weeks</a><a href="#frames">Week frames</a><a href="#cases">Hard cases</a><a href="#costs">Costs</a><a href="#decisions">Decisions</a><a href="#plan">Build plan</a><a href="#unverified">Not verified</a>

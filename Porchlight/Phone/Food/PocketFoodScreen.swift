@@ -27,6 +27,12 @@ struct PocketFoodScreen: View {
     /// The meal just saved, ringed in the grid for a moment (`b5saved`).
     @State private var fresh: JournalEntry.ID?
     @State private var view: PocketFoodView = .diary
+    /// How many weeks before this one the diary shows: 0 is the seven days ending today.
+    @State private var weeksBack: Int
+
+    init(weeksBack: Int = 0) {
+        _weeksBack = State(initialValue: weeksBack)
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -74,7 +80,9 @@ struct PocketFoodScreen: View {
     private var diary: some View {
         TimelineView(.everyMinute) { _ in
             let today = store.today(CompanionClock.now())
-            let days = PocketFood.week(endingOn: today, calendar: store.calendar)
+            let limit = PocketFood.weeksBackLimit(firstDay: store.snapshot.entries.lazy.map { DayKey(rawValue: $0.day) }.min(), today: today, calendar: store.calendar)
+            let shown = min(weeksBack, limit)
+            let days = PocketFood.week(endingOn: today, weeksBack: shown, calendar: store.calendar)
             let meals = days.reduce(0) { $0 + store.entries(on: $1).count }
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
@@ -84,11 +92,16 @@ struct PocketFoodScreen: View {
                         PhoneSegments(choices: PocketFoodView.allCases, selection: $view, title: \.rawValue)
                         switch view {
                         case .diary:
-                            PocketFoodWeek(days: days, today: today, fresh: fresh, onOpen: open) { day, slot in
+                            PocketFoodWeek(
+                                days: days, today: today, fresh: fresh,
+                                pager: WeekPage(weeksBack: shown, limit: limit, meals: meals) { weeksBack = $0 },
+                                onOpen: open
+                            ) { day, slot in
                                 snap = CaptureRequest(day: day, slot: slot)
                             }
-                            PocketFoodMemory(today: today, onOpen: open)
-                            PocketFoodDays(days: days.reversed(), today: today, onOpen: open)
+                            // "On this day" is about today, so only this week has it.
+                            if shown == 0 { PocketFoodMemory(today: today, onOpen: open) }
+                            PocketFoodDays(days: days.reversed(), today: today, isThisWeek: shown == 0, onOpen: open)
                         case .dishes:
                             PocketDishesView()
                         }
@@ -104,6 +117,8 @@ struct PocketFoodScreen: View {
             .safeAreaInset(edge: .bottom) {
                 if store.isEnabled { snapButton(today: today) }
             }
+            // A new day starts on this week.
+            .onChange(of: today) { weeksBack = 0 }
         }
         .background(Theme.background)
         .paperUnderStatusBar()
@@ -170,6 +185,7 @@ struct PocketFoodScreen: View {
             detail: words.detail,
             action: UndoToast.Action(title: "Open") { path.append(.meal(id)) }
         ))
+        weeksBack = PocketFood.weeksBack(of: DayKey(rawValue: entry.day), today: store.today(CompanionClock.now()), calendar: store.calendar)
         withAnimation(.easeOut(duration: 0.2)) { fresh = id }
         Task {
             try? await Task.sleep(for: .seconds(4))
@@ -182,6 +198,8 @@ struct PocketFoodScreen: View {
     /// new meal, or today's first meal (the one with photos in the sample household).
     private func applyDebugLaunch() {
         let today = store.today(CompanionClock.now())
+        // `-debugFoodWeeksBack 2`: the diary opens on an earlier week.
+        if let weeks = UserDefaults.standard.string(forKey: "debugFoodWeeksBack").flatMap(Int.init) { weeksBack = weeks }
         switch UserDefaults.standard.string(forKey: "debugFoodView") {
         case "snap", "details": snap = CaptureRequest(day: today)
         case "detail":
@@ -207,14 +225,25 @@ private struct PocketFoodWeek: View {
     let days: [DayKey]
     let today: DayKey
     let fresh: JournalEntry.ID?
+    let pager: WeekPage
     let onOpen: (JournalEntry) -> Void
     let onSnap: (DayKey, String) -> Void
 
     @Environment(FoodStore.self) private var store
 
     var body: some View {
+        VStack(spacing: 10) {
+            WeekPager(page: pager, days: days)
+            grid
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Meals \(PocketFood.range(days, calendar: store.calendar))")
+        }
+        .phoneCard()
+    }
+
+    private var grid: some View {
         let calendar = store.calendar
-        Grid(horizontalSpacing: 5, verticalSpacing: 6) {
+        return Grid(horizontalSpacing: 5, verticalSpacing: 6) {
             GridRow {
                 Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                 ForEach(days, id: \.self) { day in
@@ -242,9 +271,6 @@ private struct PocketFoodWeek: View {
         // A picture of the week, not its words: every meal in it is also a row in the
         // diary below, at full size. Grown further, the labels would squeeze the plates.
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
-        .phoneCard()
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("This week's meals")
     }
 
     /// "M", "T": the weekday's first letter.
@@ -296,6 +322,88 @@ private struct PocketFoodWeek: View {
             .accessibilityIdentifier("plate-\(day.rawValue)-\(slot)")
         } else {
             Color.clear.aspectRatio(1, contentMode: .fit)
+        }
+    }
+}
+
+// MARK: - Other weeks
+
+/// Which week the diary shows, and how to show another.
+struct WeekPage {
+    let weeksBack: Int
+    /// The furthest back it goes: the week of the household's first meal.
+    let limit: Int
+    let meals: Int
+    let go: (Int) -> Void
+}
+
+/// The week's card's top row: "‹ Last week ›", with "Back to this week" when away from it.
+/// Back stops at the first meal's week; forward isn't there on this week, which ends today.
+private struct WeekPager: View {
+    let page: WeekPage
+    let days: [DayKey]
+
+    @Environment(FoodStore.self) private var store
+    @PhoneMetric(upTo: 1.4) private var chevron: CGFloat = 36
+
+    var body: some View {
+        HStack(spacing: 6) {
+            arrow("chevron.left", label: "Previous week", id: "week-back", shown: page.weeksBack < page.limit) {
+                page.go(page.weeksBack + 1)
+            }
+            VStack(spacing: 2) {
+                Text(PocketFood.weekName(weeksBack: page.weeksBack))
+                    .phoneFont(.display, 17, weight: 600, relativeTo: .headline)
+                    .foregroundStyle(Theme.ink)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(PocketFood.weekSpoken(days, weeksBack: page.weeksBack, meals: page.meals, calendar: store.calendar))
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("week-name")
+                    .accessibilityAdjustableAction { direction in
+                        switch direction {
+                        case .increment: if page.weeksBack > 0 { page.go(page.weeksBack - 1) }
+                        case .decrement: if page.weeksBack < page.limit { page.go(page.weeksBack + 1) }
+                        @unknown default: break
+                        }
+                    }
+                if page.weeksBack > 0 {
+                    Button("Back to this week") { page.go(0) }
+                        .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
+                        .foregroundStyle(Theme.accent)
+                        .buttonStyle(.plain)
+                        .frame(minHeight: 28)
+                        .contentShape(Rectangle())
+                        .accessibilityIdentifier("week-this")
+                }
+            }
+            .frame(maxWidth: .infinity)
+            // Grown to the largest sizes, the words would crowd out the week they name.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            arrow("chevron.right", label: "Next week", id: "week-forward", shown: page.weeksBack > 0) {
+                page.go(page.weeksBack - 1)
+            }
+        }
+    }
+
+    /// A round chevron, or the room for one so the name stays centered.
+    @ViewBuilder
+    private func arrow(_ symbol: String, label: String, id: String, shown: Bool, action: @escaping () -> Void) -> some View {
+        if shown {
+            Button(action: action) {
+                Image(systemName: symbol)
+                    .font(.system(size: chevron * 0.42, weight: .bold))
+                    .foregroundStyle(Theme.ink)
+                    .frame(width: chevron, height: chevron)
+                    .background(Theme.surface2, in: Circle())
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(label)
+            .accessibilityIdentifier(id)
+        } else {
+            Color.clear.frame(width: max(chevron, 44), height: 1).accessibilityHidden(true)
         }
     }
 }
@@ -369,18 +477,37 @@ private struct PocketFoodMemory: View {
 private struct PocketFoodDays: View {
     let days: [DayKey]
     let today: DayKey
+    let isThisWeek: Bool
     let onOpen: (JournalEntry) -> Void
 
     @Environment(FoodStore.self) private var store
 
     var body: some View {
         let logged = days.filter { !store.entries(on: $0).isEmpty }
-        if logged.isEmpty {
+        if logged.isEmpty, isThisWeek {
             Text("Nothing in the diary this week. Snap your next meal, and it shows up here and on the wall.")
                 .phoneFont(.body, 14, weight: 600)
                 .foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .phoneCard()
+        } else if logged.isEmpty {
+            // A past week with nothing in it: an invitation to fill a slot in.
+            let words = PocketFood.emptyWeek(days.reversed(), calendar: store.calendar)
+            VStack(spacing: 6) {
+                Text(words.title)
+                    .phoneFont(.display, 18, weight: 600, relativeTo: .headline)
+                    .foregroundStyle(Theme.ink)
+                Text(words.detail)
+                    .phoneFont(.body, 13.5, weight: 600)
+                    .foregroundStyle(Theme.muted)
+            }
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .phoneCard()
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("week-empty")
         } else {
             LazyVStack(alignment: .leading, spacing: 12) {
                 ForEach(logged, id: \.self) { day in
