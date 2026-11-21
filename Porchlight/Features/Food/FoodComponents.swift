@@ -141,7 +141,7 @@ struct Polaroid: View {
                             .padding(4)
                     }
                 }
-            Text(entry.title)
+            Text(handwritten: entry.title, centered: true)
                 .font(.hand(captionSize, weight: 700))
                 .foregroundStyle(FoodStyle.caption)
                 .lineLimit(1)
@@ -311,7 +311,7 @@ struct EmptyPolaroid: View {
             }
             .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 2))
-            Text(label)
+            Text(handwritten: label, centered: true)
                 .font(.hand(captionSize, weight: 600))
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)

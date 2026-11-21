@@ -230,7 +230,7 @@ private struct PocketSnapDetails: View {
                 }
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 2))
-                Text(title.isEmpty ? mealName : title)
+                Text(handwritten: title.isEmpty ? mealName : title, centered: true)
                     .phoneFont(.hand, 20, weight: 700, relativeTo: .title3)
                     .foregroundStyle(FoodStyle.caption)
                     .lineLimit(1)

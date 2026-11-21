@@ -367,15 +367,19 @@ private struct WeekPager: View {
                         @unknown default: break
                         }
                     }
-                if page.weeksBack > 0 {
-                    Button("Back to this week") { page.go(0) }
-                        .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
-                        .foregroundStyle(Theme.accent)
-                        .buttonStyle(.plain)
-                        .frame(minHeight: 28)
-                        .contentShape(Rectangle())
-                        .accessibilityIdentifier("week-this")
-                }
+                // Always laid out, so the week below doesn't move when stepping away from
+                // this week; on this week it is invisible and out of reach.
+                let away = page.weeksBack > 0
+                Button("Back to this week") { page.go(0) }
+                    .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
+                    .foregroundStyle(Theme.accent)
+                    .buttonStyle(.plain)
+                    .frame(minHeight: 28)
+                    .contentShape(Rectangle())
+                    .opacity(away ? 1 : 0)
+                    .disabled(!away)
+                    .accessibilityHidden(!away)
+                    .accessibilityIdentifier("week-this")
             }
             .frame(maxWidth: .infinity)
             // Grown to the largest sizes, the words would crowd out the week they name.
@@ -555,7 +559,7 @@ private struct PocketFoodDay: View {
                         if photoCount > 1 { PhotoCountChip(count: photoCount, size: 8.5).padding(3) }
                     }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(entry.title)
+                    Text(handwritten: entry.title)
                         .phoneFont(.hand, 23, weight: 700, relativeTo: .title3)
                         .lineLimit(2)
                     Text(PocketFood.mealLine(entry, place: store.place(of: entry)))
