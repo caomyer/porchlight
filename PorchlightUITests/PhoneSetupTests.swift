@@ -18,6 +18,16 @@ final class PhoneSetupTests: XCTestCase, PhoneTestHelpers {
         return app
     }
 
+    /// Scrolls to an element in a sheet only when it can't be tapped where it is. A sheet's
+    /// own bottom button is in reach from the start, but lower than the tab bar the sheet
+    /// covers, so `reveal` never counts it as in view and drags all fourteen times: 94 of
+    /// this class's companion test's 147 seconds on a hosted Mac.
+    private func bringIntoReach(_ element: XCUIElement, in app: XCUIApplication) {
+        XCTAssertTrue(element.waitForExistence(timeout: 5))
+        element.waitToSettle()
+        if !element.isHittable { reveal(element, in: app) }
+    }
+
     // MARK: A2
 
     func testStartingAHouseholdOnThisPhone() {
@@ -167,12 +177,12 @@ final class PhoneSetupTests: XCTestCase, PhoneTestHelpers {
         let done = app.buttons["routine-done"]
         XCTAssertTrue(done.waitForExistence(timeout: 5))
         snapshot("f2-05-routine")
-        reveal(done, in: app)
+        bringIntoReach(done, in: app)
         done.tap()
         XCTAssertTrue(done.waitForNonExistence(timeout: 5))
         type("Yo-Yo Ma", into: name, in: app)
         let save = app.buttons["save-companion"]
-        reveal(save, in: app)
+        bringIntoReach(save, in: app)
         save.tap()
         XCTAssertTrue(app.buttons["companion-Yo-Yo Ma"].waitForExistence(timeout: 5), "Saved, and back on the list")
     }

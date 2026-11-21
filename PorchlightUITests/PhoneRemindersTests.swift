@@ -30,9 +30,11 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         app.buttons["you"].tap()
         let row = app.buttons["notifications"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
-        row.waitToSettle()
-        // Below the household, storage and people now, so scrolled into view first.
+        // Below the household, storage and people now, so scrolled into view first, then
+        // settled. The other way round, the row is off screen and never settles: twenty looks
+        // at the screen, 54 of this page's 147 seconds on a hosted Mac in the night look.
         reveal(row, in: app)
+        row.waitToSettle()
         row.tap()
         XCTAssertTrue(app.navigationBars.buttons["You"].waitForExistence(timeout: 5), "On the Notifications page")
         return app
