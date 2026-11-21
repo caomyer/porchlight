@@ -141,7 +141,7 @@ What the spike of November 20 found, so its limits are known:
 - **A row that scrolls sideways reaches past the edge.**
   Its later items have frames beyond the screen's width by design (the lists' chips at the largest text), so a "nothing runs off either side" check names such a row and leaves it out; it found that on its first run.
 - **Frames, not ink.**
-  "Nothing runs off either side" compares elements' frames with the screen, and a letter can draw outside its element's frame (hard rule 9); what the ink does is for an ink-bounds test, or for the eye on the page's picture.
+  "Nothing runs off either side" compares elements' frames with the screen, and a letter can draw outside its element's frame (the hard rule "A frame inside the screen does not prove the ink is inside the frame"); what the ink does is for an ink-bounds test, or for the eye on the page's picture.
 - **Labels, not identifiers.**
   SwiftUI's elements here do not give their accessibility identifiers, so elements are found by label.
 - **It is not the real screen's surroundings.**
@@ -202,55 +202,56 @@ One shot per shape of the screen stays, not one per wording.
 
 ## Hard rules
 
+Each rule is named by its first sentence, and is referred to by that name, here and in other documents: a number would change the day a rule is added, and a reference to "rule 10" has already pointed at the wrong rule once.
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
-The ninth is from a defect found by eye on November 21, the tenth from reading two tests that day; the others come from what the UI tests' own comments record.
+"A frame inside the screen does not prove the ink is inside the frame" is from a defect found by eye on November 21, and "A test leaves the simulator as it found it" from reading two tests that day; the others come from what the UI tests' own comments record.
 
-1. **A test's outcome never depends on the real clock.**
-   Pin it and sweep it.
-   That includes the clock of the test itself: a UI test must never have to do something within so many seconds of the app's own timer, because a hosted Mac can take 50 seconds over one drag ("Flaky tests").
-   Wait for a thing to happen, with a long limit, and put the timer's rule in a unit test with the times handed in.
-   In a unit test, pass `now` and a `Calendar` with an explicit time zone, and walk the day in half hours in at least two zones when the rule has anything to do with the time of day or the day's edge.
-   In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, which the wall and the phone both read, and never branch on `Date()`.
-   The day in that argument is today's, because the sample household is built around today; the time of day is what must not move.
-   Why: a log landed in the wrong slot, and a streak was miscounted, only at certain hours, where a test that runs at one hour cannot see it.
-   A timestamp that is only stored, never compared, bucketed or formatted (a row's `createdAt`), may be `Date.now`.
-2. **Every loop in a UI test helper has a bound.**
-   Write `for _ in 0..<n where …`, or a deadline that fails the test when it passes, as `reveal` and `waitUntilResponsive` do.
-   Why: an unbounded loop does not fail, it hangs the job until its 75 minute limit, and the log does not say which test.
-3. **A launch argument that reaches `UserDefaults` needs a value.**
-   Write `-sampleWater YES`, not `-sampleWater`.
-   Why: the argument domain is read as key and value pairs, so a bare flag swallows the next argument or is not seen at all.
-   Only flags the app reads from `ProcessInfo.arguments` itself (`-sampleHousehold`, `-resetData`) work bare.
-4. **A suite that runs no tests fails.**
-   `scripts/test.sh` reports "no tests ran" and exits non-zero when a selection matches nothing or only tests that skip themselves.
-   Why: a phone class once ran on the iPad, skipped every test and reported success.
-   Do not work around it; fix the selection.
-5. **Do not find an element by a label that is also a button's title.**
-   Give the element an accessibility identifier and query that (`save-care`, `went-Mia`, `dish-title`).
-   Why: "Log a walk" is the sheet's title and a button on the page behind it, and "You" is a pill in the sheet and the avatar behind it, so the query matched before the sheet opened, or matched two elements.
-6. **iPad frames come back in portrait coordinates unless the device is turned first.**
-   Launch through `XCUIApplication.porchlight()`, which turns the iPad to landscape before the launch.
-   Why: a new simulator boots in portrait, and on iPadOS 27 frames, swipes and the keyboard are then reported sideways, so "above the keyboard" checks compare the wrong edges.
-7. **Never tap before the element has settled, and never rely on XCUITest to scroll for a tap.**
-   Use `waitToSettle()` for anything in a sheet that is still sliding, and `reveal(_:in:)` before a tap below the fold.
-   Why: a tap computed mid-slide lands outside the sheet and closes it, and under the floating tab bar automatic scrolling stops short and taps nothing.
-8. **No fixed sleeps as a way of waiting.**
-   Wait for the thing (`waitForExistence`, `waitForNonExistence`, an expectation on a predicate); a `Thread.sleep` is allowed only to let an animation finish before a screenshot.
-   Why: a launch helper that sleeps 4 seconds adds 4 seconds to every test in its class, as `FoodMealsTests` and `MealPhotosTests` did for 17 tests until they waited for the app to answer and for their first element to settle instead.
-9. **A frame inside the screen does not prove the ink is inside the frame.**
-   Where a face draws past its letters' own widths, check the ink's bounds, not the element's frame.
-   Why: Caveat's slanted letters reach up to 0.21 em past their advance, and a SwiftUI `Text` is as wide as its letters' advances and draws nothing beyond, so a handwritten title ending in "l", "f" or "i" lost the top of its last letter ("Bagel" drew as "Bagei").
-   Every frame was where it should be; no frame check, on a real screen or a hosted one, could have seen it.
-   `Text(handwritten:)` (`Handwriting.swift`) is now the one way the app writes a handwritten title, with room for the tails, and `HandwritingTests` lays each title out with Core Text at every size and requires the line's ink to sit inside the line's box.
-   Do not write the handwritten face any other way, and when a new face or a new slant arrives, give it an ink-bounds test of its own.
-10. **A test leaves the simulator as it found it.**
-   The database is new at every sample launch, but the device's own settings are not: what the photo frame shows, the night's hours and the idle minutes live in the simulator's defaults and outlive the test and the launch.
-   A test that changes one calls `forgetDisplaySettingsAfterwards()` first, which launches the app once more after the test, pass or fail, with `-debugForgetDisplay YES`.
-   Never put a setting back by hand at the end of the test: a test that fails halfway never reaches its end, and the next test starts from what it left.
-   Why: `PhotoFrameTests.testChoosingThePorchView` and `TimeFieldTests.testNightHoursCrossMidnight` each ended by tapping their setting back, which a failure in the middle would have skipped.
-11. **A test that needs the network or real delivery timing runs by hand, not in the suite.**
-   Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
-   Why: a test that skips itself when the network is down reports nothing either way.
+- **A test's outcome never depends on the real clock.**
+  Pin it and sweep it.
+  That includes the clock of the test itself: a UI test must never have to do something within so many seconds of the app's own timer, because a hosted Mac can take 50 seconds over one drag ("Flaky tests").
+  Wait for a thing to happen, with a long limit, and put the timer's rule in a unit test with the times handed in.
+  In a unit test, pass `now` and a `Calendar` with an explicit time zone, and walk the day in half hours in at least two zones when the rule has anything to do with the time of day or the day's edge.
+  In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, which the wall and the phone both read, and never branch on `Date()`.
+  The day in that argument is today's, because the sample household is built around today; the time of day is what must not move.
+  Why: a log landed in the wrong slot, and a streak was miscounted, only at certain hours, where a test that runs at one hour cannot see it.
+  A timestamp that is only stored, never compared, bucketed or formatted (a row's `createdAt`), may be `Date.now`.
+- **Every loop in a UI test helper has a bound.**
+  Write `for _ in 0..<n where …`, or a deadline that fails the test when it passes, as `reveal` and `waitUntilResponsive` do.
+  Why: an unbounded loop does not fail, it hangs the job until its 75 minute limit, and the log does not say which test.
+- **A launch argument that reaches `UserDefaults` needs a value.**
+  Write `-sampleWater YES`, not `-sampleWater`.
+  Why: the argument domain is read as key and value pairs, so a bare flag swallows the next argument or is not seen at all.
+  Only flags the app reads from `ProcessInfo.arguments` itself (`-sampleHousehold`, `-resetData`) work bare.
+- **A suite that runs no tests fails.**
+  `scripts/test.sh` reports "no tests ran" and exits non-zero when a selection matches nothing or only tests that skip themselves.
+  Why: a phone class once ran on the iPad, skipped every test and reported success.
+  Do not work around it; fix the selection.
+- **Do not find an element by a label that is also a button's title.**
+  Give the element an accessibility identifier and query that (`save-care`, `went-Mia`, `dish-title`).
+  Why: "Log a walk" is the sheet's title and a button on the page behind it, and "You" is a pill in the sheet and the avatar behind it, so the query matched before the sheet opened, or matched two elements.
+- **iPad frames come back in portrait coordinates unless the device is turned first.**
+  Launch through `XCUIApplication.porchlight()`, which turns the iPad to landscape before the launch.
+  Why: a new simulator boots in portrait, and on iPadOS 27 frames, swipes and the keyboard are then reported sideways, so "above the keyboard" checks compare the wrong edges.
+- **Never tap before the element has settled, and never rely on XCUITest to scroll for a tap.**
+  Use `waitToSettle()` for anything in a sheet that is still sliding, and `reveal(_:in:)` before a tap below the fold.
+  Why: a tap computed mid-slide lands outside the sheet and closes it, and under the floating tab bar automatic scrolling stops short and taps nothing.
+- **No fixed sleeps as a way of waiting.**
+  Wait for the thing (`waitForExistence`, `waitForNonExistence`, an expectation on a predicate); a `Thread.sleep` is allowed only to let an animation finish before a screenshot.
+  Why: a launch helper that sleeps 4 seconds adds 4 seconds to every test in its class, as `FoodMealsTests` and `MealPhotosTests` did for 17 tests until they waited for the app to answer and for their first element to settle instead.
+- **A frame inside the screen does not prove the ink is inside the frame.**
+  Where a face draws past its letters' own widths, check the ink's bounds, not the element's frame.
+  Why: Caveat's slanted letters reach up to 0.21 em past their advance, and a SwiftUI `Text` is as wide as its letters' advances and draws nothing beyond, so a handwritten title ending in "l", "f" or "i" lost the top of its last letter ("Bagel" drew as "Bagei").
+  Every frame was where it should be; no frame check, on a real screen or a hosted one, could have seen it.
+  `Text(handwritten:)` (`Handwriting.swift`) is now the one way the app writes a handwritten title, with room for the tails, and `HandwritingTests` lays each title out with Core Text at every size and requires the line's ink to sit inside the line's box.
+  Do not write the handwritten face any other way, and when a new face or a new slant arrives, give it an ink-bounds test of its own.
+- **A test leaves the simulator as it found it.**
+  The database is new at every sample launch, but the device's own settings are not: what the photo frame shows, the night's hours and the idle minutes live in the simulator's defaults and outlive the test and the launch.
+  A test that changes one calls `forgetDisplaySettingsAfterwards()` first, which launches the app once more after the test, pass or fail, with `-debugForgetDisplay YES`.
+  Never put a setting back by hand at the end of the test: a test that fails halfway never reaches its end, and the next test starts from what it left.
+  Why: `PhotoFrameTests.testChoosingThePorchView` and `TimeFieldTests.testNightHoursCrossMidnight` each ended by tapping their setting back, which a failure in the middle would have skipped.
+- **A test that needs the network or real delivery timing runs by hand, not in the suite.**
+  Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
+  Why: a test that skips itself when the network is down reports nothing either way.
 
 ## Tiers
 
@@ -330,11 +331,11 @@ A phone class on the iPad, or a wall class on the iPhone, also skips itself, but
 ## Flaky tests
 
 Every test that failed and then passed with nothing changed, with its owner, what was found and what was done.
-A test listed as quarantined is skipped in the suite and has a date by which it is fixed, moved down or deleted ("Tiers", rule 4); one that was fixed the day it was seen is listed as fixed, so the cause is not found twice.
+A test listed as quarantined is skipped in the suite and has a date by which it is fixed, moved down or deleted ("Tiers", "A flaky test is quarantined, with an owner and a week"); one that was fixed the day it was seen is listed as fixed, so the cause is not found twice.
 
 | Test | Seen | Owner | Cause | Done | State |
 |---|---|---|---|---|---|
-| `ScrollingTests.testTouchesKeepTheWallAwake` | November 21, 2026, on the release line (run 44905599973, 146 s where it takes 51 to 58); the same commit had passed its full run an hour earlier | The agent on `tests/pyramid` | The test raced two clocks: it touched the wall every 4 seconds of a 12 second "minute" and then asserted Ambient had stayed away. In the failing run the touches came 10 seconds apart, and then one drag took 51 seconds on the hosted Mac, so the wall's timer rightly ran out. The app was right and the test was wrong: it broke hard rule 1 from the other side, by letting the outcome depend on how fast the test itself ran | The rule moved to `IdleRuleTests` (dates handed in, seen failing with the rule broken). The UI test was rewritten as `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: one launch with a ten minute wait where a drag must be counted by the idle watcher, one with a three second "minute" where Ambient must come, each a one-sided wait | Fixed the same day; not quarantined |
+| `ScrollingTests.testTouchesKeepTheWallAwake` | November 21, 2026, on the release line (run 44905599973, 146 s where it takes 51 to 58); the same commit had passed its full run an hour earlier | The agent on `tests/pyramid` | The test raced two clocks: it touched the wall every 4 seconds of a 12 second "minute" and then asserted Ambient had stayed away. In the failing run the touches came 10 seconds apart, and then one drag took 51 seconds on the hosted Mac, so the wall's timer rightly ran out. The app was right and the test was wrong: it broke the first hard rule, "A test's outcome never depends on the real clock", from the other side, by letting the outcome depend on how fast the test itself ran | The rule moved to `IdleRuleTests` (dates handed in, seen failing with the rule broken). The UI test was rewritten as `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: one launch with a ten minute wait where a drag must be counted by the idle watcher, one with a three second "minute" where Ambient must come, each a one-sided wait | Fixed the same day; not quarantined |
 
 ### Infrastructure failures
 
@@ -746,7 +747,7 @@ Unfrozen on November 21, when the dish editor landed.
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
-| testChoosingThePorchView | 108 | Choice survives a relaunch, both ways, four launches | Keep. It no longer taps the choice back at its end: it starts from a new install's settings, checks the photos show, chooses the porch view, checks that after a relaunch, and the settings are forgotten afterwards, pass or fail (hard rule 10) | 50 | done |
+| testChoosingThePorchView | 108 | Choice survives a relaunch, both ways, four launches | Keep. It no longer taps the choice back at its end: it starts from a new install's settings, checks the photos show, chooses the porch view, checks that after a relaunch, and the settings are forgotten afterwards, pass or fail (the hard rule "A test leaves the simulator as it found it") | 50 | done |
 | testRemovingSeveralPhotos | 52 | Select three, remove, counts | Keep | | |
 
 #### TimeFieldTests (135 s)
@@ -754,7 +755,7 @@ Unfrozen on November 21, when the dish editor landed.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testTypingAMealTime | 43 | Pad not keyboard; then eight digit rules | Down for the digit rules (`TimeEntryTests`); keep open, type, Done | 15 | |
-| testNightHoursCrossMidnight | 63 | Suggestion sets; "next day"; then puts both back | Keep. It no longer sets both hours back at its end; they are forgotten afterwards, pass or fail (hard rule 10) | 20 | done |
+| testNightHoursCrossMidnight | 63 | Suggestion sets; "next day"; then puts both back | Keep. It no longer sets both hours back at its end; they are forgotten afterwards, pass or fail (the hard rule "A test leaves the simulator as it found it") | 20 | done |
 | testARoutineWindow | 29 | A refused time is explained and can't be kept | Keep | | |
 
 #### PitchInTests (128 s)

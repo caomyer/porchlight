@@ -89,6 +89,14 @@ scripts/idle-cpu.sh
 UI tests (screen tour, handwriting round trip, meal editing, choosing the photo frame and removing several photos, fixing who did a chore, care from the board, cashing in a reward, several dishes per meal, several photos per meal, dining out with restaurant search, editing a companion and adding a routine, fixing logged walks and meals from Today, typing times on the number pad (meals, night hours across midnight, routine windows), chores on Today and in the calendar, walks and meals in the week grid, keyboard placement, scrolling, the idle timer, sync's states in Settings with the gear's dot, the first launch looking for a household in iCloud, and a first run that grants real calendar access and assigns a calendar) run with the `PorchlightUI` scheme on a simulator.
 The wall iPad runs iPadOS 17, so run them on an iOS 17.5 simulator (`xcodebuild -downloadPlatform iOS -buildVersion 17.5`).
 
+### If git fails on a name ending in a space and a digit
+
+This checkout may live in a folder iCloud Drive syncs (`~/Documents` is one), and iCloud then makes its own copies of files inside `.git` when two devices or two processes touch them: `index 2`, `index 3`, or a ref such as `refs/remotes/origin/tests/pyramid 2`.
+Git reads a copy like that as a broken ref or a second index, and a fetch or a status fails naming it, in this checkout or in any worktree of it, since worktrees share one `.git`.
+On November 21, 2026 a copied remote ref broke `git fetch` in a worktree until it was removed.
+If a git command fails on a name that ends in a space and a digit, that is the cause: report it, and remove nothing in the shared `.git` yourself, since another worktree may be using what looks stale.
+The cure is to keep the repository outside any synced folder, which is the owner's decision to make.
+
 ### Running the tests
 
 Before adding or moving a test, read [docs/design/testing.md](docs/design/testing.md): which checks are unit tests and which are UI tests, the hard rules for both, the time budgets, and the audit of every UI test.
