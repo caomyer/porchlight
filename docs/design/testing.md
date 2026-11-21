@@ -187,6 +187,21 @@ The last three come from what the UI tests' own comments record.
    Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
    Why: a test that skips itself when the network is down reports nothing either way.
 
+## Tests that skip themselves
+
+A skipped test is a decision, so every one is listed here with its reason; a skip that is not in this table is a mistake.
+A full run reports exactly these: two skipped in the unit tests, two in the phone's UI suite, one in the wall's.
+
+| Test | Skipped unless | Why |
+|---|---|---|
+| `PhoneRemindersTests.testDeliveryByHand` | `PORCHLIGHT_DELIVERY=1` | Real notification delivery; iOS's timing is not reliable enough for the suite |
+| `PhoneRemindersTests.testNamedRemindersByHand` | `PORCHLIGHT_DELIVERY=1` | The same, for two households' reminders |
+| `FoodMealsTests.testLiveRestaurantSearchByHand` | `PORCHLIGHT_LIVE_MAPS=1` | Needs the network and Apple Maps' own answer |
+| `PhotoMigrationTests`, "A copy of the wall's real data keeps every photo file's bytes in a row" | `PORCHLIGHT_REAL_DATA_DIR` is set | Runs against a copy of the household's real data, which is never in the repository |
+| `SyncMigrationTests`, "A copy of the wall's real data migrates without losing anything" | `PORCHLIGHT_REAL_DB` is set | The same |
+
+A phone class on the iPad, or a wall class on the iPhone, also skips itself, but `scripts/test.sh` never sends a class to the wrong device, so those skips do not appear in a run.
+
 ## Budgets
 
 Measured on GitHub's hosted Macs (3 cores, 7 GB, iOS 27.2), run 44828667552 of November 20, 2026, the commit this work started from.
