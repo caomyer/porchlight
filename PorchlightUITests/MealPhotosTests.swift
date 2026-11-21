@@ -6,7 +6,7 @@ import XCTest
 /// `-debugCaptureShots` adds photos through the shutter's path, and sample meals already
 /// have photos. Sample launches use their own storage sandbox.
 @MainActor
-final class MealPhotosTests: XCTestCase {
+final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
     override func setUp() {
         continueAfterFailure = false
     }
@@ -16,7 +16,9 @@ final class MealPhotosTests: XCTestCase {
         app.launchArguments = ["-sampleHousehold"] + arguments
         app.launch()
         _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
-        Thread.sleep(forTimeInterval: 4)
+        // No fixed sleep: the app answering promptly means the launch has drawn, and each test
+        // then waits for its own screen and for what it taps first to come to rest.
+        waitUntilResponsive(app)
         return app
     }
 
@@ -46,6 +48,7 @@ final class MealPhotosTests: XCTestCase {
     func testShotsWaitInTheFormUntilSave() {
         let app = launch(["-startScreen", "food", "-debugFoodView", "capture", "-debugCaptureShots", "3"])
         XCTAssertTrue(photo(app, 2).waitForExistence(timeout: 20), "Three shots should wait in the Photos row")
+        photo(app, 2).waitToSettle()
         XCTAssertTrue(app.staticTexts["3 photos ready. Fill in anything else, then Save."].exists)
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Saved to'")).firstMatch.exists,
                        "Taking photos must not save the meal")
@@ -84,6 +87,7 @@ final class MealPhotosTests: XCTestCase {
         let app = launch(["-startScreen", "food"])
         let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
         XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.waitToSettle()
         breakfast.tap()
         let edit = app.buttons["Edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 10), "The meal opens")
@@ -106,6 +110,7 @@ final class MealPhotosTests: XCTestCase {
         // Today's breakfast is two dishes; the avocado toast on top has two photos.
         let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
         XCTAssertTrue(breakfast.waitForExistence(timeout: 20), "Today's breakfast shows it has two photos")
+        breakfast.waitToSettle()
         breakfast.tap()
 
         let pager = app.descendants(matching: .any)["meal-pager"]
@@ -138,6 +143,7 @@ final class MealPhotosTests: XCTestCase {
         let app = launch(["-startScreen", "food", "-debugFoodView", "capture", "-debugCaptureShots", "2"])
         let window = app.descendants(matching: .any)["viewfinder-window"]
         XCTAssertTrue(window.waitForExistence(timeout: 20))
+        window.waitToSettle()
         XCTAssertEqual(window.frame.width, window.frame.height, accuracy: 2, "The viewfinder shows exactly the polaroid's square")
         let shot = photo(app, 1)
         XCTAssertTrue(shot.waitForExistence(timeout: 10))
@@ -151,6 +157,7 @@ final class MealPhotosTests: XCTestCase {
         let app = launch(["-startScreen", "food"])
         let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
         XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.waitToSettle()
         breakfast.tap()
 
         let pager = app.descendants(matching: .any)["meal-pager"]
@@ -186,6 +193,7 @@ final class MealPhotosTests: XCTestCase {
         let app = launch(["-startScreen", "food"])
         let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
         XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.waitToSettle()
         breakfast.tap()
         let edit = app.buttons["Edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 10), "The meal opens")
@@ -223,6 +231,7 @@ final class MealPhotosTests: XCTestCase {
         let app = launch(["-startScreen", "food"])
         let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
         XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
+        breakfast.waitToSettle()
         breakfast.tap()
         // The meal's sheet fades in; on a busy simulator Edit comes a moment after the tap.
         let edit = app.buttons["Edit"]

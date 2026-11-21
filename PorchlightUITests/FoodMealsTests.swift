@@ -3,7 +3,7 @@ import XCTest
 /// Several dishes in one meal, and eating out with a restaurant picked by search.
 /// Sample launches use their own storage sandbox and never touch real data.
 @MainActor
-final class FoodMealsTests: XCTestCase {
+final class FoodMealsTests: XCTestCase, PhoneTestHelpers {
     override func setUp() {
         continueAfterFailure = false
     }
@@ -13,7 +13,9 @@ final class FoodMealsTests: XCTestCase {
         app.launchArguments = ["-sampleHousehold"] + arguments
         app.launch()
         _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
-        Thread.sleep(forTimeInterval: 4)
+        // No fixed sleep: the app answering promptly means the launch has drawn, and each test
+        // then waits for its own screen and for what it taps first to come to rest.
+        waitUntilResponsive(app)
         return app
     }
 
@@ -45,6 +47,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "food"])
         let stack = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Dinner: Sushi night and 1 more")).firstMatch
         XCTAssertTrue(stack.waitForExistence(timeout: 20), "Saturday's dinner should show as a stack of two")
+        stack.waitToSettle()
         stack.tap()
 
         XCTAssertTrue(app.staticTexts["Sushi night"].waitForExistence(timeout: 5))
@@ -68,6 +71,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
         let dish = app.textFields["What was it? e.g. Dan dan noodles"]
         XCTAssertTrue(dish.waitForExistence(timeout: 20))
+        dish.waitToSettle()
         dish.tap()
         dish.typeText("Salmon nigiri\n")
 
@@ -104,6 +108,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
         let dish = app.textFields["What was it? e.g. Dan dan noodles"]
         XCTAssertTrue(dish.waitForExistence(timeout: 20))
+        dish.waitToSettle()
         dish.tap()
         dish.typeText("Bento box\n")
 
@@ -133,6 +138,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "food", "-debugFoodView", "detail"])
         let edit = app.buttons["Edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 20))
+        edit.waitToSettle()
         edit.tap()
         let home = app.buttons["source-home"], company = app.buttons["source-company"]
         XCTAssertTrue(home.waitForExistence(timeout: 5))
@@ -155,11 +161,17 @@ final class FoodMealsTests: XCTestCase {
         XCTAssertTrue(home.isSelected && company.isSelected, "Both are picked when it opens again")
     }
 
-    /// Live Maps suggestions appear while typing a new restaurant (needs the network).
-    func testLiveRestaurantSearch() throws {
+    /// Typing a new place searches Apple Maps live. By hand only: it needs the network and
+    /// Maps' own answer, so in the suite it could only pass or skip itself, never fail.
+    /// `TEST_RUNNER_PORCHLIGHT_LIVE_MAPS=1 xcodebuild test ... -only-testing:PorchlightUITests/FoodMealsTests/testLiveRestaurantSearchByHand`.
+    /// The suggestions list itself is checked in `testDineOutWithARestaurant`, with a place
+    /// the household has eaten at.
+    func testLiveRestaurantSearchByHand() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["PORCHLIGHT_LIVE_MAPS"] == "1", "Run by hand")
         let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
         let dish = app.textFields["What was it? e.g. Dan dan noodles"]
         XCTAssertTrue(dish.waitForExistence(timeout: 20))
+        dish.waitToSettle()
         app.buttons["🛵 Delivery"].tap()
         let restaurant = app.textFields["Restaurant"]
         XCTAssertTrue(restaurant.waitForExistence(timeout: 5))
@@ -167,11 +179,9 @@ final class FoodMealsTests: XCTestCase {
         restaurant.typeText("Pizza")
         let suggestions = app.descendants(matching: .any)["Restaurant suggestions"]
         XCTAssertTrue(suggestions.waitForExistence(timeout: 10))
-        let offline = app.staticTexts["Can't reach Maps. The name you type is saved as is."]
-        Thread.sleep(forTimeInterval: 4)
+        XCTAssertTrue(suggestions.buttons.firstMatch.waitForExistence(timeout: 15), "Maps should suggest places for \"Pizza\"")
+        XCTAssertFalse(app.staticTexts["Can't reach Maps. The name you type is saved as is."].exists, "Asked for by hand, so Maps must be reachable")
         snapshot("36-live-suggestions")
-        if offline.exists { throw XCTSkip("Maps is not reachable from this simulator") }
-        XCTAssertGreaterThan(suggestions.buttons.count, 0, "Maps should suggest places for \"Pizza\"")
     }
 
     /// Editing a meal into a dinner out: the restaurant field stays above the keyboard and the
@@ -180,6 +190,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "food", "-debugFoodView", "detail"])
         let edit = app.buttons["Edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 20))
+        edit.waitToSettle()
         edit.tap()
         app.buttons["🍽️ Dine out"].tap()
         // Editing adds a kind; the meal was home-cooked, so that comes off.
@@ -205,6 +216,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "today"])
         let plate = button(app, startingWith: "Breakfast: Oat latte and 1 more")
         XCTAssertTrue(plate.waitForExistence(timeout: 20), "Today's breakfast should show as a stack of two")
+        plate.waitToSettle()
         snapshot("39-today-plates")
         plate.tap()
         XCTAssertTrue(app.buttons["Avocado toast"].waitForExistence(timeout: 5), "The other breakfast should be one tap away")
@@ -218,6 +230,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "food"])
         let stack = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Dinner: Sushi night and 1 more")).firstMatch
         XCTAssertTrue(stack.waitForExistence(timeout: 20))
+        stack.waitToSettle()
         stack.swipeLeft()
         let next = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Dinner: Mochi and 1 more")).firstMatch
         XCTAssertTrue(next.waitForExistence(timeout: 5), "Swiping should bring the other dish to the top")
@@ -236,6 +249,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "food", "-debugFoodView", "write"])
         let meal = button(app, startingWith: "Breakfast: Avocado toast")
         XCTAssertTrue(meal.waitForExistence(timeout: 20), "The day sheet should list the day's meals")
+        meal.waitToSettle()
         snapshot("41-month-day-meals")
         meal.tap()
         XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 5), "A meal from the month should open its sheet")
@@ -249,6 +263,7 @@ final class FoodMealsTests: XCTestCase {
         let app = launch(["-startScreen", "food", "-debugFoodView", "capture"])
         let write = app.buttons["Write on today's page"]
         XCTAssertTrue(write.waitForExistence(timeout: 20), "The capture form should offer the day's page")
+        write.waitToSettle()
         snapshot("43-capture-day-notes")
         write.tap()
         XCTAssertTrue(app.staticTexts["Writing on today's page"].waitForExistence(timeout: 5))
