@@ -167,6 +167,8 @@ To run only some tests, use Actions, Tests, Run workflow, with "only" set as for
 
 **A run in which no test started is run once more.** When the test runner crashes before any test has started ("The test runner crashed while preparing to run tests", or it never loads Accessibility), on a Mac short of memory, `scripts/test.sh` runs that suite again, locally too, and a second time fails saying the runner crashed before any test, twice; a runner that dies after a test has started is a real failure and is not run again (`scripts/lib/runner-start.sh`).
 
+**A boot that stalls fails by name.** Each stage of booting a job's simulator has a limit of its own (booting, then the first uninstall answering), a stage that stalls is named in the log and the simulator is erased and booted once more, and a second stall fails the job saying which stages stalled and that no test ran (`scripts/ci/boot-simulator.sh`); before that, a stalled boot sat until GitHub cancelled the job with "The operation was canceled".
+
 **A build that arrives corrupted is not a red test run.** The build job records its packed build's size and SHA-256, and each test job checks its download against them, downloads again up to twice when they differ, and only then fails, saying "The build's download was corrupted" (`scripts/ci/unpack-build.sh`; `zsh scripts/ci/check-unpack-build.sh` checks that script with a stand-in for the download).
 
 **Reading a failure.** The job's log lists the failed tests and their messages under `[ui-wall]`, `[ui-phone]` or the unit summary.

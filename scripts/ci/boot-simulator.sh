@@ -5,31 +5,53 @@
 # A brand-new iOS 27 simulator keeps setting itself up for minutes after it says it has
 # booted, and the first thing asked of it (installing, or uninstalling an app) waits for
 # that; asking here keeps that wait out of the tests' time too.
-set -euo pipefail
+#
+# Each stage has a time limit of its own (scripts/lib/stage.sh). A stage that stalls is
+# named in the log; the simulator is then shut down, erased and booted once more, and a
+# second stall fails the job saying which stage it was. Before this, a boot that stalled
+# sat until GitHub cancelled the job with "The operation was canceled" and nothing else
+# (three times by November 21, 2026; docs/design/testing.md, "Infrastructure failures").
+#
+#   PORCHLIGHT_BOOT_SECONDS    the limit for booting (default 540: a new iOS 27 simulator
+#                              has taken up to eight minutes)
+#   PORCHLIGHT_READY_SECONDS   the limit for the first uninstall to answer (default 150)
+set -uo pipefail
 cd "$(dirname "$0")/../.."
 source scripts/lib/simulators.sh
+source scripts/lib/stage.sh
 porchlight_sim_runtime=$RUNTIME
 
-step=$SECONDS
-udid=$(porchlight_simulator "$1")
-porchlight_boot_simulator "$udid"
-echo "Booted $1 $udid in $(( SECONDS - step ))s"
-step=$SECONDS
-xcrun simctl uninstall "$udid" com.porchlight.porchlight 2>/dev/null || true
-echo "Ready for installs in $(( SECONDS - step ))s more"
+boot_limit=${PORCHLIGHT_BOOT_SECONDS:-540}
+ready_limit=${PORCHLIGHT_READY_SECONDS:-150}
+kind=$1
 
-# An experiment, begun November 21, 2026 (docs/design/testing.md, "Infrastructure
-# failures"): the first test class after a boot has twice had its test runner crash before
-# any test started, and twice had a keyboard that took no keys. So before the tests, an app
-# is launched and quit once and the simulator is given a quarter of a minute, to let launch
-# services, the keyboard's and SpringBoard's first-time work happen before a test depends
-# on them. PORCHLIGHT_SETTLE_SECONDS=0 turns it off. It stays only if those failures stop
-# over a few weeks of runs; this line's seconds are its cost for each job.
-settle=${PORCHLIGHT_SETTLE_SECONDS:-15}
-if (( settle > 0 )); then
-  step=$SECONDS
-  xcrun simctl launch "$udid" com.apple.Preferences >/dev/null 2>&1 || true
-  sleep "$settle"
-  xcrun simctl terminate "$udid" com.apple.Preferences >/dev/null 2>&1 || true
-  echo "Settled in $(( SECONDS - step ))s more: Settings launched and quit"
+udid=$(porchlight_simulator "$kind") || exit 1
+
+# The first uninstall on a new simulator waits for it to finish setting itself up; there
+# being no such app to uninstall is its usual answer, and fine.
+ready_for_installs() {
+  xcrun simctl uninstall "$1" com.porchlight.porchlight 2>/dev/null
+  return 0
+}
+
+# Boots and waits until installs are answered. Prints the stage that stalled, if one did.
+boot_once() {
+  porchlight_stage "boot the $kind" "$boot_limit" porchlight_boot_simulator "$udid" || { stalled="boot the $kind"; return 1 }
+  porchlight_stage "ready for installs" "$ready_limit" ready_for_installs "$udid" || { stalled="ready for installs"; return 1 }
+}
+
+started=$SECONDS
+stalled=""
+if ! boot_once; then
+  first=$stalled
+  echo "::warning::The $kind simulator stalled at \"$first\". Shutting it down, erasing it and booting it once more."
+  xcrun simctl shutdown "$udid" >/dev/null 2>&1
+  porchlight_stage "erase the $kind" 120 xcrun simctl erase "$udid" || true
+  stalled=""
+  if ! boot_once; then
+    echo "::error::The $kind simulator stalled twice, first at \"$first\" and then at \"$stalled\". No test ran: this is the Mac or the simulator, not a test. Run the job again."
+    exit 1
+  fi
+  echo "The $kind simulator booted on the second try, after stalling at \"$first\""
 fi
+echo "Booted $kind $udid and ready for installs in $(( SECONDS - started ))s"
