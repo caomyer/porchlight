@@ -161,8 +161,8 @@ for sim in $ipad $iphone; do porchlight_hold_simulator "$sim"; done
 both=$(( ${#ipad} && ${#iphone} ))
 
 # Shut the simulators down on every way out this shell sees, to give the memory back. A run
-# killed outright leaves its simulators booted but no longer held, and the next run's
-# `porchlight_take_slots` shuts them down.
+# killed outright leaves its simulators booted but no longer held, and the next run from
+# this checkout shuts them down (never another checkout's: scripts/lib/simulators.sh).
 cleanup() {
   for sim in $ipad $iphone; do xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true; done
 }

@@ -73,6 +73,10 @@ jobs:
           path: ${{ env.PACKAGES }}
           key: spm-${{ hashFiles('project.yml') }}
 
+      # Which simulators a run may shut down and which it waits for, checked with stand-ins.
+      - name: Check the simulator rules
+        run: zsh scripts/ci/check-simulator-rules.sh
+
       - name: Build
         run: zsh scripts/test.sh --build-only
 
