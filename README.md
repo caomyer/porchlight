@@ -174,8 +174,8 @@ This installs a Release build, which costs less CPU and power on a screen that i
 Before installing, it copies the wall's database and photos to `~/Library/Application Support/Porchlight/Backups` and stops if that copy fails.
 `scripts/backup-ipad.sh` makes such a copy on its own, and `scripts/restore-ipad.sh <backup folder>` puts one back.
 
-`scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror (macOS does not let background jobs read ~/Documents).
-That keeps the wall on the latest commit and backed up twice a week.
+A scheduled reinstall is optional, and is no longer how the household's devices are kept up to date: they update through TestFlight (below), and the household's own schedule was removed on November 21, 2026.
+For a wall kept on cable installs, `scripts/schedule-deploy.sh` sets up a launchd job that reinstalls every Sunday and Wednesday at 3:00 am from a private git mirror of `main` (macOS does not let background jobs read ~/Documents), which keeps it on the latest commit and backed up twice a week; `scripts/schedule-deploy.sh --remove` takes the job, its git hook and the mirror's remote away again, from the main checkout or from a worktree.
 An install signed with a paid Apple Developer team lasts a year; with a free Apple ID it expires after 7 days, which the schedule also covers.
 
 ## On iPhone
