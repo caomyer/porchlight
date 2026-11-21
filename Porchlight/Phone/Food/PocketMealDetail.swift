@@ -276,10 +276,11 @@ private struct PocketMealEditor: View {
                 let now = CompanionClock.now()
                 photos(binding)
                 PocketMealFields(
-                    title: binding.title, slot: binding.slot, time: binding.time, sources: binding.sources,
+                    dishes: binding.dishes, slot: binding.slot, time: binding.time, sources: binding.sources,
                     place: binding.place, eaterIds: binding.eaterIds, rating: binding.rating,
                     day: entry.dayKey, range: MealEdit.timeRange(for: entry, calendar: store.calendar, now: now), now: now,
-                    slots: store.slots.contains(binding.wrappedValue.slot) ? store.slots : store.slots + [binding.wrappedValue.slot]
+                    slots: store.slots.contains(binding.wrappedValue.slot) ? store.slots : store.slots + [binding.wrappedValue.slot],
+                    entryId: entry.id
                 )
             }
         } footer: {
@@ -297,7 +298,7 @@ private struct PocketMealEditor: View {
         }
         .onAppear {
             guard edit == nil else { return }
-            edit = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).map(\.id), place: store.place(of: entry), photos: store.photos(of: entry))
+            edit = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).map(\.id), place: store.place(of: entry), photos: store.photos(of: entry), dishes: store.book.dishes(of: entry))
         }
     }
 

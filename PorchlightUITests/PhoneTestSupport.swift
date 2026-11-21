@@ -114,20 +114,42 @@ extension PhoneTestHelpers {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", part)).firstMatch
     }
 
-    /// Scrolls a little at a time until `element` is wholly in view, above the tab bar
-    /// when there is one: up the page when it is above the screen (a test that looked
-    /// further down first), else down. A tap never relies on XCUITest scrolling for it,
-    /// which on iOS 27, under the floating tab bar, can stop short and tap nothing.
-    func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        let window = app.windows.firstMatch.frame
-        let tabBar = app.tabBars.firstMatch
-        let bottom = tabBar.exists ? tabBar.frame.minY : window.maxY
-        let visible = CGRect(x: window.minX, y: window.minY, width: window.width, height: bottom - window.minY)
-        for _ in 0..<14 where !(element.exists && element.isHittable && visible.contains(element.frame)) {
-            let above = element.exists && element.frame.minY < visible.minY
+    /// Scrolls a little at a time until `element` is wholly in view, above the tab bar and
+    /// the keyboard when they are up: up the page when it is above the screen (a test that
+    /// looked further down first), else down. A tap never relies on XCUITest scrolling for
+    /// it, which on iOS 27, under the floating tab bar, can stop short and tap nothing.
+    ///
+    /// It gives up after 14 drags, or as soon as two drags in a row move nothing (the page
+    /// is at its end, or the element isn't on it), and then fails naming the element; it
+    /// never scrolls forever.
+    func reveal(_ element: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        func visible() -> CGRect {
+            let window = app.windows.firstMatch.frame
+            let tabBar = app.tabBars.firstMatch
+            let keyboard = app.keyboards.firstMatch
+            // A tab bar behind a full-screen cover still exists, but covers nothing.
+            let bottom = min(tabBar.exists && tabBar.isHittable ? tabBar.frame.minY : window.maxY, keyboard.exists ? keyboard.frame.minY : window.maxY)
+            return CGRect(x: window.minX, y: window.minY, width: window.width, height: bottom - window.minY)
+        }
+        func inView() -> Bool { element.exists && element.isHittable && visible().contains(element.frame) }
+        var still = 0
+        for _ in 0..<14 where !inView() {
+            let before = element.exists ? element.frame : app.windows.firstMatch.frame
+            let above = element.exists && element.frame.minY < visible().minY
             let (from, to) = above ? (0.45, 0.7) : (0.7, 0.45)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: from))
-            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: to)))
+            // Within what shows: a drag that starts on the keyboard moves nothing.
+            let area = visible()
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let start = origin.withOffset(CGVector(dx: area.midX, dy: area.minY + area.height * from))
+            start.press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: area.midX, dy: area.minY + area.height * to)))
+            let after = element.exists ? element.frame : app.windows.firstMatch.frame
+            still = after == before ? still + 1 : 0
+            if still >= 2 { break }
+        }
+        // Fails only when it can't be tapped where it is.
+        // (A sheet's bottom button can reach past the screen's edge and still be tapped.)
+        if !(element.exists && element.isHittable) {
+            XCTFail("Couldn't bring \(element) into view (exists: \(element.exists), frame: \(element.frame), visible: \(visible()))", file: file, line: line)
         }
     }
 

@@ -15,6 +15,7 @@ struct PhoneSheet<Content: View, Footer: View>: View {
     @State private var detent: PresentationDetent = .large
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if let label {
@@ -38,6 +39,11 @@ struct PhoneSheet<Content: View, Footer: View>: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         }
         .scrollBounceBehavior(.basedOnSize)
+        // Dragging the sheet's content puts the keyboard away, uncovering its button.
+        .scrollDismissesKeyboard(.immediately)
+        // A dish field in the sheet (Edit meal) stays over the keyboard as it suggests.
+        .keepsDishFieldInView(proxy)
+        }
         .presentationDetents([.height(height), .large], selection: $detent)
         .onAppear { detent = .height(height) }
         .onChange(of: height) { _, new in if detent != .large { detent = .height(new) } }

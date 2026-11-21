@@ -80,7 +80,7 @@ SQLiteData sends every row of a table the first time it starts with that table, 
 ## Older builds
 
 `PorchlightTests/Sync/OlderBuildSyncTests.swift` puts a newer and an older device on one stand-in for iCloud (SQLiteData's `MockCloudContainer`, reached with `@testable import SQLiteData`).
-The newer one has the dish tables and a new `otherSources` field on the meal (standing in for the multi-select Where); the older one has today's schema.
+The newer one is today's app, with the dish tables and the meal's `otherSources` (multi-select Where); the older one is the build from before both, without the tables, the field or their mirrors.
 
 - **Records of a type it doesn't know:** the older build keeps them in the engine's metadata and changes nothing; no error.
 - **Fields it doesn't know on a record it knows:** an edit on the older build sends only what it changed, from the last record iCloud gave it, so iCloud keeps the newer field, and the newer device still has its dish lines.
@@ -143,5 +143,23 @@ The wall (`Porchlight/Features/Food/WallDishes.swift`):
   "Another dinner dish" is "Another meal at dinner".
 - The wall keeps its one light look, so the proposal's night frames of the wall don't apply.
 
-Not built yet, waiting for the meal sheets: dish lines on Snap and Edit, Where above "What was it?", suggestions while typing and "Last time here" chips.
-They go on top of the multi-select Where when it lands.
+## The editor
+
+Snap and Edit name a meal's dishes one by one, on the phone (`PocketMealFields`, in Snap's details and in Edit) and on the wall (`CaptureFormView` and `MealEditForm`), through one view, `DishLinesField`, in two styles.
+What the form holds is `DishLinesEdit`: the ordered lines, each with the table's face, and the text typed for the next one.
+
+- Where comes first, then the restaurant when a kind has one, then "What we had", then the time, the meal and who ate.
+  The dishes' kitchen follows from Where, so suggestions and "Last time here" know where we are before the first letter.
+- "What we had" says whose dishes they are: "· from Pho Saigon House", "· home-cooked" or "· from elsewhere" (`DishFormKitchen`).
+  With several kinds picked it is the same rule as saving: a named restaurant wins, then home, else elsewhere, so the form never asks which kitchen; it says it.
+  A restaurant typed but never eaten at has a kitchen of its own with nothing in it yet, so nothing is suggested as "here".
+- Each line is the dish's picture, its name, "3rd time here" or "New here" (counting this meal), × to take it off, and the four faces for the table, optional, with last time's face as a hint.
+  Moving a line up or down is in its context menu and its accessibility actions; the first dish names the meal's polaroid.
+- "Last time here" offers the dishes of the restaurant's last other meal as chips; a chip goes once its dish is on the meal.
+- Typing suggests dishes whose words start with what was typed, this kitchen's first, then the same words elsewhere (picked, those are the same name here, not the same dish), and "Add "…"" for a new one.
+  The suggestions sit above the field, because the field rides just over the keyboard.
+  The keyboard's Done adds what is typed and puts the keyboard away, on the phone and the wall, since it would otherwise cover Save; the field, now "Add another dish", is one tap for the next.
+  On the phone the form scrolls as the suggestions open, so the field stays just over the keyboard (`keepsDishFieldInView`).
+- Save never waits for a dish: what is still typed when Save is tapped is the last dish, and no dish at all is a whole meal titled by its slot.
+- "Would eat again?" shows only while the meal names no dish; with dishes, the faces are on them.
+- On the phone the lines grow with Dynamic Type and, at the accessibility sizes, the faces drop under the name at full width; the wall keeps its sizes, one line per dish with the faces beside it.

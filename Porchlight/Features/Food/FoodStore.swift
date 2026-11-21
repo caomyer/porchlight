@@ -180,6 +180,18 @@ final class FoodStore: StoredFirstObservable {
         return snapshot.places.first { $0.id == id }
     }
 
+    /// The household's restaurant a form names, matched as saving matches it: by its Maps
+    /// id, else by name and address. Nil for a place new to the diary.
+    func place(matching draft: PlaceDraft?) -> FoodPlace? {
+        guard let draft, !DishName.key(draft.name).isEmpty else { return nil }
+        let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = draft.address?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if let mapsId = draft.mapsId, let match = snapshot.places.first(where: { $0.mapsId == mapsId }) { return match }
+        return snapshot.places.first {
+            $0.name.caseInsensitiveCompare(name) == .orderedSame && ($0.address ?? "").caseInsensitiveCompare(address) == .orderedSame
+        }
+    }
+
     /// A photo's thumbnail, the square the wall shows; nil until it has one.
     func thumbnail(of photo: MealPhoto) -> PhotoSource? {
         snapshot.photoSizes[photo.id]?.thumbnail.map { .mealThumbnail(photo.id, byteCount: $0) }

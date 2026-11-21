@@ -241,6 +241,8 @@ private struct PlaceCard: View {
     let onEdit: () -> Void
     let onClear: () -> Void
 
+    @Environment(\.colorScheme) private var scheme
+
     var body: some View {
         HStack(spacing: 10) {
             Button(action: onEdit) {
@@ -276,7 +278,8 @@ private struct PlaceCard: View {
         }
         .padding(.horizontal, 14)
         .frame(maxHeight: .infinity)
-        .background(Theme.accent.wash(0.08), in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+        // Washed over the night look's own surface; over white it was pale on pale at night.
+        .background(Theme.accent.wash(scheme == .dark ? 0.16 : 0.08, over: Theme.surface, in: scheme), in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous).stroke(Theme.accent.opacity(0.35)))
         .foregroundStyle(Theme.ink)
     }

@@ -33,7 +33,8 @@ final class CaptureForm: StoredFirstObservable {
     var rating: MealRating = .again
     /// The restaurant, for delivery or eating out.
     var place: PlaceDraft?
-    var title = ""
+    /// The meal's dishes, and what is typed for the next one.
+    var dishes = DishLinesEdit()
     /// Photos taken or picked so far, held in memory until Save. Cover first.
     @ObservationIgnored @StoredFirst var photos: [MealPhotoItem] = []
     /// Photos still being made from a shot or a pick.
@@ -60,8 +61,14 @@ final class CaptureForm: StoredFirstObservable {
         eaterIds = Set(store.people.map(\.id))
     }
 
+    /// The new meal's name as its polaroid will say it: the dishes added so far, not the
+    /// letters still being typed; nothing until there is one.
+    var title: String {
+        MealCopies.title(dishes: dishes.lines.map(\.name), slot: "")
+    }
+
     var emoji: String {
-        DishIllustration.suggestEmoji(for: title) ?? DishIllustration.fallbackEmoji
+        DishIllustration.suggestEmoji(for: dishes.lines.first?.name ?? "") ?? DishIllustration.fallbackEmoji
     }
 
     /// The form never gets shorter than this; it grows to fit a restaurant or a day page.
@@ -88,11 +95,12 @@ final class CaptureForm: StoredFirstObservable {
             day: day,
             slot: slot,
             sources: sources,
-            title: title,
+            title: "",
             rating: rating,
             eaterIds: Array(eaterIds),
             eatenAt: eatenAt,
-            place: sources.hasPlace ? place : nil
+            place: sources.hasPlace ? place : nil,
+            dishes: dishes.drafts
         )
     }
 }
@@ -344,15 +352,16 @@ private struct CaptureFormView: View {
                 .foregroundStyle(Theme.muted)
                 .padding(.top, 4)
 
-            HStack(spacing: 10) {
-                Text(form.emoji).font(.system(size: 22))
-                TextField("What was it? e.g. Dan dan noodles", text: $form.title)
-                    .font(.body(17, weight: 600))
-                    .textInputAutocapitalization(.sentences)
-                    .submitLabel(.done)
+            label("From")
+            MealSourcePills(sources: $form.sources, guessed: $form.sourcesGuessed)
+            if form.sources.hasPlace {
+                RestaurantField(place: $form.place, prompt: form.sources.placePrompt)
+                    .padding(.top, 10)
+                    .zIndex(1)
             }
-            .fieldStyle()
-            .padding(.top, 12)
+
+            WallDishLines(edit: $form.dishes, sources: form.sources, place: form.place, entryId: nil, placeholder: "What was it? e.g. Dan dan noodles")
+                .padding(.top, 12)
 
             // The time rides on the label line, so the meals get the row's full width.
             LogTimeField(
@@ -373,14 +382,6 @@ private struct CaptureFormView: View {
                 }
             }
 
-            label("From")
-            MealSourcePills(sources: $form.sources, guessed: $form.sourcesGuessed)
-            if form.sources.hasPlace {
-                RestaurantField(place: $form.place, prompt: form.sources.placePrompt)
-                    .padding(.top, 10)
-                    .zIndex(1)
-            }
-
             label("Who ate")
             HStack(spacing: 10) {
                 ForEach(store.people) { person in
@@ -395,11 +396,14 @@ private struct CaptureFormView: View {
                 }
             }
 
-            label("Would eat again?")
-            HStack(spacing: 8) {
-                ForEach(MealRating.allCases, id: \.self) { rating in
-                    FoodChoicePill(rating.emoji, isSelected: form.rating == rating) { form.rating = rating }
-                        .accessibilityLabel(rating.phrase)
+            // With dishes, the faces are on them.
+            if form.dishes.isEmpty {
+                label("Would eat again?")
+                HStack(spacing: 8) {
+                    ForEach(MealRating.allCases, id: \.self) { rating in
+                        FoodChoicePill(rating.emoji, isSelected: form.rating == rating) { form.rating = rating }
+                            .accessibilityLabel(rating.phrase)
+                    }
                 }
             }
 

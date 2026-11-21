@@ -285,7 +285,7 @@ struct MealDetailSheet: View {
                 if !confirmingDelete {
                     Button {
                         store.lastError = nil
-                        editing = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).map(\.id), place: store.place(of: entry), photos: store.photos(of: entry))
+                        editing = MealEdit(entry: entry, eaterIds: store.eaters(of: entry).map(\.id), place: store.place(of: entry), photos: store.photos(of: entry), dishes: store.book.dishes(of: entry))
                     } label: {
                         Label("Edit", systemImage: "pencil")
                     }
@@ -455,6 +455,8 @@ struct WholePhotoView: View {
 /// The editable details of a logged meal.
 struct MealEdit: Equatable {
     var title: String
+    /// The meal's dishes, and what is typed for the next one.
+    var dishes: DishLinesEdit
     var slot: String
     /// Where it came from: one kind or several.
     var sources: MealSources
@@ -467,8 +469,9 @@ struct MealEdit: Equatable {
     /// New photos still being made from a shot or a pick.
     var savingPhotos = 0
 
-    init(entry: JournalEntry, eaterIds: [Person.ID], place: FoodPlace? = nil, photos: [MealPhoto] = []) {
+    init(entry: JournalEntry, eaterIds: [Person.ID], place: FoodPlace? = nil, photos: [MealPhoto] = [], dishes: [(line: MealDish, dish: Dish)] = []) {
         title = entry.title
+        self.dishes = DishLinesEdit(dishes)
         slot = entry.slot
         sources = entry.sources
         rating = entry.rating
@@ -497,11 +500,12 @@ struct MealEdit: Equatable {
             day: entry.dayKey,
             slot: slot,
             sources: sources,
-            title: title,
+            title: "",
             rating: rating,
             eaterIds: Array(eaterIds),
             eatenAt: eatenAt,
-            place: sources.hasPlace ? place : nil
+            place: sources.hasPlace ? place : nil,
+            dishes: dishes.drafts
         )
     }
 }
@@ -522,16 +526,16 @@ private struct MealEditForm: View {
                 .font(.display(30))
                 .padding(.trailing, 40)
 
-            HStack(spacing: 10) {
-                Text(DishIllustration.suggestEmoji(for: edit.title) ?? DishIllustration.fallbackEmoji)
-                    .font(.system(size: 22))
-                TextField("What was it?", text: $edit.title)
-                    .font(.body(17, weight: 600))
-                    .textInputAutocapitalization(.sentences)
-                    .submitLabel(.done)
+            label("From")
+            MealSourcePills(sources: $edit.sources)
+            if edit.sources.hasPlace {
+                RestaurantField(place: $edit.place, prompt: edit.sources.placePrompt)
+                    .padding(.top, 10)
+                    .zIndex(1)
             }
-            .fieldStyle()
-            .padding(.top, 12)
+
+            WallDishLines(edit: $edit.dishes, sources: edit.sources, place: edit.place, entryId: entry.id, placeholder: "What was it?")
+                .padding(.top, 12)
 
             label("Photos")
             MealPhotoRow(items: $edit.photos, pending: edit.savingPhotos, size: 52, emptyText: "No photos yet. Add one from the camera or Photos.") {
@@ -557,14 +561,6 @@ private struct MealEditForm: View {
                 }
             }
 
-            label("From")
-            MealSourcePills(sources: $edit.sources)
-            if edit.sources.hasPlace {
-                RestaurantField(place: $edit.place, prompt: edit.sources.placePrompt)
-                    .padding(.top, 10)
-                    .zIndex(1)
-            }
-
             label("Who ate")
             FlowLayout(spacing: 10) {
                 ForEach(store.people) { person in
@@ -579,11 +575,13 @@ private struct MealEditForm: View {
                 }
             }
 
-            label("Would eat again?")
-            HStack(spacing: 8) {
-                ForEach(MealRating.allCases, id: \.self) { rating in
-                    FoodChoicePill(rating.emoji, isSelected: edit.rating == rating) { edit.rating = rating }
-                        .accessibilityLabel(rating.phrase)
+            if edit.dishes.isEmpty {
+                label("Would eat again?")
+                HStack(spacing: 8) {
+                    ForEach(MealRating.allCases, id: \.self) { rating in
+                        FoodChoicePill(rating.emoji, isSelected: edit.rating == rating) { edit.rating = rating }
+                            .accessibilityLabel(rating.phrase)
+                    }
                 }
             }
 

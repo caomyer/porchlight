@@ -553,8 +553,10 @@ extension AppDatabase {
     }
 
     /// Changes to the food tables after they were rebuilt for sync.
+    static let severalPlacesMigration = "food v6: a meal from several places"
+
     static func registerFoodMigrationsAfterSync(_ migrator: inout DatabaseMigrator) {
-        migrator.registerMigration("food v6: a meal from several places") { db in
+        migrator.registerMigration(severalPlacesMigration) { db in
             // The kinds besides `source`, comma-separated (`MealSources`). Nil for every meal so
             // far, so it writes no rows. Once a meal is saved again, its iCloud record carries
             // the field (and its modification time, as every column's does), so Production must

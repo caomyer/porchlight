@@ -215,6 +215,7 @@ struct FoodScreen: View {
             debugSaved = store.entries(on: today).last
             capture = CaptureRequest(day: today)
         case "detail": openEntry = store.entries(on: today).first ?? store.snapshot.entries.last
+        case "detail-pho": openEntry = store.snapshot.entries.last { $0.title.hasPrefix("Pho tai") }
         case "dishes": mode = .dishes
         default: break
         }
