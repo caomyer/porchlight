@@ -31,6 +31,8 @@ struct HostedScreen {
 
     struct Element {
         var label: String
+        /// A button, as opposed to text or an image.
+        var isButton = false
         /// In the window's coordinates; below `HostedScreen.size.height` is scrolled off.
         var frame: CGRect
     }
@@ -45,6 +47,11 @@ struct HostedScreen {
     /// The first element whose label begins with `prefix`.
     func element(beginningWith prefix: String) -> Element? {
         elements.first { $0.label.hasPrefix(prefix) }
+    }
+
+    /// Every element, a line each, for a failure's message.
+    var listing: String {
+        elements.map { "\($0.isButton ? "button" : "text") \"\($0.label.prefix(50))\" \($0.frame.integral)" }.joined(separator: "\n")
     }
 
     /// Hosts `screen` in `look`, lets it draw, and reads it.
@@ -97,7 +104,9 @@ struct HostedScreen {
         guard depth < 40, let object = root as? NSObject else { return [] }
         var found: [Element] = []
         if object.isAccessibilityElement {
-            found.append(Element(label: object.accessibilityLabel ?? "", frame: object.accessibilityFrame))
+            found.append(Element(
+                label: object.accessibilityLabel ?? "", isButton: object.accessibilityTraits.contains(.button), frame: object.accessibilityFrame
+            ))
         }
         if let children = object.accessibilityElements {
             for child in children { found += read(child, depth: depth + 1) }
