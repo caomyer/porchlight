@@ -145,10 +145,8 @@ struct WhoAreYouView: View {
         let isOn = choice == .new
         return VStack(spacing: 0) {
             Button {
-                // Picking it shows the name field, which takes the keyboard once it is there
-                // (below). Asking for the focus here, in the same update that adds the field,
-                // asks before the field exists.
-                if isOn { nameFocused = true } else { choice = .new }
+                choice = .new
+                nameFocused = true
             } label: {
                 ChoiceRow(isOn: isOn, title: "I'm new here", detail: "Add yourself with a name and color") {
                     Image(systemName: "plus")
@@ -174,8 +172,6 @@ struct WhoAreYouView: View {
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.line))
                         .accessibilityIdentifier("new-name")
-                        // Once the field is on screen, a turn of the main loop after it was added.
-                        .task { nameFocused = true }
                     PhoneColorChoice(selection: $newMe.color)
                 }
                 .padding(.top, 10)
