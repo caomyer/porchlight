@@ -40,6 +40,10 @@ on:
         description: "For a measurement only: another iPad model for the wall's simulator, as a pattern of its type (e.g. iPad-Air-11-inch[^)]*); empty is the 13-inch iPad Pro"
         required: false
         default: ""
+      measure_boots:
+        description: "For a measurement only: \"yes\" runs no test, and boots four iPad models three times each, each on a Mac of its own, saying the memory every 15 seconds"
+        required: false
+        default: ""
 
 # A newer push to a branch cancels that branch's run. A run by hand is in a group of its
 # own: it neither cancels nor is cancelled by pushes, or by other runs by hand.
@@ -65,7 +69,7 @@ env:
 jobs:
   build:
     name: Build
-    if: ${{ !inputs.only }}
+    if: ${{ !inputs.only && !inputs.measure_boots }}
     runs-on: xcode-27
     timeout-minutes: 40
     # What the packed build is, for the test jobs to check their download against.
@@ -234,7 +238,7 @@ jobs:
 
   chosen:
     name: Chosen tests
-    if: ${{ inputs.only }}
+    if: ${{ inputs.only && !inputs.measure_boots }}
     runs-on: xcode-27
     timeout-minutes: 120
     steps:
@@ -270,3 +274,41 @@ jobs:
           path: results
           if-no-files-found: ignore
           retention-days: 7
+
+  # A measurement, never part of a push: what booting each iPad model costs a hosted Mac,
+  # which has 7 GB. Each boot is on a new Mac, as a test job's is, with nothing else running;
+  # the stages are given long limits so that a slow one is timed rather than tried again,
+  # and the memory, the load and the largest processes are said every 15 seconds, through
+  # the boot and for three minutes after it. docs/design/testing.md, "Infrastructure
+  # failures", has what it found.
+  boots:
+    name: Boot ${{ matrix.model }} (${{ matrix.trial }})
+    if: ${{ inputs.measure_boots == 'yes' }}
+    runs-on: xcode-27
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - iPad-Pro-13-inch-M5-16GB
+          - iPad-Pro-13-inch-M5-12GB
+          - iPad-Air-13-inch-M4
+          - iPad-Air-11-inch-M4
+        trial: [1, 2, 3]
+    env:
+      PORCHLIGHT_CI_IPAD: ${{ matrix.model }}
+      PORCHLIGHT_HEARTBEAT_SECONDS: "15"
+      PORCHLIGHT_HEARTBEAT_TOP: "1"
+      PORCHLIGHT_BOOT_SECONDS: "900"
+      PORCHLIGHT_READY_SECONDS: "900"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick the simulators
+        run: zsh scripts/ci/pick-simulators.sh
+
+      - name: Boot the ipad
+        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-simulator.sh ipad
+
+      - name: The three minutes after
+        run: zsh scripts/ci/with-heartbeat.sh sleep 180
