@@ -274,6 +274,13 @@ shard_of() {
   local i=${shard%/*} n=${shard#*/} class k least seconds
   local -a weights=() mine=()
   for (( k = 1; k <= n; k++ )); do weights[k]=0; done
+  # The unit tests run on the Mac that runs the wall's first share, so that share starts
+  # with their seconds already counted (the `UnitTests` line), in every job's sums alike.
+  if [[ "$1" == --with-unit-tests ]]; then
+    shift
+    weights[1]=$(awk '$1 == "UnitTests" { print $2 }' scripts/lib/ui-test-seconds)
+    weights[1]=${weights[1]:-0}
+  fi
   for seconds class in $(for class in "$@"; do
       seconds=$(awk -v c="$class" '$1 == c { print $2 }' scripts/lib/ui-test-seconds)
       print -r -- "${seconds:-$(( 30 * $(grep -c 'func test' PorchlightUITests/$class.swift) ))} $class"
@@ -299,7 +306,7 @@ if (( wall )); then
   elif [[ -n "$shard" ]]; then
     wall_classes=(PorchlightUITests/*Tests.swift(:t:r))
     wall_classes=(${wall_classes:|phone_classes})
-    classes=$(shard_of $wall_classes) || exit 1
+    classes=$(shard_of --with-unit-tests $wall_classes) || exit 1
     for class in ${=classes}; do wall_args+=(-only-testing:PorchlightUITests/$class); done
     (( tour )) || wall_args+=(-skip-testing:PorchlightUITests/WallTourTests/testScreens)
   else

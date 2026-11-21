@@ -188,6 +188,21 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(frameWindow.waitForNonExistence(timeout: 5), "Done goes back to the row")
         XCTAssertEqual(framing(app, 1), second.replacingOccurrences(of: "-centered", with: "-framed"), "The second photo is framed")
         XCTAssertEqual(framing(app, 0), cover, "and the cover is as it was")
+
+        // Then the same photo made the cover: moved to the front, never duplicated, the one
+        // cover, and still two photos once saved. (The order's rule is `MealPhotoOrderTests`.)
+        photo(app, 1).coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()
+        let makeCover = app.buttons["Make cover"]
+        XCTAssertTrue(makeCover.waitForExistence(timeout: 5))
+        makeCover.tap()
+        XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5))
+        let tiles = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'meal-photo-'"))
+        XCTAssertEqual(tiles.count, 2, "Making a photo the cover must not duplicate it")
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == 'COVER'")).count, 1, "Only one photo is the cover")
+        snapshot("50-edit-new-cover")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5))
+        XCTAssertEqual(app.descendants(matching: .any)["meal-pager"].label, "Avocado toast, photo 1 of 2", "The meal still has two photos")
     }
 
     /// Which photo a tile shows and whether it is framed: "photo-<id>-centered" or "-framed".
@@ -199,31 +214,4 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
         return image.identifier
     }
 
-    /// Making another photo the cover moves it to the front, once.
-    func testMakingAnotherPhotoTheCover() {
-        let app = launch(["-startScreen", "food"])
-        let breakfast = labelled(app, startingWith: "Breakfast: Avocado toast and 1 more, 2 photos")
-        XCTAssertTrue(breakfast.waitForExistence(timeout: 20))
-        breakfast.waitToSettle()
-        breakfast.tap()
-        // The meal's sheet fades in; on a busy simulator Edit comes a moment after the tap.
-        let edit = app.buttons["Edit"]
-        XCTAssertTrue(edit.waitForExistence(timeout: 10), "The meal opens")
-        edit.tap()
-        let second = photo(app, 1)
-        XCTAssertTrue(second.waitForExistence(timeout: 5))
-        second.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()
-        let makeCover = app.buttons["Make cover"]
-        XCTAssertTrue(makeCover.waitForExistence(timeout: 5))
-        makeCover.tap()
-        XCTAssertTrue(photo(app, 1).waitForExistence(timeout: 5))
-        // Count every tile: a duplicate would share its twin's identifier.
-        let tiles = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'meal-photo-'"))
-        XCTAssertEqual(tiles.count, 2, "Making a photo the cover must not duplicate it")
-        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == 'COVER'")).count, 1, "Only one photo is the cover")
-        snapshot("51-new-cover")
-        app.buttons["Save"].tap()
-        XCTAssertTrue(app.staticTexts["Edit meal"].waitForNonExistence(timeout: 5))
-        XCTAssertEqual(app.descendants(matching: .any)["meal-pager"].label, "Avocado toast, photo 1 of 2", "The meal still has two photos")
-    }
 }

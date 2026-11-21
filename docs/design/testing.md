@@ -4,6 +4,27 @@ This is the rule for deciding whether a check is a unit test or a UI test, and f
 It is a decision rule, to be applied without asking.
 The audit at the end applies it to every UI test in the repository, with measured times.
 
+## State of the suite
+
+Where things stand, for anyone who does not need the audit.
+Every number is from the run named in its column, on GitHub's hosted Macs (3 cores, 7 GB, iOS 27.2).
+
+| | At the start: November 20, 2026 (run 44828667552) | Now: November 21, 2026 (run 44926520595) | Target |
+|---|---|---|---|
+| UI test seconds, all tests added up | 8,041 | 5,735 | 5,400 |
+| UI tests in the suite | 150 | 136 | |
+| UI tests over 60 seconds | 38 | 26 | |
+| UI tests over 120 seconds | 7 | 0 | 0 |
+| Longest UI test | 746 s | 120 s | 120 s |
+| Longest job's seconds of tests | 2,153 | 1,506, and about 1,300 once the shards are weighed again from this run | 1,080 |
+| A full run from start to green, with no queueing | 48.6 minutes | about 42 minutes: a 6.6 minute build, then a longest job of 35 | 30 minutes |
+| A push to a working branch, with no queueing | 48.6 minutes: every push ran everything | about 20 minutes: the unit tests and the smoke set (run 44888821802) | 20 minutes |
+| Unit tests | 572 | 614 | |
+
+What the table says plainly: the tests take 29% less time and none is over the ceiling, but a full run is only 14% faster, because each test job now spends about ten minutes on what is not a test (booting a new simulator, settling it, fetching and unpacking the build, installing, collecting results).
+That overhead, not the tests, is the next thing to shorten ("Budgets").
+When a row here goes stale, update it from a green full run and name the run.
+
 ## The rule in one paragraph
 
 A check lives at the lowest level that can express it.
@@ -325,9 +346,10 @@ Each kind seen is listed here with what the scripts now do about it, so the next
 
 **An experiment in progress, begun November 21, 2026: letting a fresh simulator settle.**
 The two runner crashes above, and the two lost-keys failures in "Known and not yet explained", all happened in the first test class of a job, minutes after its simulator booted.
-So `scripts/ci/boot-simulator.sh` now launches Settings, waits 15 seconds and quits it before the tests (`PORCHLIGHT_SETTLE_SECONDS`, 0 to turn it off), which costs each test job about 20 seconds: under two minutes of Mac time for a full run, none of it on the longest job's critical path beyond those 20 seconds.
+So `scripts/ci/boot-simulator.sh` now launches Settings, waits 15 seconds and quits it before the tests (`PORCHLIGHT_SETTLE_SECONDS`, 0 to turn it off), which was expected to cost each test job about 20 seconds and in its first full run cost 23 to 60 (run 44926520595: 46, 60, 54, 50 and 23 seconds), because launching an app on a simulator that new is itself slow: about four minutes of Mac time for a full run, and up to a minute on the longest job.
 It is not known to help.
 Before it, these four failures came in about fourteen full runs over two days; it stays if none comes in the next thirty full runs, and comes out if one does, with the result written here either way.
+Count so far: one full run with it, none of the four failures (run 44926520595).
 
 ### Tests that wait on the app's own timers
 
@@ -385,6 +407,9 @@ Measured on GitHub's hosted Macs (3 cores, 7 GB, iOS 27.2), run 44828667552 of N
 The first batch (run 44860696474) took 42 minutes from start to the last job's end, against 48.6, with the shards reweighed and three tests trimmed.
 By run 44883476613 of November 21, with the looks of the week, the care sheet and the dishes hosted and `reveal` rewritten, the UI tests summed to 6,805 seconds over 154 tests (8,041 over 150 at the start), five tests were over 120 seconds (seven), and the longest was 249 seconds (746).
 By run 44900373348 later that day, with the tabs' and the food's looks at one launch each and the duplicates gone, they summed to 6,031 seconds over 145 tests, a quarter less than at the start: 28 tests over 60 seconds (38), two over 120 (seven), the longest 151, a median of 33, and the five jobs between 1,108 and 1,276 seconds of tests each, where the longest had been 2,153.
+By run 44926520595 that evening, with the household's, Today's and the dish form's looks at one launch each and seven small tests folded into their neighbours, they summed to 5,735 seconds over 136 tests: 26 over 60 seconds, none over 120, the longest 120.
+The jobs had drifted apart again (878 to 1,506 seconds), so the shards were weighed from that run, and the unit tests' 368 seconds are now counted into the wall's first share, which runs on their Mac.
+Each test job spent about ten minutes outside its tests in that run (the two longest: 611 and 592 seconds), which is now the larger part of what a full run can still lose.
 
 | | Measured |
 |---|---|
@@ -551,7 +576,7 @@ Unfrozen on November 21, when the dish editor landed.
 | testAMemberSeesWhoseICloudItIs | 18 | Owner's iCloud; no invite for a member | Merge into `PhoneSetupTests.testAMemberLeaves` (identical launch) | 18 | done |
 | testRenamingThisPhone | 35 | Type a name, saved | Keep | | |
 | testNightLook | 52 | Shots | Merged into `testLooks`: three launches in the night look at the largest size, one for each place a person starts from (joining, a member's Today with a banner, two households) |  | done |
-| testLargestText | 50 | Join and banner fit | Merged into `testLooks`, which keeps its assertions; it was the slowest test in the suite at 151 seconds in run 44900373348 |  | done |
+| testLargestText | 50 | Join and banner fit | Merged into `testLooks`, which keeps its assertions; it was the slowest test in the suite at 151 seconds in run 44900373348 |  | done, 61 s measured for `testLooks`, where the four it replaced took about 250 |
 
 #### PhoneSetupTests (511 s)
 
@@ -611,7 +636,7 @@ Unfrozen on November 21, when the dish editor landed.
 | testYouSheet | 29 | Household, role, change who I am | Keep | | |
 | testYouOnEveryTab | 32 | The avatar is on each tab | Merge into `PhoneTabsTests.testPaperUnderTheStatusBar`, which visits each tab | 30 | done |
 | testNightLook | 24 | Shots | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size; the care sheet's look is hosted |  | done |
-| testLargestText | 41 | Log button whole and full width | Merged into `testLooks`, which keeps its assertions |  | done |
+| testLargestText | 41 | Log button whole and full width | Merged into `testLooks`, which keeps its assertions |  | done, 41 s measured for `testLooks` |
 
 ### Wall
 
@@ -663,8 +688,8 @@ Unfrozen on November 21, when the dish editor landed.
 | testPagingAndEditingPhotosOfASavedMeal | 34 | Paging; cancel keeps; save removes | Keep | | |
 | testTheViewfinderIsThePolaroidSquare | 20 | Viewfinder is square; shots under it | Merge into testShotsWaitInTheFormUntilSave (same screen) | 20 | done |
 | testWholePhotoAndReframing | 35 | Whole photo; drag moves the square | Keep (gesture) | | |
-| testReframingAnotherPhoto | 38 | Reframe frames that photo only | Merge with testMakingAnotherPhotoTheCover into one editor journey | 31 | |
-| testMakingAnotherPhotoTheCover | 31 | No duplicate; one cover | As above; the order rule is `MealPhotoOrderTests` | | |
+| testReframingAnotherPhoto | 38 | Reframe frames that photo only | Merged with testMakingAnotherPhotoTheCover: the second photo is reframed, then made the cover, in one editor | 31 | done |
+| testMakingAnotherPhotoTheCover | 31 | No duplicate; one cover | As above; the order rule is `MealPhotoOrderTests` |  | done |
 
 #### DayAtAGlanceTests (197 s)
 
@@ -679,7 +704,7 @@ Unfrozen on November 21, when the dish editor landed.
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
-| testChoosingThePorchView | 108 | Choice survives a relaunch, both ways, four launches | Keep the first half (choose, relaunch, porch view); the way back needs a new unit test of which view Ambient picks for the setting, beside `Home/PhotoFrameTests` | 50 | |
+| testChoosingThePorchView | 108 | Choice survives a relaunch, both ways, four launches | Keep as it is: the choice is kept in the simulator's defaults between tests, so the test has to end on Our photos again, and its second half is that. Its seconds are four launches of Settings and Ambient | 50 |  |
 | testRemovingSeveralPhotos | 52 | Select three, remove, counts | Keep | | |
 
 #### TimeFieldTests (135 s)
@@ -687,7 +712,7 @@ Unfrozen on November 21, when the dish editor landed.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testTypingAMealTime | 43 | Pad not keyboard; then eight digit rules | Down for the digit rules (`TimeEntryTests`); keep open, type, Done | 15 | |
-| testNightHoursCrossMidnight | 63 | Suggestion sets; "next day"; then puts both back | Keep the first two; nothing needs putting back in a sample sandbox | 20 | |
+| testNightHoursCrossMidnight | 63 | Suggestion sets; "next day"; then puts both back | Keep as it is, for the same reason: it puts both hours back because the next test would read them | 20 |  |
 | testARoutineWindow | 29 | A refused time is explained and can't be kept | Keep | | |
 
 #### PitchInTests (128 s)
@@ -713,7 +738,7 @@ Unfrozen on November 21, when the dish editor landed.
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testFixingAWalkFromToday | 40 | Log, celebrate, fix who and how long | Keep | | |
-| testLoggingAWalkSaysWhenItStarted | 26 | A suggestion sets the time, closes the card and is marked | Keep, pinned to 5:20 pm; which choices are offered at each minute of the day is `LogTimeTests.suggestionsThroughTheDay`. Later, merge into testFixingAWalkFromToday, which opens the same card | 26 | pinned |
+| testLoggingAWalkSaysWhenItStarted | 26 | A suggestion sets the time, closes the card and is marked | Merged into testFixingAWalkFromToday, which is pinned to 5:20 pm now and says when the walk started before it saves; which choices are offered at each minute of the day is `LogTimeTests.suggestionsThroughTheDay` | 26 | done |
 | testOpeningMealsFromToday | 23 | Timeline and plates open the meal | Keep | | |
 | testFixingAWalkFromTheCompanionPage | 24 | Diary row opens; remove asks | Keep | | |
 
@@ -728,7 +753,7 @@ Unfrozen on November 21, when the dish editor landed.
 | CompanionEditorTests.testAddingARoutineFromSettings | 103 | Editor, routine, photo picker, save | Keep; over the limit, split at the photo picker | 20 | |
 | FirstRunTests.testOnboardingWithRealCalendarAccess | 101 | First run with the real prompt | Keep (smoke); its length is the system prompt's | | |
 | ScrollingTests.testSettingsScrollsToTheLastSection | 32 | Settings scrolls to the end | Keep (scrolling) | | |
-| ScrollingTests.testTouchesKeepTheWallAwake | 55 | Touches hold off Ambient, timed against a 12 second "minute" | Down for the rule (`IdleRuleTests`, every time handed in); the UI test is now `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: a real drag is counted by the idle watcher, and an untouched wall goes to Ambient, neither of which a slow Mac can fail. It went red on the release line on November 21 ("Flaky tests") | | done |
+| ScrollingTests.testTouchesKeepTheWallAwake | 55 | Touches hold off Ambient, timed against a 12 second "minute" | Down for the rule (`IdleRuleTests`, every time handed in); the UI test is now `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: a real drag is counted by the idle watcher, and an untouched wall goes to Ambient, neither of which a slow Mac can fail. It went red on the release line on November 21 ("Flaky tests") |  | done, 34 s measured |
 | WallDishesTests.testDishesAPlaceAndADish | 21 | Dishes, a place, a dish | Keep | | |
 | WallDishesTests.testEveryoneSaysHowItWas | 21 | Own face saved | Keep | | |
 
@@ -742,7 +767,7 @@ Landed on November 21; seconds from run 44875496226.
 | PhoneDishEditorTests.testHomeMealTypedWithASuggestion | 50 | A typed dish, a suggestion taken | Keep (keyboard) | | |
 | PhoneDishEditorTests.testAPhotoAloneIsAWholeMeal | 45 | A meal with no dish saves | Keep; the rule is `DishLinesEditTests` | | |
 | PhoneDishEditorTests.testEditAddsAndTakesOffADish | 61 | An edit adds and removes a line | Keep | | |
-| PhoneDishEditorTests.testTheFormAtNightAndAtTheLargestText | 84 | The form in two looks | One launch in the night look at the largest size, keeping the typed dishes and the field over the keyboard; the chips are the restaurant journey's. It took 133 and 158 seconds in full runs | 70 | done |
+| PhoneDishEditorTests.testTheFormAtNightAndAtTheLargestText | 84 | The form in two looks | One launch in the night look at the largest size, keeping the typed dishes and the field over the keyboard; the chips are the restaurant journey's. It took 133 and 158 seconds in full runs | 70 | done, 57 s measured |
 | WallDishEditorTests.testRestaurantMealWithTwoDishesFromLastTime | 42 | The same journey on the wall | Keep | | |
 | WallDishEditorTests.testHomeMealTypedWithASuggestion | 31 | The same on the wall | Keep (keyboard) | | |
 | WallDishEditorTests.testAPhotoAloneIsAWholeMeal | 23 | The same on the wall | Merge into testHomeMealTypedWithASuggestion's launch, or leave: 23 seconds | | |
@@ -768,9 +793,9 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | PhoneWeekTests, once unfrozen | 600 | 7% |
 | Wall | 489 | 6% |
 | All verdicts | 2,368 | 29% |
-| Done by run 44900373348 | 2,010 measured (8,041 to 6,031, with five fewer tests in the suite) | 25% |
+| Done by run 44926520595 | 2,306 measured (8,041 to 5,735, with fourteen fewer tests in the suite) | 29% |
 
-The verdicts were projected to bring the suite to about 5,700 seconds, short of the 5,400 target; measured, it stands at 6,031 with the verdicts below still open.
+The verdicts were projected to bring the suite to about 5,700 seconds, short of the 5,400 target; measured, it stands at 5,735, 335 seconds from the target, with a few verdicts still open.
 Moving checks down and deleting duplicates is worth about 640 seconds (8%) on its own; most of the saving is merging launches and cutting the looks tests' walking.
 The rest of the way to the target, and beyond it, is `reveal` (557 seconds in calls that drag fourteen times without getting there, "Where a slow test's time goes"), which no verdict above counts, and checking whole screens' looks without launching the app ("The middle options").
 Removing the 4 second sleep from 17 wall launches is worth up to 68 seconds more, less what waiting for the first element costs.
