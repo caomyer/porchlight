@@ -47,6 +47,11 @@ struct WallView: View {
 
     @State private var selection: Destination
     @State private var lastInteraction = Date.now
+    #if DEBUG
+    /// How many touches the idle watcher has seen, for the UI test that checks a real touch
+    /// reaches it (`ScrollingTests`); shown only with `-debugIdleSecondsPerMinute`.
+    @State private var touchesSeen = 0
+    #endif
     @State private var showAmbient = false
     /// Settings opens on Family & devices once, after setup's "Invite phones now".
     @State private var focusFamily: Bool
@@ -113,7 +118,25 @@ struct WallView: View {
         // Rows from people's phones glow once on Today, with one short toast.
         .showsArrivals(resting: showAmbient)
         // Any touch counts as activity, observed outside SwiftUI gestures so scrolling is untouched.
-        .onAnyTouch { lastInteraction = .now }
+        .onAnyTouch {
+            lastInteraction = .now
+            #if DEBUG
+            touchesSeen += 1
+            #endif
+        }
+        #if DEBUG
+        .overlay(alignment: .topLeading) {
+            if UserDefaults.standard.double(forKey: "debugIdleSecondsPerMinute") > 0 {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .allowsHitTesting(false)
+                    .accessibilityElement()
+                    .accessibilityLabel("Touches seen")
+                    .accessibilityValue("\(touchesSeen)")
+                    .accessibilityIdentifier("wall-touches")
+            }
+        }
+        #endif
         .environment(\.openCompanion, OpenCompanionAction { selection = .companion($0) })
         .task(id: ambientMinutes) { await watchForIdle() }
         .onAppear {
@@ -166,12 +189,11 @@ struct WallView: View {
 
     /// Switches to Ambient mode after `ambientMinutes` without a touch (0 = never).
     private func watchForIdle() async {
-        let minute = DisplaySettings.secondsPerIdleMinute
+        let rule = IdleRule(minutes: ambientMinutes, secondsPerMinute: DisplaySettings.secondsPerIdleMinute)
         while !Task.isCancelled {
             // Four checks a minute: Ambient comes within 15 seconds of its time.
-            try? await Task.sleep(for: .seconds(minute / 4))
-            guard ambientMinutes > 0, !showAmbient, selection != .settings else { continue }
-            if Date.now.timeIntervalSince(lastInteraction) >= Double(ambientMinutes) * minute {
+            try? await Task.sleep(for: .seconds(rule.checkEvery))
+            if rule.isIdle(lastTouch: lastInteraction, now: .now, showingAmbient: showAmbient, inSettings: selection == .settings) {
                 withAnimation(.easeInOut(duration: 1.2)) { showAmbient = true }
             }
         }

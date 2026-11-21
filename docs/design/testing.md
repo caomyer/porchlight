@@ -183,6 +183,8 @@ The ninth is from a defect found by eye on November 21; the others come from wha
 
 1. **A test's outcome never depends on the real clock.**
    Pin it and sweep it.
+   That includes the clock of the test itself: a UI test must never have to do something within so many seconds of the app's own timer, because a hosted Mac can take 50 seconds over one drag ("Flaky tests").
+   Wait for a thing to happen, with a long limit, and put the timer's rule in a unit test with the times handed in.
    In a unit test, pass `now` and a `Calendar` with an explicit time zone, and walk the day in half hours in at least two zones when the rule has anything to do with the time of day or the day's edge.
    In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, which the wall and the phone both read, and never branch on `Date()`.
    The day in that argument is today's, because the sample household is built around today; the time of day is what must not move.
@@ -249,7 +251,8 @@ The rules that make two tiers safe:
    Whoever merged it does the revert.
 4. **A flaky test is quarantined, with an owner and a week.**
    A test that fails and then passes with nothing changed is flaky, and a flaky test in the gate teaches everyone to rerun and ignore.
-   It is taken out of the suite the day it is seen (an `XCTSkip` with the reason), and written into "Tests that skip themselves" with its owner and a date one week on.
+   It is taken out of the suite the day it is seen (an `XCTSkip` with the reason), and written into "Flaky tests" with its owner, and into "Tests that skip themselves" with a date one week on.
+   One whose cause is found and fixed the day it is seen is written into "Flaky tests" as fixed, and stays in the suite.
    By that date it is fixed and back, or moved down to a unit test, or deleted with the reason recorded; it is never left skipped.
    A failure that XCTest's own launch retry covers ("could not start the app") is not a flaky test, and one that cannot be reproduced is written into "Known and not yet explained".
    Nor is a job that failed before any test ran: a build whose download arrived corrupted is checked against the build job's checksum and fetched again, and fails saying so if it cannot be put right (`scripts/ci/unpack-build.sh`), as one smoke job did on November 21 before that check existed.
@@ -294,6 +297,32 @@ A full run reports exactly these: two skipped in the unit tests, three in the ph
 | `SyncMigrationTests`, "A copy of the wall's real data migrates without losing anything" | `PORCHLIGHT_REAL_DB` is set | The same |
 
 A phone class on the iPad, or a wall class on the iPhone, also skips itself, but `scripts/test.sh` never sends a class to the wrong device, so those skips do not appear in a run.
+
+## Flaky tests
+
+Every test that failed and then passed with nothing changed, with its owner, what was found and what was done.
+A test listed as quarantined is skipped in the suite and has a date by which it is fixed, moved down or deleted ("Tiers", rule 4); one that was fixed the day it was seen is listed as fixed, so the cause is not found twice.
+
+| Test | Seen | Owner | Cause | Done | State |
+|---|---|---|---|---|---|
+| `ScrollingTests.testTouchesKeepTheWallAwake` | November 21, 2026, on the release line (run 44905599973, 146 s where it takes 51 to 58); the same commit had passed its full run an hour earlier | The agent on `tests/pyramid` | The test raced two clocks: it touched the wall every 4 seconds of a 12 second "minute" and then asserted Ambient had stayed away. In the failing run the touches came 10 seconds apart, and then one drag took 51 seconds on the hosted Mac, so the wall's timer rightly ran out. The app was right and the test was wrong: it broke hard rule 1 from the other side, by letting the outcome depend on how fast the test itself ran | The rule moved to `IdleRuleTests` (dates handed in, seen failing with the rule broken). The UI test was rewritten as `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: one launch with a ten minute wait where a drag must be counted by the idle watcher, one with a three second "minute" where Ambient must come, each a one-sided wait | Fixed the same day; not quarantined |
+
+### Tests that wait on the app's own timers
+
+The idle test was the only one that could fail by being slow against a timer that was right.
+These others wait for something the app does on a timer; each waits one way only (for a thing to come, or to go, with a long limit), so a slow Mac delays them and does not fail them unless it stalls longer than the limit.
+They are listed so that a failure in one of them on a slow run is read as this and not as the app.
+
+| Test | Waits for | Limit | A stall that would fail it |
+|---|---|---|---|
+| `ScrollingTests.testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient` | A touch to be counted; Ambient to come after 3 seconds untouched | 30 s; 120 s | Over 30 s to count a touch, or two minutes to look |
+| `SyncSettingsTests.testChecksTickOnAnUntouchedWall` | Three sync checks to be counted | 45 s | The app's poll loop starved for most of 45 s |
+| `HouseholdTests.testRowsFromPhonesAreTaggedAndArrivalsNamed` | An arrival's toast to come a few seconds after launch, and to go by itself | 15 s to come, 12 s to go | A look at the screen that takes longer than the toast stays, so it is never seen; or over 12 s for it to go |
+| `LoggedEntryTests.testFixingAWalkFromToday` | A celebration to come, and to go by itself | 15 s each | Over 15 s for either |
+| Every test that taps a toast's Undo or Open (`tapToastAction`) | The toast still being there when the tap lands | Toasts stay 30 s in UI tests (`PORCHLIGHT_TOAST_SECONDS`) | Over 30 s between the action and the tap |
+
+The second kind in the third row, and the last row, are the same shape as the idle test: something must be caught before the app's timer takes it away.
+They have room (30 seconds, where a tap normally lands in two), and the 51 second stall of November 21 would have failed them too; if one does fail that way, give the app a debug way to hold the thing until the test has seen it, as `PORCHLIGHT_TOAST_SECONDS` began to, and do not lengthen a sleep.
 
 ## Known and not yet explained
 
@@ -677,7 +706,7 @@ Unfrozen on November 21, when the dish editor landed.
 | CompanionEditorTests.testAddingARoutineFromSettings | 103 | Editor, routine, photo picker, save | Keep; over the limit, split at the photo picker | 20 | |
 | FirstRunTests.testOnboardingWithRealCalendarAccess | 101 | First run with the real prompt | Keep (smoke); its length is the system prompt's | | |
 | ScrollingTests.testSettingsScrollsToTheLastSection | 32 | Settings scrolls to the end | Keep (scrolling) | | |
-| ScrollingTests.testTouchesKeepTheWallAwake | 55 | Touches hold off Ambient | Keep (real idle timer) | | |
+| ScrollingTests.testTouchesKeepTheWallAwake | 55 | Touches hold off Ambient, timed against a 12 second "minute" | Down for the rule (`IdleRuleTests`, every time handed in); the UI test is now `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: a real drag is counted by the idle watcher, and an untouched wall goes to Ambient, neither of which a slow Mac can fail. It went red on the release line on November 21 ("Flaky tests") | | done |
 | WallDishesTests.testDishesAPlaceAndADish | 21 | Dishes, a place, a dish | Keep | | |
 | WallDishesTests.testEveryoneSaysHowItWas | 21 | Own face saved | Keep | | |
 
