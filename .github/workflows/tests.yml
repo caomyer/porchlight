@@ -40,8 +40,12 @@ on:
         description: "For a measurement only: another iPad model for the wall's simulator, as a pattern of its type (e.g. iPad-Air-11-inch[^)]*); empty is the 13-inch iPad Pro"
         required: false
         default: ""
+      quiet:
+        description: "For a measurement only: launchd labels the simulators are not to start, space separated (e.g. com.apple.PosterBoard com.apple.chronod); empty starts everything"
+        required: false
+        default: ""
       measure_boots:
-        description: "For a measurement only: \"yes\" runs no test, and boots four iPad models three times each, each on a Mac of its own, saying the memory every 15 seconds"
+        description: "For a measurement only: \"yes\" runs no test, and boots the wall's iPad twelve times, each on a Mac of its own, with and without its wallpaper and widget daemons, saying the memory every 15 seconds"
         required: false
         default: ""
 
@@ -62,6 +66,7 @@ env:
   PORCHLIGHT_TEST_SLOTS: "1"
   RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-2
   PORCHLIGHT_CI_IPAD: ${{ inputs.ipad }}
+  PORCHLIGHT_SIM_DISABLED_DAEMONS: ${{ inputs.quiet }}
   # Where scripts/test.sh builds for a checkout named "porchlight".
   PRODUCTS: /Users/runner/Library/Developer/Xcode/DerivedData/Porchlight-porchlight/Build/Products
   PACKAGES: /Users/runner/Library/Developer/Xcode/DerivedData/Porchlight-porchlight/SourcePackages
@@ -275,28 +280,35 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # A measurement, never part of a push: what booting each iPad model costs a hosted Mac,
-  # which has 7 GB. Each boot is on a new Mac, as a test job's is, with nothing else running;
-  # the stages are given long limits so that a slow one is timed rather than tried again,
-  # and the memory, the load and the largest processes are said every 15 seconds, through
-  # the boot and for three minutes after it. docs/design/testing.md, "Infrastructure
-  # failures", has what it found.
+  # A measurement, never part of a push: what booting the wall's iPad costs a hosted Mac,
+  # which has 7 GB, and what it costs when the simulator is told not to start the daemons
+  # behind its wallpapers and widgets (scripts/lib/simulators.sh). Each boot is on a new
+  # Mac, as a test job's is, with nothing else running; the stages are given long limits so
+  # that a slow one is timed rather than tried again, and the memory, the load and the
+  # largest processes are said every 15 seconds, through the boot and for three minutes
+  # after it. docs/design/testing.md, "Infrastructure failures", has what it found, and
+  # what the same run found across four iPad models before this.
   boots:
-    name: Boot ${{ matrix.model }} (${{ matrix.trial }})
+    name: Boot ${{ matrix.name }} (${{ matrix.trial }})
     if: ${{ inputs.measure_boots == 'yes' }}
     runs-on: xcode-27
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        model:
-          - iPad-Pro-13-inch-M5-16GB
-          - iPad-Pro-13-inch-M5-12GB
-          - iPad-Air-13-inch-M4
-          - iPad-Air-11-inch-M4
+        name: [as it is, no widgets, no wallpapers, neither]
         trial: [1, 2, 3]
+        include:
+          - name: as it is
+            quiet: ""
+          - name: no widgets
+            quiet: com.apple.chronod com.apple.liveactivitiesd
+          - name: no wallpapers
+            quiet: com.apple.PosterBoard
+          - name: neither
+            quiet: com.apple.PosterBoard com.apple.chronod com.apple.liveactivitiesd
     env:
-      PORCHLIGHT_CI_IPAD: ${{ matrix.model }}
+      PORCHLIGHT_SIM_DISABLED_DAEMONS: ${{ matrix.quiet }}
       PORCHLIGHT_HEARTBEAT_SECONDS: "15"
       PORCHLIGHT_HEARTBEAT_TOP: "1"
       PORCHLIGHT_BOOT_SECONDS: "900"
@@ -312,3 +324,23 @@ jobs:
 
       - name: The three minutes after
         run: zsh scripts/ci/with-heartbeat.sh sleep 180
+
+      # That the simulator still shows a home screen and still runs an app.
+      - name: A picture of it, and Settings launched
+        run: |
+          mkdir -p results
+          udid=$(xcrun simctl list devices booted | sed -n 's/.*(\([0-9A-F-]\{36\}\)) (Booted).*/\1/p' | head -1)
+          xcrun simctl io "$udid" screenshot results/home.png
+          xcrun simctl launch "$udid" com.apple.Preferences
+          sleep 10
+          xcrun simctl io "$udid" screenshot results/settings.png
+          ps -axo comm= | grep -c CoreSimulator | sed 's/^/Simulator processes: /'
+
+      - name: Upload the pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-${{ matrix.name }}-${{ matrix.trial }}
+          path: results
+          if-no-files-found: ignore
+          retention-days: 3

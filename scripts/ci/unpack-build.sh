@@ -34,10 +34,12 @@ problem() {
 fetch() {
   rm -f products.tar
   if command -v gh >/dev/null 2>&1; then
+    echo "Downloading with the GitHub CLI"
     gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name products --dir . || echo "The download itself failed"
     return 0
   fi
   # Without the CLI: the artifact's zip from the API, which holds products.tar.
+  echo "Downloading with curl: this Mac has no GitHub CLI"
   local api="${GITHUB_API_URL:-https://api.github.com}/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts"
   local url
   url=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$api?name=products" \

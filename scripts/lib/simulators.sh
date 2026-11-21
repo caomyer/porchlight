@@ -192,7 +192,22 @@ print(pages * page // 2**30)
 }
 
 # Boots `udid` if it isn't booted, and waits until it is ready.
+#
+# PORCHLIGHT_SIM_DISABLED_DAEMONS, for a measurement only: launchd labels, space separated,
+# that this boot is not to start (com.apple.PosterBoard, say). They are written to the
+# simulator's launchd disabled list before it boots, where launchd_sim reads them as it
+# starts; WebKit's test harness does the same (Tools/Scripts/webkitpy/xcode/
+# simulated_device.py). Unset, as everywhere but a measurement run, nothing is written.
 porchlight_boot_simulator() {
+  if [[ -n "${PORCHLIGHT_SIM_DISABLED_DAEMONS:-}" ]]; then
+    local dir="/private/var/tmp/com.apple.CoreSimulator.SimDevice.$1" label
+    mkdir -p "$dir"
+    [[ -f "$dir/disabled.plist" ]] || plutil -create xml1 "$dir/disabled.plist"
+    for label in ${=PORCHLIGHT_SIM_DISABLED_DAEMONS}; do
+      plutil -replace "${label//./\\.}" -bool true "$dir/disabled.plist"
+    done
+    echo "Not starting in this simulator: $PORCHLIGHT_SIM_DISABLED_DAEMONS" >&2
+  fi
   xcrun simctl boot "$1" 2>/dev/null || true
   xcrun simctl bootstatus "$1" -b >/dev/null
 }
