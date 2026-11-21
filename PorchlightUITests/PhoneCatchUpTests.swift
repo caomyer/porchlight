@@ -118,20 +118,7 @@ final class PhoneCatchUpTests: XCTestCase, PhoneTestHelpers {
         snapshot("catch-up-21-week-saved")
     }
 
-    /// The catch-up sheet in the night look and at the largest text size.
-    func testCatchingUpLooks() {
-        XCUIDevice.shared.appearance = .dark
-        var app = launch()
-        openFromBanner(app)
-        snapshot("catch-up-30-dark")
-        app.terminate()
-
-        XCUIDevice.shared.appearance = .light
-        app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
-        openFromBanner(app)
-        snapshot("catch-up-40-largest")
-        let save = app.buttons["save-care"]
-        reveal(save, in: app)
-        snapshot("catch-up-41-largest-save")
-    }
+    // The catch-up sheet in the night look and at the largest text size is
+    // `PocketCareSheetScreenTests` (unit bundle): the sheet hosted and drawn in four looks,
+    // without launching the app twice and removing a walk by hand each time.
 }

@@ -125,7 +125,7 @@ What the spike of November 20 found, so its limits are known:
 - **The unit tests run on the iPad simulator.**
   The phone's layout comes from a compact size class set on the hosting controller, which the week's screen follows; a screen that asks the device what it is would not.
 
-It is proven for one screen and is not yet a replacement for any looks test: which looks tests move onto it is decided screen by screen, after review.
+It is proven for two screens (a companion's week and the care sheet), and the care sheet's looks have moved onto it ("Review shots"); other screens move one at a time, each with a hosted test seen failing first and one UI test kept for what only the real screen shows.
 
 When you add a new kind of test, add a working example with it and a row to the table above.
 
@@ -137,6 +137,22 @@ The night look and the largest text size are checked by eye from screenshots, pl
 - A look is a launch, so three looks of one screen are three launches; do not also launch per screen.
 - Never repeat a journey's steps in a looks test to get to a screen; start there with a debug launch argument (`-debugFoodView`, `-debugCompanionSheet`, `-debugYouPage`).
 - A layout fact that holds for a component everywhere (the time pill, the photo row) is asserted once, in one looks test, not in each class that shows the component.
+
+### Review shots
+
+Review shots come from two places, and each screen's are named so a person knows where to look.
+
+- **Hosted pages** (unit bundle, seconds): `TEST_RUNNER_PORCHLIGHT_SCREEN_SHOTS=<folder> scripts/test.sh --unit-only` writes each hosted screen's whole page in each look there as a PNG, as `TEST_RUNNER_PORCHLIGHT_WIDGET_SHOTS` does for widgets.
+  They show the page alone: no status bar, tab bar or sheet chrome.
+- **Screenshots attached by UI tests** (in each job's `.xcresult`): the real screen, with its surroundings, at the steps of a journey.
+
+| Screen | Hosted shots | Looks | UI test that stays, and what only it shows |
+|---|---|---|---|
+| A companion's week | `week-<look>.png` | light, dark, largest, largest-dark | `PhoneWeekTests` (frozen): the trail's dots open the right sheet, a log shows in trail and diary |
+| The care sheet: new, fixing, catching up | `care-sheet-new-<look>.png`, `care-sheet-fix-<look>.png`, `care-sheet-catchUp-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testFixingAWalkLooks`: the real sheet at the largest size, Save within reach (`edit-40-today-largest`, `edit-41-save-largest`). `PhoneCatchUpTests`, `PhoneTabsTests.testFixingAWalkFromToday`: the sheet opens, saves, asks before removing and closes (`catch-up-10-banner-sheet`, `edit-10-today`, `edit-11-remove`) |
+| Notifications | none: the page reads the permission itself | | `PhoneRemindersTests.testLooks`: night look at the largest size in one launch (`e2-80-choices-largest-dark`); `e2-10-ask`, `e2-11-denied`, `e2-12-choices` from the journeys |
+
+A screen moves to hosted shots when a hosted test of it exists and has been seen failing; until then its looks tests stay as they are.
 
 ### Shots that stay when the words move down
 
@@ -333,7 +349,7 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testFixingAWalkFromToday | 70 | Fix, saved, remove asks, slot open again | Keep | | |
 | testFixingAWalkFromTheWeek | 76 | Diary row opens, Keep it backs out, remove | Keep | | |
 | testFixingAWalkOnASharedScreen | 30 | Names, with no "You" | Keep | | |
-| testFixingAWalkLooks | 158 | Fix sheet in dark, largest, largest dark | Keep (looks), now also holding the time pill's checks; still three launches, and 115 seconds measured with the pill's checks in it, where the two tests took 258 | | done |
+| testFixingAWalkLooks | 158 | Fix sheet in dark, largest, largest dark | One launch at the largest size for what only the real sheet shows (the pill among everything else, Save within reach); the looks are hosted in `PocketCareSheetScreenTests` | 100 | done |
 | testTheTimePillGrowsWithText | 100 | Pill grows, clear of "Started", on screen; three launches at the largest size | Merge into testFixingAWalkLooks, which already opens the same sheet at the same size in both looks; the rule at every size is `TimeFieldLayoutTests` | 85 | done |
 | testNightLook | 39 | Shots | Keep (looks) | | |
 | testPaperUnderTheStatusBar | 95 | Four tabs scrolled, at two sizes | Keep, and take `PhoneTests.testYouOnEveryTab` | | |
@@ -396,8 +412,8 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 | testChoosingReminders | 54 | A slot's choice and the chores switch | Merge into testSaysWhyBeforeAsking, which ends on the same page | 45 | |
 | testDeliveryByHand | 0 | Real delivery | By hand already | | |
 | testNamedRemindersByHand | 3 | Real delivery | By hand already | | |
-| testNightLook | 147 | One shot | Merge with testLargestText into one looks test. Found: 54 seconds settling a row that was off screen (now revealed first, in every test of the class), 20 quitting the app before it, 15 in teardown for the look | 90 | settle fixed |
-| testLargestText | 69 | The choice is whole on screen | Keep (looks) | | |
+| testNightLook | 147 | One shot | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size. The page reads the phone's notification permission itself, so it can't be hosted until that has a seam | 150 | done |
+| testLargestText | 69 | The choice is whole on screen | Merged into `testLooks`, which keeps the assertion | | done |
 
 #### PhoneCatchUpTests (378 s)
 
@@ -405,7 +421,7 @@ Frozen while `dishes/editor` is in flight; verdicts only.
 |---|---|---|---|---|---|
 | testCatchingUpFromTodaysBanner | 105 | Banner, sheet for the slot, saved as chosen | Keep | | |
 | testCatchingUpFromTheWeek | 88 | Missed row, sheet, saved | Keep | | |
-| testCatchingUpLooks | 186 | Sheet in dark and largest, each after removing a walk by hand | Keep as looks, opened with `-debugCompanionSheet catchUp` instead of removing a walk first | 100 | |
+| testCatchingUpLooks | 186 | Sheet in dark and largest, each after removing a walk by hand | Hosted: `PocketCareSheetScreenTests` draws and checks the catch-up sheet in four looks; the two journeys above stay as the real sheet's UI tests | 186 | done |
 
 #### PhoneDishesTests (332 s)
 

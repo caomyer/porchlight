@@ -149,18 +149,16 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         snapshot(dark ? "a5-43-named-reminder-other-dark" : "a5-42-named-reminder-other")
     }
 
-    func testNightLook() {
+    /// The choices in the night look at the largest text size, in one launch: a look costs a
+    /// launch and, for the night look, quitting the app twice more, so the two looks of this
+    /// one page share it.
+    func testLooks() {
         XCUIDevice.shared.appearance = .dark
-        let app = openNotifications("allowed")
-        XCTAssertTrue(app.buttons["remind-chores"].waitForExistence(timeout: 5))
-        snapshot("e2-80-choices-dark")
-    }
-
-    func testLargestText() {
         let app = openNotifications("allowed", ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         let evening = app.buttons["remind-Yo-Yo · evening walk"]
         XCTAssertTrue(evening.waitForExistence(timeout: 5))
         XCTAssertTrue(app.windows.firstMatch.frame.contains(evening.frame), "The choice is whole on screen")
-        snapshot("e2-90-choices-largest")
+        XCTAssertTrue(app.buttons["remind-chores"].exists)
+        snapshot("e2-80-choices-largest-dark")
     }
 }
