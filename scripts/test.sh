@@ -227,6 +227,29 @@ sys.exit(0 if d["result"] == "Passed" else 1)
 ' "$1"
 }
 
+# A suite's verdict: `verdict <name> <result bundle> <log>`. What the result bundle says
+# (`report`), and then two things a result bundle can miss. A test process that crashes or
+# exits partway is started again by xcodebuild, and the last launch then prints "Test run
+# with N tests passed" for the tests that were left: the log is read for a process that was
+# lost, a test that started and never reported, and a suite that never finished
+# (scripts/lib/lost_process.py). And xcodebuild's own status, kept beside the log, must
+# agree with a pass. Either one fails the suite, whatever its totals say.
+verdict() {
+  local name=$1 bundle=$2 log=$3 bad=0 xcode
+  report "$name" "$bundle" || bad=1
+  python3 scripts/lib/lost_process.py "$name" "$log" || bad=1
+  [[ -e "${log%.log}-retry.log" ]] && { python3 scripts/lib/lost_process.py "$name, again" "${log%.log}-retry.log" || bad=1 }
+  # With tests run a second time, the first run's status is a failure by design.
+  if (( ! bad )) && [[ ! -e "${bundle%.xcresult}-retry.xcresult" ]]; then
+    xcode=$(cat "${log%.log}.status" 2>/dev/null) || xcode=""
+    if [[ "$xcode" != 0 ]]; then
+      echo "$name: xcodebuild ended with status ${xcode:-unknown} though every test it reported passed, so this run is failed: see $log"
+      bad=1
+    fi
+  fi
+  return $bad
+}
+
 # Runs one UI suite: `ui_suite <name> <udid> <selection...>`, into $results/<name>.xcresult.
 ui_suite() {
   local name=$1 sim=$2
@@ -236,8 +259,8 @@ ui_suite() {
   local attempt
   for attempt in 1 2; do
     rm -rf "$results/$name.xcresult"
-    xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
-      "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult" 2>&1 | record "$results/$name.log" || true
+    { xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
+      "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult"; echo $? > "$results/$name.status" } 2>&1 | record "$results/$name.log" || true
     # A simulator under memory pressure can fail to start the test runner at all ("Timed out
     # while loading Accessibility", the runner crashing before it connects, or "The test
     # runner crashed while preparing to run tests"). No test started, so the whole run is
@@ -257,7 +280,7 @@ ui_suite() {
   # other failure stands (scripts/lib/launch_retry.py).
   local again test
   local -a retry=()
-  rm -rf "$results/$name-retry.xcresult"
+  rm -rf "$results/$name-retry.xcresult" "$results/$name-retry.log"
   again=$(python3 scripts/lib/launch_retry.py failures "$results/$name.xcresult" 2>/dev/null) || again=""
   for test in ${(f)again}; do retry+=(-only-testing:PorchlightUITests/$test); done
   (( ${#retry} )) || return 0
@@ -339,17 +362,17 @@ run_ipad() {
     step=$SECONDS
     echo "Unit tests on $ipad"
     rm -rf "$results/unit.xcresult"
-    xcodebuild test-without-building -xctestrun "$(xctestrun Porchlight)" -destination "id=$ipad" \
-      -resultBundlePath "$results/unit.xcresult" 2>&1 | record "$results/unit.log" || true
+    { xcodebuild test-without-building -xctestrun "$(xctestrun Porchlight)" -destination "id=$ipad" \
+      -resultBundlePath "$results/unit.xcresult"; echo $? > "$results/unit.status" } 2>&1 | record "$results/unit.log" || true
     summarize < "$results/unit.log" | grep -v "passed ("
-    report Unit "$results/unit.xcresult" || failed=1
+    verdict Unit "$results/unit.xcresult" "$results/unit.log" || failed=1
     took unit $step
   fi
   if (( wall )); then
     step=$SECONDS
     echo "Wall UI tests on $ipad"
     ui_suite ui-wall "$ipad" "${wall_args[@]}"
-    report "UI wall" "$results/ui-wall.xcresult" || failed=1
+    verdict "UI wall" "$results/ui-wall.xcresult" "$results/ui-wall.log" || failed=1
     took "ui wall" $step
   fi
 }
@@ -361,7 +384,7 @@ run_iphone() {
   step=$SECONDS
   echo "Phone UI tests on $iphone"
   ui_suite ui-phone "$iphone" "${phone_args[@]}"
-  report "UI phone" "$results/ui-phone.xcresult" || failed=1
+  verdict "UI phone" "$results/ui-phone.xcresult" "$results/ui-phone.log" || failed=1
   took "ui phone" $step
 }
 

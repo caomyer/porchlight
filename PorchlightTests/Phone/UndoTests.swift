@@ -36,7 +36,7 @@ struct UndoTests {
         try db.markSetupCompleted(householdId: household.id)
         try db.rememberCurrentHousehold()
         let james = try #require(try db.snapshot().people.first).id
-        let today = DayKey(.now, calendar: household.calendar)
+        let today = DayKey(CompanionClock.now(), calendar: household.calendar)
         _ = try db.saveChore(
             ChoreDraft(title: "Fix the leaky faucet", emoji: "🔧", ownerId: james, recurrence: .daily, anchorDay: today, timeHint: nil, stars: 3),
             householdId: household.id

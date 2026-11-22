@@ -148,9 +148,18 @@ enum CompanionClock {
     static func now() -> Date { at(.now) }
 
     #if DEBUG
+    /// The pinned time the unit tests run on when nothing else pins one: the same Wednesday
+    /// morning the UI tests launch with (`UITestClock.midweek`). The app is the unit tests'
+    /// host, so the screens they host, the samples they seed and every default `now` in the
+    /// app agree on the day, whenever the suite runs.
+    static let unitTestsNow = "2026-11-18T10:30"
+
     /// Read once: neither a launch argument nor the environment changes while the app runs.
     private static let pinned: Date? = {
-        guard let text = UserDefaults.standard.string(forKey: "debugCompanionNow") ?? ProcessInfo.processInfo.environment["PORCHLIGHT_NOW"] else { return nil }
+        let environment = ProcessInfo.processInfo.environment
+        let hostingUnitTests = environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil
+        guard let text = UserDefaults.standard.string(forKey: "debugCompanionNow") ?? environment["PORCHLIGHT_NOW"]
+            ?? (hostingUnitTests ? unitTestsNow : nil) else { return nil }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"

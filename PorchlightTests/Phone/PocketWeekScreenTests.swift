@@ -17,8 +17,10 @@ import UIKit
 /// With `TEST_RUNNER_PORCHLIGHT_SCREEN_SHOTS=<folder>` set for `xcodebuild test`, each
 /// look's whole page is written there as a PNG, as `WidgetRenderTests` does for widgets.
 ///
-/// The sample is built around the real "now" (`CompanionSamples`, `CompanionClock`), so
-/// nothing here asserts a time, a count or a day's name: only where things sit.
+/// The sample is built around `CompanionClock`'s "now", which is pinned to one Wednesday
+/// morning while the app hosts the unit tests (`CompanionClock.unitTestsNow`), so the
+/// screen and its shots are the same whenever the suite runs. Even so, nothing here
+/// asserts a time, a count or a day's name: only where things sit.
 @Suite("A companion's week, the whole screen")
 @MainActor
 struct PocketWeekScreenTests {

@@ -128,7 +128,7 @@ struct StoredFirstTests {
         #expect(notStoredFirst(WallArrivals(), ["fresh", "toast"]).isEmpty)
         #expect(notStoredFirst(ShareInbox(), ["invitation"]).isEmpty)
         let food = FoodStore(database: db)
-        let form = CaptureForm(request: CaptureRequest(day: DayKey(rawValue: "2026-11-17")), store: food, now: .now)
+        let form = CaptureForm(request: CaptureRequest(day: DayKey(rawValue: "2026-11-17")), store: food, now: CompanionClock.now())
         #expect(notStoredFirst(form, ["photos", "savingPhotos"]).isEmpty)
         let sync = SyncController(.unavailable(.sampleData), preferences: SyncPreferences(defaults: try #require(UserDefaults(suiteName: "stored-first-\(UUID().uuidString)"))), hasHousehold: true, removeFiles: {})
         #expect(notStoredFirst(sync, [

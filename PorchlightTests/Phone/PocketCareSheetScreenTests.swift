@@ -17,8 +17,9 @@ import UIKit
 /// opens, saves and closes (`PhoneCatchUpTests`, `PhoneTabsTests`).
 ///
 /// With `TEST_RUNNER_PORCHLIGHT_SCREEN_SHOTS=<folder>` each sheet in each look is written
-/// there as a PNG. The sample is built around the real "now", so nothing here asserts a
-/// time or a day's name: only what is on the sheet and where it sits.
+/// there as a PNG. The sample is built around the unit tests' pinned "now"
+/// (`CompanionClock.unitTestsNow`); even so nothing here asserts a time or a day's name:
+/// only what is on the sheet and where it sits.
 @Suite("The phone's care sheet, the whole sheet")
 @MainActor
 struct PocketCareSheetScreenTests {

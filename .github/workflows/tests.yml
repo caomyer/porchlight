@@ -98,12 +98,13 @@ jobs:
 
       # Which simulators a run may shut down and which it waits for, and how a corrupted
       # download of the build is caught and fetched again, each checked with stand-ins.
-      - name: Check the simulator rules, the build's download, the runner's start and the boot's stages
+      - name: Check the simulator rules, the build's download, the runner's start, the boot's stages and a lost test process
         run: |
           zsh scripts/ci/check-simulator-rules.sh
           zsh scripts/ci/check-unpack-build.sh
           zsh scripts/ci/check-runner-start.sh
           zsh scripts/ci/check-boot-simulator.sh
+          zsh scripts/ci/check-lost-process.sh
 
       - name: Build
         run: zsh scripts/test.sh --build-only
@@ -178,16 +179,45 @@ jobs:
 
       - name: Collect results
         if: always()
+        continue-on-error: true
         run: zsh scripts/ci/collect-results.sh "${{ job.status }}"
 
+      # The tests' own step decides the job. GitHub's artifact service has timed out on a
+      # job whose tests had all passed ("Failed to CreateArtifact ... Request timeout"), and
+      # that must not turn the job red: the upload is tried again after a minute, and if it
+      # still fails the job says so, as a warning and in its summary, and keeps its verdict.
       - name: Upload results
+        id: upload
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.name }}
           path: results
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Wait a minute before uploading again
+        if: always() && steps.upload.outcome == 'failure'
+        run: sleep 60
+
+      - name: Upload results again
+        id: upload_again
+        if: always() && steps.upload.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.name }}
+          path: results
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true
+
+      - name: Say so if the results could not be uploaded
+        if: always() && steps.upload.outcome == 'failure' && steps.upload_again.outcome == 'failure'
+        run: |
+          echo "::warning title=Results not uploaded::The results of ${{ matrix.name }} could not be uploaded, twice. The tests' verdict stands; their logs and screenshots are not attached to this run."
+          echo "**The results of this job were not uploaded** (GitHub's artifact service failed twice). The tests' verdict stands; there are no logs or screenshots to download for it." >> "$GITHUB_STEP_SUMMARY"
 
   # A push to a working branch: the unit tests and the smoke set, each on its own Mac.
   smoke:
@@ -230,16 +260,45 @@ jobs:
 
       - name: Collect results
         if: always()
+        continue-on-error: true
         run: zsh scripts/ci/collect-results.sh "${{ job.status }}"
 
+      # The tests' own step decides the job. GitHub's artifact service has timed out on a
+      # job whose tests had all passed ("Failed to CreateArtifact ... Request timeout"), and
+      # that must not turn the job red: the upload is tried again after a minute, and if it
+      # still fails the job says so, as a warning and in its summary, and keeps its verdict.
       - name: Upload results
+        id: upload
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.name }}
           path: results
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Wait a minute before uploading again
+        if: always() && steps.upload.outcome == 'failure'
+        run: sleep 60
+
+      - name: Upload results again
+        id: upload_again
+        if: always() && steps.upload.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.name }}
+          path: results
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true
+
+      - name: Say so if the results could not be uploaded
+        if: always() && steps.upload.outcome == 'failure' && steps.upload_again.outcome == 'failure'
+        run: |
+          echo "::warning title=Results not uploaded::The results of ${{ matrix.name }} could not be uploaded, twice. The tests' verdict stands; their logs and screenshots are not attached to this run."
+          echo "**The results of this job were not uploaded** (GitHub's artifact service failed twice). The tests' verdict stands; there are no logs or screenshots to download for it." >> "$GITHUB_STEP_SUMMARY"
 
   chosen:
     name: Chosen tests
@@ -269,16 +328,45 @@ jobs:
 
       - name: Collect results
         if: always()
+        continue-on-error: true
         run: zsh scripts/ci/collect-results.sh "${{ job.status }}"
 
+      # The tests' own step decides the job. GitHub's artifact service has timed out on a
+      # job whose tests had all passed ("Failed to CreateArtifact ... Request timeout"), and
+      # that must not turn the job red: the upload is tried again after a minute, and if it
+      # still fails the job says so, as a warning and in its summary, and keeps its verdict.
       - name: Upload results
+        id: upload
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: results-Chosen
           path: results
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Wait a minute before uploading again
+        if: always() && steps.upload.outcome == 'failure'
+        run: sleep 60
+
+      - name: Upload results again
+        id: upload_again
+        if: always() && steps.upload.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-Chosen
+          path: results
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true
+
+      - name: Say so if the results could not be uploaded
+        if: always() && steps.upload.outcome == 'failure' && steps.upload_again.outcome == 'failure'
+        run: |
+          echo "::warning title=Results not uploaded::The results of the chosen tests could not be uploaded, twice. The tests' verdict stands; their logs and screenshots are not attached to this run."
+          echo "**The results of this job were not uploaded** (GitHub's artifact service failed twice). The tests' verdict stands; there are no logs or screenshots to download for it." >> "$GITHUB_STEP_SUMMARY"
 
   # A measurement, never part of a push: what booting the wall's iPad costs a hosted Mac,
   # which has 7 GB, and what it costs when the simulator is told not to start the daemons
