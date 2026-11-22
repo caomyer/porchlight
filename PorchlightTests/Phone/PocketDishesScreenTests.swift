@@ -30,8 +30,8 @@ struct PocketDishesScreenTests {
             // A name as long as they come, to wrap beside the picture.
             let journal = try db.ensureFoodJournal(householdId: household.id)
             var draft = MealDraft(
-                day: DayKey(.now, calendar: household.calendar), slot: "Dinner", sources: MealSources(.home),
-                eaterIds: snapshot.people.map(\.id), eatenAt: .now
+                day: DayKey(CompanionClock.now(), calendar: household.calendar), slot: "Dinner", sources: MealSources(.home),
+                eaterIds: snapshot.people.map(\.id), eatenAt: CompanionClock.now()
             )
             draft.dishes = [DishLineDraft(name: Self.longName, rating: .again)]
             _ = try db.addMeal(draft, journalId: journal.id)

@@ -372,7 +372,7 @@ struct HomeLogicTests {
             windows: [.hours("Morning", 6, 10), .hours("Evening", 17, 20)], trackedFields: [], stars: 2,
             nudgeAfterMinutes: nil, sortOrder: 0
         )
-        let log = CareLog(id: 1, careRoutineId: 9, occurredAt: .now, durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil, stars: 2, createdAt: .now)
+        let log = CareLog(id: 1, careRoutineId: 9, occurredAt: CompanionClock.now(), durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil, stars: 2, createdAt: .now)
         let slot = CareSlot(index: 0, window: routine.windows[0], entry: done ? CareEntry(log: log, people: [1]) : nil, state: done ? .done(onTime: true) : .open)
         return CareTask(companionId: 1, companionName: "Yo-Yo", routine: routine, slot: slot)
     }

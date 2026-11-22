@@ -213,6 +213,7 @@ One shot per shape of the screen stays, not one per wording.
 
 Each rule is named by its first sentence, and is referred to by that name, here and in other documents: a number would change the day a rule is added, and a reference to "rule 10" has already pointed at the wrong rule once.
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
+"A run that loses its process fails" is from a crash on November 22 that was read as a pass.
 "A frame inside the screen does not prove the ink is inside the frame" is from a defect found by eye on November 21, and "A test leaves the simulator as it found it" from reading two tests that day; the others come from what the UI tests' own comments record.
 
 - **A test's outcome never depends on the real clock.**
@@ -263,6 +264,15 @@ The first six were each learned from a failed or misleading run in the week of N
 - **A test that needs the network or real delivery timing runs by hand, not in the suite.**
   Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
   Why: a test that skips itself when the network is down reports nothing either way.
+- **A run that loses its process fails.**
+  A test process that crashes or exits partway takes with it every test that had not yet reported, and what is printed afterwards can still read as a pass: xcodebuild starts the process again, and the last launch ends with "Test run with 450 tests in 81 suites passed" for the tests that were left.
+  So a run's verdict is never one line of xcodebuild's output.
+  Run tests through `scripts/test.sh`, never through an `xcodebuild` invocation of your own: the script is what knows that a process started again is a failure, and it reads the result bundle, which counts the crash.
+  It also fails a suite, whatever its totals say, when its log shows the process being started again, a test that started and never reported a result, or a suite that began and never finished (`scripts/lib/lost_process.py`), and when xcodebuild's own status disagrees with a pass; it prints "the test process was lost" and names the test it was in.
+  Read a run by the script's last lines ("Unit: 686/690 passed, 2 failed", and its status), never by scrolling for a line that says passed.
+  Why: on November 22, 2026 a hosted screen that had gained toasts crashed the unit test process for want of a store, and a private script that ran `xcodebuild test-without-building` and read its last Swift Testing summary reported "Test run with 263 tests in 50 suites passed". Through `scripts/test.sh` the same crash ended with "Unit: 712/716 passed, 2 failed" and a failing status.
+  This is not the rule for a runner that never started a single test, which is run once more ("Infrastructure failures"), nor for a UI test whose app could not be launched: neither has lost a test that had begun.
+  A crash in a test is a failure and is never run again.
 
 ## Tiers
 
@@ -368,7 +378,8 @@ The one that failed was `HouseholdTests.testRowsFromPhonesAreTaggedAndArrivalsNa
 They now use the day the screens call today (`DebugArrivals`), and keep the real clock for when the row arrived.
 That is the kind of place a pin finds: a debug seeder that still asks the real clock which day it is.
 
-The hosted screens in the unit tests seed the same sample around the real time (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`); they assert where things sit and not what day it is, and the samples take the time as a parameter, so they can be pinned the same way.
+The unit tests are pinned too: the app is their host, and while it hosts them `CompanionClock` stands at the same Wednesday morning (`CompanionClock.unitTestsNow`), so a hosted screen, the sample it shows and every default `now` in the app agree on the day whenever the suite runs (`SampleClockTests.theUnitTestsAreOnThePinnedClock`).
+Before November 22, 2026 the hosted screens (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`) seeded their sample around the real minute; they assert where things sit and not what day it is, which is why none of them failed at a midnight, but their review shots changed with the day.
 
 #### A new feature and the clock
 
@@ -384,6 +395,7 @@ Follow these from the first commit, and the feature's UI tests are on the pinned
    If a pinned clock would make two writes carry the same instant and something compares them, it is a stamp.
 3. **Put the rule in a pure function that takes `now` and a `Calendar`,** and sweep it in a unit test: both sides of midnight, the first minutes of a week, the last day of a month, a daylight-saving change, and at least two time zones.
    The view only hands it `CompanionClock.now()` and the household's calendar.
+   The unit tests' host is pinned to the same Wednesday morning as the UI tests, so a default `now` in a test is that morning; a test of a rule still hands its own times in.
 4. **Sample data takes `now` as a parameter** with `CompanionClock.now()` as its default (`CompanionSamples.seed`, `FoodSamples.seed`), builds everything backwards from it, and logs nothing after it.
    Say in a unit test what the sample holds at `UITestClock.midweek` that the UI tests look for (`SampleClockTests`).
 5. **In a UI test, launch with `XCUIApplication.porchlight()` and write days with `UITestClock`.**
@@ -418,9 +430,30 @@ Each kind seen is listed here with what the scripts now do about it, so the next
 | "The test runner crashed while preparing to run tests: PorchlightUITests-Runner at -[XCTWaiter(StallHandling) handleStalledWait:]", then "UI phone: 0/1 passed, 1 failed" | November 20, 2026, and November 21 (run 44909007366, Phone UI 1 of 3), the first class of the same phone shard both times; on the 21st the Mac's free memory fell from 63% to 19% and swap began just before | The test runner died before any test started, on a Mac short of memory | `scripts/test.sh` runs the suite once more when the log says the runner failed to start and holds no "Test Case ... started" line (`scripts/lib/runner-start.sh`), keeping the first log as `<suite>-never-started.log`. A second time fails saying "The test runner crashed before any test started, twice". A runner that dies after a test has started is never run again by this |
 | "Truncated tar archive" in "Unpack the build" | November 21, 2026 (run 44900372201, Wall smoke), while the other jobs of the run unpacked the same build | One download of the build arrived cut short and was reported as a success | The download is checked against the build job's size and SHA-256 and fetched again up to twice (`scripts/ci/unpack-build.sh`); then it fails saying "The build's download was corrupted" |
 | "The operation was canceled" in "Boot the ipad", and nothing else | Five jobs and one measurement: November 20, 2026, twice, in jobs that had also built on the same Mac; November 21, in run 44926520830 (Wall smoke, during the settle experiment), run 44944065349 (Unit and Wall UI 1 of 2, 10 minutes 44 seconds into the step), run 44949978616 (Wall smoke, 8 minutes 32 seconds in) and the measurement run 44949978636 (12 minutes 15 seconds in, still booting). About one iPad job in five that evening | A new simulator's first boot renders every wallpaper at once, which takes a 7 GB Mac to an eighth of its memory free and into swap, and the job is cancelled from outside while it is there. "What a new simulator's first boot costs", below, has the measurements, and what is and is not known about who cancels | The hosted Macs do not start the simulator's wallpaper daemon (`PORCHLIGHT_SIM_DISABLED_DAEMONS: com.apple.PosterBoard` in the workflow, written to the simulator's launchd disabled list before it boots by `scripts/lib/simulators.sh`). Each stage of the boot has its own limit (`scripts/ci/boot-simulator.sh`, `scripts/lib/stage.sh`): booting, 600 seconds, and the first uninstall answering, 420. A stage that stalls fails the job naming it, "The ipad simulator stalled at ...", and is not tried again; only a boot that fails outright, with an error, is erased and booted once more. The step's own 25 minute limit is only the backstop |
+| "Failed to CreateArtifact: Failed to make request after 5 attempts: Request timeout" in "Upload results", after "UI phone: 31/34 passed (3 skipped)" | November 22, 2026 (run 45026952229, Phone UI 3 of 3, 14:10 UTC) | GitHub's artifact service timed out, and the upload step failed a job whose tests had all passed; putting it right cost a rerun of the whole share | The upload cannot fail a job: the tests' own step decides it. A failed upload is tried once more after a minute, and if that fails too the job carries a warning, "Results not uploaded", and says so in its summary, so a missing artifact is seen and not mistaken for a run with nothing to show |
 | "Failed to launch", "Failed to get launch progress", "does not have a process ID", "Failed to terminate", with no crash report | Several runs a day on the hosted Macs | XCTest could not start, or quit, the app for one test | That test runs once more on its own, and the summary says "passed on a second launch" (`scripts/lib/launch_retry.py`); any other failure stands |
 
 `zsh scripts/ci/check-runner-start.sh`, `zsh scripts/ci/check-unpack-build.sh` and `zsh scripts/ci/check-boot-simulator.sh` check the first three rules against sample logs, a stand-in download and a stand-in simulator, and run with every build.
+`zsh scripts/ci/check-lost-process.sh` checks the hard rule "A run that loses its process fails" the same way, against sample logs, and runs with every build too.
+
+#### A test process that is lost partway
+
+Reproduced on November 22, 2026 with a test that kills the unit test process when asked (`HarnessCrashTests`, `TEST_RUNNER_PORCHLIGHT_CRASH_A_UNIT_TEST=1 zsh scripts/test.sh --unit-only`).
+
+| | What happened |
+|---|---|
+| The process | Crashed in the test, was started again by xcodebuild, crashed in the same test again, and was started a third time, when xcodebuild left that test out and ran the rest |
+| xcodebuild's log, at the end | "Test run with 450 tests in 81 suites passed after 158.237 seconds", and only after it "Failing tests: HandwritingTests.withoutRoomItIsCut(), HarnessCrashTests.crashesWhenAsked()" and "TEST EXECUTE FAILED" |
+| An innocent test | `HandwritingTests.withoutRoomItIsCut()` was running beside it when the process went, and was counted as failed with it: the unit tests run side by side, so a crash fails whatever was in flight |
+| `scripts/test.sh`, before this rule | "Unit: 686/690 passed, 2 failed", status 1: the result bundle had it right in this case. The script had no way to know had the bundle been wrong, and it dropped xcodebuild's status |
+| `scripts/test.sh`, now | The same line, then "Unit: the test process was lost, so this run is failed whatever its totals say", "the test process was lost 2 times", the one test that started and never reported, and the crash's own words from the log |
+
+So the script already failed the run, before this rule was written, in this reproduction and in the case that prompted it; what read as a pass there was a line of xcodebuild's own output, read by a script that was not this one.
+What the check adds is a second opinion that does not depend on the result bundle, a plain statement of what happened with the test named, and xcodebuild's status, which the script used to drop.
+The UI suites had the same hole in the same form and have the same check: a runner that dies in the middle of a shard after some tests passed is started again by xcodebuild, and the test it was in is named.
+The check reads the log's own lines for each test starting and ending, in XCTest's form and in Swift Testing's; it knows no expected count beyond that, since nothing in the harness holds one for the unit tests.
+The same reproduction was run once on a hosted Mac (run 45028682577, through a job since taken out of the workflow as not worth keeping) and ended as it must: "Unit: 686/690 passed, 2 failed", "the test process was lost once", the crashed test named, status 1.
+
 
 #### What a new simulator's first boot costs
 
@@ -697,7 +730,8 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testWeekAndDiary | 22 | Snap is hittable; "On this day"; "added by you"; the restaurant's name | Merge into testMealPage (same launch); who added and where from are `PocketFoodTests` | 15 | |
 | testMealPage | 59 | Pager swipes between photos; whole photo opens and closes; an edit shows at once | Keep | | |
 | testSnappingAMeal | 46 | Camera ask, shutter, details, save, toast, new meal | Keep (smoke) | | |
-| testChangingWeeks | 121 | Back a week, a meal opened and Back to the same week, a past slot filled and kept in its week, back to this week | Keep: the journey, new on November 21 (seconds from run 44899330787). It is one second over the 120 limit on its first measured run; if it stays there, split filling the past slot into its own test | | |
+| testChangingWeeks | 121 | Back a week, a meal opened and Back to the same week, back to this week | Keep. It took 94 to 121 s as one journey with the past slot, so on November 22 the past slot became `testAPastSlotsMealStaysInItsWeek` | | done |
+| testAPastSlotsMealStaysInItsWeek | | A slot nobody filled thirteen days ago, snapped into: the meal stays in that week, and the diary stays on it | New on November 22: the second half of testChangingWeeks, with a launch of its own | | |
 | testWhereTakesSeveralKinds | 115 | Seven toggle steps, then save, page says both, editor shows both | Down for the toggle rules (`MealSourcesTests`: "A tap adds a kind…", "On a new meal the first tap replaces…"); the journey stays: pick two, save, see both, edit | 35 | done |
 | testWhereLooks | 84 | Where pills in dark and at the largest size | One launch, the night look at the largest size (was two) | 40 | done, 37 s measured |
 | testCoverAndReframeWhenSnapping | 119 | Two shots, second made cover, reframed, saved framed | Keep | | |
@@ -775,7 +809,8 @@ Unfrozen on November 21, when the dish editor landed.
 |---|---|---|---|---|---|
 | testStartingAHouseholdOnThisPhone | 76 | A2 from a fresh install to Today and every empty tab | Keep (smoke) | | |
 | testAnEmptyTodayOffersSetup | 19 | Empty Today leads to Household | Keep | | |
-| testSettingUpTheHouseholdFromThePhone | 153 | Add, rename, archive a person; a chore; a list | Keep, split in two (people; chores and lists): over the limit | 30 | |
+| testSettingUpTheHouseholdFromThePhone | 153 | Add, rename, archive a person | Keep. It took 90 to 153 s with the chore and the list in it, so on November 22 they became `testAChoreAndAListFromThePhone` | | done |
+| testAChoreAndAListFromThePhone | | A chore through the wall's editor, and a list | New on November 22: the second half of the journey above, started on the household's page with `-debugYouPage household` | | |
 | testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep. 94 of its seconds were two `reveal` calls dragging fourteen times each without getting there; with the rewritten `reveal` it took 48 and 68 seconds (runs 44875496226 and 44883476613) | 95 | done by the rewrite |
 | testAMemberLeaves | 36 | Leave, confirm, welcome | Keep | | |
 | testTheOwnerIsPointedToRemovingSomeone | 42 | Owner is sent to remove; person stays | Keep | | |

@@ -103,7 +103,7 @@ struct HouseholdDataTests {
         let companionId = try db.saveCompanion(yoyo, householdId: household.id)
         let walk = try #require(try db.writer.read(CompanionSnapshot.fetch).routines(of: companionId).first { $0.kind == .walk })
         let calendar = household.calendar
-        let today = DayKey(.now, calendar: calendar)
+        let today = DayKey(CompanionClock.now(), calendar: calendar)
         // Fixed times, so the morning log never fills the evening slot whatever the hour.
         let morning = calendar.date(byAdding: .hour, value: 8, to: today.startDate(in: calendar))!
         let evening = calendar.date(byAdding: .hour, value: 18, to: today.startDate(in: calendar))!
@@ -134,7 +134,7 @@ struct HouseholdDataTests {
         let item = try db.addListItem(title: "Basil", to: list.id, addedBy: james)
         let journal = try db.ensureFoodJournal(householdId: household.id)
         let meal = try db.addMeal(
-            MealDraft(day: today, slot: MealSlot.defaultNames[1], sources: MealSources(.home), title: "Pho", emoji: nil, eaterIds: [mia], eatenAt: .now, place: nil),
+            MealDraft(day: today, slot: MealSlot.defaultNames[1], sources: MealSources(.home), title: "Pho", emoji: nil, eaterIds: [mia], eatenAt: CompanionClock.now(), place: nil),
             journalId: journal.id
         )
 

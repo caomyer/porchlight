@@ -345,13 +345,13 @@ struct DerivedRowTests {
         draft.name = "Yo-Yo"
         let companion = try db.saveCompanion(draft, householdId: household.id)
         let routine = try #require(try db.writer.read(CompanionSnapshot.fetch).routines(of: companion).first)
-        let log = try db.logCare(routineId: routine.id, CareLogDraft(people: [people[0].id], occurredAt: .now.addingTimeInterval(-60)))
+        let log = try db.logCare(routineId: routine.id, CareLogDraft(people: [people[0].id], occurredAt: CompanionClock.now().addingTimeInterval(-60)))
         try db.writer.write { db in try CareLogPerson(careLogId: log.id, personId: people[0].id).upsert(db) }
         #expect(try db.writer.read { try CareLogPerson.fetchCount($0) } == 1)
 
         let journal = try db.ensureFoodJournal(householdId: household.id)
         let meal = try db.addMeal(
-            MealDraft(day: day, slot: "Lunch", title: "Pho", eaterIds: [people[0].id], eatenAt: .now), journalId: journal.id
+            MealDraft(day: day, slot: "Lunch", title: "Pho", eaterIds: [people[0].id], eatenAt: CompanionClock.now()), journalId: journal.id
         )
         try db.writer.write { db in try JournalEntryEater(entryId: meal.id, personId: people[0].id).upsert(db) }
         #expect(try db.writer.read { try JournalEntryEater.fetchCount($0) } == 1)
@@ -385,10 +385,10 @@ struct DanglingReferenceTests {
         draft.name = "Yo-Yo"
         let companion = try db.saveCompanion(draft, householdId: household.id)
         let routine = try #require(try db.writer.read(CompanionSnapshot.fetch).routines(of: companion).first)
-        let log = try db.logCare(routineId: routine.id, CareLogDraft(people: [try db.snapshot().people[0].id], occurredAt: .now.addingTimeInterval(-60)))
+        let log = try db.logCare(routineId: routine.id, CareLogDraft(people: [try db.snapshot().people[0].id], occurredAt: CompanionClock.now().addingTimeInterval(-60)))
         let journal = try db.ensureFoodJournal(householdId: household.id)
         let meal = try db.addMeal(
-            MealDraft(day: DayKey(.now, calendar: household.calendar), slot: "Lunch", title: "Pho", eaterIds: [try db.snapshot().people[0].id], eatenAt: .now),
+            MealDraft(day: DayKey(CompanionClock.now(), calendar: household.calendar), slot: "Lunch", title: "Pho", eaterIds: [try db.snapshot().people[0].id], eatenAt: CompanionClock.now()),
             journalId: journal.id
         )
         // A sync can deliver rows before the person or place they name.
@@ -405,7 +405,7 @@ struct DanglingReferenceTests {
         let companions = try db.writer.read(CompanionSnapshot.fetch)
         #expect(companions.person(nobody) == nil)
         #expect(companions.entries.first?.people.contains(nobody) == true)
-        let report = try #require(CompanionReport.make(snapshot: companions, companionId: companion, now: .now))
+        let report = try #require(CompanionReport.make(snapshot: companions, companionId: companion, now: CompanionClock.now()))
         #expect(!report.diary.isEmpty)
         #expect(CaptionEngine.whoText([nobody], names: companions.names) == "Someone")
 

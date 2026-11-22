@@ -1,7 +1,8 @@
 # How long each UI test class took in seconds, for `scripts/test.sh --shard`, which splits a
 # suite into shares of about equal time. Measured on GitHub's hosted Macs on iOS 27.2 on
 # November 21 and 22, 2026, one simulator per Mac: each number is the average of runs
-# 44956641573, 44963685565 and 44967355168 (the recipe classes, of the last two).
+# 44956641573, 44963685565 and 44967355168 (the recipe classes, of the last two; the shared
+# calendar classes, of runs 45013466026 and 45020375885).
 # `UnitTests` is the unit tests' whole step: on GitHub they run on the Mac that runs the
 # wall's first share, so that share starts with their seconds already counted.
 # A class's time moves by a fifth and more from run to run on these Macs, so only a lasting
@@ -20,7 +21,7 @@ PhoneTests 215
 PhoneDishesTests 242
 PhoneCatchUpTests 111
 PhoneRecipesTests 132
-PhoneSharedCalendarTests 40
+PhoneSharedCalendarTests 29
 PhoneCalendarTests 60
 PhoneCalendarEditTests 70
 FoodMealsTests 294
@@ -34,7 +35,7 @@ WallTourTests 119
 LoggedEntryTests 90
 PitchInTests 99
 WallRecipesTests 117
-WallSharedCalendarTests 120
+WallSharedCalendarTests 150
 CatchUpTests 91
 CompanionEditorTests 115
 DayAtAGlanceTests 75

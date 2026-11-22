@@ -200,7 +200,7 @@ enum CareRules {
     }
 
     /// `today` starts routines that have no start day yet.
-    static func validated(_ draft: CareRoutineDraft, companionId: Companion.ID, sortOrder: Int, today: DayKey = DayKey(.now, calendar: .current)) throws -> CareRoutine {
+    static func validated(_ draft: CareRoutineDraft, companionId: Companion.ID, sortOrder: Int, today: DayKey = DayKey(CompanionClock.now(), calendar: .current)) throws -> CareRoutine {
         let title = try Names.validated(draft.title)
         let emoji = draft.emoji.trimmingCharacters(in: .whitespacesAndNewlines)
         switch draft.recurrence {

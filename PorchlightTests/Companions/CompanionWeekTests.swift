@@ -30,7 +30,7 @@ struct CompanionWeekTests {
         ])
         let people = try db.snapshot().people.map(\.id)
         let calendar = try #require(try db.snapshot().household).calendar
-        let today = DayKey(.now, calendar: calendar)
+        let today = DayKey(CompanionClock.now(), calendar: calendar)
         let now = CareLogic.date(today, minute: minute, calendar: calendar)
         let yesterday = today.adding(days: -1, calendar: calendar)
 
@@ -197,7 +197,7 @@ struct CompanionWeekTests {
         let soil = try #require(snapshot.routines(of: fernId).first { $0.kind == .water })
         #expect(snapshot.words(bowl).noun == "refill")
         #expect(snapshot.words(soil).noun == "watering")
-        let report = try #require(CompanionReport.make(snapshot: snapshot, companionId: dogId, now: .now))
+        let report = try #require(CompanionReport.make(snapshot: snapshot, companionId: dogId, now: CompanionClock.now()))
         #expect(report.week(of: bowl.id)?.words.isBowl == true)
         #expect(report.week(of: bowl.id).map { CompanionWeekWords.podiumTitle($0.words) } == "Bartender of the week")
     }
@@ -208,7 +208,7 @@ struct CompanionWeekTests {
         let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "James", color: .blue)])
         let james = try db.snapshot().people[0].id
         let calendar = try #require(try db.snapshot().household).calendar
-        let today = DayKey(.now, calendar: calendar)
+        let today = DayKey(CompanionClock.now(), calendar: calendar)
         let arrived = CareLogic.date(today, minute: 18 * 60 + 30, calendar: calendar)
         var draft = CompanionDraft.new(species: .rabbit)
         draft.name = "Pip"
