@@ -67,9 +67,10 @@ def read(text):
 
 
 def named(tests):
-    """The tests worth a word: over the ceiling, or with more idle waits given up than a
-    busy Mac explains."""
-    return [t for t in tests if (t["seconds"] or 0) > CEILING or t["idle"] > MOST_IDLE]
+    """The tests worth a word: over the ceiling, with more idle waits given up than a busy
+    Mac explains, or with no end at all (stopped at the time limit, or lost with the
+    process)."""
+    return [t for t in tests if t["seconds"] is None or t["seconds"] > CEILING or t["idle"] > MOST_IDLE]
 
 
 def sentence(test):

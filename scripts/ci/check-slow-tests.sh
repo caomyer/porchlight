@@ -70,6 +70,18 @@ says "a test over the ceiling with no idle trouble" "PhoneSetupTests.testSetting
 says "a test under it that gave up on idle three times" "PhoneTests.testCareSheet took 110 seconds and gave up waiting for the app to go idle 3 times (failed)" "$work/out"
 [[ "$(wc -l < "$work/keep" | tr -d ' ')" == 2 ]] && ok "both are marked to keep" || bad "both are marked to keep"
 
+# A test stopped at the time limit has a start and no end: it is named and kept too.
+cat > "$work/stopped.log" <<'EOF'
+Test Case '-[PorchlightUITests.FirstRunTests testOnboardingWithRealCalendarAccess]' started.
+    t =     0.00s Start Test at 2026-11-22 16:03:14.136
+    t =    72.91s App animations complete notification not received, will attempt to continue.
+Restarting after unexpected exit, crash, or test timeout; summary will include totals from previous launches.
+** TEST EXECUTE FAILED **
+EOF
+run "$work/stopped.log"
+says "a test that was stopped and never ended" "FirstRunTests.testOnboardingWithRealCalendarAccess never finished and gave up waiting for the app to go idle 1 time (no result)" "$work/out"
+says "is marked to keep" "FirstRunTests testOnboardingWithRealCalendarAccess 2026-11-22 16:03:14|" "$work/keep"
+
 # An ordinary suite: nothing said, nothing kept, nothing in the summary.
 cat > "$work/plain.log" <<'EOF'
 Test Case '-[PorchlightUITests.PhoneTests testCareSheet]' started.
