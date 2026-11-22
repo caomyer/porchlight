@@ -913,14 +913,14 @@ private struct RoutineEditorSheet: View {
         let calendar = model.calendar
         if repeatChoice == nil {
             Color.clear.frame(height: 1).onAppear {
-                repeatChoice = RepeatChoice(recurrence: draft.recurrence, start: draft.startDay ?? DayKey(.now, calendar: calendar), calendar: calendar)
+                repeatChoice = RepeatChoice(recurrence: draft.recurrence, start: draft.startDay ?? DayKey(CompanionClock.now(), calendar: calendar), calendar: calendar)
             }
         } else {
             RepeatPicker(
                 choice: Binding(get: { repeatChoice! }, set: { repeatChoice = $0 }),
                 kinds: [.daily, .weekdays, .interval, .monthly],
                 calendar: calendar,
-                today: DayKey(.now, calendar: calendar),
+                today: DayKey(CompanionClock.now(), calendar: calendar),
                 maxInterval: CareRules.maxEveryDays
             )
         }

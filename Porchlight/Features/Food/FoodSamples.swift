@@ -98,7 +98,7 @@ enum FoodSamples {
         [home("🥣", "Oatmeal", 0, 0xEADFCB), delivery("🥪", "Banh mi", 1, 0xE8D7C2)],
     ]
 
-    static func seed(_ database: AppDatabase, household: Household, people: [Person]) throws {
+    static func seed(_ database: AppDatabase, household: Household, people: [Person], now: Date = CompanionClock.now()) throws {
         guard !people.isEmpty else { return }
         let householdId = household.id
         let calendar = household.calendar
@@ -106,7 +106,7 @@ enum FoodSamples {
         // `-sampleFood none`: the diary is on, with nothing in it yet.
         if UserDefaults.standard.string(forKey: "sampleFood") == "none" { return }
         let journalId = journal.id
-        let today = DayKey(.now, calendar: calendar)
+        let today = DayKey(now, calendar: calendar)
         let slots = MealSlot.defaultNames
         let times = [8 * 60 + 40, 12 * 60 + 30, 19 * 60]
 

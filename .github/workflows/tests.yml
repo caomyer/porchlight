@@ -36,6 +36,18 @@ on:
         description: "Only these UI tests (Class or Class/testName, space separated); empty runs the full suite"
         required: false
         default: ""
+      ipad:
+        description: "For a measurement only: another iPad model for the wall's simulator, as a pattern of its type (e.g. iPad-Air-11-inch[^)]*); empty is the 13-inch iPad Pro"
+        required: false
+        default: ""
+      quiet:
+        description: "For a measurement only: launchd labels the simulators are not to start, space separated, or \"none\" to start everything; empty is com.apple.PosterBoard, as every run has it"
+        required: false
+        default: ""
+      measure_boots:
+        description: "For a measurement only: \"yes\" runs no test, and boots the wall's iPad twelve times, each on a Mac of its own, with and without its wallpaper and widget daemons, saying the memory every 15 seconds"
+        required: false
+        default: ""
 
 # A newer push to a branch cancels that branch's run. A run by hand is in a group of its
 # own: it neither cancels nor is cancelled by pushes, or by other runs by hand.
@@ -53,6 +65,10 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
   PORCHLIGHT_TEST_SLOTS: "1"
   RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-2
+  PORCHLIGHT_CI_IPAD: ${{ inputs.ipad }}
+  # A new simulator's wallpaper daemon is not started: its first-boot work took these Macs
+  # into swap, and jobs were cancelled in it (scripts/lib/simulators.sh).
+  PORCHLIGHT_SIM_DISABLED_DAEMONS: ${{ inputs.quiet || 'com.apple.PosterBoard' }}
   # Where scripts/test.sh builds for a checkout named "porchlight".
   PRODUCTS: /Users/runner/Library/Developer/Xcode/DerivedData/Porchlight-porchlight/Build/Products
   PACKAGES: /Users/runner/Library/Developer/Xcode/DerivedData/Porchlight-porchlight/SourcePackages
@@ -60,7 +76,7 @@ env:
 jobs:
   build:
     name: Build
-    if: ${{ !inputs.only }}
+    if: ${{ !inputs.only && !inputs.measure_boots }}
     runs-on: xcode-27
     timeout-minutes: 40
     # What the packed build is, for the test jobs to check their download against.
@@ -147,26 +163,15 @@ jobs:
       - name: Pick the simulators
         run: zsh scripts/ci/pick-simulators.sh
 
-      # With the memory heartbeat. The script gives each stage of the boot a limit of its own
-      # and one more try, and fails naming the stage (scripts/ci/boot-simulator.sh); this
-      # limit is only the backstop for both tries. Three jobs were cancelled in this step
-      # before that, with "The operation was canceled" and no word of where.
-      - name: Boot the ${{ matrix.kind }}
+      # With the memory heartbeat. The build is fetched, checked against the build job's
+      # checksum and unpacked while the simulator boots (scripts/ci/boot-and-fetch.sh). Each
+      # stage of the boot has a limit and fails naming the stage; a download that cannot be
+      # put right fails saying it was corrupted. This step's limit is only the backstop.
+      - name: Boot the ${{ matrix.kind }} and fetch the build
         timeout-minutes: 25
-        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-simulator.sh ${{ matrix.kind }}
-
-      # A download can arrive cut short, or fail: the next step checks it against what the
-      # build job recorded and downloads again, so this one may fail without failing the job.
-      - name: Get the build
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: products
-
-      - name: Check and unpack the build
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zsh scripts/ci/unpack-build.sh "${{ needs.build.outputs.sha256 }}" "${{ needs.build.outputs.bytes }}"
+        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-and-fetch.sh ${{ matrix.kind }} "${{ needs.build.outputs.sha256 }}" "${{ needs.build.outputs.bytes }}"
 
       - name: Test
         run: zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh ${{ matrix.args }} --no-build --progress --runtime "$RUNTIME"
@@ -210,22 +215,15 @@ jobs:
       - name: Pick the simulators
         run: zsh scripts/ci/pick-simulators.sh
 
-      - name: Boot the ${{ matrix.kind }}
+      # With the memory heartbeat. The build is fetched, checked against the build job's
+      # checksum and unpacked while the simulator boots (scripts/ci/boot-and-fetch.sh). Each
+      # stage of the boot has a limit and fails naming the stage; a download that cannot be
+      # put right fails saying it was corrupted. This step's limit is only the backstop.
+      - name: Boot the ${{ matrix.kind }} and fetch the build
         timeout-minutes: 25
-        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-simulator.sh ${{ matrix.kind }}
-
-      # A download can arrive cut short, or fail: the next step checks it against what the
-      # build job recorded and downloads again, so this one may fail without failing the job.
-      - name: Get the build
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: products
-
-      - name: Check and unpack the build
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zsh scripts/ci/unpack-build.sh "${{ needs.build.outputs.sha256 }}" "${{ needs.build.outputs.bytes }}"
+        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-and-fetch.sh ${{ matrix.kind }} "${{ needs.build.outputs.sha256 }}" "${{ needs.build.outputs.bytes }}"
 
       - name: Test
         run: zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh ${{ matrix.args }} --no-build --progress --runtime "$RUNTIME"
@@ -245,7 +243,7 @@ jobs:
 
   chosen:
     name: Chosen tests
-    if: ${{ inputs.only }}
+    if: ${{ inputs.only && !inputs.measure_boots }}
     runs-on: xcode-27
     timeout-minutes: 120
     steps:
@@ -281,3 +279,68 @@ jobs:
           path: results
           if-no-files-found: ignore
           retention-days: 7
+
+  # A measurement, never part of a push: what booting the wall's iPad costs a hosted Mac,
+  # which has 7 GB, and what it costs when the simulator is told not to start the daemons
+  # behind its wallpapers and widgets (scripts/lib/simulators.sh). Each boot is on a new
+  # Mac, as a test job's is, with nothing else running; the stages are given long limits so
+  # that a slow one is timed rather than tried again, and the memory, the load and the
+  # largest processes are said every 15 seconds, through the boot and for three minutes
+  # after it. docs/design/testing.md, "Infrastructure failures", has what it found, and
+  # what the same run found across four iPad models before this.
+  boots:
+    name: Boot ${{ matrix.name }} (${{ matrix.trial }})
+    if: ${{ inputs.measure_boots == 'yes' }}
+    runs-on: xcode-27
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [as it is, no widgets, no wallpapers, neither]
+        trial: [1, 2, 3]
+        include:
+          - name: as it is
+            quiet: none
+          - name: no widgets
+            quiet: com.apple.chronod com.apple.liveactivitiesd
+          - name: no wallpapers
+            quiet: com.apple.PosterBoard
+          - name: neither
+            quiet: com.apple.PosterBoard com.apple.chronod com.apple.liveactivitiesd
+    env:
+      PORCHLIGHT_SIM_DISABLED_DAEMONS: ${{ matrix.quiet }}
+      PORCHLIGHT_HEARTBEAT_SECONDS: "15"
+      PORCHLIGHT_HEARTBEAT_TOP: "1"
+      PORCHLIGHT_BOOT_SECONDS: "900"
+      PORCHLIGHT_READY_SECONDS: "900"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick the simulators
+        run: zsh scripts/ci/pick-simulators.sh
+
+      - name: Boot the ipad
+        run: zsh scripts/ci/with-heartbeat.sh zsh scripts/ci/boot-simulator.sh ipad
+
+      - name: The three minutes after
+        run: zsh scripts/ci/with-heartbeat.sh sleep 180
+
+      # That the simulator still shows a home screen and still runs an app.
+      - name: A picture of it, and Settings launched
+        run: |
+          mkdir -p results
+          udid=$(xcrun simctl list devices booted | sed -n 's/.*(\([0-9A-F-]\{36\}\)) (Booted).*/\1/p' | head -1)
+          xcrun simctl io "$udid" screenshot results/home.png
+          xcrun simctl launch "$udid" com.apple.Preferences
+          sleep 10
+          xcrun simctl io "$udid" screenshot results/settings.png
+          ps -axo comm= | grep -c CoreSimulator | sed 's/^/Simulator processes: /'
+
+      - name: Upload the pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-${{ matrix.name }}-${{ matrix.trial }}
+          path: results
+          if-no-files-found: ignore
+          retention-days: 3

@@ -149,7 +149,7 @@ final class FoodStore: StoredFirstObservable {
     /// Slots shown as the day's plates on Today (breakfast, lunch, dinner).
     var mainSlots: [String] { Array(slots.filter { MealSlot.named($0).isMain }.prefix(3)) }
 
-    func today(_ now: Date = .now) -> DayKey { DayKey(now, calendar: calendar) }
+    func today(_ now: Date = CompanionClock.now()) -> DayKey { DayKey(now, calendar: calendar) }
 
     func entries(on day: DayKey) -> [JournalEntry] {
         snapshot.entries.filter { $0.day == day.rawValue }

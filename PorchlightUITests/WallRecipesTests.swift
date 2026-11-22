@@ -13,7 +13,8 @@ final class WallRecipesTests: XCTestCase {
     }
 
     /// Today at 6:40 pm, so a meal cooked from a recipe is guessed to be dinner whenever the
-    /// suite runs (docs/design/testing.md, hard rule 1).
+    /// suite runs (docs/design/testing.md, the hard rule "A test's outcome never depends on
+    /// the real clock").
     private static var dinnerTime: String {
         let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
         return String(format: "%04d-%02d-%02dT18:40", parts.year!, parts.month!, parts.day!)

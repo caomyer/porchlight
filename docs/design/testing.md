@@ -106,7 +106,7 @@ Coverage is proven, not assumed.
 ## The middle options
 
 These sit between a pure function and a launched app.
-All eight are proven in this repository.
+All nine are proven in this repository.
 
 | Option | Proven by | Use it for |
 |---|---|---|
@@ -142,7 +142,7 @@ What the spike of November 20 found, so its limits are known:
 - **A row that scrolls sideways reaches past the edge.**
   Its later items have frames beyond the screen's width by design (the lists' chips at the largest text), so a "nothing runs off either side" check names such a row and leaves it out; it found that on its first run.
 - **Frames, not ink.**
-  "Nothing runs off either side" compares elements' frames with the screen, and a letter can draw outside its element's frame (hard rule 9); what the ink does is for an ink-bounds test, or for the eye on the page's picture.
+  "Nothing runs off either side" compares elements' frames with the screen, and a letter can draw outside its element's frame (the hard rule "A frame inside the screen does not prove the ink is inside the frame"); what the ink does is for an ink-bounds test, or for the eye on the page's picture.
 - **Labels, not identifiers.**
   SwiftUI's elements here do not give their accessibility identifiers, so elements are found by label.
 - **It is not the real screen's surroundings.**
@@ -205,50 +205,59 @@ One shot per shape of the screen stays, not one per wording.
 
 ## Hard rules
 
+Each rule is named by its first sentence, and is referred to by that name, here and in other documents: a number would change the day a rule is added, and a reference to "rule 10" has already pointed at the wrong rule once.
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
-The ninth is from a defect found by eye on November 21; the others come from what the UI tests' own comments record.
+"A frame inside the screen does not prove the ink is inside the frame" is from a defect found by eye on November 21, and "A test leaves the simulator as it found it" from reading two tests that day; the others come from what the UI tests' own comments record.
 
-1. **A test's outcome never depends on the real clock.**
-   Pin it and sweep it.
-   That includes the clock of the test itself: a UI test must never have to do something within so many seconds of the app's own timer, because a hosted Mac can take 50 seconds over one drag ("Flaky tests").
-   Wait for a thing to happen, with a long limit, and put the timer's rule in a unit test with the times handed in.
-   In a unit test, pass `now` and a `Calendar` with an explicit time zone, and walk the day in half hours in at least two zones when the rule has anything to do with the time of day or the day's edge.
-   In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, which the wall and the phone both read, and never branch on `Date()`.
-   The day in that argument is today's, because the sample household is built around today; the time of day is what must not move.
-   Why: a log landed in the wrong slot, and a streak was miscounted, only at certain hours, where a test that runs at one hour cannot see it.
-   A timestamp that is only stored, never compared, bucketed or formatted (a row's `createdAt`), may be `Date.now`.
-2. **Every loop in a UI test helper has a bound.**
-   Write `for _ in 0..<n where …`, or a deadline that fails the test when it passes, as `reveal` and `waitUntilResponsive` do.
-   Why: an unbounded loop does not fail, it hangs the job until its 75 minute limit, and the log does not say which test.
-3. **A launch argument that reaches `UserDefaults` needs a value.**
-   Write `-sampleWater YES`, not `-sampleWater`.
-   Why: the argument domain is read as key and value pairs, so a bare flag swallows the next argument or is not seen at all.
-   Only flags the app reads from `ProcessInfo.arguments` itself (`-sampleHousehold`, `-resetData`) work bare.
-4. **A suite that runs no tests fails.**
-   `scripts/test.sh` reports "no tests ran" and exits non-zero when a selection matches nothing or only tests that skip themselves.
-   Why: a phone class once ran on the iPad, skipped every test and reported success.
-   Do not work around it; fix the selection.
-5. **Do not find an element by a label that is also a button's title.**
-   Give the element an accessibility identifier and query that (`save-care`, `went-Mia`, `dish-title`).
-   Why: "Log a walk" is the sheet's title and a button on the page behind it, and "You" is a pill in the sheet and the avatar behind it, so the query matched before the sheet opened, or matched two elements.
-6. **iPad frames come back in portrait coordinates unless the device is turned first.**
-   Launch through `XCUIApplication.porchlight()`, which turns the iPad to landscape before the launch.
-   Why: a new simulator boots in portrait, and on iPadOS 27 frames, swipes and the keyboard are then reported sideways, so "above the keyboard" checks compare the wrong edges.
-7. **Never tap before the element has settled, and never rely on XCUITest to scroll for a tap.**
-   Use `waitToSettle()` for anything in a sheet that is still sliding, and `reveal(_:in:)` before a tap below the fold.
-   Why: a tap computed mid-slide lands outside the sheet and closes it, and under the floating tab bar automatic scrolling stops short and taps nothing.
-8. **No fixed sleeps as a way of waiting.**
-   Wait for the thing (`waitForExistence`, `waitForNonExistence`, an expectation on a predicate); a `Thread.sleep` is allowed only to let an animation finish before a screenshot.
-   Why: a launch helper that sleeps 4 seconds adds 4 seconds to every test in its class, as `FoodMealsTests` and `MealPhotosTests` did for 17 tests until they waited for the app to answer and for their first element to settle instead.
-9. **A frame inside the screen does not prove the ink is inside the frame.**
-   Where a face draws past its letters' own widths, check the ink's bounds, not the element's frame.
-   Why: Caveat's slanted letters reach up to 0.21 em past their advance, and a SwiftUI `Text` is as wide as its letters' advances and draws nothing beyond, so a handwritten title ending in "l", "f" or "i" lost the top of its last letter ("Bagel" drew as "Bagei").
-   Every frame was where it should be; no frame check, on a real screen or a hosted one, could have seen it.
-   `Text(handwritten:)` (`Handwriting.swift`) is now the one way the app writes a handwritten title, with room for the tails, and `HandwritingTests` lays each title out with Core Text at every size and requires the line's ink to sit inside the line's box.
-   Do not write the handwritten face any other way, and when a new face or a new slant arrives, give it an ink-bounds test of its own.
-10. **A test that needs the network or real delivery timing runs by hand, not in the suite.**
-   Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
-   Why: a test that skips itself when the network is down reports nothing either way.
+- **A test's outcome never depends on the real clock.**
+  Pin it and sweep it.
+  That includes the clock of the test itself: a UI test must never have to do something within so many seconds of the app's own timer, because a hosted Mac can take 50 seconds over one drag ("Flaky tests").
+  Wait for a thing to happen, with a long limit, and put the timer's rule in a unit test with the times handed in.
+  In a unit test, pass `now` and a `Calendar` with an explicit time zone, and walk the day in half hours in at least two zones when the rule has anything to do with the time of day or the day's edge.
+  In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, which the wall and the phone both read, and never branch on `Date()`.
+  Pin the whole of it, the day as well as the hour: `UITestClock.arguments` in the UI tests is a Wednesday at 10:30 in the morning, and a pinned clock stands still, so the day cannot change under a test and the week is never in its first minutes.
+  The sample household is built backwards from that time, and the screens take their day and their week from it (`CompanionClock`); what a row is stamped with, and how long the wall has gone untouched, stay on the real clock.
+  A test that pins today's date at a fixed hour, as the older ones do, has fixed the time of day and left the day of the week to chance.
+  A test that launches the sample household with no pin at all is on the real clock, and "The UI tests still on the real clock", under "Flaky tests", lists them.
+  Why: a log landed in the wrong slot, and a streak was miscounted, only at certain hours, where a test that runs at one hour cannot see it.
+  A timestamp that is only stored, never compared, bucketed or formatted (a row's `createdAt`), may be `Date.now`.
+- **Every loop in a UI test helper has a bound.**
+  Write `for _ in 0..<n where …`, or a deadline that fails the test when it passes, as `reveal` and `waitUntilResponsive` do.
+  Why: an unbounded loop does not fail, it hangs the job until its 75 minute limit, and the log does not say which test.
+- **A launch argument that reaches `UserDefaults` needs a value.**
+  Write `-sampleWater YES`, not `-sampleWater`.
+  Why: the argument domain is read as key and value pairs, so a bare flag swallows the next argument or is not seen at all.
+  Only flags the app reads from `ProcessInfo.arguments` itself (`-sampleHousehold`, `-resetData`) work bare.
+- **A suite that runs no tests fails.**
+  `scripts/test.sh` reports "no tests ran" and exits non-zero when a selection matches nothing or only tests that skip themselves.
+  Why: a phone class once ran on the iPad, skipped every test and reported success.
+  Do not work around it; fix the selection.
+- **Do not find an element by a label that is also a button's title.**
+  Give the element an accessibility identifier and query that (`save-care`, `went-Mia`, `dish-title`).
+  Why: "Log a walk" is the sheet's title and a button on the page behind it, and "You" is a pill in the sheet and the avatar behind it, so the query matched before the sheet opened, or matched two elements.
+- **iPad frames come back in portrait coordinates unless the device is turned first.**
+  Launch through `XCUIApplication.porchlight()`, which turns the iPad to landscape before the launch.
+  Why: a new simulator boots in portrait, and on iPadOS 27 frames, swipes and the keyboard are then reported sideways, so "above the keyboard" checks compare the wrong edges.
+- **Never tap before the element has settled, and never rely on XCUITest to scroll for a tap.**
+  Use `waitToSettle()` for anything in a sheet that is still sliding, and `reveal(_:in:)` before a tap below the fold.
+  Why: a tap computed mid-slide lands outside the sheet and closes it, and under the floating tab bar automatic scrolling stops short and taps nothing.
+- **No fixed sleeps as a way of waiting.**
+  Wait for the thing (`waitForExistence`, `waitForNonExistence`, an expectation on a predicate); a `Thread.sleep` is allowed only to let an animation finish before a screenshot.
+  Why: a launch helper that sleeps 4 seconds adds 4 seconds to every test in its class, as `FoodMealsTests` and `MealPhotosTests` did for 17 tests until they waited for the app to answer and for their first element to settle instead.
+- **A frame inside the screen does not prove the ink is inside the frame.**
+  Where a face draws past its letters' own widths, check the ink's bounds, not the element's frame.
+  Why: Caveat's slanted letters reach up to 0.21 em past their advance, and a SwiftUI `Text` is as wide as its letters' advances and draws nothing beyond, so a handwritten title ending in "l", "f" or "i" lost the top of its last letter ("Bagel" drew as "Bagei").
+  Every frame was where it should be; no frame check, on a real screen or a hosted one, could have seen it.
+  `Text(handwritten:)` (`Handwriting.swift`) is now the one way the app writes a handwritten title, with room for the tails, and `HandwritingTests` lays each title out with Core Text at every size and requires the line's ink to sit inside the line's box.
+  Do not write the handwritten face any other way, and when a new face or a new slant arrives, give it an ink-bounds test of its own.
+- **A test leaves the simulator as it found it.**
+  The database is new at every sample launch, but the device's own settings are not: what the photo frame shows, the night's hours and the idle minutes live in the simulator's defaults and outlive the test and the launch.
+  A test that changes one calls `forgetDisplaySettingsAfterwards()` first, which launches the app once more after the test, pass or fail, with `-debugForgetDisplay YES`.
+  Never put a setting back by hand at the end of the test: a test that fails halfway never reaches its end, and the next test starts from what it left.
+  Why: `PhotoFrameTests.testChoosingThePorchView` and `TimeFieldTests.testNightHoursCrossMidnight` each ended by tapping their setting back, which a failure in the middle would have skipped.
+- **A test that needs the network or real delivery timing runs by hand, not in the suite.**
+  Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
+  Why: a test that skips itself when the network is down reports nothing either way.
 
 ## Tiers
 
@@ -328,11 +337,28 @@ A phone class on the iPad, or a wall class on the iPhone, also skips itself, but
 ## Flaky tests
 
 Every test that failed and then passed with nothing changed, with its owner, what was found and what was done.
-A test listed as quarantined is skipped in the suite and has a date by which it is fixed, moved down or deleted ("Tiers", rule 4); one that was fixed the day it was seen is listed as fixed, so the cause is not found twice.
+A test listed as quarantined is skipped in the suite and has a date by which it is fixed, moved down or deleted ("Tiers", "A flaky test is quarantined, with an owner and a week"); one that was fixed the day it was seen is listed as fixed, so the cause is not found twice.
 
 | Test | Seen | Owner | Cause | Done | State |
 |---|---|---|---|---|---|
-| `ScrollingTests.testTouchesKeepTheWallAwake` | November 21, 2026, on the release line (run 44905599973, 146 s where it takes 51 to 58); the same commit had passed its full run an hour earlier | The agent on `tests/pyramid` | The test raced two clocks: it touched the wall every 4 seconds of a 12 second "minute" and then asserted Ambient had stayed away. In the failing run the touches came 10 seconds apart, and then one drag took 51 seconds on the hosted Mac, so the wall's timer rightly ran out. The app was right and the test was wrong: it broke hard rule 1 from the other side, by letting the outcome depend on how fast the test itself ran | The rule moved to `IdleRuleTests` (dates handed in, seen failing with the rule broken). The UI test was rewritten as `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: one launch with a ten minute wait where a drag must be counted by the idle watcher, one with a three second "minute" where Ambient must come, each a one-sided wait | Fixed the same day; not quarantined |
+| `ScrollingTests.testTouchesKeepTheWallAwake` | November 21, 2026, on the release line (run 44905599973, 146 s where it takes 51 to 58); the same commit had passed its full run an hour earlier | The agent on `tests/pyramid` | The test raced two clocks: it touched the wall every 4 seconds of a 12 second "minute" and then asserted Ambient had stayed away. In the failing run the touches came 10 seconds apart, and then one drag took 51 seconds on the hosted Mac, so the wall's timer rightly ran out. The app was right and the test was wrong: it broke the first hard rule, "A test's outcome never depends on the real clock", from the other side, by letting the outcome depend on how fast the test itself ran | The rule moved to `IdleRuleTests` (dates handed in, seen failing with the rule broken). The UI test was rewritten as `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: one launch with a ten minute wait where a drag must be counted by the idle watcher, one with a three second "minute" where Ambient must come, each a one-sided wait | Fixed the same day; not quarantined |
+| `TimeFieldTests.testTypingAMealTime` | November 22, 2026, 00:00:04 UTC (run 44961571872, Wall UI 2 of 2): "Failed to tap Button ... label BEGINSWITH 'Breakfast: Pancakes'" after 17.8 s, on a change that touched only the phone | The agent on `tests/pyramid` | The real clock. The sample's pancakes are six days before the launch, the last day the Food page shows. The test launched at 11:59 pm, found them, and at midnight the page moved on a day and they were seven days back, between the wait and the tap. `SampleClockTests.acrossMidnight` shows the same step with the times handed in | The class is pinned to `UITestClock.midweek`, and the Food page, the meal's sheet and its time field now take their day from `CompanionClock`, so the pin reaches them. Passed locally on the pinned Wednesday while the Mac's own day was a Saturday | Fixed |
+| `DayAtAGlanceTests.testMomentsInTheWeek` | November 22, 2026, about 00:06 UTC (run 44961571844, Wall smoke): "The morning walk is in the week grid" at line 66, with the Mac at 24% free and 716 MB of swap at the time | The agent on `tests/pyramid` | The real clock, not the memory: six minutes into a Sunday the week has no walk in it yet, since every sample walk before the launch is in last week, and it would have failed on any Mac until the morning's walk. Reproduced on a quiet Mac by pinning the clock to Sunday, November 22 at 00:06: the same line, the same message. `SampleClockTests.theWeeksFirstMinutes` holds the fact | The class is pinned to `UITestClock.midweek`, and the calendar, Today and the chores now take their day and week from `CompanionClock`. All three of its tests and the three of `TimeFieldTests` passed locally on the pinned time | Fixed |
+
+#### The UI tests still on the real clock
+
+Counted on November 22, 2026, after those two failures.
+A class is on the real clock when it launches the sample household without `-debugCompanionNow`: what it finds then depends on the minute and the day of the launch, and a test in it can fail in the minute around midnight (a meal or a walk it is about to tap moves a day back) or in a Sunday's first hours (the week is empty).
+The cure is the same for each: add `UITestClock.arguments` to the class's launch, run the class, and where a screen still shows the real day, give that screen's read of the time to `CompanionClock` as was done for the calendar, Today, the Food page and the chores.
+
+| | Classes | What they stand on |
+|---|---|---|
+| Pinned whole, day and hour | `DayAtAGlanceTests`, `TimeFieldTests` | Nothing real |
+| Pinned to today's date at a fixed hour | `WallRecipesTests`, `PhoneRecipesTests`, and the pinned tests of `LoggedEntryTests`, `PitchInTests`, `PhoneTests`, `PhoneTabsTests`, `PhoneRemindersTests`, `PhoneHouseholdTests`, `PhoneFoodTests`, `PhoneWeekTests`, `PhoneCatchUpTests` | The real day of the week. `PhoneRecipesTests.testPlanningADinnerFromTheBank` plans "tonight" and then "Sunday", which are one day on a Sunday |
+| Not pinned, and reading the sample's meals, walks or chores by day | Wall: `FoodMealsTests`, `MealPhotosTests`, `WallDishEditorTests`, `WallDishesTests`, `CatchUpTests`, `CompanionEditorTests`, `WallTourTests`, and the unpinned tests of `LoggedEntryTests` and `PitchInTests`. Phone: `PhoneDishesTests`, `PhoneDishEditorTests`, and the unpinned tests of the phone classes above | The real minute and the real day |
+| Not pinned, and not reading anything by day | `FirstRunTests`, `HouseholdTests`, `SyncSettingsTests`, `PhoneSetupTests`, `PhotoFrameTests`, `ScrollingTests` | The real clock, but nothing they assert moves with it; `FirstRunTests` reads the simulator's real calendar and stays as it is |
+
+The hosted screens in the unit tests seed the same sample around the real time (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`); they assert where things sit and not what day it is, and the samples now take the time as a parameter, so they can be pinned the same way.
 
 ### Infrastructure failures
 
@@ -343,10 +369,84 @@ Each kind seen is listed here with what the scripts now do about it, so the next
 |---|---|---|---|
 | "The test runner crashed while preparing to run tests: PorchlightUITests-Runner at -[XCTWaiter(StallHandling) handleStalledWait:]", then "UI phone: 0/1 passed, 1 failed" | November 20, 2026, and November 21 (run 44909007366, Phone UI 1 of 3), the first class of the same phone shard both times; on the 21st the Mac's free memory fell from 63% to 19% and swap began just before | The test runner died before any test started, on a Mac short of memory | `scripts/test.sh` runs the suite once more when the log says the runner failed to start and holds no "Test Case ... started" line (`scripts/lib/runner-start.sh`), keeping the first log as `<suite>-never-started.log`. A second time fails saying "The test runner crashed before any test started, twice". A runner that dies after a test has started is never run again by this |
 | "Truncated tar archive" in "Unpack the build" | November 21, 2026 (run 44900372201, Wall smoke), while the other jobs of the run unpacked the same build | One download of the build arrived cut short and was reported as a success | The download is checked against the build job's size and SHA-256 and fetched again up to twice (`scripts/ci/unpack-build.sh`); then it fails saying "The build's download was corrupted" |
-| "The operation was canceled" in "Boot the ipad", and nothing else | November 20, 2026, twice, in jobs that had also built on the same Mac, with free memory near its lowest; November 21 (run 44926520830, Wall smoke), in a job that had not built, after the settle experiment's launch took 406 seconds and swap began | A boot step that stalled on a Mac short of memory until the job was cancelled from outside, with no word of where. The third shows it does not need a build on the same Mac, as the first two were thought to; what the three share is the 13-inch iPad simulator's first minutes on a 7 GB Mac, with memory falling | Each stage of the boot has its own limit (`scripts/ci/boot-simulator.sh`, `scripts/lib/stage.sh`): booting, 540 seconds, and the first uninstall answering, 150. A stage that stalls is named, the simulator is shut down, erased and booted once more, and a second stall fails the job saying "The ipad simulator stalled twice, first at ... and then at ...". The step's own 25 minute limit is only the backstop |
+| "The operation was canceled" in "Boot the ipad", and nothing else | Five jobs and one measurement: November 20, 2026, twice, in jobs that had also built on the same Mac; November 21, in run 44926520830 (Wall smoke, during the settle experiment), run 44944065349 (Unit and Wall UI 1 of 2, 10 minutes 44 seconds into the step), run 44949978616 (Wall smoke, 8 minutes 32 seconds in) and the measurement run 44949978636 (12 minutes 15 seconds in, still booting). About one iPad job in five that evening | A new simulator's first boot renders every wallpaper at once, which takes a 7 GB Mac to an eighth of its memory free and into swap, and the job is cancelled from outside while it is there. "What a new simulator's first boot costs", below, has the measurements, and what is and is not known about who cancels | The hosted Macs do not start the simulator's wallpaper daemon (`PORCHLIGHT_SIM_DISABLED_DAEMONS: com.apple.PosterBoard` in the workflow, written to the simulator's launchd disabled list before it boots by `scripts/lib/simulators.sh`). Each stage of the boot has its own limit (`scripts/ci/boot-simulator.sh`, `scripts/lib/stage.sh`): booting, 600 seconds, and the first uninstall answering, 420. A stage that stalls fails the job naming it, "The ipad simulator stalled at ...", and is not tried again; only a boot that fails outright, with an error, is erased and booted once more. The step's own 25 minute limit is only the backstop |
 | "Failed to launch", "Failed to get launch progress", "does not have a process ID", "Failed to terminate", with no crash report | Several runs a day on the hosted Macs | XCTest could not start, or quit, the app for one test | That test runs once more on its own, and the summary says "passed on a second launch" (`scripts/lib/launch_retry.py`); any other failure stands |
 
 `zsh scripts/ci/check-runner-start.sh`, `zsh scripts/ci/check-unpack-build.sh` and `zsh scripts/ci/check-boot-simulator.sh` check the first three rules against sample logs, a stand-in download and a stand-in simulator, and run with every build.
+
+#### What a new simulator's first boot costs
+
+Measured on November 21, 2026, after the fourth cancelled boot, with a job that does nothing but boot (`measure_boots` in the workflow, run by hand): each boot on a new hosted Mac with nothing else running, long limits so that nothing is tried again, and the free memory, the swap, the load and the five largest processes said every 15 seconds through the boot and for three minutes after.
+
+**What happens.**
+Every boot goes the same way.
+SpringBoard comes up, and then PosterBoard, the daemon behind the wallpapers, starts a dozen and more wallpaper extensions at once (the Mercury, Gradient, Pride, Unity, Rhizome, Aegir, Emoji, Photos, Weather and Kaleidoscope posters), each holding 150 to 350 MB and often two of each.
+Free memory falls from about 65% to between 12% and 24%, swap reaches 0.4 to 1.8 GB, and the load average on these three cores passes 400 and has reached 947.
+Then a wave of widget extensions (News, Fitness, Wallet, Health), and memory comes back to between 62% and 70% free.
+It lasts five to eight minutes from the start of the boot.
+`simctl bootstatus` sometimes answers before the trough (93 to 185 seconds) and sometimes after it (512 seconds), which is why "ready for installs" sometimes stalls and sometimes does not, and why the first class of a job sometimes starts in the middle of it.
+
+**It is not the iPad's model** (run 44949978636, three boots of each).
+
+| Model | Boot, s | Ready for installs, s | Lowest free memory | Most swap | |
+|---|---|---|---|---|---|
+| iPad Pro 13-inch (M5) 16GB, the wall's | 512, 111, 185 | 20, 49, 25 | 56%, 20%, 13% | 1,234 MB, 414 MB, 532 MB | |
+| iPad Pro 13-inch (M5) 12GB | 241, 123, none | 60, 249, none | 56%, 24%, 12% | 0, 1,030 MB, 1,428 MB | The third was cancelled by GitHub, still booting |
+| iPad Air 13-inch (M4) | 141, 363, 112 | 219, 52, 57 | 15%, 17%, 32% | 1,786 MB, 1,062 MB, 0 | |
+| iPad Air 11-inch (M4) | 93, 125, 132 | 134, 34, 43 | 16%, 19%, 53% | 833 MB, 1,317 MB, 0 | |
+
+A smaller iPad falls as far as the wall's own, so the wall's tests stay on the 13-inch iPad Pro.
+
+**It is the wallpaper daemon** (run 44954533328, three boots of the wall's iPad each way).
+A simulator's launchd reads a list of daemons it is not to start, `disabled.plist` in `/private/var/tmp/com.apple.CoreSimulator.SimDevice.<udid>/`, as it starts, so a label written there before the boot never launches.
+WebKit's own test harness does this for its simulators ([`simulated_device.py`](https://github.com/WebKit/WebKit/blob/main/Tools/Scripts/webkitpy/xcode/simulated_device.py), [`simulator_daemons.py`](https://github.com/WebKit/WebKit/blob/main/Tools/Scripts/webkitpy/xcode/simulator_daemons.py)), with a far longer list than ours and without PosterBoard in it.
+
+| Not started | Boot, s | Ready for installs, s | Lowest free memory | Most swap |
+|---|---|---|---|---|
+| Nothing: as it was | 206, 244, 128 | 6, 9, 51 | 64%, 53%, 42% | 0, 0, 0 |
+| `com.apple.chronod`, `com.apple.liveactivitiesd` (the widgets) | 94, 179, 453 | 8, 197, 9 | 50%, 13%, 23% | 1,180 MB, 1,616 MB, 1,195 MB |
+| `com.apple.PosterBoard` (the wallpapers) | 83, 139, 96 | 68, 51, 37 | 52%, 59%, 53% | 0, 0, 0 |
+| All three | 174, 175, 165 | 24, 5, 19 | 54%, 56%, 56% | 0, 0, 0 |
+
+Over both runs, of the 18 boots that started PosterBoard, 10 fell to 24% free or lower, 11 swapped and one was cancelled; of the 6 that did not start it, none fell below 52% and none swapped.
+Leaving out the widget daemons alone changed nothing, and the app has widgets, so they stay.
+Without PosterBoard the simulator's wallpaper is black and everything else is as before: the home screen, its widgets, Settings.
+So the hosted Macs do not start it, and a development Mac, which has the memory, is unchanged.
+
+**The limits of this.**
+Six boots is a small number; the memory was sampled every 15 seconds, and on a starved Mac a sample has taken minutes to arrive, so a trough can fall between two of them; the three boots "as it was" in the second run had ended their three minutes before any deep trough, which the first run shows can come later.
+What follows is to keep counting: boots, lowest free memory and cancellations in the full runs after the change.
+
+**The second try was the wrong answer.**
+In run 44944065349 the boot was done in 208 seconds, "ready for installs" stalled at its 150, and the simulator was shut down to be erased and booted again; the job was cancelled 61 seconds later.
+The heartbeat that reads 21% free and 1.4 GB of swap is stamped 20:23:40, in the middle of the first wait, and reached the log four minutes late: the Mac was already in the trough before anything was tried again.
+Erasing a simulator there makes it do all of its first-boot work again on the same Mac, and the measurements show the Mac comes back by itself when left alone.
+So a stall is no longer tried again; the limit for "ready for installs" went from 150 to 420 seconds, above the 249 it has been seen to take, and for booting from 540 to 600.
+
+**Who cancels, and what is documented.**
+Not known, and what follows is a correlation only: all five cancellations fell in the trough, between eight and a half and twelve and a quarter minutes into the step, with heartbeats arriving minutes late.
+In each, the runner was alive afterwards and ran the steps marked `always()`, so the job was cancelled on a living runner, which is not the "hosted runner lost communication with the server" case.
+- GitHub documents the standard macOS runner as a virtual machine with 3 cores and 7 GB, and the next size up as 5 cores and 14 GB ([GitHub-hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners), [larger runners](https://docs.github.com/en/actions/reference/runners/larger-runners)).
+  Nothing there says what happens when a job runs the machine out of memory, or that it produces "The operation was canceled".
+- The only text of GitHub's own that ties a starved machine to a job ending is the annotation for a lost runner, which lists starving it of processor or memory among three possible causes ([actions/runner#2040](https://github.com/actions/runner/issues/2040)).
+- [actions/runner-images#13263](https://github.com/actions/runner-images/issues/13263), "Error: The operation was canceled.", on these macOS images among others, was closed without a cause: its maintainer found no fault in the image and wrote "something happens on the service layer as it seems" and "Something sends cancellation signal."
+  One case there was the repository's own concurrency group cancelling the job; ours is not that, since a run by hand is in a group of its own and was cancelled the same way.
+- [actions/runner#2468](https://github.com/actions/runner/issues/2468), still open, has people reporting the same message when a Linux job ran out of memory, and no answer from GitHub on the cause.
+
+If another job is cancelled this way, run it again once with `gh run rerun <run> --job <job> --debug`: the runner's diagnostic log then says what it was told.
+Do not provoke one for the purpose.
+
+**Counting since the change.**
+
+| Run | Wallpaper daemon | Simulators booted | Lowest free memory in a boot step | Cancelled boots | The runner crashing before any test, or "I'm new here" losing its keys |
+|---|---|---|---|---|---|
+| 44956641573, November 21, the full suite, before recipes | Not started | 5 (2 iPads in 139 and 171 s, 3 iPhones in 135 to 251 s) | 59% in a boot step; 45% in any test step, where the wall's shares had gone to 18% and 29% the run before | 0 | Neither, and no test needed a second launch |
+| 44963685565, November 22, the full suite with recipes | Not started | 5 (2 iPads in 169 and 216 s, 3 iPhones in 175 to 235 s) | 62% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the week grid on the real clock in a Sunday's first hour ("Flaky tests") |
+| 44967355168, November 22, the full suite with the two classes pinned | Not started | 5 (2 iPads in 187 and 193 s, 3 iPhones in 205 to 261 s) | 60% in a boot step; 42% in any test step | 0 | Neither, and no test needed a second launch. Green, in a Sunday's second hour |
+
+That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
+The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
+The one visible difference is in review shots taken on the home screen, the notification banners: their background is black on GitHub.
 
 **An experiment that was tried and taken out the same day, November 21, 2026: letting a fresh simulator settle.**
 The two runner crashes above, and the two lost-keys failures in "Known and not yet explained", all happened in the first test class of a job, minutes after its simulator booted.
@@ -471,11 +571,17 @@ What it shows:
 - **Fetching the build is small**: 6 to 77 seconds.
 - Over the five jobs that is about 50 minutes of Mac time outside the tests in a run whose tests take 96, and 7 to 10 minutes on the longest job.
 
-What could shorten it, none of it tried or decided:
+What was decided about it, November 21, 2026:
 
-- Fetch the build while the simulator boots, not after it: up to a minute a job, and no risk.
-- Fewer, longer jobs: four test jobs make four boots, and wait for fewer Macs, at the cost of a longer longest job (about 1,770 seconds of tests for two phone shares against 1,230 for three).
-- Keep a simulator that has already had its first boot from one run to the next, so a job starts one that is ready: the largest saving and the least certain, since a cached simulator is several gigabytes and may not survive a new Xcode.
+- **Done: the build is fetched while the simulator boots**, not after it (`scripts/ci/boot-and-fetch.sh`): up to a minute and a half a job.
+  The checksum check and the two further tries are as before, and each failure keeps its own words, so a download that cannot be put right reads "The build's download was corrupted" and a boot that stalled names its stage.
+- **Declined: four test jobs in place of five.**
+  One boot fewer, but a longer longest job and less room; with tiering live the queue is not what it was.
+- **Not available: keeping a booted simulator from one run to the next.**
+  Every job gets a fresh Mac.
+- **Being measured: a smaller iPad for the wall's simulator.**
+  The wall's jobs boot the 13-inch iPad Pro on a 7 GB Mac.
+  A run by hand can name another model (the workflow's "ipad" input) so its boot time and the tests' results can be compared before anything changes; the 13-inch stays the default, and stays what the local Mac uses.
 
 ### Where a slow test's time goes
 
@@ -750,7 +856,7 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
-| testChoosingThePorchView | 108 | Choice survives a relaunch, both ways, four launches | Keep as it is: the choice is kept in the simulator's defaults between tests, so the test has to end on Our photos again, and its second half is that. Its seconds are four launches of Settings and Ambient | 50 |  |
+| testChoosingThePorchView | 108 | Choice survives a relaunch, both ways, four launches | Keep. It no longer taps the choice back at its end: it starts from a new install's settings, checks the photos show, chooses the porch view, checks that after a relaunch, and the settings are forgotten afterwards, pass or fail (the hard rule "A test leaves the simulator as it found it") | 50 | done |
 | testRemovingSeveralPhotos | 52 | Select three, remove, counts | Keep | | |
 
 #### TimeFieldTests (135 s)
@@ -758,7 +864,7 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testTypingAMealTime | 43 | Pad not keyboard; then eight digit rules | Down for the digit rules (`TimeEntryTests`); keep open, type, Done | 15 | |
-| testNightHoursCrossMidnight | 63 | Suggestion sets; "next day"; then puts both back | Keep as it is, for the same reason: it puts both hours back because the next test would read them | 20 |  |
+| testNightHoursCrossMidnight | 63 | Suggestion sets; "next day"; then puts both back | Keep. It no longer sets both hours back at its end; they are forgotten afterwards, pass or fail (the hard rule "A test leaves the simulator as it found it") | 20 | done |
 | testARoutineWindow | 29 | A refused time is explained and can't be kept | Keep | | |
 
 #### PitchInTests (128 s)
@@ -835,6 +941,7 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | `PocketFoodScreenTests` | Hosted whole screen | The diary on this week, last week and an empty week, in four looks: fits across, says which week | The same test; its shots are `food-week-<n>-<look>.png` |
 | `HandwritingTests` | Core Text ink bounds | Every handwritten title's ink inside its `Text`'s box, at every Dynamic Type size and the wall's sizes, with and without the Chinese and Japanese companion | None: no UI test can see ink |
 | `HandCompanionTests` | Pure functions and a fake font download | Which companion face a reader gets, its weights and line heights against Caveat's, and a download that fails or arrives late | None needed: `PhoneFoodTests` shows a diary with titles drawn |
+| `SampleClockTests` | The real database in memory, the sample seeded at a time handed in | What the sample household holds at the UI tests' pinned time, that nothing it logs is in the future, an empty week in a Sunday's first minutes, and the pancakes moving a day back at midnight | `DayAtAGlanceTests.testMomentsInTheWeek` and `TimeFieldTests.testTypingAMealTime`, which failed on those two edges on the real clock |
 | `RecipeLogicTests`, `RecipeBankTests` | Pure functions, clock pinned and swept | A pasted recipe's lines and steps, a link, grocery names without amounts, the bank's words, "Haven't made in a while" at the day's edge | `PhoneRecipesTests` and `WallRecipesTests`: the journeys only |
 | `RecipeDatabaseTests` | The real database in memory | Saving, joining a dish we cook, card photos, removing with Undo, what removing, merging and renaming a dish do to its recipe and planned dinners, what we cook suggested for a dinner | The same journeys |
 | `OlderBuildSyncTests` (recipes) | The fake iCloud, with older builds' tables | An older build keeps a recipe, its card photo and a dinner's dish, and an updated device brings them in | None: no UI test can run an older build |

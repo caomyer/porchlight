@@ -11,8 +11,10 @@ pick() {
   [[ -n "$found" ]] || { echo "No simulator model matches $1 in:" >&2; print -r -- "$types" >&2; return 1; }
   print -r -- "$found"
 }
-# The wall: a 13-inch iPad Pro, as on the local Mac.
-ipad=$(pick 'iPad-Pro-13-inch[^)]*')
+# The wall: a 13-inch iPad Pro, as on the local Mac, unless a run by hand names another
+# model to try (the workflow's "ipad" input, e.g. iPad-Air-11-inch[^)]*): for measuring
+# whether a smaller iPad boots faster on these Macs, never for the suite itself.
+ipad=$(pick "${PORCHLIGHT_CI_IPAD:-iPad-Pro-13-inch[^)]*}")
 # The phone: the local iPhone 15 if this Xcode still has it, else the plainest newer iPhone.
 iphone=$(pick 'iPhone-15' 2>/dev/null || pick 'iPhone-1[6-9]' || pick 'iPhone-[2-9][0-9]')
 echo "iPad: $ipad"

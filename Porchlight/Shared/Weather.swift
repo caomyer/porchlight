@@ -263,7 +263,7 @@ struct WeatherBadge: View {
 
     var body: some View {
         if let now = weather.now {
-            let today = weather.day(DayKey(.now, calendar: model.calendar))
+            let today = weather.day(DayKey(CompanionClock.now(), calendar: model.calendar))
             HStack(spacing: 10) {
                 Image(systemName: WeatherCondition.symbol(now.code, isDay: now.isDay))
                     .symbolRenderingMode(.multicolor)

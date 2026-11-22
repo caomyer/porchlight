@@ -173,7 +173,7 @@ struct CaptureSheet: View {
         .ignoresSafeArea(lowFieldFocused ? [] : .keyboard)
         .animation(.easeOut(duration: 0.25), value: lowFieldFocused)
         .onAppear {
-            if form == nil { form = CaptureForm(request: request, store: store, now: .now) }
+            if form == nil { form = CaptureForm(request: request, store: store, now: CompanionClock.now()) }
             if let previewSaved { saved = previewSaved }
             #if DEBUG
             // `-debugCaptureShots N` adds N generated photos as if the shutter took them.
@@ -264,7 +264,7 @@ struct CaptureSheet: View {
         guard !isSaving, form.savingPhotos == 0 else { return }
         isSaving = true
         defer { isSaving = false }
-        let now = Date.now
+        let now = CompanionClock.now()
         do {
             let entry = try store.addMeal(form.draft(now: now, calendar: store.calendar, today: store.today(now)), photos: form.newPhotos)
             error = nil
@@ -372,7 +372,7 @@ private struct CaptureFormView: View {
             // The time rides on the label line, so the meals get the row's full width.
             LogTimeField(
                 time: $form.time,
-                range: form.timeRange(now: .now),
+                range: form.timeRange(now: CompanionClock.now()),
                 suggestions: MealSlot.timeSuggestions(slot: form.slot, day: form.day, calendar: store.calendar),
                 accessibilityLabel: "Time eaten",
                 identifier: "time-eaten",

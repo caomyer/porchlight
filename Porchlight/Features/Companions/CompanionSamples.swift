@@ -5,12 +5,11 @@ import GRDB
 /// Sample companion for `-sampleHousehold`: Yo-Yo, a toy poodle walked twice a day.
 /// Dates are relative to now so screenshots always look lived-in.
 enum CompanionSamples {
-    static func seed(_ database: AppDatabase, household: Household, people: [Person]) throws {
+    static func seed(_ database: AppDatabase, household: Household, people: [Person], now: Date = CompanionClock.now()) throws {
         let householdId = household.id
         let ids = people.map(\.id)
         guard !ids.isEmpty else { return }
         let calendar = household.calendar
-        let now = CompanionClock.now()
 
         // Restart ids on a fresh seed so `-startScreen companion-1` always works.
         try database.writer.write { db in

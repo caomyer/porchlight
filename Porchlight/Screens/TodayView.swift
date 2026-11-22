@@ -12,12 +12,13 @@ struct TodayView: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
             let calendar = model.calendar
-            let day = DayKey(context.date, calendar: calendar)
+            let now = CompanionClock.at(context.date)
+            let day = DayKey(now, calendar: calendar)
             VStack(alignment: .leading, spacing: 16) {
-                header(now: context.date)
+                header(now: now)
                 HStack(alignment: .top, spacing: 16) {
                     TodayAgenda(
-                        now: context.date,
+                        now: now,
                         allDay: calendarStore.allDayItems(for: day),
                         items: (calendarStore.timelineItems(for: day)
                             + companions.timelineItems(for: day)
