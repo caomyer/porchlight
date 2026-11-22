@@ -812,7 +812,7 @@ Unfrozen on November 21, when the dish editor landed.
 #### PhoneSharedCalendarTests (new)
 
 Added with the shared calendar on November 22, 2026 (docs/design/calendar-shared.md); its looks are hosted (`PocketSharedCalendarScreenTests`).
-The clock is pinned to today at 8 in the morning.
+The clock is pinned to `UITestClock`'s Wednesday at 8 in the morning; the branch had pinned today's date at that hour, which left the day of the week real, and with tomorrow's and the day after's events in its sample a Friday or a Saturday would have put them in next week.
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
@@ -942,7 +942,7 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | WallTourTests.testHandwritingOnDayPage | 32 | Strokes, Done | Keep (gesture) | | |
 | WallTourTests.testSheetsWithTheKeyboardUp | 44 | Two sheets' fields above the keyboard | Keep (keyboard) | | |
 | WallTourTests.testScreens | 0 | Screenshots only | Not in the suite; `--tour` | | |
-| WallSharedCalendarTests.testAnotherDevicesCalendarsOnTheWall | | Another device's quiet block on the week, its meetings on tap with where they come from, one shared event with both faces, the stale line | Keep; merging, quiet blocks and freshness are `SharedCalendarViewTests`; the clock pinned to 8 in the morning | | |
+| WallSharedCalendarTests.testAnotherDevicesCalendarsOnTheWall | | Another device's quiet block on the week, its meetings on tap with where they come from, one shared event with both faces, the stale line | Keep; merging, quiet blocks and freshness are `SharedCalendarViewTests`; the clock pinned to `UITestClock`'s Wednesday at 8 in the morning, so the stale line reads "updated Monday" | | |
 | WallSharedCalendarTests.testJustMeLeavesTheHousehold | | A calendar set to Just me leaves what the wall passes on (Sync details counts one fewer) | Keep; what each choice passes on is `CalendarPassOnTests`, and removal for everyone is `SharedCalendarSyncTests` | | |
 | WallTourTests.testRecipeScreens | 0 | Screenshots only: the bank with a long name, the empty bank, the kitchen view at its top and scrolled, the editor with a card, planning, "What we cook", the week's dinners marked 📖 | Not in the suite; `--tour` | | |
 | WallRecipesTests.testAddingARecipeToADishWeCook | 24 | A recipe typed for a dish we cook joins it, with its history | Keep | | |
