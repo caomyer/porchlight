@@ -122,6 +122,20 @@ expect "a runner that never started a test" "$work/preparing.log" kept
 # good run look like one that lost a test.
 printf '◇ Suite "Sync v1 migration" started.\n◇ Test "Rows move" started.\n\xe2\x80\x8b✔ Test "Rows move" passed after 0.300 seconds.\n\xe2\x80\x8b✔ Suite "Sync v1 migration" passed after 0.396 seconds.\n' > "$work/stray.log"
 expect "a result line with a stray character before it" "$work/stray.log" kept
+
+# As on November 22, 2026, in a run that passed: another process's line landed in the middle
+# of a test's result, so the test has a start and no result that can be read. xcodebuild
+# finished the run and nothing was started again, so nothing was lost.
+cat > "$work/cut.log" <<'EOF'
+◇ Suite "Devices" started.
+◇ Test "Every write path stamps this device's row on what it adds" started.
+✔ Test "Every write path stamps this device's objc[20310]: Class UIAccessibilityLoaderWebShared is implemented in both places.
+row on what it adds" passed after 0.211 seconds.
+✔ Suite "Devices" passed after 0.300 seconds.
+✔ Test run with 739 tests in 121 suites passed after 300.000 seconds.
+** TEST EXECUTE SUCCEEDED **
+EOF
+expect "a result line cut in two by another line, in a run xcodebuild finished" "$work/cut.log" kept
 expect "no log at all" "$work/missing.log" kept
 
 (( failures == 0 )) || { echo "$failures checks of the lost process rule failed"; exit 1; }
