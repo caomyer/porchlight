@@ -44,10 +44,6 @@ on:
         description: "For a measurement only: launchd labels the simulators are not to start, space separated, or \"none\" to start everything; empty is com.apple.PosterBoard, as every run has it"
         required: false
         default: ""
-      crash_a_unit_test:
-        description: "For a check of the harness only: \"yes\" runs the unit tests with one that kills the test process, and is green only if the run is reported as failed"
-        required: false
-        default: ""
       measure_boots:
         description: "For a measurement only: \"yes\" runs no test, and boots the wall's iPad twelve times, each on a Mac of its own, with and without its wallpaper and widget daemons, saying the memory every 15 seconds"
         required: false
@@ -80,7 +76,7 @@ env:
 jobs:
   build:
     name: Build
-    if: ${{ !inputs.only && !inputs.measure_boots && !inputs.crash_a_unit_test }}
+    if: ${{ !inputs.only && !inputs.measure_boots }}
     runs-on: xcode-27
     timeout-minutes: 40
     # What the packed build is, for the test jobs to check their download against.
@@ -183,16 +179,45 @@ jobs:
 
       - name: Collect results
         if: always()
+        continue-on-error: true
         run: zsh scripts/ci/collect-results.sh "${{ job.status }}"
 
+      # The tests' own step decides the job. GitHub's artifact service has timed out on a
+      # job whose tests had all passed ("Failed to CreateArtifact ... Request timeout"), and
+      # that must not turn the job red: the upload is tried again after a minute, and if it
+      # still fails the job says so, as a warning and in its summary, and keeps its verdict.
       - name: Upload results
+        id: upload
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.name }}
           path: results
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Wait a minute before uploading again
+        if: always() && steps.upload.outcome == 'failure'
+        run: sleep 60
+
+      - name: Upload results again
+        id: upload_again
+        if: always() && steps.upload.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.name }}
+          path: results
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true
+
+      - name: Say so if the results could not be uploaded
+        if: always() && steps.upload.outcome == 'failure' && steps.upload_again.outcome == 'failure'
+        run: |
+          echo "::warning title=Results not uploaded::The results of ${{ matrix.name }} could not be uploaded, twice. The tests' verdict stands; their logs and screenshots are not attached to this run."
+          echo "**The results of this job were not uploaded** (GitHub's artifact service failed twice). The tests' verdict stands; there are no logs or screenshots to download for it." >> "$GITHUB_STEP_SUMMARY"
 
   # A push to a working branch: the unit tests and the smoke set, each on its own Mac.
   smoke:
@@ -235,10 +260,17 @@ jobs:
 
       - name: Collect results
         if: always()
+        continue-on-error: true
         run: zsh scripts/ci/collect-results.sh "${{ job.status }}"
 
+      # The tests' own step decides the job. GitHub's artifact service has timed out on a
+      # job whose tests had all passed ("Failed to CreateArtifact ... Request timeout"), and
+      # that must not turn the job red: the upload is tried again after a minute, and if it
+      # still fails the job says so, as a warning and in its summary, and keeps its verdict.
       - name: Upload results
+        id: upload
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.name }}
@@ -246,9 +278,31 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Wait a minute before uploading again
+        if: always() && steps.upload.outcome == 'failure'
+        run: sleep 60
+
+      - name: Upload results again
+        id: upload_again
+        if: always() && steps.upload.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.name }}
+          path: results
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true
+
+      - name: Say so if the results could not be uploaded
+        if: always() && steps.upload.outcome == 'failure' && steps.upload_again.outcome == 'failure'
+        run: |
+          echo "::warning title=Results not uploaded::The results of ${{ matrix.name }} could not be uploaded, twice. The tests' verdict stands; their logs and screenshots are not attached to this run."
+          echo "**The results of this job were not uploaded** (GitHub's artifact service failed twice). The tests' verdict stands; there are no logs or screenshots to download for it." >> "$GITHUB_STEP_SUMMARY"
+
   chosen:
     name: Chosen tests
-    if: ${{ inputs.only && !inputs.measure_boots && !inputs.crash_a_unit_test }}
+    if: ${{ inputs.only && !inputs.measure_boots }}
     runs-on: xcode-27
     timeout-minutes: 120
     steps:
@@ -274,10 +328,17 @@ jobs:
 
       - name: Collect results
         if: always()
+        continue-on-error: true
         run: zsh scripts/ci/collect-results.sh "${{ job.status }}"
 
+      # The tests' own step decides the job. GitHub's artifact service has timed out on a
+      # job whose tests had all passed ("Failed to CreateArtifact ... Request timeout"), and
+      # that must not turn the job red: the upload is tried again after a minute, and if it
+      # still fails the job says so, as a warning and in its summary, and keeps its verdict.
       - name: Upload results
+        id: upload
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: results-Chosen
@@ -285,48 +346,27 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # A check of the harness, run by hand: the unit tests with one test that kills the test
-  # process partway (PorchlightTests/Shared/HarnessCrashTests.swift). The job is green only
-  # if scripts/test.sh fails the run and says the process was lost; a run that is called a
-  # pass with its process gone turns this red (docs/design/testing.md, "A run that loses
-  # its process fails").
-  crashed:
-    name: A unit run that loses its process fails
-    if: ${{ inputs.crash_a_unit_test == 'yes' }}
-    runs-on: xcode-27
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
+      - name: Wait a minute before uploading again
+        if: always() && steps.upload.outcome == 'failure'
+        run: sleep 60
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Restore the Swift packages
-        uses: actions/cache/restore@v4
+      - name: Upload results again
+        id: upload_again
+        if: always() && steps.upload.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.PACKAGES }}
-          key: spm-${{ hashFiles('project.yml') }}
+          name: results-Chosen
+          path: results
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true
 
-      - name: Pick the simulators
-        run: zsh scripts/ci/pick-simulators.sh
-
-      - name: The unit tests, with one that kills the process
-        env:
-          TEST_RUNNER_PORCHLIGHT_CRASH_A_UNIT_TEST: "1"
+      - name: Say so if the results could not be uploaded
+        if: always() && steps.upload.outcome == 'failure' && steps.upload_again.outcome == 'failure'
         run: |
-          status=0
-          zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh --unit-only --progress --runtime "$RUNTIME" > run.log 2>&1 || status=$?
-          grep -E "^Unit|^\[unit\].*(HarnessCrash|harness)|TEST EXECUTE|Took:" run.log || true
-          if (( status == 0 )); then
-            echo "::error::The unit run lost its process and was reported as a pass."
-            exit 1
-          fi
-          if ! grep -q "Unit: the test process was lost" run.log; then
-            echo "::error::The unit run failed, but not saying that its process was lost."
-            tail -40 run.log
-            exit 1
-          fi
-          echo "The run failed with status $status and said its process was lost, as it must."
+          echo "::warning title=Results not uploaded::The results of the chosen tests could not be uploaded, twice. The tests' verdict stands; their logs and screenshots are not attached to this run."
+          echo "**The results of this job were not uploaded** (GitHub's artifact service failed twice). The tests' verdict stands; there are no logs or screenshots to download for it." >> "$GITHUB_STEP_SUMMARY"
 
   # A measurement, never part of a push: what booting the wall's iPad costs a hosted Mac,
   # which has 7 GB, and what it costs when the simulator is told not to start the daemons

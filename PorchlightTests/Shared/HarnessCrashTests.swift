@@ -7,13 +7,13 @@ import Testing
 /// It is here to check the harness, not the app: a unit run whose process dies partway
 /// must be reported as failed (docs/design/testing.md, the hard rule "A run that loses its
 /// process fails"). On November 22, 2026 a hosted screen that lacked a store crashed the
-/// process in the middle of the suite and the run's summary still said it had passed.
+/// process in the middle of the suite, and a private script that read only xcodebuild's
+/// last summary line called the run passed; scripts/test.sh did not, and this is how to
+/// see that it still does not:
 ///
 ///   TEST_RUNNER_PORCHLIGHT_CRASH_A_UNIT_TEST=1 zsh scripts/test.sh --unit-only
 ///
-/// must end with "Unit: ... the test process was lost" and a failing status; the workflow's
-/// `crash_a_unit_test` input does the same on a hosted Mac and fails if the run is called
-/// green.
+/// must end with "Unit: the test process was lost" and a failing status.
 @Suite("The harness: a unit test that crashes the process when asked")
 struct HarnessCrashTests {
     @Test("Crashes the test process when PORCHLIGHT_CRASH_A_UNIT_TEST is 1, and passes otherwise")

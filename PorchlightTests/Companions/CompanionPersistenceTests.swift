@@ -408,7 +408,9 @@ struct CompanionPersistenceTests {
         let routines = try db.writer.read { db in try CareRoutine.order(Column("sortOrder")).fetchAll(db) }
         #expect(routines[0].recurrence == .everyNDays(3))
         // Last watered long ago, so it's overdue: it starts again today rather than hiding until its next turn.
-        #expect(routines[0].anchorDay == DayKey(CompanionClock.now(), calendar: Calendar(identifier: .gregorian).withZone("UTC")).rawValue)
+        // The migration runs once on a real device and anchors on the real day it runs, in
+        // UTC: it is a stamp, not a screen's idea of today, so it is not on the pinned clock.
+        #expect(routines[0].anchorDay == DayKey(.now, calendar: Calendar(identifier: .gregorian).withZone("UTC")).rawValue)
         #expect(routines[1].recurrence == .daily)
         #expect(routines[1].anchorDay == "2026-01-03", "A daily routine starts on its first log")
     }
