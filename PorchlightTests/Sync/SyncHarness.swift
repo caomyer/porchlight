@@ -72,7 +72,7 @@ final class SyncHarness {
         try database.saveThisDevice(
             ThisDevice(name: "Hallway iPad", role: .sharedScreen, model: "iPad", personId: nil, userName: "owner"), in: household.id
         )
-        let today = DayKey(.now, calendar: household.calendar)
+        let today = DayKey(CompanionClock.now(), calendar: household.calendar)
 
         var yoyo = CompanionDraft.new(species: .dog)
         yoyo.name = "Yo-Yo"
@@ -81,7 +81,7 @@ final class SyncHarness {
         let walk = try #require(try database.writer.read { db in
             try CareRoutine.filter(Column("companionId") == companionId).fetchOne(db)
         })
-        _ = try database.logCare(routineId: walk.id, CareLogDraft(people: people, occurredAt: .now, vibe: .smooth))
+        _ = try database.logCare(routineId: walk.id, CareLogDraft(people: people, occurredAt: CompanionClock.now(), vibe: .smooth))
 
         let chore = try database.saveChore(
             ChoreDraft(title: "Dishes", emoji: "🍽️", ownerId: people[0], recurrence: .daily, anchorDay: today, timeHint: nil, stars: 1),
@@ -114,13 +114,13 @@ final class SyncHarness {
         )
         try database.passOnCalendars(
             plan, householdId: household.id, trigger: .open,
-            window: CalendarPassOn.window(today: today, calendar: household.calendar), now: .now
+            window: CalendarPassOn.window(today: today, calendar: household.calendar), now: CompanionClock.now()
         )
 
         let journal = try database.ensureFoodJournal(householdId: household.id)
         var dinner = MealDraft(
             day: today, slot: MealSlot.defaultNames[2], sources: MealSources([.dineOut, .company]), title: "Sushi", emoji: "🍣",
-            eaterIds: people, eatenAt: .now, place: PlaceDraft(name: "Sakura Sushi Bar")
+            eaterIds: people, eatenAt: CompanionClock.now(), place: PlaceDraft(name: "Sakura Sushi Bar")
         )
         dinner.dishes = [DishLineDraft(name: "Salmon nigiri", rating: .again)]
         let meal = try database.addMeal(dinner, journalId: journal.id, photos: [try MealPhotoImaging.prepare(Self.image())])

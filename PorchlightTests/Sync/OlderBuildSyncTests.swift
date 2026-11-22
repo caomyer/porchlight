@@ -410,7 +410,7 @@ private final class Phone {
         try database.markSetupCompleted(householdId: household.id)
         let people = try database.snapshot().people.map(\.id)
         let journal = try database.ensureFoodJournal(householdId: household.id)
-        var draft = MealDraft(day: DayKey(rawValue: "2026-11-02"), slot: "Dinner", eaterIds: people, eatenAt: .now)
+        var draft = MealDraft(day: DayKey(rawValue: "2026-11-02"), slot: "Dinner", eaterIds: people, eatenAt: CompanionClock.now())
         draft.dishes = [DishLineDraft(name: "Chicken curry", rating: .again)]
         _ = try database.addMeal(draft, journalId: journal.id)
         let saved = try database.saveRecipe(
@@ -431,8 +431,8 @@ private final class Phone {
         let people = try database.snapshot().people.map(\.id)
         let journal = try database.ensureFoodJournal(householdId: household.id)
         var draft = MealDraft(
-            day: DayKey(.now, calendar: household.calendar), slot: "Dinner", sources: MealSources(.dineOut),
-            eaterIds: people, eatenAt: .now, place: PlaceDraft(name: "Pho Saigon House")
+            day: DayKey(CompanionClock.now(), calendar: household.calendar), slot: "Dinner", sources: MealSources(.dineOut),
+            eaterIds: people, eatenAt: CompanionClock.now(), place: PlaceDraft(name: "Pho Saigon House")
         )
         draft.dishes = [DishLineDraft(name: "Pho tai", rating: .favorite), DishLineDraft(name: "Spring rolls", rating: .again)]
         let meal = try database.addMeal(draft, journalId: journal.id)

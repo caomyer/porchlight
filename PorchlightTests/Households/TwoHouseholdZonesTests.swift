@@ -27,11 +27,11 @@ struct TwoHouseholdZonesTests {
         let rosaPeople: [Person] = try await harness.database.writer.read { db in try Person.active(in: rosas.id).fetchAll(db) }
         let rosa = rosaPeople[0]
         let theirs = try harness.database.saveChore(
-            ChoreDraft(title: "Water the tomatoes", emoji: nil, ownerId: rosa.id, recurrence: .daily, anchorDay: DayKey(.now, calendar: rosas.calendar), timeHint: nil, stars: 1),
+            ChoreDraft(title: "Water the tomatoes", emoji: nil, ownerId: rosa.id, recurrence: .daily, anchorDay: DayKey(CompanionClock.now(), calendar: rosas.calendar), timeHint: nil, stars: 1),
             householdId: rosas.id
         )
         let ours = try harness.database.saveChore(
-            ChoreDraft(title: "Dishes", emoji: nil, ownerId: nil, recurrence: .daily, anchorDay: DayKey(.now, calendar: lake.calendar), timeHint: nil, stars: 1),
+            ChoreDraft(title: "Dishes", emoji: nil, ownerId: nil, recurrence: .daily, anchorDay: DayKey(CompanionClock.now(), calendar: lake.calendar), timeHint: nil, stars: 1),
             householdId: lake.id
         )
         let rows: [[String]] = try await harness.database.writer.read { db in

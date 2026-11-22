@@ -137,7 +137,7 @@ struct SyncUnsentTests {
         controller.setEnabled(false)
         await controller.settle()
         let routine = try #require(try await harness.database.writer.read { db in try CareRoutine.fetchOne(db) })
-        _ = try harness.database.logCare(routineId: routine.id, CareLogDraft(people: try harness.database.snapshot().people.map(\.id), occurredAt: .now))
+        _ = try harness.database.logCare(routineId: routine.id, CareLogDraft(people: try harness.database.snapshot().people.map(\.id), occurredAt: CompanionClock.now()))
         try await harness.database.writer.write { db in
             try db.execute(sql: "DELETE FROM sqlitedata_icloud_pendingRecordZoneChanges")
         }

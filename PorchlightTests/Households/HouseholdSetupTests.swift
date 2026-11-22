@@ -193,10 +193,10 @@ struct HouseholdStorageTests {
         #expect(StorageWords.size(0) == "nothing yet")
 
         let photo = NewMealPhoto(id: .new(), image: Data(count: 50_000), thumbnail: Data(count: 4_000), crop: nil)
-        let meal = MealDraft(day: DayKey(.now, calendar: household.calendar), slot: "Lunch", eaterIds: [mia], eatenAt: .now)
+        let meal = MealDraft(day: DayKey(CompanionClock.now(), calendar: household.calendar), slot: "Lunch", eaterIds: [mia], eatenAt: CompanionClock.now())
         try db.addMeal(meal, journalId: journal.id, photos: [photo])
         try db.writer.write { db in
-            try JournalPage(journalId: journal.id, day: DayKey(.now, calendar: household.calendar), drawing: Data(count: 7_000), updatedAt: .now).insert(db)
+            try JournalPage(journalId: journal.id, day: DayKey(CompanionClock.now(), calendar: household.calendar), drawing: Data(count: 7_000), updatedAt: .now).insert(db)
         }
 
         let thisPhone = db.thisDeviceId(in: household.id)

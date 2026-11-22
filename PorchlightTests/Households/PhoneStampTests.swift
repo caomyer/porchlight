@@ -18,7 +18,12 @@ struct PhoneStampTests {
         try db.rememberCurrentHousehold()
         let mia = try #require(try db.snapshot().people.last).id
         let calendar = household.calendar
-        let today = DayKey(.now, calendar: calendar)
+        // The stores' own clock, which is pinned while the app hosts the unit tests: a day
+        // or a time taken from the real clock here would be four days and some hours away
+        // from the stores' today, and whether the walk below counted then depended on the
+        // hour the suite ran (it failed at 1:32 pm UTC and passed at 5 am Pacific).
+        let now = CompanionClock.now()
+        let today = DayKey(now, calendar: calendar)
         var yoyo = CompanionDraft.new(species: .dog)
         yoyo.name = "Yo-Yo"
         let companionId = try db.saveCompanion(yoyo, householdId: household.id)
@@ -33,7 +38,7 @@ struct PhoneStampTests {
         let home = HomeStore(database: db)
         home.ensureDefaultLists()
         let walk = try #require(companions.snapshot.routines(of: companionId).first { $0.kind == .walk })
-        let draft = CareLogDraft(people: [mia], occurredAt: .now, durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil)
+        let draft = CareLogDraft(people: [mia], occurredAt: now, durationMinutes: nil, pee: nil, poo: nil, vibe: nil, note: nil)
 
         // Today's one tap (by slot) and the care sheet's full log.
         let morning = calendar.date(byAdding: .hour, value: 8, to: today.startDate(in: calendar))!
@@ -48,7 +53,7 @@ struct PhoneStampTests {
         let list = try #require(try db.writer.read { try HomeList.fetchOne($0) })
         #expect(home.addItem("Basil", to: list, addedBy: mia))
         _ = try FoodStore(database: db).addMeal(MealDraft(
-            day: today, slot: MealSlot.defaultNames[1], sources: MealSources(.home), title: "Pho", emoji: nil, eaterIds: [mia], eatenAt: .now, place: nil
+            day: today, slot: MealSlot.defaultNames[1], sources: MealSources(.home), title: "Pho", emoji: nil, eaterIds: [mia], eatenAt: now, place: nil
         ))
 
         let stamp = db.thisDeviceId(in: household.id).description
@@ -78,7 +83,7 @@ struct PhoneStampTests {
         DeviceSettings.store(me: mia, in: household.id, defaults: defaults)
 
         let calendar = household.calendar
-        let today = DayKey(.now, calendar: calendar)
+        let today = DayKey(CompanionClock.now(), calendar: calendar)
         let evening = calendar.date(byAdding: .hour, value: 18, to: today.startDate(in: calendar))!
         let confirmation = await ReminderActions.logSlot(routine: walk.id, slot: 1, day: today, database: db, defaults: defaults, now: evening)
         #expect(confirmation?.title == "Logged: evening walk")
