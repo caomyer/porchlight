@@ -120,9 +120,40 @@ struct FreeTogetherLogicTests {
         let evening2 = Self.event("Dinner", "2026-11-22 15:00", "2026-11-22 21:30", owner: .everyone)
         let sunday = time("2026-11-22", [morning, evening2])
         #expect(sunday?.everyoneFrom == Self.at("2026-11-22 12:00"))
-        #expect(sunday.flatMap { words.headline($0, asked: 2) } == "Everyone free after noon")
+        #expect(sunday.flatMap { words.headline($0, asked: 2) } == "Everyone free 12:00 to 3:00\u{202F}PM", "a stretch with something after it says when it ends")
         let late = Self.event("Brunch", "2026-11-22 09:00", "2026-11-22 14:00", owner: .everyone)
         #expect(time("2026-11-22", [late]).flatMap { words.headline($0, asked: 2) } == "Everyone free from 2:00\u{202F}PM")
+    }
+
+    @Test("A free stretch says when it ends when something follows it; after noon and all day only when nothing does")
+    func stretchEnds() {
+        let lunch = Self.event("Lunch out", "2026-11-21 13:00", "2026-11-21 14:00", owner: .person(Self.sam.id))
+        let tacos = Self.event("Taco night", "2026-11-21 18:00", "2026-11-21 21:30", owner: .everyone)
+        #expect(time("2026-11-21", [lunch, tacos]).flatMap { words.headline($0, asked: 2) } == "Everyone free until 1:00\u{202F}PM")
+        let morning = Self.event("Soccer", "2026-11-21 09:00", "2026-11-21 12:00", owner: .everyone)
+        #expect(time("2026-11-21", [morning]).flatMap { words.headline($0, asked: 2) } == "Everyone free after noon")
+        #expect(time("2026-11-21", [morning, tacos]).flatMap { words.headline($0, asked: 2) } == "Everyone free 12:00 to 6:00\u{202F}PM")
+        // An evening: until the first thing, or from the last.
+        let late = Self.event("Late call", "2026-11-19 19:30", "2026-11-19 21:30", owner: .person(Self.alex.id))
+        #expect(time("2026-11-19", [late]).flatMap { words.headline($0, asked: 2) } == "Everyone free until 7:30\u{202F}PM")
+        let swim = Self.event("Swim", "2026-11-19 19:30", "2026-11-19 21:30", owner: .person(Self.sam.id))
+        let found = time("2026-11-19", [swim], people: [Self.sam.id])
+        #expect(found.flatMap { words.headline($0, asked: 1) } == "Free until 7:30\u{202F}PM")
+    }
+
+    @Test("No one free, each for something different: Everyone busy, then each; one plan for everyone is the plan")
+    func everyoneBusy() {
+        let swim = Self.event("Swim", "2026-11-19 17:30", "2026-11-19 21:30", owner: .person(Self.alex.id))
+        let club = Self.event("Book club", "2026-11-19 17:30", "2026-11-19 21:00", owner: .person(Self.sam.id))
+        let found = time("2026-11-19", [swim, club])
+        #expect(found.flatMap { words.summary($0, asked: 2) } == "Everyone busy")
+        #expect(found.map { words.busyLines($0, people: [Self.alex, Self.sam], household: 2).map(\.listed) }
+            == ["Alex: Swim, 5:30 to 9:30\u{202F}PM", "Sam: Book club, 5:30 to 9:00\u{202F}PM"])
+        let movie = Self.event("Movie night", "2026-11-19 19:00", "2026-11-19 20:30", owner: .everyone)
+        let together = time("2026-11-19", [movie])
+        #expect(together.flatMap { words.summary($0, asked: 2) } == nil)
+        let line = together.map { words.busyLines($0, people: [Self.alex, Self.sam], household: 2) }?.first
+        #expect(line?.title == "Movie night" && line?.detail == "Everyone, 7:00 to 8:30\u{202F}PM")
     }
 
     @Test("Events across midnight and across a whole weekend are busy wherever they reach")
@@ -188,11 +219,11 @@ struct FreeTogetherLogicTests {
         club.calendarId = "alex-calendar"
         let evening = time("2026-11-19", [club])
         #expect(evening?.free[Self.alex.id] == Self.at("2026-11-19 17:30") && evening?.free[Self.sam.id] == nil)
-        #expect(evening.map { words.busyLines($0, people: [Self.alex, Self.sam], household: 2).map(\.sentence) } == ["Sam out: Book club, 7:00 to 9:00\u{202F}PM"])
+        #expect(evening.map { words.busyLines($0, people: [Self.alex, Self.sam], household: 2).map(\.sentence) } == ["Sam busy: Book club, 7:00 to 9:00\u{202F}PM"])
         // A party for everyone keeps everyone out, said once.
         let party = Self.event("Grandma's 80th", "2026-11-20 18:00", "2026-11-20 21:00", owner: .everyone)
         let friday = time("2026-11-20", [party])
-        #expect(friday.map { words.busyLines($0, people: [Self.alex, Self.sam], household: 2).map(\.sentence) } == ["Everyone out: Grandma's 80th, 6:00 to 9:00\u{202F}PM"])
+        #expect(friday.map { words.busyLines($0, people: [Self.alex, Self.sam], household: 2).map(\.sentence) } == ["Grandma's 80th: Everyone, 6:00 to 9:00\u{202F}PM"])
         // The same event on both calendars (one with the other's face) keeps both out.
         let shared = Self.event("Movie", "2026-11-23 18:00", "2026-11-23 21:00", owner: .person(Self.alex.id), also: [.person(Self.sam.id)])
         #expect(time("2026-11-23", [shared])?.free.isEmpty == true)
@@ -218,7 +249,7 @@ struct FreeTogetherLogicTests {
         #expect(alexOnly.flatMap { words.headline($0, asked: 1) } == "Free from 5:30\u{202F}PM")
         let samOnly = time("2026-11-19", [swim], people: [Self.sam.id])
         #expect(samOnly.flatMap { words.headline($0, asked: 1) } == nil)
-        #expect(samOnly.map { words.busyLines($0, people: [Self.alex, Self.sam], household: 2).map(\.sentence) } == ["Sam out: Swim, 5:30 to 8:00\u{202F}PM"])
+        #expect(samOnly.map { words.busyLines($0, people: [Self.alex, Self.sam], household: 2).map(\.sentence) } == ["Sam busy: Swim, 5:30 to 8:00\u{202F}PM"])
         #expect(time("2026-11-21", [], people: [Self.alex.id]).flatMap { words.headline($0, asked: 1) } == "Free all day")
     }
 
@@ -231,7 +262,7 @@ struct FreeTogetherLogicTests {
         #expect(FreeWords.names(kids, people: people, household: 4) == "Everyone")
         let games = Self.event("Game night", "2026-11-19 18:00", "2026-11-19 21:00", owner: .person(kids[1]), also: [.person(kids[2])])
         let found = time("2026-11-19", [games], people: kids)
-        #expect(found.map { words.busyLines($0, people: people, household: 4).map(\.sentence) } == ["Ben and Cy out: Game night, 6:00 to 9:00\u{202F}PM"])
+        #expect(found.map { words.busyLines($0, people: people, household: 4).map(\.sentence) } == ["Ben and Cy busy: Game night, 6:00 to 9:00\u{202F}PM"])
     }
 
     @Test("Ranges say the period once, across noon twice, and 24-hour phones use 24 hours")

@@ -69,9 +69,9 @@ struct PocketFreeTogetherScreenTests {
         #expect(page.offSides.isEmpty, "nothing runs off either side (\(look)): \(page.offSides.map { "\($0.label.prefix(30)) \($0.frame.integral)" })")
         func row(_ day: String) -> String? { page.elements.first { $0.label.hasPrefix(day) }?.label }
         #expect(row("Tonight")?.contains("Everyone free from 5:30") == true, "tonight:\n\(page.listing)")
-        #expect(row("Evening, Thursday 19")?.contains("James out: Book club, 7:00 to 9:00") == true, "the book club:\n\(page.listing)")
+        #expect(row("Evening, Thursday 19")?.contains("James busy: Book club, 7:00 to 9:00") == true, "the book club:\n\(page.listing)")
         #expect(row("Evening, Thursday 19")?.contains("Mia free from 7:30") == true, "and who is free, after her ballet recital")
-        #expect(row("Evening, Friday 20")?.contains("Everyone out: Grandma's 80th") == true)
+        #expect(row("Evening, Friday 20")?.contains("Grandma's 80th: Everyone, 6:00 to 9:00") == true)
         #expect(row("Weekend, Saturday 21")?.contains("Everyone free after noon") == true)
         #expect(row("Weekend, Saturday 28")?.contains("All day: Aunt Rosa visiting") == true)
         #expect(page.elements.contains { $0.label == "Free together" && $0.isButton }, "the way back and forth")

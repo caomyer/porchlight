@@ -55,13 +55,14 @@ private struct PocketFreeRow: View {
         let headline = words.headline(time, asked: asked.count)
         let busy = words.busyLines(time, people: store.people, household: store.people.count)
         let free = words.freeLines(time, people: asked)
+        let summary = words.summary(time, asked: asked.count)
         let content = HStack(alignment: .center, spacing: 10) {
             let layout = typeSize.isAccessibilitySize
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
                 : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 10))
             layout {
                 day.frame(width: typeSize.isAccessibilitySize ? nil : dayColumn, alignment: .leading)
-                answer(headline: headline, busy: busy, free: free)
+                answer(headline: headline, summary: summary, busy: busy, free: free)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             if time.everyoneFrom != nil {
@@ -102,7 +103,7 @@ private struct PocketFreeRow: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func answer(headline: String?, busy: [FreeWords.Line], free: [String]) -> some View {
+    private func answer(headline: String?, summary: String?, busy: [FreeWords.Line], free: [String]) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             if let headline {
                 Text(headline)
@@ -111,6 +112,12 @@ private struct PocketFreeRow: View {
                 if time.everyoneAllWindow && time.allDay.isEmpty {
                     detail("Nothing planned")
                 }
+            } else if let summary {
+                // Each busy with something different: say so, then list each.
+                Text(summary)
+                    .phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
+                    .foregroundStyle(Theme.ink)
+                ForEach(Array(busy.enumerated()), id: \.offset) { _, line in detail(line.listed) }
             } else {
                 ForEach(Array(busy.enumerated()), id: \.offset) { _, line in
                     Text(line.title)
@@ -140,7 +147,8 @@ private struct PocketFreeRow: View {
     /// "Evening, Thursday 19. Sam out: Book club, 7:00 to 9:00 PM. Alex free from 5:30 PM."
     private func spoken(headline: String?, busy: [FreeWords.Line], free: [String]) -> String {
         let day = "\(FreeWords.kindLabel(time)), \(EventText.format(time.day.startDate(in: words.calendar), words.calendar, "EEEEd"))"
-        let parts = [day] + (headline.map { [$0] } ?? busy.map(\.sentence) + free) + time.allDay.map { "All day: \($0)" }
+        let summary = words.summary(time, asked: asked.count).map { [$0] } ?? []
+        let parts = [day] + (headline.map { [$0] } ?? summary + busy.map(\.sentence) + free) + time.allDay.map { "All day: \($0)" }
         return parts.joined(separator: ". ")
     }
 }

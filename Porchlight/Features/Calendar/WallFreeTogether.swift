@@ -61,6 +61,15 @@ private struct WallFreeCell: View {
                 Text(headline)
                     .font(.body(13.5, weight: 800))
                     .foregroundStyle(Theme.goodInk)
+            } else if let summary = words.summary(time, asked: people.count) {
+                Text(summary)
+                    .font(.body(13, weight: 700))
+                    .foregroundStyle(Theme.ink)
+                ForEach(Array(busy.prefix(2).enumerated()), id: \.offset) { _, line in
+                    Text(line.listed)
+                        .font(.body(11.5, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                }
             } else {
                 ForEach(Array(busy.prefix(2).enumerated()), id: \.offset) { _, line in
                     Text(line.title)
@@ -99,6 +108,7 @@ private struct WallFreeCell: View {
     private func spoken(_ time: FreeTime, headline: String?, busy: [FreeWords.Line]) -> String {
         let day = "\(FreeWords.kindLabel(time)), \(words.dayLabel(time))"
         let free = words.freeLines(time, people: people)
-        return ([day] + (headline.map { [$0] } ?? busy.map(\.sentence) + free) + time.allDay.map { "All day: \($0)" }).joined(separator: ". ")
+        let summary = words.summary(time, asked: people.count).map { [$0] } ?? []
+        return ([day] + (headline.map { [$0] } ?? summary + busy.map(\.sentence) + free) + time.allDay.map { "All day: \($0)" }).joined(separator: ". ")
     }
 }

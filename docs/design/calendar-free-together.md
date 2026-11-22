@@ -11,9 +11,15 @@ A free Tuesday at 5 AM is not a free Friday evening, so time outside those windo
 
 One row for each, as the proposal's frame shows: "Tonight" (or "Today" on a weekend day) first, then "Evening" or "Weekend" with the day ("Thu 19").
 
-- **Everyone free from 5:30 PM**, in green, when everyone asked about is free for long enough; a weekend day says "Everyone free all day", "Everyone free after noon" or "Everyone free from 3:00 PM".
+- **Everyone free from 5:30 PM**, in green, when everyone asked about is free for long enough.
+  The words say when the free stretch is: "from 7:30 PM" when it runs to the window's end, "until 1:00 PM" when it starts as the window opens and something follows it, "2:00 to 6:00 PM" when it is in between; a weekend day open from noon to the end is "after noon", and one with nothing in it "all day".
+  If a day has two such stretches, the first is enough.
   "Nothing planned" under it when nothing at all is in the window.
-- Otherwise who isn't free and why, in plain words where it is known: "Sam out" over "Book club, 7:00 to 9:00 PM"; "Alex at work" over "Until 7:30 PM"; "Mia busy" over "6:00 to 8:00 PM" for a Busy only calendar; "Everyone out: Grandma's 80th" when it is the household's; then who is free, "Mia free from 7:30 PM".
+- Otherwise who isn't free and why, in plain words: an event says someone is busy, not where they are.
+  "Sam busy" over "Book club, 7:00 to 9:00 PM"; "Alex at work" over "Until 7:30 PM"; "Mia busy" over "6:00 to 8:00 PM" for a Busy only calendar.
+  The household's own event is a plan together and reads as the plan: "Movie night" over "Everyone, 7:00 to 8:30 PM".
+  When no one is free and each for something different, "Everyone busy", then each: "Alex: Swim, 5:30 to 9:30 PM", "Sam: Book club, 5:30 to 9:00 PM".
+  Then who is free, "Mia free from 7:30 PM".
 - The day's all-day events under the row, for context: "All day: Aunt Rosa visiting" (see "All-day events").
 
 With a person's chip picked it answers for that person alone ("Free from 5:30 PM"); "Everyone" is the household.

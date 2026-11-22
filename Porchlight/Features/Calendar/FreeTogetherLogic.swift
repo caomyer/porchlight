@@ -39,6 +39,8 @@ struct FreeTime: Identifiable, Equatable, Sendable {
         var end: Date
         /// Which event, so the same one for two people is said once.
         var eventId: String
+        /// The household's own event: a plan together, said as the plan ("Movie night").
+        var isHouseholds = false
     }
 
     var day: DayKey
@@ -50,8 +52,12 @@ struct FreeTime: Identifiable, Equatable, Sendable {
     var opens: Date
     /// Each free person's first free stretch's start; a person missing here isn't free.
     var free: [Person.ID: Date]
+    /// Where each of those stretches ends: the window's end, or what comes next.
+    var freeUntil: [Person.ID: Date] = [:]
     /// The first stretch free for everyone asked about, nil when there is none.
     var everyoneFrom: Date?
+    /// Where that stretch ends.
+    var everyoneUntil: Date?
     /// Everyone asked about is free for the whole window.
     var everyoneAllWindow: Bool
     /// Why each person who isn't free isn't, grouped when it is one event.
@@ -96,8 +102,12 @@ enum FreeTogetherLogic {
                 busyByPerson[person] = merged(inWindow.filter { isFor($0, person: person) }.map { clip($0, to: window) })
             }
             var free: [Person.ID: Date] = [:]
+            var freeUntil: [Person.ID: Date] = [:]
             for person in people {
-                if let stretch = firstStretch(window, busy: busyByPerson[person] ?? [], need: need) { free[person] = stretch.start }
+                if let stretch = firstStretch(window, busy: busyByPerson[person] ?? [], need: need) {
+                    free[person] = stretch.start
+                    freeUntil[person] = stretch.end
+                }
             }
             let everyone = merged(people.flatMap { busyByPerson[$0] ?? [] })
             let shared = firstStretch(window, busy: everyone, need: need)
@@ -109,7 +119,10 @@ enum FreeTogetherLogic {
                 if let index = busy.firstIndex(where: { $0.eventId == main.id }) {
                     busy[index].people.append(person)
                 } else {
-                    busy.append(FreeTime.Busy(people: [person], reason: reason(main), start: main.start, end: main.end, eventId: main.id))
+                    busy.append(FreeTime.Busy(
+                        people: [person], reason: reason(main), start: main.start, end: main.end, eventId: main.id,
+                        isHouseholds: main.owners.contains(.everyone)
+                    ))
                 }
             }
 
@@ -120,7 +133,7 @@ enum FreeTogetherLogic {
 
             result.append(FreeTime(
                 day: day, kind: kind, isToday: offset == 0, window: window, opens: opens,
-                free: free, everyoneFrom: shared?.start, everyoneAllWindow: everyone.isEmpty,
+                free: free, freeUntil: freeUntil, everyoneFrom: shared?.start, everyoneUntil: shared?.end, everyoneAllWindow: everyone.isEmpty,
                 busy: busy, allDay: titles
             ))
         }
@@ -209,20 +222,32 @@ struct FreeWords {
     func headline(_ time: FreeTime, asked: Int) -> String? {
         guard let from = time.everyoneFrom else { return nil }
         let who = asked > 1 ? "Everyone free" : "Free"
-        if time.kind == .weekend {
-            if time.everyoneAllWindow && time.window.start == time.opens { return "\(who) all day" }
-            let noon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: from) ?? from
-            let minutes = from.timeIntervalSince(noon) / 60
-            if minutes >= 0 && minutes <= Double(windows.afterNoonWithin) { return "\(who) after noon" }
-        }
-        return "\(who) from \(clock(from))"
+        if time.kind == .weekend && time.everyoneAllWindow && time.window.start == time.opens { return "\(who) all day" }
+        return "\(who) \(when(from, time.everyoneUntil ?? time.window.end, in: time))"
     }
 
-    /// Why someone isn't free, as a row shows it ("Sam out" over "Book club, 7:00 to 9:00 PM")
-    /// and as it is read out in one sentence.
+    /// When a free stretch is: "from 7:30 PM" to the window's end ("after noon" on a weekend
+    /// day), "until 1:00 PM" from its start, "2:00 to 6:00 PM" between.
+    func when(_ from: Date, _ until: Date, in time: FreeTime) -> String {
+        if until >= time.window.end {
+            if time.kind == .weekend {
+                let noon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: from) ?? from
+                let minutes = from.timeIntervalSince(noon) / 60
+                if minutes >= 0 && minutes <= Double(windows.afterNoonWithin) { return "after noon" }
+            }
+            return "from \(clock(from))"
+        }
+        if from <= time.window.start { return "until \(clock(until))" }
+        return range(from, until)
+    }
+
+    /// Why someone isn't free, as a row shows it ("Sam busy" over "Book club, 7:00 to 9:00 PM",
+    /// or the household's plan, "Movie night" over "Everyone, 7:00 to 8:30 PM"), as it is listed
+    /// under "Everyone busy" ("Sam: Book club, 7:00 to 9:00 PM"), and read out in one sentence.
     struct Line: Equatable, Sendable {
         var title: String
         var detail: String
+        var listed: String
         var sentence: String
     }
 
@@ -230,23 +255,36 @@ struct FreeWords {
     func busyLines(_ time: FreeTime, people: [Person], household: Int) -> [Line] {
         time.busy.map { busy in
             let names = Self.names(busy.people, people: people, household: household)
+            let when = range(busy.start, busy.end)
             switch busy.reason {
+            case let .event(title) where busy.isHouseholds:
+                let detail = "Everyone, \(when)"
+                return Line(title: title, detail: detail, listed: "\(title), \(when)", sentence: "\(title): \(detail)")
             case let .event(title):
-                let detail = "\(title), \(range(busy.start, busy.end))"
-                return Line(title: "\(names) out", detail: detail, sentence: "\(names) out: \(detail)")
+                let detail = "\(title), \(when)"
+                return Line(title: "\(names) busy", detail: detail, listed: "\(names): \(detail)", sentence: "\(names) busy: \(detail)")
             case .work:
-                return Line(title: "\(names) at work", detail: "Until \(clock(busy.end))", sentence: "\(names) at work until \(clock(busy.end))")
+                let until = "until \(clock(busy.end))"
+                return Line(title: "\(names) at work", detail: "Until \(clock(busy.end))", listed: "\(names) at work \(until)", sentence: "\(names) at work \(until)")
             case .busy:
-                let detail = range(busy.start, busy.end)
-                return Line(title: "\(names) busy", detail: detail, sentence: "\(names) busy, \(detail)")
+                return Line(title: "\(names) busy", detail: when, listed: "\(names): Busy, \(when)", sentence: "\(names) busy, \(when)")
             }
         }
     }
 
-    /// "Mia free from 6:00 PM", for those who are, when not everyone is.
+    /// "Everyone busy", when no one asked about is free and each for something different;
+    /// the lines are then listed under it.
+    func summary(_ time: FreeTime, asked: Int) -> String? {
+        guard asked > 1, time.free.isEmpty, time.busy.count > 1 else { return nil }
+        return "Everyone busy"
+    }
+
+    /// "Mia free from 7:30 PM", for those who are, when not everyone is.
     func freeLines(_ time: FreeTime, people: [Person]) -> [String] {
         guard time.everyoneFrom == nil else { return [] }
-        return people.compactMap { person in time.free[person.id].map { "\(person.name) free from \(clock($0))" } }
+        return people.compactMap { person in
+            time.free[person.id].map { "\(person.name) free \(when($0, time.freeUntil[person.id] ?? time.window.end, in: time))" }
+        }
     }
 
     /// "Sam", "Sam and Alex", or "Everyone" when it is the whole household.
