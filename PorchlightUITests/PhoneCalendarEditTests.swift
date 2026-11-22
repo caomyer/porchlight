@@ -12,11 +12,10 @@ final class PhoneCalendarEditTests: XCTestCase, PhoneTestHelpers {
         try XCTSkipIf(isPad, "The phone tests run on an iPhone")
     }
 
-    /// Today at 8 in the morning (hard rule 1).
-    private static var morning: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT08:00", parts.year!, parts.month!, parts.day!)
-    }
+    /// The pinned day (`UITestClock`, a Wednesday) at 8 in the morning. What is written goes
+    /// to the sample's calendars in memory, which keep the pinned clock too, so nothing here
+    /// reaches iOS on the real one (docs/design/testing.md, "A new feature and the clock").
+    private static var morning: String { UITestClock.at(8, 0) }
 
     private func launch(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication.porchlight()

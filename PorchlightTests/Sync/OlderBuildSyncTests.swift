@@ -666,9 +666,15 @@ struct SharedCalendarSyncTests {
         #expect(store.passOn(.open) == nil)
         #expect(try mia.count("SELECT COUNT(*) FROM calendarFeed") == 0)
         store.choicesSeen()
-        try await Task.sleep(for: .milliseconds(200))
-        let result = try #require(store.passOn(.open))
-        #expect(result.events == 4)
+        // The store hears that the choices were seen a moment later: ask until it has, for
+        // ten seconds at the most, instead of trusting that a fifth of a second is enough on
+        // a slow Mac.
+        var result: CalendarPassResult?
+        for _ in 0..<100 where result == nil {
+            result = store.passOn(.open)
+            if result == nil { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        #expect(try #require(result).events == 4)
     }
 
     @Test("A build from before the shared calendar keeps syncing everything else, can't remove a device that passed calendars on, and gets them on updating")

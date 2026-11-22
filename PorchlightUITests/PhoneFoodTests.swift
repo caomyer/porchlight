@@ -17,10 +17,9 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         super.tearDown()
     }
 
-    /// Today at 6:40 pm, so a snapped meal is guessed to be dinner.
+    /// The pinned day (`UITestClock`) at 6:40 pm, so a snapped meal is guessed to be dinner.
     private static var dinnerTime: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT18:40", parts.year!, parts.month!, parts.day!)
+        UITestClock.at(18, 40)
     }
 
     private func launch(_ arguments: [String] = [], household: [String] = ["-sampleHousehold"]) -> XCUIApplication {
@@ -139,9 +138,7 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(name.label.hasPrefix("Last week"), "Back lands on the week it left: \(name.label)")
 
         // A slot nobody filled thirteen days ago: snapped into, the meal stays in that week.
-        let thirteen = Calendar.current.date(byAdding: .day, value: -13, to: .now)!
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: thirteen)
-        let slot = app.buttons[String(format: "plate-%04d-%02d-%02d-Lunch", parts.year!, parts.month!, parts.day!)]
+        let slot = app.buttons["plate-\(UITestClock.day(-13))-Lunch"]
         reveal(slot, in: app)
         slot.tap()
         XCTAssertTrue(app.buttons["shutter"].waitForExistence(timeout: 5))

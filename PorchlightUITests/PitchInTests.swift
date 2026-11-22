@@ -60,11 +60,10 @@ final class PitchInTests: XCTestCase {
         XCTAssertEqual(app.buttons["Vacuum the living room"].value as? String, "Done")
     }
 
-    /// Today at 5:20 pm for `-debugCompanionNow`: the morning walk is done, and the evening
-    /// walk and dinner are open, whenever the suite runs.
+    /// The pinned day (`UITestClock`) at 5:20 pm for `-debugCompanionNow`: the morning walk is
+    /// done, and the evening walk and dinner are open, whenever the suite runs.
     private static var evening: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
+        UITestClock.at(17, 20)
     }
 
     /// Companion care is on the board: done care opens its log to fix, and care still to do

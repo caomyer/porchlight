@@ -16,6 +16,9 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         super.tearDown()
     }
 
+    /// Today's real date at 5:20 pm, and the one class that is not on `UITestClock`'s day:
+    /// its reminders are handed to iOS, which delivers them by the real clock, so a day in
+    /// the past could never ring. The time of day is fixed; the day of the week is real.
     private static var evening: String {
         let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
         return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)

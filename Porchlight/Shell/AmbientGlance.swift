@@ -8,7 +8,7 @@ struct AmbientGlance: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
             HStack(alignment: .bottom, spacing: 14) {
-                if let next = nextEvent(after: context.date) {
+                if let next = nextEvent(after: CompanionClock.at(context.date)) {
                     AmbientGlassCard {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(next.label.uppercased())

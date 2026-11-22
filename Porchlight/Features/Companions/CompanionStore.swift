@@ -136,24 +136,32 @@ struct CompanionSnapshot: Equatable, Sendable {
 
 /// "Now" for every screen's idea of what day and what time it is, for the sample household
 /// and for the phone's writes. DEBUG builds can pin it with the
-/// `-debugCompanionNow 2026-11-07T18:05` launch argument for screenshots and UI tests: a
-/// pinned clock stands still, so a test that starts at 11:59 pm does not see the day change
-/// under it, and one that starts on a Sunday does not find the week empty.
+/// `-debugCompanionNow 2026-11-07T18:05` launch argument for screenshots and UI tests, or
+/// with `PORCHLIGHT_NOW` in the environment, which the UI tests set for every launch and
+/// which the argument overrides: a pinned clock stands still, so a test that starts at
+/// 11:59 pm does not see the day change under it, and one that starts on a Sunday does not
+/// find the week empty.
 ///
 /// It is not for stamps: when a row was written, how long ago a device was seen, how long
 /// the wall has gone untouched. Those stay on the real clock, pinned or not.
 enum CompanionClock {
     static func now() -> Date { at(.now) }
 
+    #if DEBUG
+    /// Read once: neither a launch argument nor the environment changes while the app runs.
+    private static let pinned: Date? = {
+        guard let text = UserDefaults.standard.string(forKey: "debugCompanionNow") ?? ProcessInfo.processInfo.environment["PORCHLIGHT_NOW"] else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        return formatter.date(from: text)
+    }()
+    #endif
+
     /// The time a screen was handed (a `TimelineView`'s date), or the pinned time instead.
     static func at(_ date: Date) -> Date {
         #if DEBUG
-        if let text = UserDefaults.standard.string(forKey: "debugCompanionNow") {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-            if let pinned = formatter.date(from: text) { return pinned }
-        }
+        if let pinned { return pinned }
         #endif
         return date
     }
