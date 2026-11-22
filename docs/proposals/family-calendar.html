@@ -1,0 +1,533 @@
+<title>Family Calendar Proposal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Caveat:wght@600;700&display=swap">
+<style>/* Layout: a proposal in the style of food-diary-polish.html. Where the calendar is today, what rivals do, one idea (every phone brings its calendars), drawn phone and wall frames, the email question with costs, decisions, build plan. Frames keep the light look they are drawn in. */
+:root {
+  --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB;
+  --accent: #D9653B; --accent-soft: #F8DDD0; --good: #5B9F72; --good-soft: #E3EFE2; --warn: #B7791F; --warn-soft: #F6E7C8;
+  --blue: #4C7BB0; --coral: #DD7558; --ochre: #C2933A;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 1180px; margin: 0 auto; padding-block: 44px 90px; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(32px, 5.4vw, 50px); line-height: 1.08; text-wrap: balance; }
+h2 { font: 600 27px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 20px/1.25 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 5px; }
+a { color: var(--accent); }
+.eyebrow { font: 800 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 18px; max-width: 72ch; }
+.note { font-size: 14.5px; color: var(--muted); max-width: 80ch; }
+code { font: 500 .9em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface2); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+.index { display: flex; flex-wrap: wrap; gap: 6px; }
+.index a { text-decoration: none; background: var(--surface2); color: var(--ink); border-radius: 999px; padding: 7px 12px; font: 800 13px/1 var(--body); }
+.index a:hover { background: var(--accent-soft); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.tile b { font: 600 17px/1.3 var(--display); }
+.tile p, .tile li { font-size: 14.5px; color: var(--muted); }
+.tile.pick { box-shadow: inset 0 0 0 2px var(--good); }
+.rec { color: var(--good); font-weight: 800; font-size: 13px; }
+.not { color: var(--muted); font-weight: 800; font-size: 13px; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 920px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+th { font: 800 11.5px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 800; }
+tr.pick td:first-child { box-shadow: inset 4px 0 0 var(--good); }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.shots.wide { grid-template-columns: minmax(0, 1fr); }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; background: var(--surface); border-radius: 18px; padding: 12px; }
+figure img { width: 100%; height: auto; display: block; border-radius: 10px; }
+figcaption { font-size: 13.5px; line-height: 1.4; }
+figcaption b { display: block; font: 700 14px/1.3 var(--body); }
+figcaption span { color: var(--muted); }
+figure.pick { box-shadow: inset 0 0 0 2px var(--good); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .flow { grid-template-columns: minmax(0, 1fr); } }
+.step { background: var(--surface); border-radius: 18px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; border-top: 4px solid var(--line); }
+.step.s1 { border-top-color: var(--good); } .step.s2 { border-top-color: var(--ochre); } .step.s3 { border-top-color: var(--muted); }
+.step b { font: 600 18px/1.25 var(--display); }
+.step p, .step ul { font-size: 14px; color: var(--muted); }
+.step ul b { color: var(--ink); }
+.decisions { counter-reset: d; list-style: none; padding: 0; display: grid; gap: 10px; }
+.decisions li { background: var(--surface); border-radius: 16px; padding: 14px 16px 14px 56px; position: relative; font-size: 15px; }
+.decisions li::before { counter-increment: d; content: counter(d); position: absolute; left: 16px; top: 13px; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--surface); display: grid; place-items: center; font: 800 13px/1 var(--body); }
+.decisions li small { display: block; color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+
+/* Frames keep their own look */
+.board { display: flex; gap: 18px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; }
+.fr { flex: none; display: grid; gap: 10px; align-content: start; scroll-snap-align: start; margin: 0; background: none; padding: 0; }
+.fr .cap { font-size: 13.5px; line-height: 1.4; width: 286px; }
+.fr .cap b { display: block; font: 700 13.5px/1.3 var(--body); }
+.fr .cap span { color: var(--muted); }
+.sc { --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB; --accent: #D9653B; --accent-soft: #F8DDD0; --pol: #FFFDF8; color-scheme: light; }
+.sc.dark { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --pol: #EFE7DA; color-scheme: dark; }
+.ph { width: 397px; height: 834px; zoom: .72; background: #1d1a18; border-radius: 56px; padding: 11px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.sc { width: 375px; height: 812px; border-radius: 46px; background: var(--paper); color: var(--ink); overflow: hidden; position: relative; display: flex; flex-direction: column; font-family: var(--body); line-height: 1.3; }
+.notch { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; background: #1d1a18; border-radius: 20px; z-index: 9; }
+.status { height: 54px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 8px 34px 0; font: 700 15px/1 var(--body); }
+.status i { font-style: normal; letter-spacing: 1px; font-size: 11px; }
+.pb { flex: 1; overflow: hidden; padding: 4px 16px 16px; display: grid; gap: 12px; align-content: start; position: relative; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phead small { display: block; font: 700 12.5px/1.2 var(--body); color: var(--muted); }
+.phead b { font: 600 28px/1.15 var(--display); }
+.av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); background: var(--blue); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface2); border-radius: 12px; padding: 3px; }
+.seg span { text-align: center; font: 700 13px/1 var(--body); padding: 8px 4px; border-radius: 9px; color: var(--muted); }
+.seg span.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.card { background: var(--surface); border-radius: 20px; padding: 12px 10px; display: grid; gap: 8px; box-shadow: 0 1px 2px rgba(60,40,20,.06); }
+.pager { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; }
+.pager .cv { width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; font: 800 16px/1 var(--body); color: var(--ink); justify-self: center; }
+.pager .cv.gone { visibility: hidden; }
+.pager .lbl { text-align: center; display: grid; gap: 2px; }
+.pager .lbl b { font: 600 17px/1.2 var(--display); }
+.pager .lbl a { font: 800 12px/1.2 var(--body); color: var(--accent); text-decoration: none; }
+.grid7 { display: grid; grid-template-columns: 34px repeat(7, 1fr); gap: 5px; align-items: center; font: 700 10.5px/1 var(--body); color: var(--muted); text-align: center; }
+.mini { aspect-ratio: 1; border-radius: 6px; display: grid; place-items: center; font-size: 15px; line-height: 1; position: relative; }
+.mini.empty { border: 1.5px dashed var(--line); }
+.mini i { position: absolute; right: -3px; bottom: -3px; background: var(--ink); color: var(--surface); font: 800 8px/1 var(--body); font-style: normal; padding: 2px 3px; border-radius: 6px; }
+.t1 { background: #F3D9BE; } .t2 { background: #DCEBD8; } .t3 { background: #F6E1A8; } .t4 { background: #E6E0F0; } .t5 { background: #F8D3C4; } .t6 { background: #D5E4EE; }
+.dch { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 4px 0; }
+.dch b { font: 600 17px/1.2 var(--display); }
+.dch span { font: 700 12px/1.2 var(--body); color: var(--muted); }
+.diary { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 8px 4px; }
+.diary + .diary { border-top: 1px solid var(--line); }
+.diary .art { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; font-size: 20px; }
+.diary b { font: 700 21px/1 var(--hand); }
+.diary small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin-top: 3px; }
+.empty-note { text-align: center; display: grid; gap: 6px; padding: 18px 12px; }
+.empty-note b { font: 600 18px/1.25 var(--display); }
+.empty-note span { font: 600 13.5px/1.4 var(--body); color: var(--muted); }
+.snapbtn { position: absolute; left: 16px; right: 16px; bottom: 96px; border-radius: 999px; background: var(--accent); color: #fff; font: 800 16px/1 var(--body); padding: 15px; text-align: center; z-index: 4; }
+.tabbar { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 10px 28px; background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar span { display: grid; justify-items: center; gap: 3px; font: 700 10.5px/1 var(--body); color: var(--muted); }
+.tabbar span.on { color: var(--accent); }
+.tabbar span i { font-style: normal; font-size: 20px; line-height: 1; filter: grayscale(1); opacity: .65; }
+.tabbar span.on i { filter: none; opacity: 1; }
+
+/* Calendar frames */
+.sc, .wsc { --green: #5B9F72; }
+.c-a { background: var(--blue); } .c-s { background: var(--coral); } .c-m { background: var(--ochre); } .c-l { background: var(--green); } .c-all { background: var(--muted); }
+.tabbar.five { grid-template-columns: repeat(5, 1fr); }
+.wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; }
+.wk div { display: grid; gap: 4px; justify-items: center; padding: 7px 0 6px; border-radius: 12px; font: 700 11px/1 var(--body); color: var(--muted); }
+.wk div b { font: 700 17px/1 var(--body); color: var(--ink); }
+.wk div.on { background: var(--ink); color: var(--surface); } .wk div.on b { color: var(--surface); }
+.wk div.dimd b { color: var(--muted); }
+.dots { display: flex; gap: 2px; height: 5px; } .dots i { width: 5px; height: 5px; border-radius: 50%; }
+.mo { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font: 700 13px/1 var(--body); }
+.mo span { padding: 6px 0 3px; display: grid; gap: 3px; justify-items: center; border-radius: 9px; }
+.mo span.h { font-size: 10.5px; color: var(--muted); } .mo span.o { color: var(--muted); opacity: .55; } .mo span.on { background: var(--ink); color: var(--surface); }
+.ev { display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; align-items: center; padding: 9px 4px; }
+.ev + .ev { border-top: 1px solid var(--line); }
+.ev .bar { align-self: stretch; border-radius: 3px; min-height: 34px; }
+.ev b { font: 700 15px/1.25 var(--body); } .ev small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin-top: 2px; }
+.ev .need { color: var(--accent); font-weight: 800; }
+.who { display: flex; padding-left: 6px; } .who .av { width: 24px; height: 24px; font-size: 10px; margin-left: -6px; box-shadow: 0 0 0 2px var(--surface); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; } .chip { font: 700 12px/1 var(--body); padding: 7px 10px; border-radius: 999px; background: var(--surface2); display: inline-flex; gap: 5px; align-items: center; } .chip.on { background: var(--ink); color: var(--surface); }
+.chip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dayh { font: 600 16px/1.2 var(--display); padding: 2px 4px 0; display: flex; justify-content: space-between; align-items: baseline; } .dayh span { font: 700 12px/1 var(--body); color: var(--muted); }
+.dim { position: absolute; inset: 0; background: rgba(20,14,10,.38); z-index: 4; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 28px 28px 0 0; padding: 18px 16px 30px; display: grid; gap: 11px; z-index: 5; }
+.sheet h4 { margin: 0; font: 600 21px/1.2 var(--display); }
+.sheet .sub { font: 600 12.5px/1.35 var(--body); color: var(--muted); }
+.row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 2px; font: 600 14px/1.3 var(--body); } .row + .row { border-top: 1px solid var(--line); }
+.row span { color: var(--muted); text-align: right; }
+.btn { border-radius: 999px; background: var(--accent); color: #fff; font: 800 15px/1 var(--body); padding: 14px; text-align: center; } .btn.quiet { background: var(--surface2); color: var(--ink); }
+.plus { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font: 700 22px/1 var(--body); }
+.found { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 10px 2px; align-items: start; } .found + .found { border-top: 1px solid var(--line); }
+.found .ck { width: 22px; height: 22px; border-radius: 7px; background: var(--good); color: #fff; display: grid; place-items: center; font: 800 13px/1 var(--body); }
+.found b { font: 700 14.5px/1.25 var(--body); } .found small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin: 2px 0 6px; }
+.mail { background: var(--surface2); border-radius: 14px; padding: 10px 12px; font: 600 12px/1.4 var(--body); color: var(--muted); } .mail b { display: block; color: var(--ink); font-size: 13px; }
+.banner { background: var(--surface); border-radius: 18px; padding: 12px 14px; display: grid; gap: 4px; box-shadow: 0 6px 20px rgba(40,25,10,.12); font: 600 13px/1.35 var(--body); } .banner b { font: 800 13px/1.2 var(--body); } .banner small { color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .04em; text-transform: uppercase; }
+/* Wall frame */
+.pad { width: 1136px; height: 858px; zoom: .56; background: #1d1a18; border-radius: 40px; padding: 12px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.wsc { --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB; --accent: #D9653B; --accent-soft: #F8DDD0; color-scheme: light;
+  width: 1112px; height: 834px; border-radius: 28px; background: var(--paper); color: var(--ink); overflow: hidden; display: grid; grid-template-columns: 84px 1fr; font-family: var(--body); line-height: 1.3; position: relative; }
+.rail { background: var(--surface); border-right: 1px solid var(--line); display: grid; align-content: start; justify-items: center; gap: 22px; padding-top: 26px; font-size: 26px; }
+.rail span { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; filter: grayscale(1); opacity: .6; } .rail span.on { background: var(--accent-soft); filter: none; opacity: 1; }
+.wsc { grid-template-rows: minmax(0, 1fr); }
+.wmain { padding: 22px 24px; display: grid; gap: 14px; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
+.we { min-height: 0; }
+.wtop { display: flex; justify-content: space-between; align-items: center; gap: 12px; } .wtop b { font: 600 34px/1.1 var(--display); }
+.wtop .chips .chip { font-size: 15px; padding: 10px 14px; }
+.wgrid { display: grid; grid-template-columns: 54px repeat(7, 1fr); grid-template-rows: 40px 34px repeat(22, minmax(0, 1fr)); background: var(--surface); border-radius: 20px; overflow: hidden; min-height: 0; }
+.wgrid > .dh { font: 700 14px/1 var(--body); color: var(--muted); display: grid; place-items: center; border-bottom: 1px solid var(--line); } .wgrid > .dh b { color: var(--ink); font-size: 17px; margin-left: 5px; } .wgrid > .dh.on b { background: var(--ink); color: var(--surface); border-radius: 999px; padding: 4px 8px; }
+.wgrid > .hr { font: 700 11.5px/1 var(--body); color: var(--muted); text-align: right; padding: 0 8px; transform: translateY(-6px); }
+.wgrid > .ln { grid-column: 2 / -1; border-top: 1px solid var(--line); }
+.wgrid > .col { border-left: 1px solid var(--line); grid-row: 1 / -1; }
+.we { margin: 1px 3px; border-radius: 9px; padding: 5px 8px; font: 700 13px/1.2 var(--body); color: #fff; overflow: hidden; z-index: 1; } .we small { display: block; font: 600 11px/1.2 var(--body); opacity: .9; }
+.we.ad { color: var(--ink); background: var(--surface2); } .we.busy { background: repeating-linear-gradient(135deg, #9db3cc, #9db3cc 6px, #8aa3c0 6px, #8aa3c0 12px); }
+.we.needs { background: var(--surface); color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.wlane { display: flex; gap: 10px; align-items: center; background: var(--accent-soft); border-radius: 16px; padding: 10px 14px; font: 700 15px/1.3 var(--body); } .wlane span { background: var(--surface); border-radius: 999px; padding: 7px 12px; }
+.fr .cap.w { width: 636px; }
+.src { font-size: 12.5px; color: var(--muted); }
+.we.work { background: var(--surface2); color: var(--muted); box-shadow: inset 3px 0 0 var(--blue); font-size: 12px; padding: 5px 6px 5px 9px; }
+.we.maybe { background: var(--surface); color: var(--ink); outline: 2px dashed var(--muted); outline-offset: -2px; }
+.free { display: grid; grid-template-columns: 58px 1fr; gap: 10px; align-items: center; padding: 9px 4px; } .free + .free { border-top: 1px solid var(--line); }
+.free .d { font: 700 12px/1.2 var(--body); color: var(--muted); } .free .d b { display: block; font: 700 15px/1.2 var(--body); color: var(--ink); }
+.free .v b { font: 700 14.5px/1.25 var(--body); } .free .v small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin-top: 2px; }
+.free.yes .v b { color: var(--good); }
+.new { display: inline-block; font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 4px 8px; vertical-align: middle; }
+</style>
+
+<div class="page">
+
+<header style="display:grid;gap:14px">
+  <div class="eyebrow">Porchlight · Proposal · Nov 22, 2026 · revision 3 · for James to approve before any code</div>
+  <h1>One family calendar, on the wall and in every pocket</h1>
+  <p class="lede">Today each device shows only the calendars set up on that device, nothing can be added in Porchlight, and the phone has no calendar view.
+  This proposes one shared family calendar: every phone brings the calendars it already has, the wall and the other phones show them together, anyone can add an event and it lands in their real calendar, and an email or a school flyer becomes events with one share.</p>
+  <p class="note"><span class="new">Revision 3</span> Scoped to an MVP. "Who's on it" is out of the MVP and parked while James thinks about it, so it is gone from the frames. The MVP is four things: see everyone's calendar, a Calendar tab on the phone, add and edit into your real calendar, and Free together. Everything else is listed as after.</p>
+  <p class="note">The frames are drawn in the app's own type, colors and words, with a sample household (Alex, Sam, Mia, Leo) and the real week of Thanksgiving 2026. Nothing in them is built.
+  Competitor facts and prices come from a web research pass on Nov 22, 2026; what could not be verified is listed at the end.</p>
+  <nav class="index" aria-label="Sections">
+    <a href="#today">Where we are</a><a href="#why">What it is for</a><a href="#rivals">Competitors</a><a href="#idea">The idea</a><a href="#phone">iPhone</a><a href="#wall">Wall</a><a href="#email">Email and flyers</a><a href="#mvp">The MVP</a><a href="#coord">Parked</a><a href="#cases">Hard cases</a><a href="#decisions">Decisions</a><a href="#plan">After the MVP</a><a href="#unverified">Not verified</a>
+  </nav>
+</header>
+
+<section id="today">
+  <div class="eyebrow">Where we are</div>
+  <h2>Each device sees its own calendars, and nobody can add anything</h2>
+  <div class="tiles">
+    <div class="tile"><b>Nothing about the calendar syncs</b><p>The wall shows the accounts added on the wall iPad. A phone shows the accounts on that phone. A family member on a second Apple ID reaches the wall only if their account is added on the iPad by hand.</p></div>
+    <div class="tile"><b>Read only, everywhere</b><p>Porchlight reads the device's calendars and never writes. No event can be created, changed or removed, on the wall or the phone.</p></div>
+    <div class="tile"><b>The phone has a card, not a calendar</b><p>"At home today" and "Next 7 days" on Today. No week or month, no event page (a tap leaves for Apple's Calendar), no reminders for events.</p></div>
+    <div class="tile"><b>"Who" is a whole calendar</b><p>A calendar belongs to one person or to "Both". One event can't be marked as being for a particular person.</p></div>
+  </div>
+  <p class="note">What is already good and stays: the wall's week, month and day views, person colors, "Busy only" and "Just me" choices, and reading through iOS, which means no Google sign-in inside Porchlight to expire.</p>
+</section>
+
+<section id="why">
+  <div class="eyebrow">What it is for</div>
+  <h2>A household calendar fails when someone doesn't look, or when one person carries it all</h2>
+  <p class="lede">The paying market is families with children under 18, with the purchase usually led by the mother. Skylight claims 1.7 million households and sells them chores, meal plans and school-email import at $79 a year on top of the screen. Couples without children are more numerous but have not shown they will pay. One design can serve both, because the core problems are shared.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Problem, in the household's words</th><th>Families with kids</th><th>Two adults</th><th>Evidence</th><th>What answers it here</th></tr>
+    <tr><td><b>"I carry the whole schedule and remind everyone"</b></td><td>The top problem</td><td>Milder: one partner quietly owns the social calendar</td><td>Strong</td><td>MVP: anyone adds in seconds, on the phone or the wall. After: sharing an email, and telling the other person</td></tr>
+    <tr><td><b>"Nobody looks at the calendar"</b></td><td>Yes</td><td>Yes: "you didn't tell me" meets "you didn't look"</td><td>Strong</td><td>MVP: the wall. A calendar you walk past needs no opening. Phone apps can't do this</td></tr>
+    <tr><td><b>"You said yes without checking"</b></td><td>Yes</td><td>Yes</td><td>Strong</td><td>MVP: both calendars in one place, so a clash is visible. After: a notice</td></tr>
+    <tr><td><b>"Who's taking her?"</b></td><td>Daily</td><td>Rare: who's home for the plumber</td><td>Strong for families</td><td>Parked. Not in the MVP</td></tr>
+    <tr><td><b>"It was in an email somewhere"</b></td><td>School, sports, clubs</td><td>Little</td><td>Some</td><td>After the MVP: share to Porchlight; events found on the phone</td></tr>
+    <tr><td><b>"When are we both free?"</b></td><td>Some</td><td>The top problem</td><td>Strong for couples</td><td>MVP: Free together, a view of evenings and weekends</td></tr>
+    <tr><td><b>"Your work meetings bury our plans"</b></td><td>Some</td><td>Yes, and hiding them as "Busy" feels rude between partners (26 of 30 in one study)</td><td>Strong on the need</td><td>MVP: work shown as one quiet block, "at work until 5:30"</td></tr>
+    <tr><td><b>"Dinner with the Lees, maybe?"</b></td><td>Some</td><td>Yes: plans are proposed through the calendar</td><td>One study</td><td>After the MVP: a maybe-plan either person can confirm</td></tr>
+  </table></div>
+  <p class="note">Evidence limits: Reddit could not be searched; the couples findings rest mainly on one interview study of 30 Google Calendar users plus reviews; company numbers are self-reported.</p>
+</section>
+
+<section id="rivals">
+  <div class="eyebrow">Competitors</div>
+  <h2>Everyone gathers calendars. The new fight is turning email and flyers into events, and it is always paid</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Product</th><th>Promise</th><th>Where events come from</th><th>Capture</th><th>Price</th><th>What users complain about</th></tr>
+    <tr><td><b>Skylight Calendar</b></td><td>One touchscreen that runs the family</td><td>Google and iCloud two-way; Outlook, Cozi, school feeds one-way; own events</td><td>Magic Import: forward an email or PDF, snap a flyer</td><td>Hardware up to $600; Plus about $79 a year gates Magic Import</td><td>iCloud sync stopping, sign-ins expiring, paying a subscription on hardware</td></tr>
+    <tr><td><b>Hearth Display</b></td><td>Kids' independence, routines beside the calendar</td><td>Google two-way, iCal, Outlook, school feeds</td><td>Text a photo to an assistant</td><td>$9 a month or $86 a year membership</td><td>Setup error loops, several Gmail accounts, price</td></tr>
+    <tr><td><b>Cozi</b></td><td>One free shared calendar and lists</td><td>Its own calendar; feeds in and out</td><td>AI import from email on the top plan</td><td>Free with ads; $39 and $79 a year</td><td>Free plan cut to about 30 days ahead, ads, dated look</td></tr>
+    <tr><td><b>Maple</b></td><td>The family's shared inbox</td><td>Its own calendar</td><td>Forward to a Maple address</td><td>Free with purchases</td><td>Forwarding breaks with Hide My Email</td></tr>
+    <tr><td><b>Echo Show 15 / 21</b></td><td>Kitchen hub, Alexa does the typing</td><td>Google, Microsoft, iCloud</td><td>Alexa+ reads forwarded email, flyers, photos; voice</td><td>Hardware; Alexa+ with Prime</td><td>Duplicate events, expired sign-ins</td></tr>
+    <tr><td><b>Apple and Google</b></td><td>Already on your phone, free</td><td>Family calendar comes with the family group</td><td>Mail and Gmail find events, but only for that one person</td><td>Free</td><td>Found events stay private, so the family never sees them</td></tr>
+    <tr><td><b>TimeTree, FamilyWall</b></td><td>Shared calendar app</td><td>Mostly their own calendars</td><td>None notable</td><td>About $45 a year</td><td>Ads, no real sync with Google</td></tr>
+  </table></div>
+  <div class="tiles">
+    <div class="tile"><b>Gathering is expected, and it is where they hurt</b><p>Every rival signs in to Google or iCloud itself, then fights expiring sign-ins, app passwords and duplicates. Reading through iOS, as we do, avoids that whole class.</p></div>
+    <div class="tile"><b>Capture is the 2026 selling point</b><p>Forward an email, snap a flyer. Skylight, Cozi and Hearth all charge about $79 a year for it.</p></div>
+    <div class="tile"><b>Wall products have weak phone apps</b><p>And phone apps have no wall. Nobody does both well.</p></div>
+    <div class="tile pick"><b>The gaps we can own</b><p>A calendar that never asks you to sign in again, because iOS does the syncing. A wall and a phone that are both good. Work shown quietly, not hidden. And a view of when everyone is free, which none of them has.</p></div>
+  </div>
+</section>
+
+<section id="idea">
+  <div class="eyebrow">The idea</div>
+  <h2>Every phone brings the calendars it already has</h2>
+  <p class="lede">Your work, Google and school calendars are already on your iPhone. Porchlight on each phone passes the ones you choose to the household. The wall and the other phones show one calendar. No account is ever added on the wall.</p>
+  <div class="flow">
+    <div class="step s1"><b>1 · Choose once</b><p>On each phone, every calendar gets one choice: <b>Show everything</b>, <b>Keep it quiet</b> (one soft block a day, for work), <b>Busy only</b> (times, no words) or <b>Just me</b> (never leaves the phone). And who it belongs to.</p></div>
+    <div class="step s1"><b>2 · The phone passes them on</b><p>Events from two weeks back to three months ahead go into the household's shared iCloud space, the same one chores and meals use. A second Apple ID works the same way.</p></div>
+    <div class="step s1"><b>3 · One calendar everywhere</b><p>The wall and every phone show the family's events together, colored by person. The same event arriving from two phones is shown once, with both faces.</p></div>
+  </div>
+  <div class="flow">
+    <div class="step s2"><b>Added anywhere, saved in your real calendar</b><p>The household picks one <b>home calendar</b>: a shared Google or iCloud calendar you already have, or a new one. An event added on a phone is written straight into it by iOS, with no Google sign-in in Porchlight, so it shows in Apple Calendar, on a watch, everywhere. Skylight and Hearth write back too.</p></div>
+    <div class="step s2"><b>Work, kept quiet</b><p>A work calendar becomes one soft block a day, "Alex at work until 5:30", with the meetings one tap away for the household. Your plans stay readable, and nothing reads as a secret.</p></div>
+    <div class="step s3"><b>Maybe <span class="new" style="background:var(--surface2);color:var(--muted)">After</span></b><p>An event can be a maybe: dashed, with a question mark. Either person confirms it or lets it go. Not in the MVP.</p></div>
+  </div>
+  <p class="note">Adding on the wall: if the home calendar's account is on the iPad, the wall writes it directly. If not, the event shows for everyone at once through Porchlight, and a phone writes it into the home calendar the next time it runs. In the MVP the wall adds only in the first case; the hand-off through a phone comes after.</p>
+</section>
+
+<section id="phone">
+  <div class="eyebrow">iPhone</div>
+  <h2>A Calendar tab: a week strip, the day's list, and the month one pull away</h2>
+  <div class="board">
+    <figure class="fr"><div class="ph"><div class="sc"><div class="notch"></div><div class="status"><span>9:41</span><i>●●● ▮</i></div>
+      <div class="pb">
+        <div class="phead"><div><small>November 2026</small><b>Calendar</b></div><div style="display:flex;gap:8px;align-items:center"><span class="plus">+</span><span class="av">A</span></div></div>
+        <div class="chips"><span class="chip on">Everyone</span><span class="chip"><i class="c-a"></i>Alex</span><span class="chip"><i class="c-s"></i>Sam</span><span class="chip"><i class="c-m"></i>Mia</span><span class="chip"><i class="c-l"></i>Leo</span></div>
+        <div class="card"><div class="wk">
+          <div>S<b>22</b><span class="dots"></span></div><div>M<b>23</b><span class="dots"><i class="c-l"></i></span></div><div class="on">T<b>24</b><span class="dots"><i class="c-s"></i><i class="c-a"></i><i class="c-m"></i></span></div><div>W<b>25</b><span class="dots"><i class="c-l"></i><i class="c-all"></i></span></div><div>T<b>26</b><span class="dots"><i class="c-all"></i></span></div><div>F<b>27</b><span class="dots"><i class="c-all"></i></span></div><div>S<b>28</b><span class="dots"><i class="c-m"></i></span></div>
+        </div></div>
+        <div class="dayh">Today, Tuesday <span>4 things</span></div>
+        <div class="card" style="padding:4px 10px">
+          <div class="ev"><span class="bar c-s"></span><div><b>School drop-off</b><small>7:45 AM</small></div><span class="who"><span class="av c-s">S</span></span></div>
+          <div class="ev"><span class="bar c-a" style="opacity:.35"></span><div><b style="color:var(--muted)">Alex at work</b><small>Until 5:30 PM · 3 meetings</small></div><span class="who"><span class="av c-a">A</span></span></div>
+          <div class="ev"><span class="bar c-m"></span><div><b>⚽ Soccer practice</b><small>3:30 to 5:00 PM · Lincoln field</small></div><span class="who"><span class="av c-m">M</span></span></div>
+          <div class="ev"><span class="bar c-all"></span><div><b>Dinner with the Lees</b><small>7:00 PM · Rosa's Kitchen</small></div><span class="who"><span class="av c-s">S</span><span class="av c-a">A</span></span></div>
+        </div>
+        <div class="dayh">Wednesday <span>2 things</span></div>
+        <div class="card" style="padding:4px 10px">
+          <div class="ev"><span class="bar c-all"></span><div><b>Half day, school out 12:30</b><small>All day · Lincoln Elementary</small></div><span class="who"></span></div>
+        </div>
+      </div>
+      <div class="tabbar five"><span><i>🏠</i>Today</span><span class="on"><i>📅</i>Calendar</span><span><i>🍽️</i>Food</span><span><i>📝</i>Lists</span><span><i>✨</i>Glow</span></div>
+    </div></div><div class="cap"><b>Calendar, the fifth tab</b><span>A week strip with a dot per person, then a list that scrolls on through the following days. Person chips filter. Arrows are not needed: the strip pages by week, like Food's.</span></div></figure>
+
+    <figure class="fr"><div class="ph"><div class="sc"><div class="notch"></div><div class="status"><span>9:41</span><i>●●● ▮</i></div>
+      <div class="pb">
+        <div class="phead"><div><small>Tap the month to fold it</small><b>November ⌃</b></div><div style="display:flex;gap:8px;align-items:center"><span class="plus">+</span><span class="av">A</span></div></div>
+        <div class="card"><div class="mo">
+          <span class="h">S</span><span class="h">M</span><span class="h">T</span><span class="h">W</span><span class="h">T</span><span class="h">F</span><span class="h">S</span>
+          <span>1</span><span>2<span class="dots"><i class="c-l"></i></span></span><span>3</span><span>4<span class="dots"><i class="c-s"></i></span></span><span>5</span><span>6</span><span>7<span class="dots"><i class="c-m"></i></span></span>
+          <span>8</span><span>9<span class="dots"><i class="c-l"></i></span></span><span>10</span><span>11<span class="dots"><i class="c-all"></i></span></span><span>12</span><span>13<span class="dots"><i class="c-a"></i></span></span><span>14<span class="dots"><i class="c-m"></i></span></span>
+          <span>15</span><span>16<span class="dots"><i class="c-l"></i></span></span><span>17</span><span>18</span><span>19<span class="dots"><i class="c-s"></i><i class="c-a"></i></span></span><span>20</span><span>21<span class="dots"><i class="c-m"></i></span></span>
+          <span>22</span><span>23<span class="dots"><i class="c-l"></i></span></span><span class="on">24</span><span>25<span class="dots"><i class="c-l"></i><i class="c-all"></i></span></span><span>26<span class="dots"><i class="c-all"></i></span></span><span>27<span class="dots"><i class="c-all"></i></span></span><span>28<span class="dots"><i class="c-m"></i></span></span>
+          <span>29</span><span>30</span><span class="o">1</span><span class="o">2</span><span class="o">3</span><span class="o">4</span><span class="o">5</span>
+        </div></div>
+        <div class="dayh">Today, Tuesday <span>4 things</span></div>
+        <div class="card" style="padding:4px 10px">
+          <div class="ev"><span class="bar c-s"></span><div><b>School drop-off</b><small>7:45 AM</small></div><span class="who"><span class="av c-s">S</span></span></div>
+          <div class="ev"><span class="bar c-a" style="opacity:.35"></span><div><b style="color:var(--muted)">Alex at work</b><small>Until 5:30 PM · 3 meetings</small></div><span class="who"><span class="av c-a">A</span></span></div>
+          <div class="ev"><span class="bar c-m"></span><div><b>⚽ Soccer practice</b><small>3:30 to 5:00 PM · Lincoln field</small></div><span class="who"><span class="av c-m">M</span></span></div>
+        </div>
+      </div>
+      <div class="tabbar five"><span><i>🏠</i>Today</span><span class="on"><i>📅</i>Calendar</span><span><i>🍽️</i>Food</span><span><i>📝</i>Lists</span><span><i>✨</i>Glow</span></div>
+    </div></div><div class="cap"><b>The month, when you are planning</b><span>Tapping the title unfolds the strip into the month. Tap a day and the list jumps there. There is no separate month screen.</span></div></figure>
+
+    <figure class="fr"><div class="ph"><div class="sc"><div class="notch"></div><div class="status"><span>9:41</span><i>●●● ▮</i></div>
+      <div class="pb">
+        <div class="phead"><div><small>Evenings and weekends</small><b>Free together</b></div><span class="av">A</span></div>
+        <div class="seg"><span>Calendar</span><span class="on">Free together</span></div>
+        <div class="card" style="padding:4px 10px">
+          <div class="free"><div class="d">Tonight<b>Tue</b></div><div class="v"><b>Dinner with the Lees</b><small>7:00 PM · Rosa's Kitchen</small></div></div>
+          <div class="free yes"><div class="d">Evening<b>Wed</b></div><div class="v"><b>Both free from 5:30</b><small>Nothing planned</small></div></div>
+          <div class="free"><div class="d">All day<b>Thu</b></div><div class="v"><b>🦃 Thanksgiving</b><small>Dinner at Grandma's, 2:00 PM</small></div></div>
+          <div class="free"><div class="d">Evening<b>Fri</b></div><div class="v"><b>Sam out</b><small>Book club, 7:00 to 9:00 PM</small></div></div>
+          <div class="free yes"><div class="d">Weekend<b>Sat</b></div><div class="v"><b>Free after noon</b><small>Mia's soccer game until 11:30 AM</small></div></div>
+          <div class="free yes"><div class="d">Weekend<b>Sun</b></div><div class="v"><b>Free all day</b><small>Nothing planned</small></div></div>
+          <div class="free"><div class="d">Evening<b>Mon</b></div><div class="v"><b>Alex late</b><small>At work until 7:30 PM</small></div></div>
+        </div>
+        <div class="btn quiet">Plan something for Sunday</div>
+      </div>
+      <div class="tabbar five"><span><i>🏠</i>Today</span><span class="on"><i>📅</i>Calendar</span><span><i>🍽️</i>Food</span><span><i>📝</i>Lists</span><span><i>✨</i>Glow</span></div>
+    </div></div><div class="cap"><b>Free together</b><span>The coming days as evenings and weekend days, since a free Tuesday 5 AM is not a free Friday evening. Green means everyone is free. Work counts as busy even when shown quietly.</span></div></figure>
+
+    <figure class="fr"><div class="ph"><div class="sc"><div class="notch"></div><div class="status"><span>9:41</span><i>●●● ▮</i></div>
+      <div class="pb"><div class="phead"><div><small>November 2026</small><b>Calendar</b></div></div></div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <h4>⚽ Soccer practice</h4>
+        <div class="sub">Tuesday, Nov 24 · 3:30 to 5:00 PM · Lincoln field</div>
+        <div><div class="row"><b>For</b><span class="chips"><span class="chip"><i class="c-m"></i>Mia</span></span></div>
+        <div class="row"><b>Repeats</b><span>Every Tuesday</span></div>
+        <div class="row"><b>From</b><span>Sam's Google · Mia Soccer</span></div></div>
+        <div class="sub">From Sam's Google calendar. On Sam's phone it can be changed here, and it changes in Google.</div>
+        <div class="btn quiet">Ask Sam to change it</div>
+      </div>
+    </div></div><div class="cap"><b>An event's page, in the app</b><span>No more leaving for Apple's Calendar to read one. Whoever owns the event can change it here; everyone else sees whose it is.</span></div></figure>
+
+    <figure class="fr"><div class="ph"><div class="sc"><div class="notch"></div><div class="status"><span>9:41</span><i>●●● ▮</i></div>
+      <div class="pb"><div class="phead"><div><small>November 2026</small><b>Calendar</b></div></div></div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <h4>New event</h4>
+        <div class="mail" style="font-size:15px;color:var(--ink)">Leo dentist thu 4pm</div>
+        <div class="sub">Reads as <b style="color:var(--ink)">Leo dentist · Thursday, Nov 26 · 4:00 PM</b></div>
+        <div><div class="row"><b>For</b><span class="chips"><span class="chip on"><i class="c-l"></i>Leo</span><span class="chip">Mia</span><span class="chip">Everyone</span></span></div>
+        <div class="row"><b>When</b><span>Thu, Nov 26 · 4:00 to 5:00 PM</span></div>
+        <div class="row"><b>Repeats</b><span>Never</span></div>
+        <div class="row"><b>Saved in</b><span>Home · iCloud</span></div></div>
+        <div class="btn">Add</div>
+      </div>
+    </div></div><div class="cap"><b>Add an event, by typing it</b><span>One line is read into a title, a day and a time, and the first name picks the person. It is saved in the home calendar, so it is in Apple Calendar too. The same sheet edits it.</span></div></figure>
+  </div>
+</section>
+
+<section id="wall">
+  <div class="eyebrow">Wall</div>
+  <h2>The same calendar, with everyone on it</h2>
+  <div class="board">
+    <figure class="fr"><div class="pad"><div class="wsc">
+      <div class="rail"><span>🏠</span><span class="on">📅</span><span>🐕</span><span>🍽️</span><span>🧹</span><span>✨</span><span>📝</span></div>
+      <div class="wmain">
+        <div class="wtop"><b>Nov 22 to 28</b><div class="chips"><span class="chip on">Everyone</span><span class="chip"><i class="c-a"></i>Alex</span><span class="chip"><i class="c-s"></i>Sam</span><span class="chip"><i class="c-m"></i>Mia</span><span class="chip"><i class="c-l"></i>Leo</span><span class="chip">Week ▾</span><span class="chip" style="background:var(--accent);color:#fff">+ Add</span></div></div>
+        <div class="wgrid">
+          <div class="col" style="grid-column:2"></div><div class="col" style="grid-column:3"></div><div class="col" style="grid-column:4"></div><div class="col" style="grid-column:5"></div><div class="col" style="grid-column:6"></div><div class="col" style="grid-column:7"></div><div class="col" style="grid-column:8"></div>
+          <div class="dh" style="grid-column:2;grid-row:1">Sun<b>22</b></div><div class="dh" style="grid-column:3;grid-row:1">Mon<b>23</b></div><div class="dh on" style="grid-column:4;grid-row:1">Tue<b>24</b></div><div class="dh" style="grid-column:5;grid-row:1">Wed<b>25</b></div><div class="dh" style="grid-column:6;grid-row:1">Thu<b>26</b></div><div class="dh" style="grid-column:7;grid-row:1">Fri<b>27</b></div><div class="dh" style="grid-column:8;grid-row:1">Sat<b>28</b></div>
+          <div class="we ad" style="grid-column:5;grid-row:2">Half day, out 12:30</div><div class="we ad" style="grid-column:6;grid-row:2">🦃 Thanksgiving</div><div class="we ad" style="grid-column:7;grid-row:2">No school</div>
+          <div class="hr" style="grid-column:1;grid-row:3">8 AM</div><div class="ln" style="grid-row:3"></div>
+          <div class="hr" style="grid-column:1;grid-row:7">10</div><div class="ln" style="grid-row:7"></div>
+          <div class="hr" style="grid-column:1;grid-row:11">12 PM</div><div class="ln" style="grid-row:11"></div>
+          <div class="hr" style="grid-column:1;grid-row:15">2</div><div class="ln" style="grid-row:15"></div>
+          <div class="hr" style="grid-column:1;grid-row:19">4</div><div class="ln" style="grid-row:19"></div>
+          <div class="hr" style="grid-column:1;grid-row:23">6</div><div class="ln" style="grid-row:23"></div>
+          <div class="we c-s" style="grid-column:4;grid-row:3 / span 1">Drop-off</div>
+          <div class="we work" style="grid-column:4;grid-row:5 / span 16;margin-right:56%">Alex at work<small>until 5:30</small></div>
+          <div class="we work" style="grid-column:3;grid-row:5 / span 16;margin-right:56%">Alex at work<small>until 5:30</small></div>
+          <div class="we c-all" style="grid-column:4;grid-row:23 / span 2">Dinner with the Lees<small>Everyone</small></div>
+          <div class="we c-m" style="grid-column:4;grid-row:18 / span 3;margin-left:46%">⚽ Soccer practice<small>Mia</small></div>
+          <div class="we c-l" style="grid-column:3;grid-row:21 / span 2;margin-left:46%">🎹 Piano<small>Leo</small></div>
+          <div class="we c-l" style="grid-column:5;grid-row:13 / span 2">Leo: playdate<small>at Noah's</small></div>
+          <div class="we c-l" style="grid-column:6;grid-row:19 / span 2">🦷 Leo dentist<small>4:00 PM</small></div>
+          <div class="we c-all" style="grid-column:6;grid-row:15 / span 3">Dinner at Grandma's<small>Everyone</small></div>
+          <div class="we c-m" style="grid-column:8;grid-row:7 / span 3">⚽ Soccer game<small>Mia · Lincoln field</small></div>
+          <div class="we c-s" style="grid-column:7;grid-row:9 / span 2">Sam: haircut</div>
+        </div>
+      </div>
+    </div></div><div class="cap w"><b>The wall's week, with everyone's phones feeding it</b><span>Same views as today (week, month, day). New: everyone's events, person chips and "+ Add". Alex's work is one quiet block, because Alex chose "Keep it quiet" on the phone.</span></div></figure>
+  </div>
+  <div class="tiles">
+    <div class="tile"><b>Add on the wall</b><p>"+ Add" opens the same one-line sheet as the phone, with big person chips. In the MVP it works when the home calendar's account is on the iPad; otherwise the wall says to add from a phone.</p></div>
+    <div class="tile"><b>Tap an event</b><p>The sheet says whose it is and which calendar it comes from, as today, now for everyone's events.</p></div>
+    <div class="tile"><b>Free evenings on the wall</b><p>The same "Free together" view as a row under the week: tonight through the weekend, green where everyone is free.</p></div>
+    <div class="tile"><b>The wall passes calendars on too</b><p>The wall is one more device. Calendars on the iPad get the same four choices and reach every phone. It is always on, so a shared calendar that lives on the iPad stays fresh for everyone, and the wall can add to it directly.</p></div>
+  </div>
+</section>
+
+<section id="email">
+  <div class="eyebrow">Email and flyers · after the MVP</div>
+  <h2>Share it to Porchlight and it becomes events, read on the phone, for free</h2>
+  <p class="lede">The useful part of "email integration" is not reading your inbox. It is that the school's December email becomes three events on the family calendar in ten seconds. That can ship in the demo with no account linking, no server and no fee.</p>
+  <div class="board">
+    <figure class="fr"><div class="ph"><div class="sc"><div class="notch"></div><div class="status"><span>9:41</span><i>●●● ▮</i></div>
+      <div class="pb"><div class="phead"><div><small>From Mail</small><b>Share</b></div></div>
+        <div class="mail"><b>Winter concert and December dates</b>Lincoln Elementary · Dear families, our winter concert is Thursday, December 10 at 6:30 PM in the gym. Early release on Friday the 18th at 12:30. Winter break runs December 21 through January 1...</div></div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <h4>Found 3 events</h4>
+        <div class="sub">Read on this iPhone. Nothing was sent anywhere.</div>
+        <div>
+          <div class="found"><span class="ck">✓</span><div><b>🎵 Winter concert</b><small>Thu, Dec 10 · 6:30 PM · School gym</small><span class="chips"><span class="chip on"><i class="c-m"></i>Mia</span><span class="chip">Leo</span><span class="chip">Everyone</span></span></div></div>
+          <div class="found"><span class="ck">✓</span><div><b>Early release, out 12:30</b><small>Fri, Dec 18 · all day</small><span class="chips"><span class="chip on"><i class="c-m"></i>Mia</span><span class="chip on"><i class="c-l"></i>Leo</span></span></div></div>
+          <div class="found"><span class="ck">✓</span><div><b>Winter break</b><small>Mon, Dec 21 to Fri, Jan 1</small><span class="chips"><span class="chip on">Everyone</span></span></div></div>
+        </div>
+        <div class="btn">Add 3 to the family calendar</div>
+      </div>
+    </div></div><div class="cap"><b>Share an email, a PDF or a flyer photo</b><span>From Mail, Gmail, Messages, Photos or the camera. Porchlight lists what it found; you fix who each is for, untick what you don't want, and add. Nothing is added without this review.</span></div></figure>
+  </div>
+  <div class="tablewrap"><table>
+    <tr><th>Route</th><th>What the family does</th><th>Cost to us</th><th>What it needs</th><th>Verdict</th></tr>
+    <tr class="pick"><td><b>Calendars already on the phone</b></td><td>Nothing new. Google, Outlook, iCloud and school feeds added in iOS Settings flow in, including the flight and booking events Gmail makes by itself</td><td>$0</td><td>Nothing. iOS does the syncing</td><td><span class="rec">In the MVP</span></td></tr>
+    <tr class="pick"><td><b>Share to Porchlight, read on the phone</b></td><td>Share, review, add</td><td>$0</td><td>Apple's on-device model on iOS 26 or later and a recent iPhone (15 Pro and up). Older phones get plain date and time detection, which is weaker on titles and on several events in one email</td><td><span class="rec">First after the MVP</span></td></tr>
+    <tr><td><b>Cloud reading, for flyers and older phones</b></td><td>The same share, with a switch to allow it</td><td>About $0.0005 per email and $0.01 per photo, plus a tiny relay we run</td><td>Our first server piece. The content leaves the phone</td><td><span class="not">Later, opt in</span></td></tr>
+    <tr><td><b>A family address to forward to</b>, like Skylight and Maple</td><td>Forward any email to the family's own address</td><td>About $10 a year for a domain; receiving is free on Cloudflare</td><td>Our first server handling family email: a privacy policy, spam handling, and a hand-off into iCloud that needs careful design</td><td><span class="not">Later, your call</span></td></tr>
+    <tr><td><b>Link Gmail and read the inbox</b></td><td>Sign in with Google inside Porchlight</td><td>Free to try, but while unreviewed the sign-in expires every 7 days and is capped at 100 people. Going public takes weeks of Google review and may require a yearly security assessment (quotes from $540 to $4,500 and up, unverified)</td><td>A Google review of how we handle mail</td><td><span class="not">Not for the demo</span></td></tr>
+    <tr><td><b>Google Calendar or Outlook sign-in</b></td><td>Sign in inside Porchlight</td><td>Free, a few days of review</td><td>Nothing we lack, and iOS already delivers these calendars</td><td><span class="not">Not needed</span></td></tr>
+  </table></div>
+  <p class="note">So: no extra payment is needed for the demo. The two routes in green cover "it was in my email" for free. The forwarding address is the one rivals advertise; it is cheap but it is the moment Porchlight starts handling family email on a server, so it deserves its own decision later.</p>
+</section>
+
+<section id="mvp">
+  <div class="eyebrow">The MVP</div>
+  <h2>Four things: see everyone, on the phone too, add for real, find free time</h2>
+  <p class="lede">The MVP makes one promise: both of you see the same calendar, on the wall and on the phone, and anything either of you adds lands in your real calendar. It is your own stated need, and it is the base every later feature stands on.</p>
+  <div class="tiles">
+    <div class="tile pick"><b>1 · One shared calendar</b><ul><li>Each phone passes on the calendars you choose.</li><li>Four choices per calendar: Show everything, Keep it quiet, Busy only, Just me.</li><li>The wall and every phone show everyone's events, colored by person, each shown once.</li><li>Works across two Apple IDs. The wall needs no account, and passes on any it has.</li></ul></div>
+    <div class="tile pick"><b>2 · Calendar tab on the phone</b><ul><li>Week strip, a list that scrolls on, the month one tap away.</li><li>Person chips to filter.</li><li>An event page inside the app.</li></ul></div>
+    <div class="tile pick"><b>3 · Add and edit, in your real calendar</b><ul><li>Choose a home calendar once.</li><li>Add by typing one line, on the phone.</li><li>Edit or delete events on the phone that owns them.</li><li>The wall adds too, when the home calendar's account is on the iPad.</li></ul></div>
+    <div class="tile pick"><b>4 · Free together</b><ul><li>Coming evenings and weekend days, green where everyone is free.</li><li>On the phone as a second view, on the wall as a row under the week.</li></ul></div>
+  </div>
+  <div class="tablewrap"><table>
+    <tr><th>Not in the MVP</th><th>Why</th><th>When</th></tr>
+    <tr><td><b>"Who's on it"</b>, Needs someone, reminders to that person, the morning line</td><td>Parked at your request while you think about it</td><td>Undecided</td></tr>
+    <tr><td><b>Share an email or flyer to make events</b></td><td>What families pay rivals for, but it needs the MVP's add path first and its own quality bar on real emails</td><td>First after the MVP</td></tr>
+    <tr><td><b>"Sam added something" and clash notices</b></td><td>Needs notifications between devices; the shared view already makes clashes visible</td><td>After</td></tr>
+    <tr><td><b>Maybe-plans</b></td><td>Evidence is one study; easy to add once adding exists</td><td>After</td></tr>
+    <tr><td><b>Adding on the wall through a phone</b></td><td>The one piece of new plumbing with real risk</td><td>After</td></tr>
+    <tr><td><b>Google sign-in on the wall</b></td><td>Only if the MVP shows a sleeping phone keeps the wall too stale</td><td>If needed</td></tr>
+    <tr><td><b>Forwarding address, cloud reading, helpers, widget</b></td><td>Each is its own decision</td><td>Later</td></tr>
+  </table></div>
+  <p class="note">How we will know the MVP works: after a week on your two phones and the wall, both of you see each other's events without having opened Porchlight that day, an event added on a phone is in Apple Calendar and on the wall within a minute, and Free together matches what you would have worked out by hand.</p>
+</section>
+
+<section id="coord">
+  <div class="eyebrow">Parked</div>
+  <h2>"Who's on it" is out of the MVP</h2>
+  <p class="note">The idea: any event can name the person responsible, events for a child with nobody on them collect on the wall, and only that person is reminded. It answers a problem families with children have daily and two adults rarely have. It is removed from the frames and from the MVP, and waits for your decision. Nothing in the MVP depends on it or blocks it.</p>
+</section>
+
+<section id="cases">
+  <div class="eyebrow">Hard cases</div>
+  <h2>What happens when it is not simple</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Case</th><th>What Porchlight does</th></tr>
+    <tr><td><b>The same event arrives from two phones</b> (a shared calendar, or both were invited)</td><td>Shown once, with both faces.</td></tr>
+    <tr><td><b>A phone hasn't opened Porchlight for days</b></td><td>iOS lets the app refresh in the background only now and then, so that person's events can lag. The calendar says "Sam's calendar, updated Tuesday" quietly, and opening the app catches up.</td></tr>
+    <tr><td><b>Busy only</b></td><td>Only the times leave the phone. The title, place and notes never do.</td></tr>
+    <tr><td><b>Just me</b></td><td>Nothing leaves the phone. Today this choice is saved but not enforced; this build enforces it.</td></tr>
+    <tr><td><b>An event changes or is cancelled in Google</b></td><td>The phone replaces what it passed on, so the wall follows.</td></tr>
+    <tr><td><b>Kids without phones</b></td><td>A calendar on a parent's phone is marked "belongs to Mia", as today. Events made in Porchlight pick the child directly.</td></tr>
+    <tr><td><b>Editing an event from Google or work</b></td><td>On the phone that has that calendar, Porchlight edits it in place through iOS. On another person's phone or the wall it is read only, with "Ask Sam to change it".</td></tr>
+    <tr><td><b>Adding on the wall when the home calendar isn't on the iPad</b></td><td>MVP: the wall says "Add this from a phone". After: everyone sees the event at once and the next phone that runs writes it into the home calendar.</td></tr>
+    <tr><td><b>Keep it quiet, in detail</b></td><td>The household sees one block per day with its end time. Tapping it lists the meetings. For times with no words at all, there is still Busy only.</td></tr>
+    <tr><td><b>Someone leaves the household</b></td><td>Everything their phone passed on is removed for everyone.</td></tr>
+    <tr><td><b>Do events added in Porchlight show in Apple Calendar or on a watch?</b></td><td>Yes. They are saved in the home calendar, a real Google or iCloud calendar.</td></tr>
+  </table></div>
+</section>
+
+<section id="decisions">
+  <div class="eyebrow">Decisions</div>
+  <h2>What to approve</h2>
+  <ol class="decisions">
+    <li><b>The MVP is the four things above, and nothing else.</b> Recommended. <small>See everyone, the phone's Calendar tab, add and edit into your real calendar, Free together.</small></li>
+    <li><b>Phones bring the calendars; no Google sign-in in Porchlight.</b> Recommended. <small>Free, never expires, and covers work and school calendars a sign-in can't. Revisit only if the wall turns out stale.</small></li>
+    <li><b>Events are saved in a real home calendar</b>, written by iOS on the phone. Recommended. <small>So anything added in Porchlight is in Apple Calendar and on a watch too.</small></li>
+    <li><b>"Keep it quiet" for work calendars</b>, alongside Busy only and Just me. Recommended.</li>
+    <li><b>Calendar becomes the phone's fifth tab</b>, between Today and Food. Recommended. <small>No hour grid on the phone; the wall keeps its grid.</small></li>
+    <li><b>"Who's on it" stays parked</b> until you decide.</li>
+  </ol>
+</section>
+
+<section id="plan">
+  <div class="eyebrow">Build order</div>
+  <h2>The MVP in four steps, then what follows</h2>
+  <div class="flow">
+    <div class="step s1"><b>1 · One shared calendar <span class="new">MVP</span></b><ul><li>Phones pass on chosen calendars; the four choices enforced.</li><li>Wall and phone's existing views show everyone's, each event once.</li><li>Measures how fresh a sleeping phone keeps the wall.</li><li>One schema deploy from you.</li></ul></div>
+    <div class="step s1"><b>2 · The phone's Calendar tab <span class="new">MVP</span></b><ul><li>Week strip, list, month, person chips.</li><li>An event page in the app.</li><li>Today's card links into it.</li></ul></div>
+    <div class="step s1"><b>3 · Add and edit <span class="new">MVP</span></b><ul><li>Home calendar chosen once.</li><li>One-line add and edit on the phone, written through iOS.</li><li>Wall add when the account is on the iPad.</li></ul></div>
+    <div class="step s1"><b>4 · Free together <span class="new">MVP</span></b><ul><li>Evenings and weekend days, on phone and wall.</li><li>Work counts as busy, quiet or not.</li></ul></div>
+    <div class="step s2"><b>Then · Share to Porchlight</b><ul><li>Email text, PDF, photo, camera.</li><li>Read on the phone; review, then add.</li></ul></div>
+    <div class="step s3"><b>After</b><ul><li>Notices and clash warnings; maybe-plans.</li><li>Wall add through a phone.</li><li>Parked: "Who's on it".</li><li>If needed: Google on the wall.</li></ul></div>
+  </div>
+  <p class="note">Each step ships to TestFlight by itself, so you use the shared calendar after step 1, before the rest exists. Each follows <code>docs/design/testing.md</code>: merging, the four choices and free-time maths in unit tests with a pinned clock; one journey per real journey in UI tests.</p>
+</section>
+
+<section id="unverified">
+  <div class="eyebrow">Not verified</div>
+  <h2>What I couldn't check, and how each gets settled</h2>
+  <ul class="note" style="max-width:90ch">
+    <li><b>How fresh a sleeping phone keeps the wall.</b> iOS decides when an app may refresh in the background. Step 1 measures it on your two phones before anything else is built on it.</li>
+    <li><b>Writing into the home calendar from the wall through a phone.</b> Out of the MVP for this reason; writing from a phone is ordinary iOS and low risk.</li>
+    <li><b>Demand from households without children.</b> Thin evidence: one study and a few reviews. Reddit could not be searched.</li>
+    <li><b>Matching the same event across two accounts.</b> iOS gives events an id meant to be shared across devices; whether it holds between a Google and an iCloud copy of one invite needs a test on real accounts.</li>
+    <li><b>How well the on-device model reads real school email.</b> Step 4 starts with a test set of real messages and a pass bar before any screen is built. The wall iPad (iPadOS 17) can't run it, so reading happens on phones.</li>
+    <li><b>Whether Gmail's own found events arrive through iOS.</b> Expected, since they sit on the Google calendar, but untested here.</li>
+    <li><b>The second phone's model and iOS version</b>, which decides whether it gets the smart reading or the plain one.</li>
+    <li><b>Prices and review rules</b> for Google's security assessment and some rival plans come from third-party pages, not the vendors.</li>
+  </ul>
+  <p class="src">Sources: Skylight, Hearth and Cozi help centers and plan pages; Amazon's Alexa+ announcement; Google's OAuth verification and Calendar help pages; Apple's Foundation Models announcement and device list; Cloudflare's email pricing. Full links are in the research notes.</p>
+</section>
+
+</div>
