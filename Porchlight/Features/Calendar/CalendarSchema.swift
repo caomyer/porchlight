@@ -193,6 +193,8 @@ struct CalendarSnapshot: Equatable, Sendable {
     var choicesSeen = false
     /// What every device passed on (docs/design/calendar-shared.md).
     var shared: SharedCalendarSnapshot = .empty
+    /// The household's home calendar (docs/design/calendar-add-edit.md).
+    var home: HomeCalendar?
 
     static let empty = CalendarSnapshot(household: nil, people: [], sources: [])
 
@@ -206,7 +208,8 @@ struct CalendarSnapshot: Equatable, Sendable {
         return CalendarSnapshot(
             household: base.household, people: base.people, sources: sources,
             choicesSeen: try DeviceState.value(.calendarChoicesSeen, db) != nil,
-            shared: try SharedCalendarSnapshot.fetch(db, householdId: id, thisDeviceId: Device.id(householdId: id, install: install))
+            shared: try SharedCalendarSnapshot.fetch(db, householdId: id, thisDeviceId: Device.id(householdId: id, install: install)),
+            home: try HomeCalendar.fetchOne(db, id: HomeCalendar.id(householdId: id))
         )
     }
 }

@@ -32,7 +32,7 @@ struct PocketSharedCalendarScreenTests {
             ? AnyView(ScrollView { PocketAgendaCard(open: { _ in }).padding(.horizontal, 16) }.background(Theme.background))
             : AnyView(PocketCalendarScreen())
         let hosted = try await HostedScreen.host(
-            screen.environment(model).environment(store).environment(\.me, snapshot.people[0]), look: look
+            screen.environment(model).environment(store).environment(ToastCenter()).environment(\.me, snapshot.people[0]), look: look
         )
         try hosted.saveShot("shared-calendar-\(card ? "card-" : "")\(value)-\(look.name)")
         return hosted
@@ -72,7 +72,7 @@ struct PocketSharedCalendarScreenTests {
         let model = AppModel(database: db)
         let snapshot = try db.snapshot()
         let hosted = try await HostedScreen.host(
-            PocketCalendarScreen(start: day).environment(model).environment(store).environment(\.me, snapshot.people[0]), look: look
+            PocketCalendarScreen(start: day).environment(model).environment(store).environment(ToastCenter()).environment(\.me, snapshot.people[0]), look: look
         )
         try hosted.saveShot("calendar-busy-week-\(look.name)")
         return hosted

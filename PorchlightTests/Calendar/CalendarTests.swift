@@ -371,6 +371,10 @@ private final class FakeProvider: CalendarProvider {
     func events(in interval: DateInterval, calendarIds: Set<String>) -> [ExternalEvent] {
         eventList.filter { calendarIds.contains($0.calendarId) && $0.end > interval.start && $0.start < interval.end }
     }
+    // The store's reads are what these tests are about; writes are `FixedCalendarProvider`'s.
+    func save(_ draft: EventDraft, span: EventSpan) throws -> (occurrenceId: String, externalItemId: String?) { throw CalendarWriteError.noAccess }
+    func delete(occurrenceId: String, span: EventSpan) throws { throw CalendarWriteError.noAccess }
+    func makeCalendar(title: String) throws -> ExternalCalendar { throw CalendarWriteError.noAccess }
 }
 
 @MainActor

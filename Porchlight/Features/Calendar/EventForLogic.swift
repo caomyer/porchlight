@@ -38,14 +38,15 @@ enum EventForLogic {
 extension AppDatabase {
     /// Sets who an event is for, for the whole household. On a device that has the event, its
     /// local id is remembered beside the record, so the record follows the event if its
-    /// shared id changes. An empty `people` is everyone, and removes the record.
+    /// shared id changes. An empty `people` is everyone; nil removes the record, so the event
+    /// is its calendar owner's again.
     func setEventFor(
-        matchKey: String, title: String?, start: Date, itemId: String?, people: [Person.ID],
+        matchKey: String, title: String?, start: Date, itemId: String?, people: [Person.ID]?,
         householdId: Household.ID, now: Date = .now
     ) throws {
         try writer.write { db in
             let id = EventFor.id(householdId: householdId, matchKey: matchKey)
-            if people.isEmpty {
+            guard let people else {
                 _ = try EventFor.deleteOne(db, id: id)
                 try db.execute(sql: "DELETE FROM calendarItemFor WHERE eventForId = ?", arguments: [id])
                 return

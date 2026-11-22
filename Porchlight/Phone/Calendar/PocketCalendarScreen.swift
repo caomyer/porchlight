@@ -5,9 +5,12 @@ import UIKit
 /// docs/design/calendar-phone-tab.md): the household's calendar, this phone's own events and
 /// what the other devices passed on. The month on top (tap it for the month), a chip per
 /// person, a week strip with a dot per person each day, and a list that starts at the picked
-/// day and runs on through the next two weeks. Read only in this step.
+/// day and runs on through the next two weeks. "+" adds an event to the household's home
+/// calendar, and an event's page changes or deletes one this phone may write
+/// (docs/design/calendar-add-edit.md).
 struct PocketCalendarScreen: View {
     @Environment(CalendarStore.self) private var store
+    @Environment(ToastCenter.self) private var toasts
 
     @State private var filter: PocketCalendarLogic.Filter = .everyone
     /// The picked day; nil until one is picked, which is today.
@@ -16,6 +19,13 @@ struct PocketCalendarScreen: View {
     @State private var weekOffset = 0
     @State private var monthOpen = false
     @State private var openEvent: CalendarEvent?
+    /// The sheet adding or changing an event.
+    @State private var editing: PocketEventEditor.Start?
+    /// An edit the event's page asked for, opened once the page has gone.
+    @State private var pendingEdit: PocketEventEditor.Start?
+    @State private var choosingHome = false
+    /// Why "+" can't add here: no home calendar on this phone, or one it can't write.
+    @State private var cantAdd: String?
     /// The day it opens on, when not today (hosted checks; a link to a day later).
     private let start: DayKey?
 
@@ -52,8 +62,28 @@ struct PocketCalendarScreen: View {
         }
         .background(Theme.background)
         .paperUnderStatusBar()
-        .sheet(item: $openEvent) { event in
-            PocketEventPage(event: event)
+        .sheet(item: $openEvent, onDismiss: {
+            if let pendingEdit { editing = pendingEdit; self.pendingEdit = nil } else { toasts.showPending() }
+        }) { event in
+            PocketEventPage(event: event) { start in
+                pendingEdit = start
+                openEvent = nil
+            }
+        }
+        .sheet(item: $editing, onDismiss: toasts.showPending) { start in
+            PocketEventEditor(start: start) { words in toasts.showAfterSheet(UndoToast(emoji: "📅", title: words)) }
+        }
+        .sheet(isPresented: $choosingHome) {
+            PocketHomeCalendarSheet { calendar in
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(450))
+                    if let found = store.home.calendar ?? (calendar.allowsWrites ? calendar : nil) { editing = .new(found) }
+                }
+            }
+        }
+        .alert(cantAdd ?? "", isPresented: Binding(get: { cantAdd != nil }, set: { if !$0 { cantAdd = nil } })) {
+            Button("Choose another home calendar") { choosingHome = true }
+            Button("OK", role: .cancel) {}
         }
         .task(id: [weekOffset, monthOpen ? 1 : 0]) {
             // Loads what the strip, the month and the list show, beyond the days kept loaded.
@@ -110,7 +140,31 @@ struct PocketCalendarScreen: View {
                 .accessibilityIdentifier("calendar-month-title")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: add) {
+                Image(systemName: "plus")
+                    .phoneFont(.body, 17, weight: 800, relativeTo: .title3)
+                    .foregroundStyle(Theme.surface)
+                    .frame(width: 36, height: 36)
+                    .background(Theme.accent, in: Circle())
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add an event")
+            .accessibilityIdentifier("calendar-add")
             PocketYouButton()
+        }
+    }
+
+    /// "+": the sheet, in the home calendar; first choosing one if the household hasn't.
+    private func add() {
+        switch store.home {
+        case let .found(calendar): editing = .new(calendar)
+        case .notChosen, .ambiguous: choosingHome = true
+        case let .notHere(home):
+            cantAdd = "Add events from a phone that has \(HomeCalendarLogic.name(home)), the household's home calendar."
+        case let .readOnly(calendar):
+            cantAdd = "\(calendar.title) can't be added to on this \(DeviceWords.this) any more."
         }
     }
 
@@ -503,9 +557,15 @@ struct PocketCalendarRow: View {
 /// it says whose it is. Read only in this step.
 struct PocketEventPage: View {
     let event: CalendarEvent
+    /// Asks the screen to open the edit sheet once this page has gone.
+    var onEdit: (PocketEventEditor.Start) -> Void = { _ in }
 
     @Environment(CalendarStore.self) private var store
+    @Environment(ToastCenter.self) private var toasts
     @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmingDelete = false
+    @State private var failure: String?
 
     /// This phone's own event: one it can open in Calendar.
     private var isOwn: Bool { event.from == nil && !event.isQuiet }
@@ -516,15 +576,29 @@ struct PocketEventPage: View {
             VStack(alignment: .leading, spacing: 12) {
                 row("clock", when(calendar))
                 if let location = event.location { row("mappin.and.ellipse", location) }
-                HStack(alignment: .center, spacing: 10) {
-                    PocketFaces(owners: event.owners)
-                        .frame(minWidth: 22, alignment: .leading)
-                    Text("For \(event.owners.map { ownerName($0, people: store.people) }.joined(separator: " and "))")
-                        .phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
+                if event.owners.allSatisfy({ $0 == .everyone }) {
+                    // The household has no face: a plain row, as the filter and the sheet say it.
+                    row("person.2", "For everyone")
+                } else {
+                    HStack(alignment: .center, spacing: 10) {
+                        PocketFaces(owners: event.owners)
+                            .frame(minWidth: 22, alignment: .leading)
+                        Text("For \(event.owners.map { ownerName($0, people: store.people) }.joined(separator: " and "))")
+                            .phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
-                .accessibilityElement(children: .combine)
                 row("calendar", source)
+                if let repeats = event.repeats {
+                    row("repeat", repeats == .custom ? "Repeats, as set in Calendar" : "Repeats \(repeats.label.lowercased())")
+                }
+                if let device = event.fromDevice {
+                    row("lock", "\(device) can change this.")
+                }
+                if let failure {
+                    Text(failure).phoneFont(.body, 13, weight: 700, relativeTo: .footnote).foregroundStyle(Theme.accent)
+                }
                 if event.isBusy {
                     row("eye.slash", "Shared as Busy only, so its words stay on the phone it came from.")
                 }
@@ -541,15 +615,47 @@ struct PocketEventPage: View {
                 }
             }
         } footer: {
-            if isOwn {
-                Button("Open in Calendar") {
-                    if let url = URL(string: "calshow:\(event.start.timeIntervalSinceReferenceDate)") { openURL(url) }
+            VStack(spacing: 8) {
+                if store.canChange(event), let draft = store.draft(for: event) {
+                    Button("Edit") { onEdit(.edit(event, draft)) }
+                        .buttonStyle(PhoneButtonStyle())
+                        .accessibilityIdentifier("event-edit")
+                    Button("Delete", role: .destructive) { confirmingDelete = true }
+                        .buttonStyle(PhoneButtonStyle(kind: .ghost))
+                        .accessibilityIdentifier("event-delete")
                 }
-                .buttonStyle(PhoneButtonStyle(kind: .ghost))
-                .accessibilityIdentifier("open-in-calendar")
+                if isOwn {
+                    Button("Open in Calendar") {
+                        if let url = URL(string: "calshow:\(event.start.timeIntervalSinceReferenceDate)") { openURL(url) }
+                    }
+                    .buttonStyle(PhoneButtonStyle(kind: .ghost))
+                    .accessibilityIdentifier("open-in-calendar")
+                }
             }
         }
+        .confirmationDialog(event.repeats == nil ? "Delete \(event.title)?" : "\(event.title) repeats", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            if event.repeats == nil {
+                Button("Delete", role: .destructive) { delete(.thisEvent) }
+            } else {
+                Button("Delete this event only", role: .destructive) { delete(.thisEvent) }
+                Button("Delete this and future events", role: .destructive) { delete(.futureEvents) }
+            }
+            Button("Keep it", role: .cancel) {}
+        }
         .accessibilityIdentifier("event-page")
+    }
+
+    private func delete(_ span: EventSpan) {
+        do {
+            guard let undo = try store.delete(event, span: span) else { return }
+            dismiss()
+            toasts.showAfterSheet(UndoToast(
+                emoji: "🗑️", title: "\(undo.draft.title) deleted", detail: nil,
+                action: UndoToast.Action(title: "Undo") { [store] in _ = try? store.save(undo.draft, for: undo.people) }
+            ))
+        } catch {
+            failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
     }
 
     private func label(_ calendar: Calendar) -> String {

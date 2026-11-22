@@ -33,6 +33,10 @@ struct CalendarEvent: Identifiable, Equatable, Sendable {
     var quietEvents: [CalendarEvent] = []
     /// Where it came from, for the event's sheet: "From Sam's Google". nil for this device's own.
     var from: String? = nil
+    /// The device that can change it, for the sheet: "Sam's iPhone". nil for this device's own.
+    var fromDevice: String? = nil
+    /// How it repeats, for this device's own events.
+    var repeats: EventRepeat? = nil
 
     /// The owner and everyone else with the same event, each once.
     var owners: [Owner] { [owner] + alsoFor.filter { $0 != owner } }
@@ -49,6 +53,7 @@ struct CalendarEvent: Identifiable, Equatable, Sendable {
         guard source.isShown else { return nil }
         var resolved = resolve(event, owner: source.owner, isBusy: source.sharing == .busy, calendarTitle: source.title, kind: kind)
         resolved.matchKey = CalendarPassOn.matchKey(event.externalItemId)
+        resolved.repeats = event.repeats
         return resolved
     }
 

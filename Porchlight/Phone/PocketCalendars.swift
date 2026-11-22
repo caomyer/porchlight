@@ -8,6 +8,7 @@ import UIKit
 struct PocketCalendars: View {
     @Environment(CalendarStore.self) private var store
     @State private var isAsking = false
+    @State private var choosingHome = false
 
     var body: some View {
         ScrollView {
@@ -23,7 +24,9 @@ struct PocketCalendars: View {
                 switch store.access {
                 case .notDetermined: askFirst
                 case .denied: denied
-                case .granted: choices
+                case .granted:
+                    homeCalendar
+                    choices
                 }
             }
             .padding(.horizontal, 16)
@@ -31,6 +34,42 @@ struct PocketCalendars: View {
             .padding(.bottom, 16)
         }
         .background(Theme.background)
+        .sheet(isPresented: $choosingHome) { PocketHomeCalendarSheet() }
+    }
+
+    // MARK: The home calendar
+
+    /// Where events added in Porchlight are saved, for the whole household; changed here.
+    private var homeCalendar: some View {
+        let words: (title: String, detail: String) = switch store.home {
+        case .notChosen: ("Not chosen yet", "Events added in Porchlight will be saved in it.")
+        case let .found(calendar): ("\(calendar.title) · \(calendar.accountKind)", "Events added in Porchlight are saved here.")
+        case let .notHere(home): (HomeCalendarLogic.name(home), "Not on this \(DeviceWords.this), so it adds nothing here.")
+        case let .readOnly(calendar): ("\(calendar.title) · \(calendar.accountKind)", "This \(DeviceWords.this) can't add to it any more.")
+        case .ambiguous: ("Which one?", "More than one of this \(DeviceWords.this)'s calendars has its name.")
+        }
+        return Button { choosingHome = true } label: {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("HOME CALENDAR")
+                        .phoneFont(.body, 11, weight: 800, relativeTo: .caption)
+                        .tracking(1.1)
+                        .foregroundStyle(Theme.muted)
+                    Text(words.title).phoneFont(.body, 15, weight: 700, relativeTo: .subheadline)
+                    Text(words.detail)
+                        .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
+                        .foregroundStyle(Theme.muted)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Text("Change").phoneFont(.body, 13, weight: 800, relativeTo: .footnote).foregroundStyle(Theme.accent)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("home-calendar")
+        .phoneCard()
     }
 
     // MARK: Access
@@ -40,7 +79,7 @@ struct PocketCalendars: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Bring your calendars to the household")
                 .phoneFont(.display, 20, weight: 600, relativeTo: .title3)
-            Text("Porchlight reads the calendars this \(DeviceWords.this) already has, like iCloud, Google and Outlook, and passes on the ones you choose, so the wall and everyone's phone show them. It never changes them.")
+            Text("Porchlight reads the calendars this \(DeviceWords.this) already has, like iCloud, Google and Outlook, and passes on the ones you choose, so the wall and everyone's phone show them. It adds or changes an event only when you do.")
                 .phoneFont(.body, 14, weight: 500)
                 .foregroundStyle(Theme.muted)
             Button("Allow calendar access") {

@@ -17,6 +17,8 @@ struct CalendarScreen: View {
     /// Any date inside the visible week, month or day.
     @State private var anchor = CompanionClock.now()
     @State private var selected: CalendarEvent?
+    /// The sheet adding an event, when this iPad has the home calendar and may write it.
+    @State private var adding: PocketEventEditor.Start?
 
     private var calendar: Calendar { store.calendar }
 
@@ -27,6 +29,13 @@ struct CalendarScreen: View {
                     header(now: CompanionClock.at(context.date))
                     // "Sam's calendar, updated Tuesday": quietly, when a phone has gone quiet.
                     StaleCalendarLines(sources: store.staleSources, fontSize: 13.5)
+                    // Without the home calendar here, adding is a phone's (docs/design/calendar-add-edit.md).
+                    if case let .notHere(home) = store.home {
+                        Text("To add an event, use a phone that has \(HomeCalendarLogic.name(home)).")
+                            .font(.body(13.5, weight: 600))
+                            .foregroundStyle(Theme.muted)
+                            .accessibilityIdentifier("wall-add-from-phone")
+                    }
                 }
                 content(now: CompanionClock.at(context.date))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -41,6 +50,10 @@ struct CalendarScreen: View {
                     EventDetail(event: selected, calendar: calendar)
                 }
             }
+        }
+        .sheet(item: $adding) { start in
+            PocketEventEditor(start: start)
+                .environment(\.dynamicTypeSize, .xxLarge)
         }
         .task(id: visibleInterval) {
             if let visibleInterval {
@@ -99,6 +112,18 @@ struct CalendarScreen: View {
                 .opacity(isShowingToday(now) ? 0.5 : 1)
             }
             .buttonStyle(.plain)
+            if let home = store.home.calendar {
+                Button { adding = .new(home) } label: {
+                    Label("Add", systemImage: "plus")
+                        .font(.body(15, weight: 800))
+                        .foregroundStyle(Theme.surface)
+                        .padding(.horizontal, 16)
+                        .frame(height: 44)
+                        .background(Theme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("wall-calendar-add")
+            }
             Spacer(minLength: 8)
             ViewThatFits(in: .horizontal) {
                 legend(withLanes: true)
@@ -569,7 +594,7 @@ struct CalendarOnboardingStep: View {
                 subtitle: "Porchlight reads every calendar this iPad already knows about. Assign each one to a person so it gets their color."
             )
             CalendarSourcesPanel()
-            Text("Read-only. Porchlight never changes your calendars.")
+            Text("Porchlight adds or changes an event only when you do, in the calendar your household chooses.")
                 .font(.body(14, weight: 600))
                 .foregroundStyle(Theme.muted)
         }

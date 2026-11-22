@@ -168,6 +168,7 @@ The night look and the largest text size are checked by eye from screenshots, pl
 - A look is a launch, so three looks of one screen are three launches; do not also launch per screen.
 - Never repeat a journey's steps in a looks test to get to a screen; start there with a debug launch argument (`-debugFoodView`, `-debugCompanionSheet`, `-debugYouPage`).
   The shared calendar adds `-sampleSharedCalendar YES|stale`: Mia's iPhone has passed on her work as Keep it quiet, her own calendar in full and her doctor's as Busy only, twenty minutes ago or two days ago.
+  Adding and editing adds `-sampleHomeCalendar YES`: the household's home calendar is the sample's "Us", with a weekly piano lesson on Thursdays at 4 in it.
   The recipes add `-debugFoodView recipes|recipe|recipe-long|recipe-edit|recipe-plan` (the bank, the first recipe, or the recipe with the most ingredients opened, in its editor, or being planned) and `-sampleFood norecipes|long` (an empty bank, or a recipe as long as they come, cooked once, with a card).
 - A layout fact that holds for a component everywhere (the time pill, the photo row) is asserted once, in one looks test, not in each class that shows the component.
 
@@ -790,6 +791,15 @@ The phone's Calendar tab (docs/design/calendar-phone-tab.md), added November 22,
 | testTheWeekAPersonAndAnEvent | | Today picked; another day picked starts the list there with a way back; a person's chip leaves out another's own events; another device's event opens its page in the app, without "Open in Calendar" | Keep; weeks, dots, filtering and the list are `PocketCalendarLogicTests` | | |
 | testTheMonth | | The title unfolds the month; a day picks it and folds back, the list there | Keep; the month grid is `PocketCalendarLogicTests` | | |
 
+#### PhoneCalendarEditTests (new)
+
+Adding and changing events from the phone (docs/design/calendar-add-edit.md), added November 22, 2026; the sample's calendars are written in memory as EventKit would, the clock pinned to today at 8 in the morning.
+
+| Test | s | Asserts | Verdict | Saves | Status |
+|---|---|---|---|---|---|
+| testAddingAnEvent | | "+" with no home calendar asks for one once; the line is read as typed ("Reads as", For from a name, the calendar it is saved in); the event is in the list for that person | Keep; reading the line is `EventLineTests`, choosing and saving `CalendarWriteTests` | | |
+| testChangingARepeatingEvent | | A weekly event in the home calendar shows it repeats and may be changed here; a new title saved for future events asks which and shows in the list | Keep; spans, delete and Undo, and who can change what are `CalendarWriteTests` | | |
+
 #### PhoneSharedCalendarTests (new)
 
 Added with the shared calendar on November 22, 2026 (docs/design/calendar-shared.md); its looks are hosted (`PocketSharedCalendarScreenTests`).
@@ -925,6 +935,7 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | WallTourTests.testScreens | 0 | Screenshots only | Not in the suite; `--tour` | | |
 | WallSharedCalendarTests.testAnotherDevicesCalendarsOnTheWall | | Another device's quiet block on the week, its meetings on tap with where they come from, one shared event with both faces, the stale line | Keep; merging, quiet blocks and freshness are `SharedCalendarViewTests`; the clock pinned to 8 in the morning | | |
 | WallSharedCalendarTests.testJustMeLeavesTheHousehold | | A calendar set to Just me leaves what the wall passes on (Sync details counts one fewer) | Keep; what each choice passes on is `CalendarPassOnTests`, and removal for everyone is `SharedCalendarSyncTests` | | |
+| WallSharedCalendarTests.testAddingAnEventOnTheWall | | With the home calendar on the iPad, "+ Add" opens the same sheet, reads the line, and the event is on the week | Keep; the sheet's logic is `EventLineTests` and `CalendarWriteTests` | | |
 | WallTourTests.testRecipeScreens | 0 | Screenshots only: the bank with a long name, the empty bank, the kitchen view at its top and scrolled, the editor with a card, planning, "What we cook", the week's dinners marked 📖 | Not in the suite; `--tour` | | |
 | WallRecipesTests.testAddingARecipeToADishWeCook | 24 | A recipe typed for a dish we cook joins it, with its history | Keep | | |
 | WallRecipesTests.testCookingFromTheBank | 29 | We made this opens Snap with the dish on the meal; it saves | Keep | | |
@@ -972,6 +983,9 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | `SharedCalendarViewTests` | Pure functions, clock pinned | Each event once with every owner's face, keys before words, quiet blocks and their words, how fresh each device is, Sync details' lines | `WallSharedCalendarTests`, `PhoneSharedCalendarTests` |
 | `SharedCalendarSyncTests` | The fake iCloud, two devices | Mia's phone passes on and Sam's shows, with no marker word reaching iCloud; an unchanged pass writes no event; Just me and leaving remove for everyone; nothing before the choices are seen; a build from before keeps syncing and gets every event, parents first, on updating | None: no UI test runs two devices |
 | `PocketCalendarLogicTests` | Pure functions, calendars and days handed in, weeks swept over a year from Sunday and from Monday | Weeks from the household's first weekday, paging across the clocks changing, the month grid, the header across two months or years, dots, the person filter, the list's days, and the time style in 12 and 24 hours | `PhoneCalendarTests` |
+| `EventLineTests` | Pure functions, clock pinned to a Tuesday morning, first weekdays and locales handed in | The one-line reader's phrase table: weekdays, next and this, today, tonight and tomorrow, dates either way round, times, bare hours, ranges, durations, all day, and household names as For; a line with no day or time | `PhoneCalendarEditTests.testAddingAnEvent`, `WallSharedCalendarTests.testAddingAnEventOnTheWall` |
+| `CalendarWriteTests` | The real database in memory, a fake calendar provider written in memory | Resolving and choosing the home calendar, adding with For, For the calendar's owner storing nothing, a read only calendar, this event and future events, delete and Undo, who can change an event, and an id that changes after saving | `PhoneCalendarEditTests` |
+| `EventForSyncTests` | The fake iCloud, two devices and an older build | Who an event is for, set where it was made or on another device, kept by an older build, carried across an id change by the device that has the event, by title and start meanwhile, and for Busy only events | None: no UI test runs two devices |
 | `PocketSharedCalendarScreenTests` | Hosted whole screen, clock pinned | The Calendar tab and Today's card with another device's quiet rows, Busy only row and stale line; a week across two months with a long title and a day of eight things, the strip's days even and level; in four looks | `PhoneSharedCalendarTests`, `PhoneCalendarTests`; its shots are `shared-calendar-*` and `calendar-busy-week-<look>.png` |
 | `PocketRecipesScreenTests` | Hosted whole screen, with `HostedRowLayout` | The bank (a name and a line as long as they come), an empty bank, a recipe's page and a home dish's way to its recipe, in four looks; one row layout per list at each size | `PhoneRecipesTests`; its shots are `recipes-<kind>-<look>.png` |
 

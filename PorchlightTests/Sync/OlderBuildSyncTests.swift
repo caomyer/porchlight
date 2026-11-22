@@ -706,23 +706,40 @@ struct SharedCalendarSyncTests {
     }
 }
 
-/// A provider that always has the same calendars and events.
+/// A provider with the calendars and events it is given, which it writes to in memory as
+/// EventKit would, and which can change an event's shared id after it is saved.
 @MainActor
 final class FixedCalendarProvider: CalendarProvider {
-    let fixedCalendars: [ExternalCalendar]
-    let fixedEvents: [ExternalEvent]
+    var store: InMemoryCalendarWrites
     var onChange: (@MainActor () -> Void)?
     var access: CalendarAccess = .granted
 
     init(calendars: [ExternalCalendar], events: [ExternalEvent]) {
-        fixedCalendars = calendars
-        fixedEvents = events
+        store = InMemoryCalendarWrites(calendars: calendars, events: events)
     }
 
     func requestAccess() async -> CalendarAccess { access }
-    func calendars() -> [ExternalCalendar] { access == .granted ? fixedCalendars : [] }
+    func calendars() -> [ExternalCalendar] { access == .granted ? store.calendars : [] }
     func events(in interval: DateInterval, calendarIds: Set<String>) -> [ExternalEvent] {
-        fixedEvents.filter { calendarIds.contains($0.calendarId) && $0.end > interval.start && $0.start < interval.end }
+        store.events(in: interval, calendarIds: calendarIds)
+    }
+
+    func save(_ draft: EventDraft, span: EventSpan) throws -> (occurrenceId: String, externalItemId: String?) {
+        guard access == .granted else { throw CalendarWriteError.noAccess }
+        let saved = try store.save(draft, span: span)
+        onChange?()
+        return saved
+    }
+
+    func delete(occurrenceId: String, span: EventSpan) throws {
+        try store.delete(occurrenceId: occurrenceId, span: span)
+        onChange?()
+    }
+
+    func makeCalendar(title: String) throws -> ExternalCalendar {
+        let made = store.makeCalendar(title: title)
+        onChange?()
+        return made
     }
 }
 

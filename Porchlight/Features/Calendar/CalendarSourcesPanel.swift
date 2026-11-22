@@ -59,7 +59,7 @@ private struct AccessPrompt: View {
             CalendarTile(size: 72)
             Text("Show your calendars on the wall")
                 .font(.display(26))
-            Text("Porchlight reads the calendars this iPad already has, like iCloud, Google and Outlook, and passes on the ones you choose to everyone's phones. It never changes them.")
+            Text("Porchlight reads the calendars this iPad already has, like iCloud, Google and Outlook, and passes on the ones you choose to everyone's phones. It adds or changes an event only when you do.")
                 .font(.body(15, weight: 500))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)

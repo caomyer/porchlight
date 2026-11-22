@@ -270,7 +270,11 @@ final class CalendarStore: StoredFirstObservable {
             .compactMap { event in sources[event.calendarId].flatMap { CalendarEvent.resolve(event, source: $0, kind: kinds[event.calendarId] ?? .regular) } }
             .sorted { ($0.start, $0.end, $0.id) < ($1.start, $1.end, $1.id) }
         let others = SharedCalendarView.events(snapshot.shared, people: snapshot.people)
-        let merged = SharedCalendarView.merge(own: own, others: others)
+        var merged = SharedCalendarView.merge(own: own, others: others)
+        // Who each event is for, where the household has said (docs/design/calendar-add-edit.md).
+        if let householdId = snapshot.household?.id {
+            merged = EventForLogic.apply(snapshot.shared.eventFors, to: merged, householdId: householdId)
+        }
         let resolved = SharedCalendarView.quietBlocks(merged, people: snapshot.people, calendar: calendar)
         let calendar = calendar
         var byDay: [DayKey: [CalendarEvent]] = [:]
@@ -352,6 +356,83 @@ final class CalendarStore: StoredFirstObservable {
     /// The event with `id`, a quiet block's own events included, for its sheet.
     func event(id: String) -> CalendarEvent? {
         events.first { $0.id == id } ?? events.lazy.flatMap(\.quietEvents).first { $0.id == id }
+    }
+
+    // MARK: Adding and editing (docs/design/calendar-add-edit.md)
+
+    /// The household's home calendar, as this device finds it among its own.
+    var home: HomeCalendarLogic.Resolution {
+        HomeCalendarLogic.resolve(home: snapshot.home, calendars: calendars, sources: snapshot.sources)
+    }
+
+    /// This device's calendars it may write to, to choose the home calendar from.
+    var writableCalendars: [ExternalCalendar] { calendars.filter(\.allowsWrites) }
+
+    func chooseHome(_ calendar: ExternalCalendar) {
+        guard let householdId = snapshot.household?.id else { return }
+        perform { try database.chooseHomeCalendar(calendar, householdId: householdId, now: now()) }
+    }
+
+    /// Makes a new calendar on this device and makes it the household's home calendar.
+    func makeHomeCalendar(title: String) throws {
+        let made = try provider.makeCalendar(title: title)
+        reload()
+        chooseHome(calendars.first { $0.id == made.id } ?? made)
+    }
+
+    func markHome(_ calendar: ExternalCalendar) {
+        guard let householdId = snapshot.household?.id else { return }
+        perform { try database.markHomeCalendar(externalId: calendar.id, householdId: householdId) }
+    }
+
+    /// Whether this device can change an event: one of its own, in a calendar it may write.
+    func canChange(_ event: CalendarEvent) -> Bool {
+        guard event.from == nil, !event.isQuiet || event.quietEvents.isEmpty else { return false }
+        return calendars.first { $0.id == event.calendarId }?.allowsWrites ?? false
+    }
+
+    /// The event as the sheet edits it.
+    func draft(for event: CalendarEvent) -> EventDraft? {
+        guard canChange(event), let raw = rawEvents.first(where: { $0.id == event.id }) else { return nil }
+        return EventDraft(
+            occurrenceId: raw.id, calendarId: raw.calendarId, title: raw.title, start: raw.start, end: raw.end,
+            isAllDay: raw.isAllDay, location: raw.location ?? "", notes: raw.notes ?? "", repeats: raw.repeats
+        )
+    }
+
+    /// Who an event is for, as its "For" or its calendar's owner.
+    func people(for event: CalendarEvent) -> [Person.ID] {
+        event.owners.compactMap { if case let .person(id) = $0 { return id } else { return nil } }
+    }
+
+    /// Saves a new event or a change, and who it is for; then passes it on soon.
+    @discardableResult
+    func save(_ draft: EventDraft, span: EventSpan = .thisEvent, for people: [Person.ID]) throws -> String {
+        let saved = try provider.save(draft, span: span)
+        if let householdId = snapshot.household?.id, let key = CalendarPassOn.matchKey(saved.externalItemId) {
+            let calendarOwner = snapshot.sources.first { $0.externalId == draft.calendarId }?.ownerId
+            // "For" is the household's fact only where it differs from the calendar's owner.
+            let forPeople: [Person.ID]? = people == (calendarOwner.map { [$0] } ?? []) ? nil : people
+            try database.setEventFor(
+                matchKey: key, title: draft.title, start: draft.start, itemId: EventForLogic.itemId(ofOccurrence: saved.occurrenceId),
+                people: forPeople, householdId: householdId, now: now()
+            )
+        }
+        reload()
+        passOnSoon(.change)
+        return saved.occurrenceId
+    }
+
+    /// Deletes an event, or it and those after it; returns it as it was, for Undo.
+    func delete(_ event: CalendarEvent, span: EventSpan) throws -> (draft: EventDraft, people: [Person.ID])? {
+        guard var draft = draft(for: event) else { return nil }
+        let people = people(for: event)
+        try provider.delete(occurrenceId: event.id, span: span)
+        reload()
+        passOnSoon(.change)
+        draft.occurrenceId = nil
+        if span == .thisEvent { draft.repeats = nil }
+        return (draft, people)
     }
 
     // MARK: Passing on

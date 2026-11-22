@@ -12,6 +12,8 @@ struct SharedCalendarSnapshot: Equatable, Sendable {
     var feeds: [CalendarFeed] = []
     var calendars: [SharedCalendar] = []
     var events: [SharedEvent] = []
+    /// Who events are for (docs/design/calendar-add-edit.md, "For whom").
+    var eventFors: [EventFor] = []
 
     static let empty = SharedCalendarSnapshot(thisDeviceId: nil)
 
@@ -23,7 +25,8 @@ struct SharedCalendarSnapshot: Equatable, Sendable {
         let mine = CalendarFeed.id(deviceId: thisDeviceId)
         let others = calendars.filter { $0.feedId != mine }.map(\.id)
         let events = try SharedEvent.filter(others.contains(Column("sharedCalendarId"))).order(Column("start")).fetchAll(db)
-        return SharedCalendarSnapshot(thisDeviceId: thisDeviceId, devices: devices, feeds: feeds, calendars: calendars, events: events)
+        let eventFors = try EventFor.filter(Column("householdId") == householdId).fetchAll(db)
+        return SharedCalendarSnapshot(thisDeviceId: thisDeviceId, devices: devices, feeds: feeds, calendars: calendars, events: events, eventFors: eventFors)
     }
 
     /// The device a feed came from, and whose it is.
@@ -48,7 +51,9 @@ enum SharedCalendarView {
             var event = CalendarEvent.resolve(external, owner: calendar.owner, isBusy: calendar.choice == .busy, calendarTitle: calendar.title, kind: kind)
             event.matchKey = row.matchKey
             event.isQuiet = calendar.choice == .quiet
-            event.from = from(calendar, device: snapshot.device(of: calendar.feedId), people: people)
+            let device = snapshot.device(of: calendar.feedId)
+            event.from = from(calendar, device: device, people: people)
+            event.fromDevice = device.map { whoseWords($0, people: people) + " " + ($0.model ?? "phone") }
             return event
         }
     }

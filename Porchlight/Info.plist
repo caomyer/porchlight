@@ -42,7 +42,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Porchlight shows the calendars you choose on Today and on your household's wall. It only reads them and never changes them.</string>
+	<string>Porchlight shows the calendars you choose, on Today and on your household's wall. It adds or changes an event only when you do, in the calendar you choose.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Porchlight uses the camera to snap photos of your meals for the food diary.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

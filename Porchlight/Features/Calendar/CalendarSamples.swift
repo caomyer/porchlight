@@ -6,6 +6,10 @@ enum CalendarSamples {
     static func seed(_ database: AppDatabase, household: Household, people: [Person]) throws {
         let householdId = household.id
         try database.syncCalendarSources(householdId: householdId, calendars: calendars)
+        // `-sampleHomeCalendar YES`: "Us" is the household's home calendar.
+        if UserDefaults.standard.bool(forKey: "sampleHomeCalendar"), let home = calendars.first(where: { $0.id == Self.us }) {
+            try database.chooseHomeCalendar(home, householdId: householdId)
+        }
         let sources = try database.calendarSnapshot().sources
         for source in sources {
             let id = source.id
@@ -75,10 +79,10 @@ enum CalendarSamples {
     static let holidays = "sample-holidays"
 
     static let calendars: [ExternalCalendar] = [
-        ExternalCalendar(id: james, title: "James", account: "Google · james@example.com", colorHex: 0x4C7BB0),
-        ExternalCalendar(id: work, title: "Work", account: "Google · james@example.com", colorHex: 0x7E8CA0),
-        ExternalCalendar(id: mia, title: "Mia", account: "iCloud · mia@example.com", colorHex: 0xDD7558),
-        ExternalCalendar(id: us, title: "Us", account: "Google · shared by James", colorHex: 0xC2933A),
+        ExternalCalendar(id: james, title: "James", account: "Google · james@example.com", colorHex: 0x4C7BB0, accountKind: "Google", allowsWrites: true),
+        ExternalCalendar(id: work, title: "Work", account: "Google · james@example.com", colorHex: 0x7E8CA0, accountKind: "Google", allowsWrites: true),
+        ExternalCalendar(id: mia, title: "Mia", account: "iCloud · mia@example.com", colorHex: 0xDD7558, accountKind: "iCloud", allowsWrites: true),
+        ExternalCalendar(id: us, title: "Us", account: "Google · shared by James", colorHex: 0xC2933A, accountKind: "Google", allowsWrites: true),
         ExternalCalendar(id: birthdays, title: "Birthdays", account: "iCloud · from Contacts", colorHex: 0xB07AA1, kind: .birthdays),
         ExternalCalendar(id: holidays, title: "US Holidays", account: "Subscribed link", colorHex: 0x9AA0A6, kind: .subscribed),
     ]
@@ -105,7 +109,8 @@ final class SampleCalendarProvider: CalendarProvider {
     default: .granted
     }
     private let calendar: Calendar
-    private lazy var allEvents: [ExternalEvent] = makeEvents()
+    /// The sample's calendars and events, written to in memory as EventKit would.
+    private lazy var store = InMemoryCalendarWrites(calendars: CalendarSamples.calendars, events: makeEvents())
 
     init(calendar: Calendar = .current, now: Date = CompanionClock.now()) {
         self.calendar = calendar
@@ -119,10 +124,27 @@ final class SampleCalendarProvider: CalendarProvider {
         return access
     }
 
-    func calendars() -> [ExternalCalendar] { access == .granted ? CalendarSamples.calendars : [] }
+    func calendars() -> [ExternalCalendar] { access == .granted ? store.calendars : [] }
 
     func events(in interval: DateInterval, calendarIds: Set<String>) -> [ExternalEvent] {
-        allEvents.filter { calendarIds.contains($0.calendarId) && $0.end > interval.start && $0.start < interval.end }
+        store.events(in: interval, calendarIds: calendarIds)
+    }
+
+    func save(_ draft: EventDraft, span: EventSpan) throws -> (occurrenceId: String, externalItemId: String?) {
+        let saved = try store.save(draft, span: span)
+        onChange?()
+        return saved
+    }
+
+    func delete(occurrenceId: String, span: EventSpan) throws {
+        try store.delete(occurrenceId: occurrenceId, span: span)
+        onChange?()
+    }
+
+    func makeCalendar(title: String) throws -> ExternalCalendar {
+        let made = store.makeCalendar(title: title)
+        onChange?()
+        return made
     }
 
     // MARK: Data
@@ -155,6 +177,20 @@ final class SampleCalendarProvider: CalendarProvider {
                 end: date(offset + days),
                 isAllDay: true
             ))
+        }
+
+        // `-sampleHomeCalendar YES`: piano every Thursday at 4, in the home calendar.
+        if UserDefaults.standard.bool(forKey: "sampleHomeCalendar") {
+            let weekday = calendar.component(.weekday, from: today)
+            let toThursday = (5 - weekday + 7) % 7
+            for week in 0..<6 {
+                let day = date(toThursday + week * 7)
+                let start = day.addingTimeInterval(16 * 3600)
+                events.append(ExternalEvent(
+                    id: "\(Self.us)-piano@\(Int(start.timeIntervalSince1970))", calendarId: Self.us, title: "Piano lesson",
+                    start: start, end: start.addingTimeInterval(3600), isAllDay: false, externalItemId: "piano@sample", repeats: .weekly
+                ))
+            }
         }
 
         // The mock week: six days ago through today.

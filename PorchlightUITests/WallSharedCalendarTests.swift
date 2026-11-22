@@ -81,6 +81,25 @@ final class WallSharedCalendarTests: XCTestCase {
         snapshot("cal-20-just-me")
     }
 
+    /// "+ Add" when the iPad has the household's home calendar: the same sheet, read from one
+    /// line, and the event on the week.
+    func testAddingAnEventOnTheWall() {
+        let app = launch(["-sampleHomeCalendar", "YES", "-startScreen", "calendar"])
+        let add = app.buttons["wall-calendar-add"]
+        XCTAssertTrue(add.waitForExistence(timeout: 30), "The wall has the home calendar, so it can add")
+        add.tap()
+        let line = app.descendants(matching: .any).matching(identifier: "event-line").firstMatch
+        XCTAssertTrue(line.waitForExistence(timeout: 10))
+        line.tap()
+        line.typeText("Dinner with the Lees tomorrow 7pm")
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "event-reads-as").firstMatch.label.contains("Dinner with the Lees"))
+        snapshot("cal-80-wall-new-event")
+        app.buttons["event-save"].tap()
+        let added = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Dinner with the Lees")).firstMatch
+        XCTAssertTrue(added.waitForExistence(timeout: 10), "It is on the week")
+        snapshot("cal-81-wall-added")
+    }
+
     /// Opens Sync details and reads this device's calendars line.
     private func calendarsLine(_ app: XCUIApplication) -> String {
         let details = app.buttons["sync-details"]
