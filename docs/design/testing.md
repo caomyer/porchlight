@@ -221,6 +221,7 @@ One shot per shape of the screen stays, not one per wording.
 Each rule is named by its first sentence, and is referred to by that name, here and in other documents: a number would change the day a rule is added, and a reference to "rule 10" has already pointed at the wrong rule once.
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
 "A run that loses its process fails" is from a crash on November 22 that was read as a pass.
+"The shipped configuration is compiled in CI" is from a commit with four green full runs whose archive did not compile, the same day.
 "A frame inside the screen does not prove the ink is inside the frame" is from a defect found by eye on November 21, and "A test leaves the simulator as it found it" from reading two tests that day; the others come from what the UI tests' own comments record.
 
 - **A test's outcome never depends on the real clock.**
@@ -282,6 +283,12 @@ The first six were each learned from a failed or misleading run in the week of N
   Why: on November 22, 2026 a hosted screen that had gained toasts crashed the unit test process for want of a store, and a private script that ran `xcodebuild test-without-building` and read its last Swift Testing summary reported "Test run with 263 tests in 50 suites passed". Through `scripts/test.sh` the same crash ended with "Unit: 712/716 passed, 2 failed" and a failing status.
   This is not the rule for a runner that never started a single test, which is run once more ("Infrastructure failures"), nor for a UI test whose app could not be launched: neither has lost a test that had begun.
   A crash in a test is a failure and is never run again.
+- **The shipped configuration is compiled in CI.**
+  The tests build Debug and only Debug, so nothing the tests do can say that what goes to TestFlight compiles.
+  Every push and every full run also compiles the app and its widgets in Release, for a device, with signing off (the "Release build" job, `scripts/ci/build-release.sh`), and a run is not green without it.
+  It is the same compile the archive makes, so run it before archiving too: `zsh scripts/ci/build-release.sh`.
+  Why: on November 22, 2026 a `@State` was declared inside an `#if DEBUG` block and read outside it. Debug built, every test passed, four full runs were green on that commit, and its TestFlight archive failed with "cannot find 'holdsStill' in scope" ("What the suite missed").
+  Anything declared under `#if DEBUG` and used outside it is this trap; the compiler finds it in Release in minutes, and no test can.
 
 ## Tiers
 
@@ -614,6 +621,16 @@ A failure that could not be reproduced is written down here with what was ruled 
 - **Why it matters**: one more minute a step and the job passes its limit, and a run that is green hides it: nothing fails. The ceiling of 120 seconds is checked by reading a run's seconds, which nobody does on a green run.
 - **Owner**: the agent on the calendar branches for the cause, if it is the app's; the agent on `tests/pyramid` for making a test that takes ten times its usual seconds visible on a green run.
 - **Next step**: watch the same test in the runs after; if it happens again, take the app's log from the result bundle of that run and look at what the main thread was doing.
+
+## What the suite missed
+
+What reached a person, or would have, with every test green; each with what now stands in its way.
+
+| What | When | Why no test saw it | What stands in its way now |
+|---|---|---|---|
+| The TestFlight archive did not compile: `Porchlight/Shell/WallView.swift:112`, "cannot find 'holdsStill' in scope" | November 22, 2026, on commit fb6900b, which had four green full runs. Nothing reached TestFlight | A `@State private var holdsStill` was declared inside the `#if DEBUG` block beside the test-only `touchesSeen`, and read outside it. CI ran `xcodebuild build-for-testing` in Debug and nothing else, so the configuration that ships was never compiled | The "Release build" job compiles the app and its widgets in Release on every push and every full run (the hard rule "The shipped configuration is compiled in CI"). The declaration was moved out of the block |
+| A handwritten title's ink cut off at its last letter, with every frame inside the screen | November 21, 2026, found by eye | A frame inside the screen does not prove the ink is inside the frame | `HandwritingTests` measures the ink (the hard rule of that name) |
+| A blank review shot for a page taller than about 4,096 points, with every check on the page passing | November 22, 2026, Free together at the largest size | `drawHierarchy` returns a blank picture past about 8192 pixels, and nothing looked at the picture | `HostedScreen` draws a tall page in pieces and fails on a picture that is blank where the page has words |
 
 
 ## Budgets

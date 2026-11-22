@@ -132,6 +132,42 @@ jobs:
           compression-level: 1
           retention-days: 1
 
+  # What ships, compiled: the app and its widgets in Release for a device, signing off
+  # (scripts/ci/build-release.sh). The tests only ever build Debug, and on November 22, 2026
+  # a commit with four green full runs did not compile in Release. It is a job of its own,
+  # beside the build for testing and needed by nothing, so it adds a Mac and no minutes to
+  # what the tests wait for; it runs on every push and every full run, and fails the run.
+  release:
+    name: Release build
+    if: ${{ !inputs.only && !inputs.measure_boots }}
+    runs-on: xcode-27
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Restore the Swift packages
+        uses: actions/cache/restore@v4
+        with:
+          path: /Users/runner/release-build/DerivedData/SourcePackages
+          key: spm-release-${{ hashFiles('project.yml') }}
+          restore-keys: spm-release-
+
+      - name: Compile what ships, in Release
+        env:
+          PORCHLIGHT_RELEASE_BUILD_DIR: /Users/runner/release-build
+        run: zsh scripts/ci/build-release.sh
+
+      - name: Keep the Swift packages
+        if: success()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: /Users/runner/release-build/DerivedData/SourcePackages
+          key: spm-release-${{ hashFiles('project.yml') }}-${{ github.run_id }}
+
   # The full suite: the release line, main, and any run by hand.
   test:
     name: ${{ matrix.name }}
