@@ -44,7 +44,9 @@ final class WallSharedCalendarTests: XCTestCase {
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Climbing gym")).count, 1)
         snapshot("cal-10-week")
         block.waitToSettle()
-        block.tap()
+        // On its name, at the top: the day's own events are drawn over the block, and its
+        // middle can be one of them (the lunch at 12:30, as the week's hours are fitted).
+        block.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 12)).tap()
         let meetings = app.descendants(matching: .any)["quiet-events"]
         XCTAssertTrue(meetings.waitForExistence(timeout: 5), "A tap lists the meetings")
         XCTAssertTrue(app.staticTexts["Launch review"].exists)
