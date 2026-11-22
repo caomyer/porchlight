@@ -59,6 +59,34 @@ final class WallTourTests: XCTestCase {
         }
     }
 
+    /// The household calendar on the wall for review (docs/design/calendar-shared.md), with
+    /// Mia's phone two days quiet (`-sampleSharedCalendar stale`) and the clock at 8 in the
+    /// morning: the week with her work as a band, a Busy only event and the stale line; the
+    /// day, where the grid shows faces; the band's meetings; one event with two faces; and the
+    /// month.
+    func testCalendarScreens() {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
+        let morning = String(format: "%04d-%02d-%02dT08:00", parts.year!, parts.month!, parts.day!)
+        let base = ["-startScreen", "calendar", "-sampleSharedCalendar", "stale", "-debugCompanionNow", morning]
+        for (name, mode) in [("c01-week", "week"), ("c02-day", "day"), ("c05-month", "month")] {
+            let app = launch(base + ["-calendarMode", mode])
+            snapshot(name)
+            app.terminate()
+        }
+        let app = launch(base)
+        let band = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Mia at work")).firstMatch
+        XCTAssertTrue(band.waitForExistence(timeout: 20))
+        band.tap()
+        Thread.sleep(forTimeInterval: 1)
+        snapshot("c03-quiet-meetings")
+        app.buttons["Close"].tap()
+        Thread.sleep(forTimeInterval: 1)
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Climbing gym")).firstMatch.tap()
+        Thread.sleep(forTimeInterval: 1)
+        snapshot("c04-two-faces")
+        app.terminate()
+    }
+
     /// The wall's recipes for review (docs/design/dishes.md, "Recipes"), with a recipe as long
     /// as they come (`-sampleFood long`): the bank, the empty bank, the kitchen view at its top
     /// and scrolled, the editor with a card photo, planning from the bank, the dinner editor's

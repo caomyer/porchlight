@@ -238,7 +238,7 @@ extension PocketCareWords {
 
 /// Today's calendar, with the next 7 days a tap away. With no calendars to show yet it
 /// is a single row to the Calendars page, which explains before asking for access.
-private struct PocketAgendaCard: View {
+struct PocketAgendaCard: View {
     let open: (PocketRoute) -> Void
 
     @Environment(AppModel.self) private var model
@@ -311,7 +311,7 @@ private struct PocketAgendaCard: View {
                                 .phoneFont(.body, 13, weight: 700, relativeTo: .footnote)
                                 .foregroundStyle(Theme.accent)
                             Spacer(minLength: 4)
-                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.muted)
+                            Image(systemName: "chevron.right").phoneFont(.body, 12, weight: 800, relativeTo: .footnote).foregroundStyle(Theme.muted)
                         }
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())

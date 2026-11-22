@@ -14,7 +14,7 @@ struct PocketSharedCalendarScreenTests {
     /// Tuesday, Nov 24, 2026, 08:00 in Los Angeles.
     static let now = Date(timeIntervalSince1970: 1_795_536_000)
 
-    private func page(_ value: String, _ look: HostedScreen.Look) async throws -> HostedScreen {
+    private func page(_ value: String, _ look: HostedScreen.Look, card: Bool = false) async throws -> HostedScreen {
         let db = try AppDatabase.inMemory(installId: "shared-calendar")
         var household = try db.createHousehold(
             name: "The Lake House", people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)]
@@ -28,11 +28,27 @@ struct PocketSharedCalendarScreenTests {
         let store = CalendarStore(
             database: db, provider: FixedCalendarProvider(calendars: [], events: []), now: { Self.now }, passesOn: false
         )
+        let screen: AnyView = card
+            ? AnyView(ScrollView { PocketAgendaCard(open: { _ in }).padding(.horizontal, 16) }.background(Theme.background))
+            : AnyView(PocketNextWeek())
         let hosted = try await HostedScreen.host(
-            PocketNextWeek().environment(model).environment(store).environment(\.me, snapshot.people[0]), look: look
+            screen.environment(model).environment(store).environment(\.me, snapshot.people[0]), look: look
         )
-        try hosted.saveShot("shared-calendar-\(value)-\(look.name)")
+        try hosted.saveShot("shared-calendar-\(card ? "card-" : "")\(value)-\(look.name)")
         return hosted
+    }
+
+    @Test(
+        "Today's \"At home today\" card shows another device's quiet row, and a row to add this phone's calendars, in each look",
+        arguments: ["light", "dark", "largest", "largest-dark"]
+    )
+    func card(lookName: String) async throws {
+        let look = HostedScreen.Look.named(lookName)
+        let page = try await page("stale", look, card: true)
+        #expect(page.offSides.isEmpty, "nothing runs off either side (\(look)): \(page.offSides.map { "\($0.label.prefix(30)) \($0.frame.integral)" })")
+        #expect(page.elements.contains { $0.label.contains("Mia at work") && $0.label.contains("3 meetings") }, "the quiet row:\n\(page.listing)")
+        #expect(page.elements.contains { $0.label.contains("Mia's calendar, updated Sunday") }, "the stale line")
+        #expect(page.elements.contains { $0.isButton && $0.label.contains("Add this") }, "a way to add this phone's own")
     }
 
     @Test(

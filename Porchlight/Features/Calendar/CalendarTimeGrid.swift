@@ -206,6 +206,7 @@ struct TimeGrid: View {
                     event: event,
                     color: store.color(for: event.owner),
                     height: max(bottom - top - 2, 18),
+                    width: blockWidth,
                     isDetailed: isDetailed,
                     calendar: calendar,
                     people: store.people
@@ -297,18 +298,31 @@ private struct EventBlock: View {
     let event: CalendarEvent
     let color: Color
     let height: CGFloat
+    let width: CGFloat
     let isDetailed: Bool
     let calendar: Calendar
     let people: [Person]
 
+    private var titleSize: CGFloat { isDetailed ? 16 : 12.5 }
+
+    /// Room for the title: the block, less its padding and the faces beside it.
+    private var titleWidth: CGFloat {
+        width - (isDetailed ? 24 : 14) - (isDetailed && height >= 36 ? 36 : 0)
+    }
+
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+        // Words wrap whole; a word too wide for the column keeps the title to one line,
+        // shrunk a little and then cut, never split across lines (`EventTitleLayout`).
+        let mode = EventTitleLayout.mode(title, font: UIFont.variable(.body, size: titleSize, weight: 700), width: titleWidth)
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.body(isDetailed ? 16 : 12.5, weight: 700))
+                    .font(.body(titleSize, weight: 700))
                     .foregroundStyle(event.isBusy || event.isQuiet ? Theme.muted : Theme.ink)
-                    .lineLimit(titleLines)
+                    .lineLimit(mode == .wrap ? titleLines : 1)
+                    .minimumScaleFactor(mode == .wrap ? 1 : EventTitleLayout.minimumScale)
+                    .truncationMode(.tail)
                 if showsTime {
                     Text(timeText)
                         .font(.body(isDetailed ? 13 : 11, weight: 600))
