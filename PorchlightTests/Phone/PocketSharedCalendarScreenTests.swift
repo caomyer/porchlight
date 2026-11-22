@@ -86,7 +86,7 @@ struct PocketSharedCalendarScreenTests {
         let look = HostedScreen.Look.named(lookName)
         let page = try await busyWeek(look)
         #expect(page.offSides.isEmpty, "nothing runs off either side (\(look)): \(page.offSides.map { "\($0.label.prefix(30)) \($0.frame.integral)" })")
-        #expect(page.elements.contains { $0.label.contains("Nov – Dec 2026") }, "both months:\n\(page.listing)")
+        #expect(page.elements.contains { $0.label.contains("Nov - Dec 2026") }, "both months:\n\(page.listing)")
         let strip = page.elements.filter { $0.isButton && ($0.label.contains("November") || $0.label.contains("December")) && $0.label.contains(",") && $0.frame.height < 200 }
         #expect(strip.count >= 7, "seven days in the strip:\n\(page.listing)")
         // Even to within a point (half points round either way) and level.

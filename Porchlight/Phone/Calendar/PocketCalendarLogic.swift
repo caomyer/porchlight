@@ -58,17 +58,17 @@ enum PocketCalendarLogic {
         calendar.isDate(day.startDate(in: calendar), equalTo: month.startDate(in: calendar), toGranularity: .month)
     }
 
-    /// The header: "November 2026", or "Nov – Dec 2026" for a week across two months, and
-    /// "Dec 2026 – Jan 2027" across two years.
+    /// The header: "November 2026", or "Nov - Dec 2026" for a week across two months, and
+    /// "Dec 2026 - Jan 2027" across two years.
     static func title(for days: [DayKey], calendar: Calendar) -> String {
         guard let first = days.first?.startDate(in: calendar), let last = days.last?.startDate(in: calendar) else { return "" }
         if calendar.isDate(first, equalTo: last, toGranularity: .month) {
             return EventText.format(first, calendar, "MMMM y")
         }
         if calendar.isDate(first, equalTo: last, toGranularity: .year) {
-            return "\(EventText.format(first, calendar, "MMM")) – \(EventText.format(last, calendar, "MMM y"))"
+            return "\(EventText.format(first, calendar, "MMM")) - \(EventText.format(last, calendar, "MMM y"))"
         }
-        return "\(EventText.format(first, calendar, "MMM y")) – \(EventText.format(last, calendar, "MMM y"))"
+        return "\(EventText.format(first, calendar, "MMM y")) - \(EventText.format(last, calendar, "MMM y"))"
     }
 
     // MARK: People
@@ -87,9 +87,11 @@ enum PocketCalendarLogic {
     }
 
     /// One dot per person with something on the day, in the household's order, the whole
-    /// household's last; at most `limit`.
-    static func dots(_ events: [CalendarEvent], people: [Person], limit: Int = 4) -> [Owner] {
-        let owners = Set(events.flatMap(\.owners))
+    /// household's last; at most `limit`. Under a person's chip the dots answer "what does
+    /// she have": hers (a shared event among them) and the household's, no one else's.
+    static func dots(_ events: [CalendarEvent], people: [Person], filter: Filter = .everyone, limit: Int = 4) -> [Owner] {
+        var owners = Set(events.flatMap(\.owners))
+        if case let .person(id) = filter { owners = owners.intersection([.person(id), .everyone]) }
         var dots: [Owner] = people.map { Owner.person($0.id) }.filter(owners.contains)
         if owners.contains(.everyone) { dots.append(.everyone) }
         return Array(dots.prefix(limit))

@@ -139,7 +139,7 @@ struct FoodScreen: View {
             let start = first.startDate(in: calendar)
             let end = last.startDate(in: calendar)
             let sameMonth = calendar.isDate(start, equalTo: end, toGranularity: .month)
-            let range = start.formatted(.dateTime.month(.abbreviated).day()) + " – "
+            let range = start.formatted(.dateTime.month(.abbreviated).day()) + " - "
                 + (sameMonth ? "\(calendar.component(.day, from: end))" : end.formatted(.dateTime.month(.abbreviated).day()))
             let count = days.reduce(0) { $0 + store.entries(on: $1).count }
             return "\(range) · \(count == 1 ? "1 meal" : "\(count) meals") logged"

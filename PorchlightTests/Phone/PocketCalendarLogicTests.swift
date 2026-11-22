@@ -83,8 +83,8 @@ struct PocketCalendarLogicTests {
     func title() {
         let calendar = Self.calendar()
         #expect(PocketCalendarLogic.title(for: PocketCalendarLogic.week(containing: Self.day("2026-11-24"), calendar: calendar), calendar: calendar) == "November 2026")
-        #expect(PocketCalendarLogic.title(for: PocketCalendarLogic.week(containing: Self.day("2026-12-01"), calendar: calendar), calendar: calendar) == "Nov – Dec 2026")
-        #expect(PocketCalendarLogic.title(for: PocketCalendarLogic.week(containing: Self.day("2026-12-31"), calendar: calendar), calendar: calendar) == "Dec 2026 – Jan 2027")
+        #expect(PocketCalendarLogic.title(for: PocketCalendarLogic.week(containing: Self.day("2026-12-01"), calendar: calendar), calendar: calendar) == "Nov - Dec 2026")
+        #expect(PocketCalendarLogic.title(for: PocketCalendarLogic.week(containing: Self.day("2026-12-31"), calendar: calendar), calendar: calendar) == "Dec 2026 - Jan 2027")
     }
 
     // MARK: People
@@ -99,6 +99,10 @@ struct PocketCalendarLogicTests {
         #expect(PocketCalendarLogic.dots(events, people: [Self.alex, Self.sam]) == [.person(Self.alex.id), .person(Self.sam.id), .everyone])
         #expect(PocketCalendarLogic.dots(events, people: [Self.alex, Self.sam], limit: 2).count == 2)
         #expect(PocketCalendarLogic.dots([], people: [Self.alex]).isEmpty)
+        // Under Alex's chip: his, the one he shares with Sam as his, and the household's.
+        #expect(PocketCalendarLogic.dots(events, people: [Self.alex, Self.sam], filter: .person(Self.alex.id)) == [.person(Self.alex.id), .everyone])
+        let samsOnly = [Self.event("a", "2026-11-24", hour: 9, owner: .person(Self.sam.id), also: [.person(Self.alex.id)])]
+        #expect(PocketCalendarLogic.dots(samsOnly, people: [Self.alex, Self.sam], filter: .person(Self.alex.id)) == [.person(Self.alex.id)])
     }
 
     @Test("A person's chip keeps their events, the shared ones they are on, and the household's")

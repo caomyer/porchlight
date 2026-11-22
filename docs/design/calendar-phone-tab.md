@@ -8,7 +8,7 @@ Read only: nothing is added or changed here until step 3, and Free together come
 The fifth tab, between Today and Food; porchlight://calendar opens it.
 From the top:
 
-- The month ("November 2026", or "Nov – Dec 2026" for a week across two) with "You" beside it.
+- The month ("November 2026", or "Nov - Dec 2026" for a week across two) with "You" beside it.
   Tapping it unfolds the week into the month; tapping a day there picks it and folds the month away.
   There is no separate month screen.
 - A chip for Everyone and one per person, filtering everything below.

@@ -66,7 +66,7 @@ struct GlowScreen: View {
 
     private var subtitle: String {
         "everyone's stars, " + store.week.first.formatted(.dateTime.month(.abbreviated).day(), calendar: store.calendar)
-            + " – " + store.week.last.formatted(.dateTime.month(.abbreviated).day(), calendar: store.calendar)
+            + " - " + store.week.last.formatted(.dateTime.month(.abbreviated).day(), calendar: store.calendar)
     }
 
     private func present(_ sheet: RewardSheet) {

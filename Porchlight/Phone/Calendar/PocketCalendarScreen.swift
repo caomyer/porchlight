@@ -34,13 +34,13 @@ struct PocketCalendarScreen: View {
                 header(week: week, day: day, calendar: calendar)
                 chips
                 if monthOpen {
-                    PocketCalendarMonth(month: day, picked: day, today: today, events: events) { chosen in
+                    PocketCalendarMonth(month: day, picked: day, today: today, filter: filter, events: events) { chosen in
                         pick(chosen, today: today, calendar: calendar)
                         withAnimation(.easeOut(duration: 0.2)) { monthOpen = false }
                     }
                 } else {
                     pager(week: week, today: today, calendar: calendar)
-                    PocketWeekStrip(days: week, picked: day, today: today, events: events) { pick($0, today: today, calendar: calendar) }
+                    PocketWeekStrip(days: week, picked: day, today: today, filter: filter, events: events) { pick($0, today: today, calendar: calendar) }
                         .gesture(swipe(today: today, calendar: calendar))
                 }
                 StaleCalendarLines(sources: store.staleSources, fontSize: 12.5)
@@ -190,7 +190,7 @@ struct PocketCalendarScreen: View {
         case -1: return "Last week"
         default:
             guard let first = week.first, let last = week.last else { return "" }
-            return "\(EventText.format(first.startDate(in: calendar), calendar, "MMM d")) – \(EventText.format(last.startDate(in: calendar), calendar, "MMM d"))"
+            return "\(EventText.format(first.startDate(in: calendar), calendar, "MMM d")) - \(EventText.format(last.startDate(in: calendar), calendar, "MMM d"))"
         }
     }
 
@@ -305,6 +305,7 @@ struct PocketWeekStrip: View {
     let days: [DayKey]
     let picked: DayKey
     let today: DayKey
+    let filter: PocketCalendarLogic.Filter
     let events: (DayKey) -> [CalendarEvent]
     let onPick: (DayKey) -> Void
 
@@ -318,7 +319,7 @@ struct PocketWeekStrip: View {
                 let date = day.startDate(in: calendar)
                 let isPicked = day == picked
                 let isToday = day == today
-                let dots = PocketCalendarLogic.dots(events(day), people: store.people)
+                let dots = PocketCalendarLogic.dots(events(day), people: store.people, filter: filter)
                 Button { onPick(day) } label: {
                     VStack(spacing: 5) {
                         Text(EventText.format(date, calendar, "EEEEE"))
@@ -373,6 +374,7 @@ struct PocketCalendarMonth: View {
     let month: DayKey
     let picked: DayKey
     let today: DayKey
+    let filter: PocketCalendarLogic.Filter
     let events: (DayKey) -> [CalendarEvent]
     let onPick: (DayKey) -> Void
 
@@ -412,7 +414,7 @@ struct PocketCalendarMonth: View {
         let inMonth = PocketCalendarLogic.isInMonth(day, of: month, calendar: calendar)
         let isPicked = day == picked
         let isToday = day == today
-        let dots = PocketCalendarLogic.dots(events(day), people: store.people, limit: 3)
+        let dots = PocketCalendarLogic.dots(events(day), people: store.people, filter: filter, limit: 3)
         return Button { onPick(day) } label: {
             VStack(spacing: 4) {
                 Text(EventText.format(day.startDate(in: calendar), calendar, "d"))
