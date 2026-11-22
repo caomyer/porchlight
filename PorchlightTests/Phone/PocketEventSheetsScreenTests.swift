@@ -60,6 +60,36 @@ struct PocketEventSheetsScreenTests {
         return hosted
     }
 
+    /// The phone's clock, moved on while the app stays open.
+    private final class Clock: @unchecked Sendable { var now = Date(timeIntervalSince1970: 1_795_017_600) }
+
+    @Test("A new event starts at the next hour of the store's clock, the new day when the phone has sat open overnight")
+    func nextMorning() async throws {
+        let db = try AppDatabase.inMemory(installId: "next-morning")
+        var household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "James", color: .blue)])
+        household.timeZoneIdentifier = "America/Los_Angeles"
+        try await db.writer.write { [household] db in try household.update(db) }
+        try db.syncCalendarSources(householdId: household.id, calendars: [Self.us])
+        let clock = Clock()
+        let store = CalendarStore(database: db, provider: FixedCalendarProvider(calendars: [Self.us], events: []), now: { clock.now }, passesOn: false)
+        for _ in 0..<50 where store.snapshot.household == nil { try await Task.sleep(for: .milliseconds(100)) }
+        let model = AppModel(database: db)
+        let me = try #require(try db.snapshot().people.first)
+        func open() async throws -> HostedScreen {
+            try await HostedScreen.host(
+                PocketEventEditor(start: .new(Self.us)).environment(model).environment(store).environment(ToastCenter()).environment(\.me, me),
+                look: .light
+            )
+        }
+        let wednesday = try await open()
+        #expect(wednesday.elements.contains { $0.label == "Nov 18, 2026" }, "today, Wednesday:\n\(wednesday.listing)")
+        // The next morning, the same app: a sheet opened now starts on Thursday.
+        clock.now = Self.now.addingTimeInterval(23.5 * 3600)
+        let thursday = try await open()
+        #expect(thursday.elements.contains { $0.label == "Nov 19, 2026" }, "the new day:\n\(thursday.listing)")
+        #expect(!thursday.elements.contains { $0.label == "Nov 18, 2026" })
+    }
+
     @Test(
         "The chooser, a new event, a weekly event's page and its editor fit across the screen and say what they are, in each look",
         arguments: ["chooser", "new", "page", "edit"], ["light", "dark", "largest", "largest-dark"]
