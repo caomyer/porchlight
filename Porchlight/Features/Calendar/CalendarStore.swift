@@ -39,15 +39,30 @@ final class CalendarStore: StoredFirstObservable {
 
     @ObservationIgnored private var storedCalendars: [ExternalCalendar] = []
     /// What the database says now, stored before observers are told (see `AppModel.snapshot`).
+    ///
+    /// What the devices passed on (`shared`) is told apart: every pass writes its feed, and a
+    /// view of this device's own calendars (the settings' menus) must not redraw for it, or an
+    /// open menu loses the tap it is given (FirstRunTests, run 45013168902).
     private(set) var snapshot: CalendarSnapshot {
         get {
             access(keyPath: \.snapshot)
             return storedSnapshot
         }
         set {
+            let old = storedSnapshot
             storedSnapshot = newValue
-            withMutation(keyPath: \.snapshot) {}
+            var oldOwn = old, newOwn = newValue
+            oldOwn.shared = .empty
+            newOwn.shared = .empty
+            if oldOwn != newOwn { withMutation(keyPath: \.snapshot) {} }
+            if old.shared != newValue.shared { withMutation(keyPath: \.shared) {} }
         }
+    }
+
+    /// What every device passed on, observed on its own (see `snapshot`).
+    var shared: SharedCalendarSnapshot {
+        access(keyPath: \.shared)
+        return storedSnapshot.shared
     }
 
     @ObservationIgnored private var storedSnapshot: CalendarSnapshot = .empty
@@ -320,8 +335,8 @@ final class CalendarStore: StoredFirstObservable {
     /// Whether another device has passed its calendars on, so there is a household calendar
     /// to show even on a device with none of its own.
     var hasOthersCalendars: Bool {
-        let mine = snapshot.shared.thisDeviceId.map { CalendarFeed.id(deviceId: $0) }
-        return snapshot.shared.calendars.contains { $0.feedId != mine }
+        let mine = shared.thisDeviceId.map { CalendarFeed.id(deviceId: $0) }
+        return shared.calendars.contains { $0.feedId != mine }
     }
 
     /// Whether this device shows any of its own calendars.
@@ -331,7 +346,7 @@ final class CalendarStore: StoredFirstObservable {
 
     /// Other devices whose calendars are over a day old: "Sam's calendar, updated Tuesday".
     var staleSources: [StaleCalendarSource] {
-        CalendarFreshness.stale(snapshot.shared, people: people, now: now(), calendar: calendar)
+        CalendarFreshness.stale(shared, people: people, now: now(), calendar: calendar)
     }
 
     /// The event with `id`, a quiet block's own events included, for its sheet.
