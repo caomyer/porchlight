@@ -222,6 +222,7 @@ Each rule is named by its first sentence, and is referred to by that name, here 
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
 "A run that loses its process fails" is from a crash on November 22 that was read as a pass.
 "The shipped configuration is compiled in CI" is from a commit with four green full runs whose archive did not compile, the same day.
+"A test that runs away is stopped and failed, and a test that waited on the app is kept" is from a test that passed in 2,020 seconds, the same day again.
 "A frame inside the screen does not prove the ink is inside the frame" is from a defect found by eye on November 21, and "A test leaves the simulator as it found it" from reading two tests that day; the others come from what the UI tests' own comments record.
 
 - **A test's outcome never depends on the real clock.**
@@ -289,6 +290,13 @@ The first six were each learned from a failed or misleading run in the week of N
   It is the same compile the archive makes, so run it before archiving too: `zsh scripts/ci/build-release.sh`.
   Why: on November 22, 2026 a `@State` was declared inside an `#if DEBUG` block and read outside it. Debug built, every test passed, four full runs were green on that commit, and its TestFlight archive failed with "cannot find 'holdsStill' in scope" ("What the suite missed").
   Anything declared under `#if DEBUG` and used outside it is this trap; the compiler finds it in Release in minutes, and no test can.
+- **A test that runs away is stopped and failed, and a test that waited on the app is kept.**
+  The ceiling of 120 seconds is what a test is written to; it is read off a run's seconds, which nobody reads on a green run.
+  So there is a hard stop as well: xcodebuild gives every UI test 420 seconds (`PORCHLIGHT_TEST_LIMIT_SECONDS`, in whole minutes), stops one that passes it and fails it, and the run is red with the test's name. No healthy test has come near it; the slowest seen on a hosted Mac is 164.
+  And after each UI suite `scripts/lib/slow_tests.py` names every test that took more than 120 seconds, and every test in which XCTest gave up waiting for the app to go idle more than twice ("App animations complete notification not received"), with its seconds and its count, in the output and in the job's summary, where it shows in a green run too.
+  For a suite with such a test the whole result bundle is uploaded, pass or fail, since it holds the app's own log for that launch, and with it the simulator's log of the app over the test's span (cut at 40 MB before it is packed).
+  Why: on November 22, 2026 the onboarding test passed after 2,020 seconds, having waited out XCTest's 60 seconds for the app to go idle 33 times; the run was green, nothing was kept, and it could not be explained afterwards ("Known and not yet explained").
+  `zsh scripts/ci/check-slow-tests.sh` checks the report against sample logs with every build.
 
 ## Tiers
 
@@ -620,7 +628,10 @@ A failure that could not be reproduced is written down here with what was ruled 
 - **Not known**: what kept it busy. Nothing in the onboarding's own views repeats an animation for ever (the only `repeatForever` and `TimelineView(.animation)` in the app are in the care sheet). It has been seen once, in the first run that had Free together and the shared calendar's first pass in the same launch; the runs before it took 57 seconds for the same test.
 - **Why it matters**: one more minute a step and the job passes its limit, and a run that is green hides it: nothing fails. The ceiling of 120 seconds is checked by reading a run's seconds, which nobody does on a green run.
 - **Owner**: the agent on the calendar branches for the cause, if it is the app's; the agent on `tests/pyramid` for making a test that takes ten times its usual seconds visible on a green run.
-- **Next step**: watch the same test in the runs after; if it happens again, take the app's log from the result bundle of that run and look at what the main thread was doing.
+- **Where the waits were**: the first idle wait that never returned was the one after Return in the household's name, on the first onboarding screen, 12.9 seconds in. Every wait on the app after it timed out at 60.0 seconds, on every screen to the end, Settings after onboarding included; the waits on SpringBoard between them all returned at once. The calendar permission prompt came at 1,043 seconds, long after it had begun, and did not end it. It was the ninth test of its share, on an iPad Pro 13-inch (M5) with the wallpaper daemon not started; the tests before and after it had no idle wait given up.
+- **Ruled out since**: the app, as far as it can be reproduced. The same test through `scripts/test.sh` on iOS 27.2 and 17.5 took 48 and 68 seconds with no idle wait given up, and the wall left for five minutes after a real first run does one pass at launch and nothing after.
+- **Count**: 1 occurrence, in run 45039811167; none in the runs before it or in the two after it that have been read.
+- **Next step**: the next occurrence is kept by itself: the time limit stops it at 420 seconds, and its suite's result bundle and the simulator's log of the app are uploaded (the hard rule "A test that runs away is stopped and failed, and a test that waited on the app is kept"). Read the app's log from that bundle for what the main thread was doing from the moment the household is named.
 
 ## What the suite missed
 
