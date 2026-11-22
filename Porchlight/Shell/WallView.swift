@@ -51,9 +51,9 @@ struct WallView: View {
     /// How many touches the idle watcher has seen, for the UI test that checks a real touch
     /// reaches it (`ScrollingTests`); shown only with `-debugIdleSecondsPerMinute`.
     @State private var touchesSeen = 0
+    #endif
     /// A sheet is open over the screen, so the screen ignores the keyboard (`holdsWallStill`).
     @State private var holdsStill = false
-    #endif
     @State private var showAmbient = false
     /// Settings opens on Family & devices once, after setup's "Invite phones now".
     @State private var focusFamily: Bool
