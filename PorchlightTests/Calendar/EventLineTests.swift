@@ -7,9 +7,9 @@ import Testing
 /// Angeles, unless a row says otherwise.
 @Suite("Reading one typed line into an event")
 struct EventLineTests {
-    static func calendar(firstWeekday: Int = 1, locale: String = "en_US") -> Calendar {
+    static func calendar(firstWeekday: Int = 1, locale: String = "en_US", zone: String = "America/Los_Angeles") -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        calendar.timeZone = TimeZone(identifier: zone)!
         calendar.locale = Locale(identifier: locale)
         calendar.firstWeekday = firstWeekday
         return calendar
@@ -93,6 +93,43 @@ struct EventLineTests {
             #expect(reading.end == Self.at(row.end), "end \(reading.end)")
         }
         #expect(reading.forIds == (row.forLeo ? [Self.leo.id] : (row.line.hasPrefix("Mia") ? [Self.mia.id] : [])))
+    }
+
+    /// The table is written in a household's own wall-clock time, so the same line must read
+    /// to the same day and hour wherever the household is and whichever day starts its week
+    /// (docs/design/testing.md, the hard rule "A test's outcome never depends on the real
+    /// clock": at least two zones, and both first weekdays). Auckland is a day ahead of Los
+    /// Angeles and on summer time in November; Kolkata is half an hour off the hour.
+    @Test("Every line reads the same in three time zones and from a Monday or a Sunday start", arguments: [
+        ["America/Los_Angeles", "2"], ["Pacific/Auckland", "1"], ["Pacific/Auckland", "2"], ["Asia/Kolkata", "1"], ["Asia/Kolkata", "2"],
+    ])
+    func readsEverywhere(place: [String]) {
+        let calendar = Self.calendar(firstWeekday: Int(place[1])!, zone: place[0])
+        for row in Self.rows {
+            let reading = EventLine.read(row.line, now: Self.at(row.now, calendar), calendar: calendar, people: [Self.leo, Self.mia])
+            #expect(reading.title == row.title, "\(row.line)")
+            #expect(reading.start == Self.at(row.start, calendar), "\(row.line): start \(reading.start)")
+            if row.end == "all day" {
+                #expect(reading.isAllDay, "\(row.line)")
+            } else {
+                #expect(reading.end == Self.at(row.end, calendar), "\(row.line): end \(reading.end)")
+            }
+        }
+    }
+
+    /// The days the clocks change in Los Angeles: November 1, 2026 has 25 hours and March 14,
+    /// 2027 has 23. "Tomorrow at 10" is 10 on the clock both times, and an hour is an hour.
+    @Test("Across a clock change, tomorrow's 10 am is 10 am and an hour-long event is an hour")
+    func clockChanges() {
+        for (evening, morning, end) in [("2026-10-31 21:00", "2026-11-01 10:00", "2026-11-01 11:00"), ("2027-03-13 21:00", "2027-03-14 10:00", "2027-03-14 11:00")] {
+            let reading = EventLine.read("Brunch tomorrow 10am", now: Self.at(evening), calendar: Self.calendar(), people: [])
+            #expect(reading.start == Self.at(morning), "from \(evening): \(reading.start)")
+            #expect(reading.end == Self.at(end), "from \(evening): \(reading.end)")
+            #expect(reading.end.timeIntervalSince(reading.start) == 3600)
+        }
+        // An event that begins before the clocks go back and runs through the repeated hour.
+        let late = EventLine.read("Party tonight for 90 minutes", now: Self.at("2026-10-31 08:00"), calendar: Self.calendar(), people: [])
+        #expect(late.end.timeIntervalSince(late.start) == 90 * 60)
     }
 
     @Test("\"Next\" a weekday is in the household's following week, from a Sunday or a Monday start")

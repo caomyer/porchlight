@@ -21,7 +21,15 @@ struct CalendarWriteTests {
         return (store, provider, db, try db.snapshot().people)
     }
 
-    private func settle() async throws { try await Task.sleep(for: .milliseconds(400)) }
+    /// Waits for the store to have heard of a write: it hears from the database a moment
+    /// later. Given what is being waited for, it asks every 50 milliseconds until that is so,
+    /// for ten seconds at the most, and the expectations after it say whether it came; a
+    /// fixed 400 milliseconds was enough on a development Mac and is a guess on a slow one.
+    /// With nothing to wait for (a change the store shows no differently), it waits the 400.
+    private func settle(until done: (() -> Bool)? = nil) async throws {
+        guard let done else { return try await Task.sleep(for: .milliseconds(400)) }
+        for _ in 0..<200 where !done() { try await Task.sleep(for: .milliseconds(50)) }
+    }
 
     private static func draft(_ title: String, hours: Double = 26, repeats: EventRepeat? = nil, calendar: String = "family") -> EventDraft {
         let start = SharedCalendarFixture.now.addingTimeInterval(hours * 3600)
@@ -58,10 +66,10 @@ struct CalendarWriteTests {
         #expect(store.home == .notChosen)
         #expect(store.writableCalendars == [Self.home], "only the calendars it may write")
         store.chooseHome(Self.home)
-        try await settle()
+        try await settle(until: { store.home == .found(Self.home) })
         #expect(store.home == .found(Self.home))
         try store.makeHomeCalendar(title: "Home")
-        try await settle()
+        try await settle(until: { store.home.calendar?.title == "Home" && store.snapshot.home?.title == "Home" })
         #expect(store.home.calendar?.title == "Home")
         #expect(store.snapshot.home?.title == "Home" && store.snapshot.home?.accountKind == "iCloud")
     }
@@ -72,10 +80,10 @@ struct CalendarWriteTests {
     func adding() async throws {
         let (store, provider, db, people) = try make()
         store.chooseHome(Self.home)
-        try await settle()
+        try await settle(until: { store.home == .found(Self.home) })
         let leo = try #require(people.first { $0.name == "Leo" })
         try store.save(Self.draft("Leo dentist"), for: [leo.id])
-        try await settle()
+        try await settle(until: { store.events.contains { $0.title == "Leo dentist" } })
         #expect(provider.store.events.map(\.title) == ["Leo dentist"])
         let shown = try #require(store.events.first { $0.title == "Leo dentist" })
         #expect(shown.owner == .person(leo.id), "for Leo, not the calendar's owner")
@@ -89,13 +97,13 @@ struct CalendarWriteTests {
         let mia = try #require(people.first { $0.name == "Mia" })
         let source = try #require(store.mappings.first { $0.calendar.id == "family" }?.source)
         store.setOwner(.person(mia.id), for: source)
-        try await settle()
+        try await settle(until: { store.mappings.first { $0.calendar.id == "family" }?.source.ownerId == mia.id })
         let householdId = try #require(store.snapshot.household?.id)
         try store.save(Self.draft("Gym"), for: [mia.id])
-        try await settle()
+        try await settle(until: { store.events.contains { $0.title == "Gym" } })
         #expect(try db.eventFors(householdId: householdId).isEmpty)
         try store.save(Self.draft("Movie night", hours: 30), for: [])
-        try await settle()
+        try await settle(until: { store.events.first { $0.title == "Movie night" }?.owner == .everyone })
         #expect(try db.eventFors(householdId: householdId).map(\.personIds) == [""])
         #expect(store.events.first { $0.title == "Movie night" }?.owner == .everyone)
     }
@@ -112,14 +120,14 @@ struct CalendarWriteTests {
     func spans() async throws {
         let (store, provider, _, _) = try make()
         try store.save(Self.draft("Piano", repeats: .weekly), for: [])
-        try await settle()
+        try await settle(until: { store.events.filter { $0.title == "Piano" }.count == 8 })
         let occurrences = provider.store.events.sorted { $0.start < $1.start }
         #expect(occurrences.count == 8)
         let second = try #require(store.events.first { $0.id == occurrences[1].id })
         var changed = try #require(store.draft(for: second))
         changed.title = "Piano recital"
         try store.save(changed, span: .thisEvent, for: [])
-        try await settle()
+        try await settle(until: { store.events.contains { $0.title == "Piano recital" } })
         #expect(provider.store.events.filter { $0.title == "Piano recital" }.count == 1)
         #expect(provider.store.events.filter { $0.title == "Piano" }.count == 7)
 
@@ -127,7 +135,7 @@ struct CalendarWriteTests {
         var moved = try #require(store.draft(for: fourth))
         moved.title = "Piano, new teacher"
         try store.save(moved, span: .futureEvents, for: [])
-        try await settle()
+        try await settle(until: { store.events.filter { $0.title == "Piano, new teacher" }.count == 8 })
         #expect(provider.store.events.filter { $0.title == "Piano" }.count == 2, "the first and third keep their title")
         #expect(provider.store.events.filter { $0.title == "Piano, new teacher" }.count == 8)
     }
@@ -137,13 +145,13 @@ struct CalendarWriteTests {
         let (store, provider, _, people) = try make()
         let leo = try #require(people.first { $0.name == "Leo" })
         try store.save(Self.draft("Leo dentist"), for: [leo.id])
-        try await settle()
+        try await settle(until: { store.events.contains { $0.title == "Leo dentist" } })
         let event = try #require(store.events.first { $0.title == "Leo dentist" })
         let undo = try #require(try store.delete(event, span: .thisEvent))
         #expect(provider.store.events.isEmpty)
         #expect(undo.people == [leo.id] && undo.draft.title == "Leo dentist" && undo.draft.occurrenceId == nil)
         try store.save(undo.draft, for: undo.people)
-        try await settle()
+        try await settle(until: { store.events.first { $0.title == "Leo dentist" }?.owner == .person(leo.id) })
         #expect(store.events.first { $0.title == "Leo dentist" }?.owner == .person(leo.id))
     }
 
@@ -152,7 +160,7 @@ struct CalendarWriteTests {
         let (store, provider, _, _) = try make()
         provider.store.events.append(ExternalEvent(id: "standup@1", calendarId: "work", title: "Standup", start: SharedCalendarFixture.now.addingTimeInterval(3600), end: SharedCalendarFixture.now.addingTimeInterval(5400), isAllDay: false))
         try store.save(Self.draft("Soccer"), for: [])
-        try await settle()
+        try await settle(until: { store.events.contains { $0.title == "Soccer" } && store.events.contains { $0.title == "Standup" } })
         #expect(store.events.first { $0.title == "Soccer" }.map(store.canChange) == true)
         #expect(store.events.first { $0.title == "Standup" }.map(store.canChange) == false)
         var other = try #require(store.events.first { $0.title == "Soccer" })
@@ -167,7 +175,7 @@ struct CalendarWriteTests {
         let (store, provider, db, people) = try make()
         let leo = try #require(people.first { $0.name == "Leo" })
         let occurrence = try store.save(Self.draft("Leo dentist"), for: [leo.id])
-        try await settle()
+        try await settle(until: { store.events.contains { $0.title == "Leo dentist" } })
         let householdId = try #require(store.snapshot.household?.id)
         provider.store.changeExternalId(ofItem: EventForLogic.itemId(ofOccurrence: occurrence), to: "settled@google.com")
         store.reload()
@@ -175,7 +183,7 @@ struct CalendarWriteTests {
         // Before the pass: the fallback, by title and start.
         #expect(store.events.first { $0.title == "Leo dentist" }?.owner == .person(leo.id))
         store.passOn(.change)
-        try await settle()
+        try await settle(until: { (try? db.eventFors(householdId: householdId))?.map(\.matchKey) == [CalendarPassOn.matchKey("settled@google.com")] })
         let records = try db.eventFors(householdId: householdId)
         #expect(records.map(\.matchKey) == [CalendarPassOn.matchKey("settled@google.com")], "re-keyed by the pass")
         #expect(store.events.first { $0.title == "Leo dentist" }?.owner == .person(leo.id))
