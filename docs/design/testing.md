@@ -216,11 +216,10 @@ The first six were each learned from a failed or misleading run in the week of N
   That includes the clock of the test itself: a UI test must never have to do something within so many seconds of the app's own timer, because a hosted Mac can take 50 seconds over one drag ("Flaky tests").
   Wait for a thing to happen, with a long limit, and put the timer's rule in a unit test with the times handed in.
   In a unit test, pass `now` and a `Calendar` with an explicit time zone, and walk the day in half hours in at least two zones when the rule has anything to do with the time of day or the day's edge.
-  In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, which the wall and the phone both read, and never branch on `Date()`.
-  Pin the whole of it, the day as well as the hour: `UITestClock.arguments` in the UI tests is a Wednesday at 10:30 in the morning, and a pinned clock stands still, so the day cannot change under a test and the week is never in its first minutes.
-  The sample household is built backwards from that time, and the screens take their day and their week from it (`CompanionClock`); what a row is stamped with, and how long the wall has gone untouched, stay on the real clock.
-  A test that pins today's date at a fixed hour, as the older ones do, has fixed the time of day and left the day of the week to chance.
-  A test that launches the sample household with no pin at all is on the real clock, and "The UI tests still on the real clock", under "Flaky tests", lists them.
+  In a UI test the time is pinned for you: `XCUIApplication.porchlight()` hands every launch one fixed Wednesday at 10:30 in the morning (`UITestClock.midweek`, as `PORCHLIGHT_NOW` in the app's environment), and a pinned clock stands still, so the day cannot change under a test and the week is never in its first minutes.
+  A test that needs another time of day passes `-debugCompanionNow` with `UITestClock.at(17, 20)`, the same day at that time, and one that needs another day's name writes `UITestClock.day(-1)`; never `Date()`, `.now` or `Calendar.current` in a UI test, except to count a wait's own seconds.
+  The sample household is built backwards from the pinned time, and the screens take their day and their week from it (`CompanionClock`); what a row is stamped with, and how long the wall has gone untouched, stay on the real clock.
+  "A new feature and the clock", below, is the short form for whoever adds a screen.
   Why: a log landed in the wrong slot, and a streak was miscounted, only at certain hours, where a test that runs at one hour cannot see it.
   A timestamp that is only stored, never compared, bucketed or formatted (a row's `createdAt`), may be `Date.now`.
 - **Every loop in a UI test helper has a bound.**
@@ -347,20 +346,40 @@ A test listed as quarantined is skipped in the suite and has a date by which it 
 | `TimeFieldTests.testTypingAMealTime` | November 22, 2026, 00:00:04 UTC (run 44961571872, Wall UI 2 of 2): "Failed to tap Button ... label BEGINSWITH 'Breakfast: Pancakes'" after 17.8 s, on a change that touched only the phone | The agent on `tests/pyramid` | The real clock. The sample's pancakes are six days before the launch, the last day the Food page shows. The test launched at 11:59 pm, found them, and at midnight the page moved on a day and they were seven days back, between the wait and the tap. `SampleClockTests.acrossMidnight` shows the same step with the times handed in | The class is pinned to `UITestClock.midweek`, and the Food page, the meal's sheet and its time field now take their day from `CompanionClock`, so the pin reaches them. Passed locally on the pinned Wednesday while the Mac's own day was a Saturday | Fixed |
 | `DayAtAGlanceTests.testMomentsInTheWeek` | November 22, 2026, about 00:06 UTC (run 44961571844, Wall smoke): "The morning walk is in the week grid" at line 66, with the Mac at 24% free and 716 MB of swap at the time | The agent on `tests/pyramid` | The real clock, not the memory: six minutes into a Sunday the week has no walk in it yet, since every sample walk before the launch is in last week, and it would have failed on any Mac until the morning's walk. Reproduced on a quiet Mac by pinning the clock to Sunday, November 22 at 00:06: the same line, the same message. `SampleClockTests.theWeeksFirstMinutes` holds the fact | The class is pinned to `UITestClock.midweek`, and the calendar, Today and the chores now take their day and week from `CompanionClock`. All three of its tests and the three of `TimeFieldTests` passed locally on the pinned time | Fixed |
 
-#### The UI tests still on the real clock
+#### The UI tests and the real clock
 
-Counted on November 22, 2026, after those two failures.
-A class is on the real clock when it launches the sample household without `-debugCompanionNow`: what it finds then depends on the minute and the day of the launch, and a test in it can fail in the minute around midnight (a meal or a walk it is about to tap moves a day back) or in a Sunday's first hours (the week is empty).
-The cure is the same for each: add `UITestClock.arguments` to the class's launch, run the class, and where a screen still shows the real day, give that screen's read of the time to `CompanionClock` as was done for the calendar, Today, the Food page and the chores.
+After those two failures every UI test's launch was pinned (November 22, 2026): `XCUIApplication.porchlight()` sets `PORCHLIGHT_NOW` to one fixed Wednesday, and the classes that had pinned today's date at a fixed hour now pin that Wednesday at their hour.
+Before it, 2 classes were pinned whole, 11 were pinned to the real day at a fixed hour, and the rest ran on the real minute of their launch.
 
 | | Classes | What they stand on |
 |---|---|---|
-| Pinned whole, day and hour | `DayAtAGlanceTests`, `TimeFieldTests` | Nothing real |
-| Pinned to today's date at a fixed hour | `WallRecipesTests`, `PhoneRecipesTests`, and the pinned tests of `LoggedEntryTests`, `PitchInTests`, `PhoneTests`, `PhoneTabsTests`, `PhoneRemindersTests`, `PhoneHouseholdTests`, `PhoneFoodTests`, `PhoneWeekTests`, `PhoneCatchUpTests` | The real day of the week. `PhoneRecipesTests.testPlanningADinnerFromTheBank` plans "tonight" and then "Sunday", which are one day on a Sunday |
-| Not pinned, and reading the sample's meals, walks or chores by day | Wall: `FoodMealsTests`, `MealPhotosTests`, `WallDishEditorTests`, `WallDishesTests`, `CatchUpTests`, `CompanionEditorTests`, `WallTourTests`, and the unpinned tests of `LoggedEntryTests` and `PitchInTests`. Phone: `PhoneDishesTests`, `PhoneDishEditorTests`, and the unpinned tests of the phone classes above | The real minute and the real day |
-| Not pinned, and not reading anything by day | `FirstRunTests`, `HouseholdTests`, `SyncSettingsTests`, `PhoneSetupTests`, `PhotoFrameTests`, `ScrollingTests` | The real clock, but nothing they assert moves with it; `FirstRunTests` reads the simulator's real calendar and stays as it is |
+| The pinned Wednesday, by default or at an hour of their own | Every class but one | Nothing real |
+| The real day at 5:20 pm | `PhoneRemindersTests` | The real day of the week. Its reminders are handed to iOS, which delivers them by the real clock, so a day in the past could never ring |
+| The simulator's real calendar | `FirstRunTests`, for the events it is shown after the system's prompt | It asserts the prompt and the first screen, not a day |
 
-The hosted screens in the unit tests seed the same sample around the real time (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`); they assert where things sit and not what day it is, and the samples now take the time as a parameter, so they can be pinned the same way.
+The hosted screens in the unit tests seed the same sample around the real time (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`); they assert where things sit and not what day it is, and the samples take the time as a parameter, so they can be pinned the same way.
+
+#### A new feature and the clock
+
+For whoever adds a screen that shows a day, a week or a time of day.
+Follow these from the first commit, and the feature's UI tests are on the pinned clock without doing anything.
+
+1. **In a view or a store, ask `CompanionClock` what time it is, never `Date()` or `.now`.**
+   `CompanionClock.now()` where you would write `.now`, and `CompanionClock.at(context.date)` inside a `TimelineView`, so the screen still redraws each minute.
+   In a release build both are the real time; in a DEBUG build they are the pinned time when one is given.
+   "Today", "this week", "tonight", "3 days ago", which day a new entry lands on, and what is past or still to come all come from it.
+2. **Keep the real clock for stamps and for elapsed time only.**
+   A row's `createdAt` and `updatedAt`, what sync compares, how long ago a device was seen, a stopwatch, an animation, how long the wall has gone untouched.
+   If a pinned clock would make two writes carry the same instant and something compares them, it is a stamp.
+3. **Put the rule in a pure function that takes `now` and a `Calendar`,** and sweep it in a unit test: both sides of midnight, the first minutes of a week, the last day of a month, a daylight-saving change, and at least two time zones.
+   The view only hands it `CompanionClock.now()` and the household's calendar.
+4. **Sample data takes `now` as a parameter** with `CompanionClock.now()` as its default (`CompanionSamples.seed`, `FoodSamples.seed`), builds everything backwards from it, and logs nothing after it.
+   Say in a unit test what the sample holds at `UITestClock.midweek` that the UI tests look for (`SampleClockTests`).
+5. **In a UI test, launch with `XCUIApplication.porchlight()` and write days with `UITestClock`.**
+   The launch is already pinned to Wednesday, November 18, 2026 at 10:30.
+   For another hour, `-debugCompanionNow` with `UITestClock.at(18, 40)`; for a day's key or label, `UITestClock.day(-1)`; for a weekday's name, write it out: the pinned day is a Wednesday and will stay one.
+   A new debug launch argument that opens a screen on a date takes that date as an argument (`-calendarDate`), not from the clock.
+6. **If the feature hands a time to iOS** (a notification, a calendar event written to EventKit, a widget's timeline), iOS will act on it by the real clock: keep that part in a unit test with the times handed in, and say so in the audit if a UI test has to stay on the real day, as `PhoneRemindersTests` does.
 
 ### Infrastructure failures
 
