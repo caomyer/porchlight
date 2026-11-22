@@ -15,9 +15,12 @@ struct RecipeLinkTests {
         var claims: Set<URL>
         var offered: [URL] = []
         var browser: [URL] = []
+        /// Runs while an offer is being answered, as an app's launch takes a moment.
+        var whileOffering: ((URL) async -> Void)?
         init(claims: Set<URL> = []) { self.claims = claims }
         func openInApp(_ url: URL) async -> Bool {
             offered.append(url)
+            await whileOffering?(url)
             return claims.contains(url)
         }
         func openInBrowser(_ url: URL) async { browser.append(url) }
@@ -106,6 +109,22 @@ struct RecipeLinkTests {
         let outcome = await opener(apps, network, sleep: { _ in }).open(Self.short)
         #expect(outcome == .browser(Self.short))
         #expect(apps.offered == [Self.shortHTTPS])
+    }
+
+    @Test("An app that takes a hop just as the budget runs out opens it, and the browser does not")
+    func budgetEndsDuringAnOffer() async {
+        // The budget runs out the moment the hop is offered, and the app answers after that.
+        let (budgetOut, endBudget) = AsyncStream.makeStream(of: Void.self)
+        let apps = Apps(claims: [Self.item])
+        apps.whileOffering = { url in
+            guard url == Self.item else { return }
+            endBudget.finish()
+            for _ in 0..<50 { await Task.yield() }
+        }
+        let network = Network(.table([Self.shortHTTPS: Self.item]))
+        let outcome = await opener(apps, network, sleep: { _ in for await _ in budgetOut {} }).open(Self.short)
+        #expect(outcome == .app(Self.item))
+        #expect(apps.browser.isEmpty, "not both")
     }
 
     @Test("A network error opens the browser")

@@ -57,18 +57,24 @@ struct RecipeLinkOpener {
     }
 
     /// The first https hop of `url`'s redirects that an app opened, within the budget.
+    ///
+    /// One hop at a time, each offered to the apps before the next is asked for, so the lookup
+    /// stops at the first hop an app takes. The budget bounds only the asking: an offer once
+    /// made is always awaited, so an app that takes a hop just as the budget runs out is the
+    /// one that opens, and the browser never opens beside it.
     private func claimedHop(from url: URL) async -> URL? {
         let opener = opener, redirects = redirects, maxHops = maxHops, budget = budget, sleep = sleep
-        // One hop at a time, each offered to the apps before the next is asked for, so the
-        // lookup stops at the first hop an app takes; racing the budget, which ends it.
         return await withTaskGroup(of: URL?.self) { group in
             group.addTask {
                 var current = url
                 var seen: Set<URL> = [url]
                 for _ in 0..<maxHops {
-                    guard let next = try? await redirects.next(after: current), !Task.isCancelled else { return nil }
+                    guard let next = try? await redirects.next(after: current) else { return nil }
+                    // Once the budget is out, no new offer is made.
+                    guard !Task.isCancelled else { return nil }
                     // A loop ends the lookup rather than going round.
                     guard seen.insert(next).inserted else { return nil }
+                    // An offer in flight runs to its answer whatever the budget, and counts.
                     if next.scheme?.lowercased() == "https", await opener.openInApp(next) { return next }
                     current = next
                 }
@@ -78,9 +84,11 @@ struct RecipeLinkOpener {
                 try? await sleep(budget)
                 return nil
             }
-            let first = await group.next() ?? nil
+            // The first to finish ends the other; a claim from either answer wins.
+            var claimed = await group.next() ?? nil
             group.cancelAll()
-            return first
+            for await answer in group where claimed == nil { claimed = answer }
+            return claimed
         }
     }
 }
