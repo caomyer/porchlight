@@ -367,7 +367,8 @@ The one that failed was `HouseholdTests.testRowsFromPhonesAreTaggedAndArrivalsNa
 They now use the day the screens call today (`DebugArrivals`), and keep the real clock for when the row arrived.
 That is the kind of place a pin finds: a debug seeder that still asks the real clock which day it is.
 
-The hosted screens in the unit tests seed the same sample around the real time (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`); they assert where things sit and not what day it is, and the samples take the time as a parameter, so they can be pinned the same way.
+The unit tests are pinned too: the app is their host, and while it hosts them `CompanionClock` stands at the same Wednesday morning (`CompanionClock.unitTestsNow`), so a hosted screen, the sample it shows and every default `now` in the app agree on the day whenever the suite runs (`SampleClockTests.theUnitTestsAreOnThePinnedClock`).
+Before November 22, 2026 the hosted screens (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`) seeded their sample around the real minute; they assert where things sit and not what day it is, which is why none of them failed at a midnight, but their review shots changed with the day.
 
 #### A new feature and the clock
 
@@ -383,6 +384,7 @@ Follow these from the first commit, and the feature's UI tests are on the pinned
    If a pinned clock would make two writes carry the same instant and something compares them, it is a stamp.
 3. **Put the rule in a pure function that takes `now` and a `Calendar`,** and sweep it in a unit test: both sides of midnight, the first minutes of a week, the last day of a month, a daylight-saving change, and at least two time zones.
    The view only hands it `CompanionClock.now()` and the household's calendar.
+   The unit tests' host is pinned to the same Wednesday morning as the UI tests, so a default `now` in a test is that morning; a test of a rule still hands its own times in.
 4. **Sample data takes `now` as a parameter** with `CompanionClock.now()` as its default (`CompanionSamples.seed`, `FoodSamples.seed`), builds everything backwards from it, and logs nothing after it.
    Say in a unit test what the sample holds at `UITestClock.midweek` that the UI tests look for (`SampleClockTests`).
 5. **In a UI test, launch with `XCUIApplication.porchlight()` and write days with `UITestClock`.**
@@ -696,7 +698,8 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testWeekAndDiary | 22 | Snap is hittable; "On this day"; "added by you"; the restaurant's name | Merge into testMealPage (same launch); who added and where from are `PocketFoodTests` | 15 | |
 | testMealPage | 59 | Pager swipes between photos; whole photo opens and closes; an edit shows at once | Keep | | |
 | testSnappingAMeal | 46 | Camera ask, shutter, details, save, toast, new meal | Keep (smoke) | | |
-| testChangingWeeks | 121 | Back a week, a meal opened and Back to the same week, a past slot filled and kept in its week, back to this week | Keep: the journey, new on November 21 (seconds from run 44899330787). It is one second over the 120 limit on its first measured run; if it stays there, split filling the past slot into its own test | | |
+| testChangingWeeks | 121 | Back a week, a meal opened and Back to the same week, back to this week | Keep. It took 94 to 121 s as one journey with the past slot, so on November 22 the past slot became `testAPastSlotsMealStaysInItsWeek` | | done |
+| testAPastSlotsMealStaysInItsWeek | | A slot nobody filled thirteen days ago, snapped into: the meal stays in that week, and the diary stays on it | New on November 22: the second half of testChangingWeeks, with a launch of its own | | |
 | testWhereTakesSeveralKinds | 115 | Seven toggle steps, then save, page says both, editor shows both | Down for the toggle rules (`MealSourcesTests`: "A tap adds a kind…", "On a new meal the first tap replaces…"); the journey stays: pick two, save, see both, edit | 35 | done |
 | testWhereLooks | 84 | Where pills in dark and at the largest size | One launch, the night look at the largest size (was two) | 40 | done, 37 s measured |
 | testCoverAndReframeWhenSnapping | 119 | Two shots, second made cover, reframed, saved framed | Keep | | |
@@ -774,7 +777,8 @@ Unfrozen on November 21, when the dish editor landed.
 |---|---|---|---|---|---|
 | testStartingAHouseholdOnThisPhone | 76 | A2 from a fresh install to Today and every empty tab | Keep (smoke) | | |
 | testAnEmptyTodayOffersSetup | 19 | Empty Today leads to Household | Keep | | |
-| testSettingUpTheHouseholdFromThePhone | 153 | Add, rename, archive a person; a chore; a list | Keep, split in two (people; chores and lists): over the limit | 30 | |
+| testSettingUpTheHouseholdFromThePhone | 153 | Add, rename, archive a person | Keep. It took 90 to 153 s with the chore and the list in it, so on November 22 they became `testAChoreAndAListFromThePhone` | | done |
+| testAChoreAndAListFromThePhone | | A chore through the wall's editor, and a list | New on November 22: the second half of the journey above, started on the household's page with `-debugYouPage household` | | |
 | testACompanionInTheWallsEditor | 147 | Companion and routine editors open, rename saves | Keep. 94 of its seconds were two `reveal` calls dragging fourteen times each without getting there; with the rewritten `reveal` it took 48 and 68 seconds (runs 44875496226 and 44883476613) | 95 | done by the rewrite |
 | testAMemberLeaves | 36 | Leave, confirm, welcome | Keep | | |
 | testTheOwnerIsPointedToRemovingSomeone | 42 | Owner is sent to remove; person stays | Keep | | |
