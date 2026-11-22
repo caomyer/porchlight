@@ -33,6 +33,7 @@ struct HostedScreenTests {
     @Test("A page of 12,000 points is one whole picture, drawn to its last row")
     func aTallPage() async throws {
         let page = try await HostedScreen.host(TallPage(), look: .light)
+        try page.saveShot("hosted-tall-page")
         let last = try #require(page.element(beginningWith: "Row 299"))
         #expect(page.elements.count >= 300, "the page was read: \(page.elements.count) elements")
         #expect(last.frame.maxY > 11_000, "its last row is where a page this long ends: \(last.frame)")
@@ -43,7 +44,7 @@ struct HostedScreenTests {
         for row in [0, 1, 58, 59, 60, 61, 149, 150, 298, 299] {
             let element = try #require(page.element(beginningWith: "Row \(row)"))
             let grey = try #require(Self.grey(of: page.image, at: CGPoint(x: 380, y: element.frame.midY)))
-            #expect(row.isMultiple(of: 2) ? grey > 0.97 : (0.85...0.94).contains(grey), "row \(row) at \(element.frame.midY): \(grey)")
+            #expect(row.isMultiple(of: 2) ? grey > 0.97 : (0.85...0.94).contains(grey), "row \(row) at \(element.frame): \(grey)")
         }
     }
 
@@ -67,13 +68,19 @@ struct HostedScreenTests {
         #expect(throws: Never.self) { try HostedScreen.checkNotBlank(blank, against: []) }
     }
 
-    /// How light the picture is at a point, 0 to 1, from one pixel.
+    /// How light the picture is at a point, 0 to 1: that one pixel drawn into a bitmap of a
+    /// known layout, since the picture's own may be wide colour or ordered another way.
     private static func grey(of image: UIImage, at point: CGPoint) -> Double? {
-        guard let cgImage = image.cgImage, let data = cgImage.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return nil }
+        guard let cgImage = image.cgImage else { return nil }
         let x = Int(point.x * image.scale), y = Int(point.y * image.scale)
-        guard x < cgImage.width, y < cgImage.height else { return nil }
-        let at = y * cgImage.bytesPerRow + x * (cgImage.bitsPerPixel / 8)
-        return (Double(bytes[at]) + Double(bytes[at + 1]) + Double(bytes[at + 2])) / (3 * 255)
+        guard x < cgImage.width, y < cgImage.height, let pixel = cgImage.cropping(to: CGRect(x: x, y: y, width: 1, height: 1)) else { return nil }
+        var bytes = [UInt8](repeating: 0, count: 4)
+        guard let context = CGContext(
+            data: &bytes, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.draw(pixel, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        return (Double(bytes[0]) + Double(bytes[1]) + Double(bytes[2])) / (3 * 255)
     }
 }
 #endif

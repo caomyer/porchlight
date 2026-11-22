@@ -183,7 +183,7 @@ struct CalendarWriteTests {
         // Before the pass: the fallback, by title and start.
         #expect(store.events.first { $0.title == "Leo dentist" }?.owner == .person(leo.id))
         store.passOn(.change)
-        try await settle(until: { (try? db.eventFors(householdId: householdId))?.map(\.matchKey) == [CalendarPassOn.matchKey("settled@google.com")] })
+        try await settle(until: { ((try? db.eventFors(householdId: householdId)) ?? []).map(\.matchKey) == [CalendarPassOn.matchKey("settled@google.com")] })
         let records = try db.eventFors(householdId: householdId)
         #expect(records.map(\.matchKey) == [CalendarPassOn.matchKey("settled@google.com")], "re-keyed by the pass")
         #expect(store.events.first { $0.title == "Leo dentist" }?.owner == .person(leo.id))
