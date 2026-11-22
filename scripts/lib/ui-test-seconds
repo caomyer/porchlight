@@ -1,41 +1,42 @@
 # How long each UI test class took in seconds, for `scripts/test.sh --shard`, which splits a
 # suite into shares of about equal time. Measured on GitHub's hosted Macs on iOS 27.2 on
-# November 21, 2026 (run 44926520595; the recipe classes in run 44931660927), one simulator per Mac.
+# November 21 and 22, 2026, one simulator per Mac: each number is the average of runs
+# 44956641573, 44963685565 and 44967355168 (the recipe classes, of the last two).
 # `UnitTests` is the unit tests' whole step: on GitHub they run on the Mac that runs the
 # wall's first share, so that share starts with their seconds already counted.
 # A class's time moves by a fifth and more from run to run on these Macs, so only a lasting
 # drift is worth a change. A class missing here counts 30 seconds a test, which once put
 # PhoneWeekTests in a share as 150; add a line with every new class, from a run's logs,
 # where each test prints its seconds (docs/design/testing.md, "Budgets").
-UnitTests 368
-PhoneFoodTests 969
-PhoneTabsTests 571
-PhoneSetupTests 395
-PhoneWeekTests 341
-PhoneDishEditorTests 325
-PhoneHouseholdTests 262
-PhoneRemindersTests 199
-PhoneTests 185
-PhoneDishesTests 158
-PhoneCatchUpTests 133
-PhoneRecipesTests 112
+UnitTests 311
+PhoneFoodTests 859
+PhoneTabsTests 530
+PhoneSetupTests 348
+PhoneWeekTests 309
+PhoneDishEditorTests 324
+PhoneHouseholdTests 375
+PhoneRemindersTests 148
+PhoneTests 215
+PhoneDishesTests 242
+PhoneCatchUpTests 111
+PhoneRecipesTests 132
 PhoneSharedCalendarTests 40
 PhoneCalendarTests 60
-FoodMealsTests 286
-HouseholdTests 258
-MealPhotosTests 187
-PhotoFrameTests 172
-SyncSettingsTests 170
-TimeFieldTests 147
-WallDishEditorTests 143
-WallTourTests 132
-LoggedEntryTests 125
-PitchInTests 114
-WallRecipesTests 102
+FoodMealsTests 294
+HouseholdTests 272
+MealPhotosTests 138
+PhotoFrameTests 154
+SyncSettingsTests 160
+TimeFieldTests 141
+WallDishEditorTests 142
+WallTourTests 119
+LoggedEntryTests 90
+PitchInTests 99
+WallRecipesTests 117
 WallSharedCalendarTests 90
-CatchUpTests 101
-CompanionEditorTests 99
-DayAtAGlanceTests 80
-ScrollingTests 70
-FirstRunTests 58
-WallDishesTests 53
+CatchUpTests 91
+CompanionEditorTests 115
+DayAtAGlanceTests 75
+ScrollingTests 66
+FirstRunTests 63
+WallDishesTests 51

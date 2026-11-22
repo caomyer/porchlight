@@ -22,13 +22,14 @@ struct AmbientView: View {
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            let isNight = isNight(at: context.date)
+            let now = CompanionClock.at(context.date)
+            let isNight = isNight(at: now)
             ZStack {
                 if isNight {
-                    NightClock(date: context.date)
+                    NightClock(date: now)
                         .transition(.opacity)
                 } else {
-                    day(date: context.date)
+                    day(date: now)
                         .transition(.opacity)
                 }
             }

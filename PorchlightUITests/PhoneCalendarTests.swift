@@ -2,7 +2,7 @@ import XCTest
 
 /// The phone's Calendar tab (docs/design/calendar-phone-tab.md), one test per journey: the
 /// week, picking a day, a person's events and an event's page; and the month. With Mia's phone
-/// having passed her calendars on, and the clock at 8 in the morning. Runs on the iPhone.
+/// having passed her calendars on, and the clock pinned to a Wednesday at 8 in the morning. Runs on the iPhone.
 @MainActor
 final class PhoneCalendarTests: XCTestCase, PhoneTestHelpers {
     override func setUpWithError() throws {
@@ -11,11 +11,10 @@ final class PhoneCalendarTests: XCTestCase, PhoneTestHelpers {
         try XCTSkipIf(isPad, "The phone tests run on an iPhone")
     }
 
-    /// Today at 8 in the morning (hard rule 1).
-    private static var morning: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT08:00", parts.year!, parts.month!, parts.day!)
-    }
+    /// The pinned day (`UITestClock`, a Wednesday) at 8 in the morning, so the day's events
+    /// are all ahead and tomorrow is in the same week (docs/design/testing.md, "A new feature
+    /// and the clock").
+    private static var morning: String { UITestClock.at(8, 0) }
 
     private func launch(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication.porchlight()
@@ -25,11 +24,7 @@ final class PhoneCalendarTests: XCTestCase, PhoneTestHelpers {
         return app
     }
 
-    private static func key(_ offset: Int) -> String {
-        let day = Calendar.current.date(byAdding: .day, value: offset, to: .now)!
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: day)
-        return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
-    }
+    private static func key(_ offset: Int) -> String { UITestClock.day(offset) }
 
     /// The tab from the bar, tomorrow picked, Mia's events alone, and one event's page.
     func testTheWeekAPersonAndAnEvent() {

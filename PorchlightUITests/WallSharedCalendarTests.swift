@@ -11,11 +11,11 @@ final class WallSharedCalendarTests: XCTestCase {
         try XCTSkipIf(isPhone, "The wall's tests run on an iPad")
     }
 
-    /// Today at 8 in the morning, so the day's events are all ahead (hard rule 1).
-    private static var morning: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT08:00", parts.year!, parts.month!, parts.day!)
-    }
+    /// The pinned day (`UITestClock`, a Wednesday) at 8 in the morning, so the day's events
+    /// are all ahead and tomorrow's and the day after's are in the same week
+    /// (docs/design/testing.md, the hard rule "A test's outcome never depends on the real
+    /// clock").
+    private static var morning: String { UITestClock.at(8, 0) }
 
     private func launch(_ arguments: [String]) -> XCUIApplication {
         let app = XCUIApplication.porchlight()
@@ -66,29 +66,25 @@ final class WallSharedCalendarTests: XCTestCase {
         let mia = app.buttons["sharing-Mia"]
         XCTAssertTrue(mia.waitForExistence(timeout: 30), "The calendars, with what the household sees")
         for _ in 0..<8 where !mia.isHittable { app.swipeUp() }
-        let before = calendarsLine(app)
-        XCTAssertTrue(before.contains("6 calendars"), "The wall passes on its six: \(before)")
-        for _ in 0..<8 where !mia.isHittable { app.swipeDown() }
         mia.tap()
         let justMe = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Just me")).firstMatch
         XCTAssertTrue(justMe.waitForExistence(timeout: 5))
         justMe.tap()
         XCTAssertTrue(app.buttons["Mia: the household sees Just me"].waitForExistence(timeout: 5))
-        let fewer = NSPredicate(format: "label CONTAINS %@", "5 calendars")
-        let line = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Calendars, ")).firstMatch
-        for _ in 0..<8 where !line.isHittable { app.swipeUp() }
-        wait(for: [expectation(for: fewer, evaluatedWith: line)], timeout: 20)
+        // The sample passes on six (CalendarSamplesTests), so Sync details counts one fewer.
+        let line = calendarsLine(app)
+        wait(for: [expectation(for: NSPredicate(format: "label CONTAINS %@", "5 calendars"), evaluatedWith: line)], timeout: 20)
         snapshot("cal-20-just-me")
     }
 
-    /// Opens Sync details and reads this device's calendars line.
-    private func calendarsLine(_ app: XCUIApplication) -> String {
+    /// Opens Sync details and returns this device's calendars line, on screen.
+    private func calendarsLine(_ app: XCUIApplication) -> XCUIElement {
         let details = app.buttons["sync-details"]
         for _ in 0..<8 where !details.isHittable { app.swipeUp() }
         details.tap()
         let line = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Calendars, ")).firstMatch
         XCTAssertTrue(line.waitForExistence(timeout: 20), "Sync details has a line for this device's calendars")
         for _ in 0..<8 where !line.isHittable { app.swipeUp() }
-        return line.label
+        return line
     }
 }

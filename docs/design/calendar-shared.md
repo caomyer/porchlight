@@ -58,6 +58,9 @@ device (exists)
 2. Build the wanted rows: for each calendar the provider has whose choice isn't Just me, its `sharedCalendar` record, and a `sharedEvent` record for each occurrence overlapping 14 days back to 90 days ahead of today, in the household calendar, through `CompanionClock`.
 3. In one write, compare with the rows already under this device's feed: delete rows no longer wanted (a calendar set to Just me or gone takes its events with it), insert new ones, update only rows whose content changed, leave the rest untouched.
 4. Write the feed row: when (`passedOnAt`), why (`passedOnBy`: change, open, background, day, choice), the window and the count.
+   `passedOnAt` is the store's `now`, the screens' clock (`CompanionClock`), not `Date.now`, on purpose.
+   In a release build the two are the same instant; in a DEBUG build with a pinned clock, the stale line ("updated Tuesday") compares it with that same pinned `now`, so a pass just made never reads as days old.
+   Do not change it to the real clock without changing the stale check with it.
 5. SQLiteData sends what changed; an unchanged calendar sends one small feed record.
 
 It runs when EventKit says something changed (gathered over two seconds), when the app comes to the front, when a choice changes, at the day's turn (the window rolls), and from a background refresh (`BGAppRefreshTask`, `com.mingyucao.porchlight.calendar.passOn`, asked for again each time, earliest in an hour), which iOS grants when it chooses.

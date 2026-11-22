@@ -31,7 +31,8 @@ enum DebugArrivals {
             )
         }
         let phones = (phone(james), phone(mia))
-        let today = DayKey(now, calendar: household.calendar)
+        // The day the screens call today, which a UI test pins; the phones' stamps stay real.
+        let today = DayKey(CompanionClock.now(), calendar: household.calendar)
         try database.writer.write { db in
             try phones.0.save(db)
             try phones.1.save(db)
@@ -50,7 +51,8 @@ enum DebugArrivals {
             guard let walk = try CareRoutine.filter(Column("kind") == CareKind.walk.rawValue).order(Column("sortOrder")).fetchOne(db),
                   let james = phone.personId else { return }
             let now = Date.now
-            let log = CareLog(careRoutineId: walk.id, occurredAt: now, stars: walk.stars, createdAt: now, deviceId: phone.id)
+            // It happened at the screens' now, so Today shows it, and arrived at the real one.
+            let log = CareLog(careRoutineId: walk.id, occurredAt: CompanionClock.now(), stars: walk.stars, createdAt: now, deviceId: phone.id)
             try log.insert(db)
             try CareLogPerson(careLogId: log.id, personId: james).insert(db)
         }

@@ -50,8 +50,7 @@ final class CatchUpTests: XCTestCase {
     /// The week grid shows missed slots too, as dashed marks. It opens on yesterday's week:
     /// on the first day of a week, this week has no past days to have missed anything on.
     func testMissedCareInTheWeek() {
-        let yesterday = Calendar.current.dateComponents([.year, .month, .day], from: Calendar.current.date(byAdding: .day, value: -1, to: .now)!)
-        let day = String(format: "%04d-%02d-%02d", yesterday.year!, yesterday.month!, yesterday.day!)
+        let day = UITestClock.day(-1)
         let app = launch(["-startScreen", "calendar", "-calendarMode", "week", "-calendarDate", day])
         let walk = button(app, beginningWith: "James walked Yo-Yo")
         XCTAssertTrue(walk.waitForExistence(timeout: 40))

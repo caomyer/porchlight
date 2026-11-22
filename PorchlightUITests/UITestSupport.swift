@@ -1,9 +1,14 @@
 import XCTest
 
-/// The time a UI test gives the app instead of the real one (`-debugCompanionNow`), so that
-/// what the sample household holds, which day is today and which week is this week are the
-/// same whenever the suite runs (docs/design/testing.md, the hard rule "A test's outcome
-/// never depends on the real clock"). A pinned clock stands still.
+/// The time every UI test gives the app instead of the real one, so that what the sample
+/// household holds, which day is today and which week is this week are the same whenever
+/// the suite runs (docs/design/testing.md, the hard rule "A test's outcome never depends on
+/// the real clock"). A pinned clock stands still.
+///
+/// `XCUIApplication.porchlight()` hands every launch `midweek` in its environment
+/// (`PORCHLIGHT_NOW`), so a test is pinned without asking. A test that needs another time
+/// of day passes `-debugCompanionNow` with `at(_:_:)`, which is the same day at that time
+/// and takes precedence. The day is never the real one.
 ///
 /// On the real clock the sample household is built backwards from the minute of the
 /// launch, and two tests failed on it at midnight UTC on Sunday, November 22, 2026: one
@@ -11,10 +16,25 @@ import XCTest
 /// midnight, and one opened the week grid six minutes into the week, before any walk.
 /// `SampleClockTests` in the unit tests holds what the sample has at this time.
 enum UITestClock {
+    private static let year = 2026, month = 11, dayOfMonth = 18
+
     /// A Wednesday at 10:30 in the morning: this week has days behind it and days ahead,
     /// the morning's walk and breakfast are done, and the evening's are still to come.
-    static let midweek = "2026-11-18T10:30"
-    static let arguments = ["-debugCompanionNow", midweek]
+    static let midweek = at(10, 30)
+
+    /// The pinned day at another time, for `-debugCompanionNow`.
+    static func at(_ hour: Int, _ minute: Int) -> String {
+        String(format: "%04d-%02d-%02dT%02d:%02d", year, month, dayOfMonth, hour, minute)
+    }
+
+    /// A day counted from the pinned one, as "yyyy-MM-dd": `day(-1)` is its yesterday.
+    static func day(_ offset: Int) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let pinned = calendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth, hour: 12))!
+        let parts = calendar.dateComponents([.year, .month, .day], from: calendar.date(byAdding: .day, value: offset, to: pinned)!)
+        return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
+    }
 }
 
 extension XCTestCase {
@@ -61,6 +81,7 @@ extension XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["OS_ACTIVITY_MODE"] = "disable"
         app.launchEnvironment["PORCHLIGHT_TOAST_SECONDS"] = "30"
+        app.launchEnvironment["PORCHLIGHT_NOW"] = UITestClock.midweek
         return app
     }
 }

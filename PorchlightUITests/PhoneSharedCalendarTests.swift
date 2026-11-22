@@ -10,11 +10,11 @@ final class PhoneSharedCalendarTests: XCTestCase, PhoneTestHelpers {
         try XCTSkipIf(isPad, "The phone tests run on an iPhone")
     }
 
-    /// Today at 8 in the morning, so the day's events are all ahead (hard rule 1).
-    private static var morning: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT08:00", parts.year!, parts.month!, parts.day!)
-    }
+    /// The pinned day (`UITestClock`, a Wednesday) at 8 in the morning, so the day's events
+    /// are all ahead and tomorrow's and the day after's are in the same week
+    /// (docs/design/testing.md, the hard rule "A test's outcome never depends on the real
+    /// clock").
+    private static var morning: String { UITestClock.at(8, 0) }
 
     func testAnotherDevicesCalendarsOnToday() {
         let app = XCUIApplication.porchlight()

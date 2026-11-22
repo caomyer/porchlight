@@ -59,15 +59,6 @@ final class CompanionEditorTests: XCTestCase, PhoneTestHelpers {
                       "The new routine should be listed in the companion editor")
         snapshot("42-routine-added")
 
-        // The photo button opens the system picker from inside the sheet.
-        app.buttons["Photo"].tap()
-        // The wall has no navigation bars; the system picker does.
-        let cancelPicker = app.navigationBars.buttons["Cancel"].firstMatch
-        XCTAssertTrue(cancelPicker.waitForExistence(timeout: 10), "The photo picker should open")
-        snapshot("43-photo-picker")
-        cancelPicker.tap()
-        XCTAssertTrue(cancelPicker.waitForNonExistence(timeout: 5), "Cancel should close the photo picker")
-
         // Settings has its own Save for the household name; this is the sheet's.
         let save = app.buttons.matching(NSPredicate(format: "label == 'Save' AND enabled == true")).firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 10))
@@ -76,5 +67,32 @@ final class CompanionEditorTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Brush teeth'")).firstMatch.waitForExistence(timeout: 5),
                       "Settings should list the saved routine")
         snapshot("44-saved")
+    }
+
+    /// The photo button opens the system picker from inside the sheet, and the sheet is
+    /// still there and still answers when the picker is put away. A test of its own, started
+    /// in the editor (`-debugCompanionSheet editor`): with the journey above it made one test
+    /// of 164 seconds on a slow hosted Mac, over the limit of 120.
+    func testThePhotoPickerOpensFromTheEditor() {
+        let app = XCUIApplication.porchlight()
+        app.launchArguments = ["-sampleHousehold", "-startScreen", "settings", "-debugCompanionSheet", "editor"]
+        app.launch()
+
+        let photo = app.buttons["Photo"]
+        XCTAssertTrue(photo.waitForExistence(timeout: 30), "The companion editor should open")
+        photo.tap()
+        // The wall has no navigation bars; the system picker does.
+        let cancelPicker = app.navigationBars.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancelPicker.waitForExistence(timeout: 10), "The photo picker should open")
+        snapshot("43-photo-picker")
+        cancelPicker.tap()
+        XCTAssertTrue(cancelPicker.waitForNonExistence(timeout: 5), "Cancel should close the photo picker")
+        // The picker slides away first; then the button that opened it can be tapped again.
+        let back = expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: photo)
+        wait(for: [back], timeout: 10)
+        let addRoutine = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Add routine'")).firstMatch
+        XCTAssertTrue(addRoutine.exists, "The editor is still there")
+        app.buttons["Cancel"].firstMatch.tap()
+        XCTAssertTrue(addRoutine.waitForNonExistence(timeout: 5), "and Cancel closes it")
     }
 }

@@ -9,20 +9,22 @@ The audit at the end applies it to every UI test in the repository, with measure
 Where things stand, for anyone who does not need the audit.
 Every number is from the run named in its column, on GitHub's hosted Macs (3 cores, 7 GB, iOS 27.2).
 
-| | At the start: November 20, 2026 (run 44828667552) | Now: November 21, 2026 (run 44926520595) | Target |
+| | At the start: November 20, 2026 (run 44828667552) | Now: November 22, 2026 (run 44967355168) | Target |
 |---|---|---|---|
-| UI test seconds, all tests added up | 8,041 | 5,735 | 5,400 |
-| UI tests in the suite | 150 | 136 | |
-| UI tests over 60 seconds | 38 | 26 | |
-| UI tests over 120 seconds | 7 | 0 | 0 |
-| Longest UI test | 746 s | 120 s | 120 s |
-| Longest job's seconds of tests | 2,153 | 1,506, and about 1,300 once the shards are weighed again from this run | 1,080 |
-| A full run from start to green, with no queueing | 48.6 minutes | about 42 minutes: a 6.6 minute build, then a longest job of 35 | 30 minutes |
+| UI test seconds, all tests added up | 8,041 | 6,185, with the eight recipe journeys in it (about 250 s); the two full runs before it were 5,842 with them and 5,067 without | 5,400 |
+| UI tests in the suite | 150 | 142 | |
+| UI tests over 60 seconds | 38 | 29 | |
+| UI tests over 120 seconds | 7 | 2 in this run (`CompanionEditorTests.testAddingARoutineFromSettings` at 164 s and `PhoneSetupTests.testSettingUpTheHouseholdFromThePhone` at 132 s, which took 83 and 92 the run before); none in the two runs before | 0 |
+| Longest UI test | 746 s | 164 s in this run, 97 s the run before | 120 s |
+| Longest job, start to end | 2,153 s of tests | 1,853 s for the whole job (in the two runs before: 1,690 and 1,692) | 1,080 s of tests |
+| A full run from start to green, with no queueing | 48.6 minutes | about 40 minutes: a build of 4 to 9 minutes, then a longest job of 28 to 31 | 30 minutes |
 | A push to a working branch, with no queueing | 48.6 minutes: every push ran everything | about 20 minutes: the unit tests and the smoke set (run 44888821802) | 20 minutes |
-| Unit tests | 572 | 614 | |
+| Unit tests | 572 | 648 | |
+| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 30 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
 
-What the table says plainly: the tests take 29% less time and none is over the ceiling, but a full run is only 14% faster, because each test job now spends about ten minutes on what is not a test (booting a new simulator, settling it, fetching and unpacking the build, installing, collecting results).
-That overhead, not the tests, is the next thing to shorten ("Budgets").
+What the table says plainly: the tests take a quarter to a third less time than at the start, with eight journeys added since, and the same test's seconds move by a half and more from one hosted Mac to the next (the unit tests' step took 198, 283 and 452 seconds in three runs of the same code), so one run's total is a sample and not a measurement.
+The ceiling of 120 seconds holds on an ordinary Mac and is broken on a slow one by the two tests that sit nearest to it; they are the next to shorten.
+A full run is a fifth faster, because each test job still spends five to seven minutes on what is not a test (booting a new simulator, fetching and unpacking the build, installing, collecting results).
 When a row here goes stale, update it from a green full run and name the run.
 
 ## The rule in one paragraph
@@ -217,11 +219,10 @@ The first six were each learned from a failed or misleading run in the week of N
   That includes the clock of the test itself: a UI test must never have to do something within so many seconds of the app's own timer, because a hosted Mac can take 50 seconds over one drag ("Flaky tests").
   Wait for a thing to happen, with a long limit, and put the timer's rule in a unit test with the times handed in.
   In a unit test, pass `now` and a `Calendar` with an explicit time zone, and walk the day in half hours in at least two zones when the rule has anything to do with the time of day or the day's edge.
-  In a UI test, pin the time with `-debugCompanionNow yyyy-MM-ddTHH:mm`, which the wall and the phone both read, and never branch on `Date()`.
-  Pin the whole of it, the day as well as the hour: `UITestClock.arguments` in the UI tests is a Wednesday at 10:30 in the morning, and a pinned clock stands still, so the day cannot change under a test and the week is never in its first minutes.
-  The sample household is built backwards from that time, and the screens take their day and their week from it (`CompanionClock`); what a row is stamped with, and how long the wall has gone untouched, stay on the real clock.
-  A test that pins today's date at a fixed hour, as the older ones do, has fixed the time of day and left the day of the week to chance.
-  A test that launches the sample household with no pin at all is on the real clock, and "The UI tests still on the real clock", under "Flaky tests", lists them.
+  In a UI test the time is pinned for you: `XCUIApplication.porchlight()` hands every launch one fixed Wednesday at 10:30 in the morning (`UITestClock.midweek`, as `PORCHLIGHT_NOW` in the app's environment), and a pinned clock stands still, so the day cannot change under a test and the week is never in its first minutes.
+  A test that needs another time of day passes `-debugCompanionNow` with `UITestClock.at(17, 20)`, the same day at that time, and one that needs another day's name writes `UITestClock.day(-1)`; never `Date()`, `.now` or `Calendar.current` in a UI test, except to count a wait's own seconds.
+  The sample household is built backwards from the pinned time, and the screens take their day and their week from it (`CompanionClock`); what a row is stamped with, and how long the wall has gone untouched, stay on the real clock.
+  "A new feature and the clock", below, is the short form for whoever adds a screen.
   Why: a log landed in the wrong slot, and a streak was miscounted, only at certain hours, where a test that runs at one hour cannot see it.
   A timestamp that is only stored, never compared, bucketed or formatted (a row's `createdAt`), may be `Date.now`.
 - **Every loop in a UI test helper has a bound.**
@@ -347,21 +348,64 @@ A test listed as quarantined is skipped in the suite and has a date by which it 
 | `ScrollingTests.testTouchesKeepTheWallAwake` | November 21, 2026, on the release line (run 44905599973, 146 s where it takes 51 to 58); the same commit had passed its full run an hour earlier | The agent on `tests/pyramid` | The test raced two clocks: it touched the wall every 4 seconds of a 12 second "minute" and then asserted Ambient had stayed away. In the failing run the touches came 10 seconds apart, and then one drag took 51 seconds on the hosted Mac, so the wall's timer rightly ran out. The app was right and the test was wrong: it broke the first hard rule, "A test's outcome never depends on the real clock", from the other side, by letting the outcome depend on how fast the test itself ran | The rule moved to `IdleRuleTests` (dates handed in, seen failing with the rule broken). The UI test was rewritten as `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: one launch with a ten minute wait where a drag must be counted by the idle watcher, one with a three second "minute" where Ambient must come, each a one-sided wait | Fixed the same day; not quarantined |
 | `TimeFieldTests.testTypingAMealTime` | November 22, 2026, 00:00:04 UTC (run 44961571872, Wall UI 2 of 2): "Failed to tap Button ... label BEGINSWITH 'Breakfast: Pancakes'" after 17.8 s, on a change that touched only the phone | The agent on `tests/pyramid` | The real clock. The sample's pancakes are six days before the launch, the last day the Food page shows. The test launched at 11:59 pm, found them, and at midnight the page moved on a day and they were seven days back, between the wait and the tap. `SampleClockTests.acrossMidnight` shows the same step with the times handed in | The class is pinned to `UITestClock.midweek`, and the Food page, the meal's sheet and its time field now take their day from `CompanionClock`, so the pin reaches them. Passed locally on the pinned Wednesday while the Mac's own day was a Saturday | Fixed |
 | `DayAtAGlanceTests.testMomentsInTheWeek` | November 22, 2026, about 00:06 UTC (run 44961571844, Wall smoke): "The morning walk is in the week grid" at line 66, with the Mac at 24% free and 716 MB of swap at the time | The agent on `tests/pyramid` | The real clock, not the memory: six minutes into a Sunday the week has no walk in it yet, since every sample walk before the launch is in last week, and it would have failed on any Mac until the morning's walk. Reproduced on a quiet Mac by pinning the clock to Sunday, November 22 at 00:06: the same line, the same message. `SampleClockTests.theWeeksFirstMinutes` holds the fact | The class is pinned to `UITestClock.midweek`, and the calendar, Today and the chores now take their day and week from `CompanionClock`. All three of its tests and the three of `TimeFieldTests` passed locally on the pinned time | Fixed |
+| `MealPhotosTests.testWholePhotoAndReframing` | November 22, 2026, 09:40 UTC (run 45005016341, Unit and Wall UI 1 of 2, on a change to the sync library with no UI code): line 155, the square still at "50 percent across, 50 percent down, zoom 1.0" after the drag, 22.4 s | The agent on `tests/pyramid` | Not the clock: the test had opened today's breakfast and its reframe screen, which a Sunday does not change. It made one drag the moment the reframe screen existed and read the square's value in the next line, with no wait on either side. Either the drag began while the screen was still arriving, or the value was read before it followed the gesture; the log cannot say which | `dragTheSquare(in:)` in the class waits for the screen to be still, drags, waits up to four seconds for the square to say it moved, and drags again, twice at the most; `testReframingAnotherPhoto` made the same one drag and uses it too. What a drag does to the square stays in `PhotoFramingTests`; the UI test only shows the gesture reaches it. The phone's tests reframe with the Zoom in button and never dragged | Fixed |
+| `FirstRunTests.testOnboardingWithRealCalendarAccess` | November 22, 2026 (run 45013168902, the shared calendar's first full run): line 90, "Calendar should now belong to Mia", then line 96, then no "Invite phones now" button; it had passed locally | The agent on `calendar/shared` | A product regression that only a slow Mac showed. The shared calendar's first pass wrote this device's feed about two seconds after the calendars were listed; the feed was in the calendar store's one observed snapshot, so the table of calendars was redrawn, and on a hosted Mac the redraw landed while the owner's menu was open and swallowed the tap | `CalendarStore` tells what shows the household's calendar (`shared`) apart from this device's own calendars (`snapshot`), so a pass no longer redraws the table. `CalendarStoreObservationTests` fails with that put back. Proof: run 45019206705 | Fixed |
 
-#### The UI tests still on the real clock
+#### The UI tests and the real clock
 
-Counted on November 22, 2026, after those two failures.
-A class is on the real clock when it launches the sample household without `-debugCompanionNow`: what it finds then depends on the minute and the day of the launch, and a test in it can fail in the minute around midnight (a meal or a walk it is about to tap moves a day back) or in a Sunday's first hours (the week is empty).
-The cure is the same for each: add `UITestClock.arguments` to the class's launch, run the class, and where a screen still shows the real day, give that screen's read of the time to `CompanionClock` as was done for the calendar, Today, the Food page and the chores.
+After those two failures every UI test's launch was pinned (November 22, 2026): `XCUIApplication.porchlight()` sets `PORCHLIGHT_NOW` to one fixed Wednesday, and the classes that had pinned today's date at a fixed hour now pin that Wednesday at their hour.
+Before it, 2 classes were pinned whole, 11 were pinned to the real day at a fixed hour, and the rest ran on the real minute of their launch.
 
 | | Classes | What they stand on |
 |---|---|---|
-| Pinned whole, day and hour | `DayAtAGlanceTests`, `TimeFieldTests` | Nothing real |
-| Pinned to today's date at a fixed hour | `WallRecipesTests`, `PhoneRecipesTests`, and the pinned tests of `LoggedEntryTests`, `PitchInTests`, `PhoneTests`, `PhoneTabsTests`, `PhoneRemindersTests`, `PhoneHouseholdTests`, `PhoneFoodTests`, `PhoneWeekTests`, `PhoneCatchUpTests` | The real day of the week. `PhoneRecipesTests.testPlanningADinnerFromTheBank` plans "tonight" and then "Sunday", which are one day on a Sunday |
-| Not pinned, and reading the sample's meals, walks or chores by day | Wall: `FoodMealsTests`, `MealPhotosTests`, `WallDishEditorTests`, `WallDishesTests`, `CatchUpTests`, `CompanionEditorTests`, `WallTourTests`, and the unpinned tests of `LoggedEntryTests` and `PitchInTests`. Phone: `PhoneDishesTests`, `PhoneDishEditorTests`, and the unpinned tests of the phone classes above | The real minute and the real day |
-| Not pinned, and not reading anything by day | `FirstRunTests`, `HouseholdTests`, `SyncSettingsTests`, `PhoneSetupTests`, `PhotoFrameTests`, `ScrollingTests` | The real clock, but nothing they assert moves with it; `FirstRunTests` reads the simulator's real calendar and stays as it is |
+| The pinned Wednesday, by default or at an hour of their own | Every class but one | Nothing real |
+| The real day at 5:20 pm | `PhoneRemindersTests` | The real day of the week. Its reminders are handed to iOS, which delivers them by the real clock, so a day in the past could never ring |
+| The simulator's real calendar | `FirstRunTests`, for the events it is shown after the system's prompt | It asserts the prompt and the first screen, not a day |
 
-The hosted screens in the unit tests seed the same sample around the real time (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`); they assert where things sit and not what day it is, and the samples now take the time as a parameter, so they can be pinned the same way.
+The first full run with every launch pinned (45004513685) passed 141 of 142 UI tests, in 5,563 seconds with none over 120.
+The one that failed was `HouseholdTests.testRowsFromPhonesAreTaggedAndArrivalsNamed`: the debug arrivals it launches with (`-debugArrival`) tagged the real day's rows as from Mia's phone and logged James's walk on the real day, while Today showed the pinned one.
+They now use the day the screens call today (`DebugArrivals`), and keep the real clock for when the row arrived.
+That is the kind of place a pin finds: a debug seeder that still asks the real clock which day it is.
+
+The hosted screens in the unit tests seed the same sample around the real time (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`); they assert where things sit and not what day it is, and the samples take the time as a parameter, so they can be pinned the same way.
+
+#### A new feature and the clock
+
+For whoever adds a screen that shows a day, a week or a time of day.
+Follow these from the first commit, and the feature's UI tests are on the pinned clock without doing anything.
+
+1. **In a view or a store, ask `CompanionClock` what time it is, never `Date()` or `.now`.**
+   `CompanionClock.now()` where you would write `.now`, and `CompanionClock.at(context.date)` inside a `TimelineView`, so the screen still redraws each minute.
+   In a release build both are the real time; in a DEBUG build they are the pinned time when one is given.
+   "Today", "this week", "tonight", "3 days ago", which day a new entry lands on, and what is past or still to come all come from it.
+2. **Keep the real clock for stamps and for elapsed time only.**
+   A row's `createdAt` and `updatedAt`, what sync compares, how long ago a device was seen, a stopwatch, an animation, how long the wall has gone untouched.
+   If a pinned clock would make two writes carry the same instant and something compares them, it is a stamp.
+3. **Put the rule in a pure function that takes `now` and a `Calendar`,** and sweep it in a unit test: both sides of midnight, the first minutes of a week, the last day of a month, a daylight-saving change, and at least two time zones.
+   The view only hands it `CompanionClock.now()` and the household's calendar.
+4. **Sample data takes `now` as a parameter** with `CompanionClock.now()` as its default (`CompanionSamples.seed`, `FoodSamples.seed`), builds everything backwards from it, and logs nothing after it.
+   Say in a unit test what the sample holds at `UITestClock.midweek` that the UI tests look for (`SampleClockTests`).
+5. **In a UI test, launch with `XCUIApplication.porchlight()` and write days with `UITestClock`.**
+   The launch is already pinned to Wednesday, November 18, 2026 at 10:30.
+   For another hour, `-debugCompanionNow` with `UITestClock.at(18, 40)`; for a day's key or label, `UITestClock.day(-1)`; for a weekday's name, write it out: the pinned day is a Wednesday and will stay one.
+   A new debug launch argument that opens a screen on a date takes that date as an argument (`-calendarDate`), not from the clock.
+6. **If the feature hands a time to iOS** (a notification, a calendar event written to EventKit, a widget's timeline), iOS will act on it by the real clock: keep that part in a unit test with the times handed in, and say so in the audit if a UI test has to stay on the real day, as `PhoneRemindersTests` does.
+
+#### A write that lands a few seconds after a screen appears
+
+The `FirstRunTests` failure above is a kind the pinned clock does not catch and a fast Mac hides: something the app does by itself a moment after a screen is shown (a first pass, a sync arriving, a seeder finishing) redraws what the person, or the test, is in the middle of using.
+What caught it was a slow hosted Mac, by luck of timing, and what holds it now is one unit test of one store.
+Two guards would catch the kind rather than the case; both are proposals, and neither is built.
+
+- **A count of what each store told its observers, readable by a hosted test.**
+  In DEBUG, a store adds one to a counter each time it replaces an observed value (`snapshot`, `shared`, `mappings`).
+  A hosted-screen test then does the thing that writes late (a pass, an arrival) and asserts that the counters of the stores its screen reads did not move, or moved by exactly one.
+  It is cheap, runs in the unit suite in milliseconds, and says which store redrew; it needs each late writer to be nameable in a test, which the pass and the arrivals already are.
+- **A UI test's menu and sheet taps made through one helper that checks the menu is the one it opened.**
+  The helper opens a menu, notes the menu's element, waits for it to be still, taps the choice, and fails with "the menu was rebuilt under the tap" if the element it noted is gone before the tap lands, instead of failing three lines later on what the tap should have changed.
+  It does not prevent the bug; it makes the failure say what happened the first time, on whatever Mac it happens.
+
+The first is the better of the two, because it fails on every Mac and not only on a slow one.
 
 ### Infrastructure failures
 
@@ -446,6 +490,9 @@ Do not provoke one for the purpose.
 | 44956641573, November 21, the full suite, before recipes | Not started | 5 (2 iPads in 139 and 171 s, 3 iPhones in 135 to 251 s) | 59% in a boot step; 45% in any test step, where the wall's shares had gone to 18% and 29% the run before | 0 | Neither, and no test needed a second launch |
 | 44963685565, November 22, the full suite with recipes | Not started | 5 (2 iPads in 169 and 216 s, 3 iPhones in 175 to 235 s) | 62% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the week grid on the real clock in a Sunday's first hour ("Flaky tests") |
 | 44967355168, November 22, the full suite with the two classes pinned | Not started | 5 (2 iPads in 187 and 193 s, 3 iPhones in 205 to 261 s) | 60% in a boot step; 42% in any test step | 0 | Neither, and no test needed a second launch. Green, in a Sunday's second hour |
+| 44973740449, November 22, the full suite on the recipe link's branch | Not started | 5 (2 iPads in 152 and 181 s, 3 iPhones in 237 to 261 s) | 63% in a boot step; 47% in any test step | 0 | Neither, and no test needed a second launch. Green on its first attempt |
+| 45004513685, November 22, the full suite with every launch pinned | Not started | 5 (2 iPads in 196 and 269 s, 3 iPhones in 126 to 302 s) | 60% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the pin's own: the debug arrivals were still written on the real day ("The UI tests and the real clock") |
+| 45020375885, November 22, the full suite with the shared calendar | Not started | 5 (2 iPads in 172 and 239 s, 3 iPhones in 153 to 290 s) | 60% in a boot step; 45% in any test step | 0 | Neither, and no test needed a second launch. Green: 146 UI tests in 5,585 seconds, none over 120 |
 
 That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
 The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
@@ -783,7 +830,7 @@ Unfrozen on November 21, when the dish editor landed.
 
 #### PhoneCalendarTests (new)
 
-The phone's Calendar tab (docs/design/calendar-phone-tab.md), added November 22, 2026; its looks are hosted (`PocketSharedCalendarScreenTests`), the clock pinned to today at 8 in the morning.
+The phone's Calendar tab (docs/design/calendar-phone-tab.md), added November 22, 2026; its looks are hosted (`PocketSharedCalendarScreenTests`), the clock pinned to the Wednesday (`UITestClock.at(8, 0)`).
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
@@ -793,11 +840,11 @@ The phone's Calendar tab (docs/design/calendar-phone-tab.md), added November 22,
 #### PhoneSharedCalendarTests (new)
 
 Added with the shared calendar on November 22, 2026 (docs/design/calendar-shared.md); its looks are hosted (`PocketSharedCalendarScreenTests`).
-The clock is pinned to today at 8 in the morning.
+The clock is pinned to `UITestClock`'s Wednesday at 8 in the morning; the branch had pinned today's date at that hour, which left the day of the week real, and with tomorrow's and the day after's events in its sample a Friday or a Saturday would have put them in next week.
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
-| testAnotherDevicesCalendarsOnToday | | Another device's work is one quiet row on "At home today", with its meetings counted; its events beside this phone's | Keep; merging and the quiet block are `SharedCalendarViewTests` | | |
+| testAnotherDevicesCalendarsOnToday | 21 to 37 | Another device's work is one quiet row on "At home today", with its meetings counted; its events beside this phone's | Keep; merging and the quiet block are `SharedCalendarViewTests` | | |
 
 #### PhoneRecipesTests (112 s)
 
@@ -923,14 +970,15 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | WallTourTests.testHandwritingOnDayPage | 32 | Strokes, Done | Keep (gesture) | | |
 | WallTourTests.testSheetsWithTheKeyboardUp | 44 | Two sheets' fields above the keyboard | Keep (keyboard) | | |
 | WallTourTests.testScreens | 0 | Screenshots only | Not in the suite; `--tour` | | |
-| WallSharedCalendarTests.testAnotherDevicesCalendarsOnTheWall | | Another device's quiet block on the week, its meetings on tap with where they come from, one shared event with both faces, the stale line | Keep; merging, quiet blocks and freshness are `SharedCalendarViewTests`; the clock pinned to 8 in the morning | | |
-| WallSharedCalendarTests.testJustMeLeavesTheHousehold | | A calendar set to Just me leaves what the wall passes on (Sync details counts one fewer) | Keep; what each choice passes on is `CalendarPassOnTests`, and removal for everyone is `SharedCalendarSyncTests` | | |
+| WallSharedCalendarTests.testAnotherDevicesCalendarsOnTheWall | 18 to 50 | Another device's quiet block on the week, its meetings on tap with where they come from, one shared event with both faces, the stale line | Keep; merging, quiet blocks and freshness are `SharedCalendarViewTests`; the clock pinned to `UITestClock`'s Wednesday at 8 in the morning, so the stale line reads "updated Monday" | | |
+| WallSharedCalendarTests.testJustMeLeavesTheHousehold | 63 in the full run 45020375885, 127 in run 45013466026 on a Mac that had also built, when it scrolled Settings four times with swipes; now twice, down to the row and on to Sync details | A calendar set to Just me leaves what the wall passes on (Sync details counts five) | Keep; the six it starts from is `CalendarSamplesTests`, what each choice passes on `CalendarPassOnTests`, and removal for everyone `SharedCalendarSyncTests` | Two of four scrolls | done |
 | WallTourTests.testRecipeScreens | 0 | Screenshots only: the bank with a long name, the empty bank, the kitchen view at its top and scrolled, the editor with a card, planning, "What we cook", the week's dinners marked 📖 | Not in the suite; `--tour` | | |
 | WallRecipesTests.testAddingARecipeToADishWeCook | 24 | A recipe typed for a dish we cook joins it, with its history | Keep | | |
 | WallRecipesTests.testCookingFromTheBank | 29 | We made this opens Snap with the dish on the meal; it saves | Keep | | |
 | WallRecipesTests.testPlanningADinnerFromTheBank | 26 | Plan it, tonight, said | Keep | | |
 | WallRecipesTests.testIngredientsToTheGroceryList | 24 | Two ticked go to groceries; Undo takes them back | Keep; the grocery names are `RecipeLogicTests` | | |
-| CompanionEditorTests.testAddingARoutineFromSettings | 103 | Editor, routine, photo picker, save | Keep; over the limit, split at the photo picker | 20 | |
+| CompanionEditorTests.testAddingARoutineFromSettings | 103 | Editor, routine, save | Keep. It took 164 s on a slow Mac in run 44967355168 (76 to 103 in others), so the photo picker became a test of its own | | done |
+| CompanionEditorTests.testThePhotoPickerOpensFromTheEditor | 22 locally | The system's photo picker opens from the editor, Cancel puts it away, and the editor still answers | New on November 22: started in the editor with `-debugCompanionSheet editor` | | |
 | FirstRunTests.testOnboardingWithRealCalendarAccess | 101 | First run with the real prompt | Keep (smoke); its length is the system prompt's | | |
 | ScrollingTests.testSettingsScrollsToTheLastSection | 32 | Settings scrolls to the end | Keep (scrolling) | | |
 | ScrollingTests.testTouchesKeepTheWallAwake | 55 | Touches hold off Ambient, timed against a 12 second "minute" | Down for the rule (`IdleRuleTests`, every time handed in); the UI test is now `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: a real drag is counted by the idle watcher, and an untouched wall goes to Ambient, neither of which a slow Mac can fail. It went red on the release line on November 21 ("Flaky tests") |  | done, 34 s measured |
@@ -969,6 +1017,7 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | `RecipeDatabaseTests` | The real database in memory | Saving, joining a dish we cook, card photos, removing with Undo, what removing, merging and renaming a dish do to its recipe and planned dinners, what we cook suggested for a dinner | The same journeys |
 | `OlderBuildSyncTests` (recipes) | The fake iCloud, with older builds' tables | An older build keeps a recipe, its card photo and a dinner's dish, and an updated device brings them in | None: no UI test can run an older build |
 | `CalendarPassOnTests` | Pure functions, clock and calendars handed in, the window swept over a year in two zones | What each of the four choices passes on (marker words that must never reach a Busy only or Just me record, nor the account or the raw event id), the window, the match key, all-day days, the difference between passes, and the migration of today's choices | `WallSharedCalendarTests.testJustMeLeavesTheHousehold` |
+| `CalendarSamplesTests` | The real database in memory, the sample provider, clock pinned | The sample wall passes on six calendars, and five with Mia's set to Just me | `WallSharedCalendarTests.testJustMeLeavesTheHousehold` |
 | `SharedCalendarViewTests` | Pure functions, clock pinned | Each event once with every owner's face, keys before words, quiet blocks and their words, how fresh each device is, Sync details' lines | `WallSharedCalendarTests`, `PhoneSharedCalendarTests` |
 | `SharedCalendarSyncTests` | The fake iCloud, two devices | Mia's phone passes on and Sam's shows, with no marker word reaching iCloud; an unchanged pass writes no event; Just me and leaving remove for everyone; nothing before the choices are seen; a build from before keeps syncing and gets every event, parents first, on updating | None: no UI test runs two devices |
 | `PocketCalendarLogicTests` | Pure functions, calendars and days handed in, weeks swept over a year from Sunday and from Monday | Weeks from the household's first weekday, paging across the clocks changing, the month grid, the header across two months or years, dots, the person filter, the list's days, and the time style in 12 and 24 hours | `PhoneCalendarTests` |

@@ -29,8 +29,7 @@ final class PhoneHouseholdTests: XCTestCase, PhoneTestHelpers {
     // MARK: Two households (A5)
 
     private static var evening: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
+        UITestClock.at(17, 20)
     }
 
     private func twoHouseholds(_ extra: [String] = []) -> XCUIApplication {
