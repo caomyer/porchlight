@@ -198,8 +198,14 @@ extension AppDatabase {
     /// feed row (when, why, the window and how many events). It only ever writes under
     /// this device's own row.
     @discardableResult
+    ///
+    /// It also keeps each "For" on its event (docs/design/calendar-add-edit.md): an
+    /// occurrence passed on before under another match key re-keys its record, and so does
+    /// one of this device's events a "For" was set on here (`currentKeys`, each event's local
+    /// id and match key now).
     func passOnCalendars(
-        _ plan: CalendarPassOn.Plan, householdId: Household.ID, trigger: CalendarPassTrigger, window: DateInterval, now: Date
+        _ plan: CalendarPassOn.Plan, householdId: Household.ID, trigger: CalendarPassTrigger, window: DateInterval, now: Date,
+        currentKeys: [String: String] = [:]
     ) throws -> CalendarPassResult? {
         try writer.write { db in
             let deviceId = thisDeviceId(in: householdId)
@@ -213,6 +219,13 @@ extension AppDatabase {
             let calendars = try SharedCalendar.filter(Column("feedId") == feedId).fetchAll(db)
             let events = try SharedEvent.filter(calendars.map(\.id).contains(Column("sharedCalendarId"))).fetchAll(db)
             let diff = CalendarPassOn.diff(wanted: plan, calendars: calendars, events: events)
+            let before = Dictionary(events.map { ($0.id, $0.matchKey) }, uniquingKeysWith: { first, _ in first })
+            for event in diff.updateEvents {
+                if let old = before[event.id] ?? nil, let new = event.matchKey, old != new {
+                    try AppDatabase.rekeyEventFor(from: old, to: new, householdId: householdId, db: db)
+                }
+            }
+            try AppDatabase.rekeyRemembered(current: currentKeys, householdId: householdId, db: db)
             for id in diff.deleteCalendars { _ = try SharedCalendar.deleteOne(db, id: id) }
             for id in diff.deleteEvents { _ = try SharedEvent.deleteOne(db, id: id) }
             for calendar in diff.insertCalendars { try calendar.insert(db) }

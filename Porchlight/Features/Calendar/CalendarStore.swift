@@ -388,7 +388,12 @@ final class CalendarStore: StoredFirstObservable {
             deviceId: database.thisDeviceId(in: household.id), deviceCalendar: deviceCalendar, householdCalendar: calendar
         )
         do {
-            let result = try database.passOnCalendars(plan, householdId: household.id, trigger: trigger, window: window, now: now())
+            // Each of this device's events by its local id, with the id it shares now.
+            var currentKeys: [String: String] = [:]
+            for event in events {
+                if let key = CalendarPassOn.matchKey(event.externalItemId) { currentKeys[EventForLogic.itemId(ofOccurrence: event.id)] = key }
+            }
+            let result = try database.passOnCalendars(plan, householdId: household.id, trigger: trigger, window: window, now: now(), currentKeys: currentKeys)
             lastError = nil
             return result
         } catch {

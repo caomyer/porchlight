@@ -116,6 +116,15 @@ final class SyncHarness {
             plan, householdId: household.id, trigger: .open,
             window: CalendarPassOn.window(today: today, calendar: household.calendar), now: .now
         )
+        // The household's home calendar, and who that dinner is for.
+        try database.writer.write { db in
+            try HomeCalendar(id: HomeCalendar.id(householdId: household.id), householdId: household.id, title: "Home",
+                             accountKind: "iCloud", chosenById: database.thisDeviceId(in: household.id), chosenAt: .now).insert(db)
+        }
+        try database.setEventFor(
+            matchKey: "dinner-key", title: "Dinner with the Lees", start: start, itemId: "dinner",
+            people: [people[1]], householdId: household.id
+        )
 
         let journal = try database.ensureFoodJournal(householdId: household.id)
         var dinner = MealDraft(

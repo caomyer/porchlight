@@ -75,6 +75,8 @@ struct CalendarSource: Codable, Equatable, Identifiable, Sendable {
     var isPersonal = false
     /// What the household gets from this calendar (docs/design/calendar-shared.md).
     var sharing: CalendarChoice = .everything
+    /// This device's half of the household's home calendar (docs/design/calendar-add-edit.md).
+    var isHome = false
 
     var owner: Owner { ownerId.map(Owner.person) ?? .everyone }
 }

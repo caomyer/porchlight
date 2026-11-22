@@ -340,6 +340,28 @@ enum SyncMirror {
         var choice: String
     }
 
+    // The home calendar and who an event is for (docs/design/calendar-add-edit.md).
+
+    @Table("homeCalendar") struct HomeCalendar {
+        let id: UUID
+        var householdId: UUID
+        var title: String
+        var accountKind: String
+        var chosenById: UUID?
+        var chosenAt: Date
+    }
+
+    @Table("eventFor") struct EventFor {
+        let id: UUID
+        var householdId: UUID
+        var matchKey: String
+        var titleKey: String?
+        var occurrenceStart: Date
+        var personIds: String
+        var setById: UUID?
+        var setAt: Date
+    }
+
     @Table("sharedEvent") struct SharedEvent {
         let id: UUID
         var sharedCalendarId: UUID
@@ -369,6 +391,7 @@ extension SyncMirror {
         Dish.self, MealDish.self, MealDishRating.self,
         Recipe.self, RecipePhoto.self,
         CalendarFeed.self, SharedCalendar.self, SharedEvent.self,
+        HomeCalendar.self, EventFor.self,
     ]
 
     /// The zone the household lives in, the engine's own default.
@@ -396,6 +419,7 @@ extension SyncMirror {
             Dish.self, MealDish.self, MealDishRating.self,
             Recipe.self, RecipePhoto.self,
             CalendarFeed.self, SharedCalendar.self, SharedEvent.self,
+            HomeCalendar.self, EventFor.self,
             containerIdentifier: SyncController.containerIdentifier,
             defaultZone: zone,
             startImmediately: false,

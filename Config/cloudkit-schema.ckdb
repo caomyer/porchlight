@@ -336,6 +336,35 @@ DEFINE SCHEMA
         GRANT READ TO "_world"
     );
 
+    RECORD TYPE eventFor (
+        "___createTime"                                        TIMESTAMP,
+        "___createdBy"                                         REFERENCE,
+        "___etag"                                              STRING,
+        "___modTime"                                           TIMESTAMP,
+        "___modifiedBy"                                        REFERENCE,
+        "___recordID"                                          REFERENCE,
+        householdId                                            ENCRYPTED STRING,
+        id                                                     ENCRYPTED STRING,
+        matchKey                                               ENCRYPTED STRING,
+        occurrenceStart                                        ENCRYPTED TIMESTAMP,
+        personIds                                              ENCRYPTED STRING,
+        setAt                                                  ENCRYPTED TIMESTAMP,
+        setById                                                ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_householdId     ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id              ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_matchKey        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_occurrenceStart ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_personIds       ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_setAt           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_setById         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_titleKey        ENCRYPTED INT64,
+        titleKey                                               ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE foodPlace (
         "___createTime"                                    TIMESTAMP,
         "___createdBy"                                     REFERENCE,
@@ -366,6 +395,31 @@ DEFINE SCHEMA
         sqlitedata_icloud_userModificationTime_phone       ENCRYPTED INT64,
         sqlitedata_icloud_userModificationTime_url         ENCRYPTED INT64,
         url                                                ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE homeCalendar (
+        "___createTime"                                    TIMESTAMP,
+        "___createdBy"                                     REFERENCE,
+        "___etag"                                          STRING,
+        "___modTime"                                       TIMESTAMP,
+        "___modifiedBy"                                    REFERENCE,
+        "___recordID"                                      REFERENCE,
+        accountKind                                        ENCRYPTED STRING,
+        chosenAt                                           ENCRYPTED TIMESTAMP,
+        chosenById                                         ENCRYPTED STRING,
+        householdId                                        ENCRYPTED STRING,
+        id                                                 ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_accountKind ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_chosenAt    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_chosenById  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_householdId ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id          ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_title       ENCRYPTED INT64,
+        title                                              ENCRYPTED STRING,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

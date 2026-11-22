@@ -194,7 +194,7 @@ enum SyncSchema {
 
     /// Every table, synced or not, in the order the migrations create them.
     static var all: [Table] {
-        tables + photoTables + householdTables + dishTables + recipeTables + calendarTables
+        tables + photoTables + householdTables + dishTables + recipeTables + calendarTables + homeCalendarTables
     }
 
     /// Every synced table, parents before children, in the order the sync engine is given them.

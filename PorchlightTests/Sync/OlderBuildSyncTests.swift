@@ -251,7 +251,7 @@ private final class Phone {
     /// Which build a device runs: today's, the one from before the shared calendar, the one
     /// from before recipes (dishes, but no recipe tables and no planned dinner's dish), or
     /// the one from before dishes.
-    enum Build { case today, beforeCalendar, beforeRecipes, beforeDishes }
+    enum Build { case today, beforeHomeCalendar, beforeCalendar, beforeRecipes, beforeDishes }
 
     /// Each device its own install, so each has its own row in the household.
     init(_ cloud: Cloud, build: Build, folder: URL? = nil, install: String = UUID().uuidString) async throws {
@@ -265,6 +265,16 @@ private final class Phone {
         try install.write(to: installFile, atomically: true, encoding: .utf8)
         database = try AppDatabase.openOnDisk(folder: self.folder, installId: install)
         if build != .today {
+            // Before the home calendar: no home calendar, no "For", no device half of either.
+            try await database.writer.write { db in
+                try db.execute(sql: """
+                    DROP TABLE "eventFor"; DROP TABLE "homeCalendar"; DROP TABLE "calendarItemFor";
+                    ALTER TABLE "calendarSource" DROP COLUMN "isHome";
+                    DELETE FROM grdb_migrations WHERE identifier = ?;
+                    """, arguments: [AppDatabase.homeCalendarMigration])
+            }
+        }
+        if build != .today && build != .beforeHomeCalendar {
             // Before the shared calendar: none of its tables, and no choice per calendar.
             try await database.writer.write { db in
                 try db.execute(sql: """
@@ -312,6 +322,7 @@ private final class Phone {
             tables: {
                 switch build {
                 case .today: Self.newerTables
+                case .beforeHomeCalendar: Self.beforeHomeCalendarTables
                 case .beforeCalendar: Self.beforeCalendarTables
                 case .beforeRecipes: Self.beforeRecipesTables
                 case .beforeDishes: Self.olderTables
@@ -350,6 +361,12 @@ private final class Phone {
     }
 
     static var newerTables: [any SynchronizableTable] {
+        beforeHomeCalendarTables + [
+            SynchronizedTable(for: SyncMirror.HomeCalendar.self), SynchronizedTable(for: SyncMirror.EventFor.self),
+        ]
+    }
+
+    static var beforeHomeCalendarTables: [any SynchronizableTable] {
         beforeCalendarTables + [
             SynchronizedTable(for: SyncMirror.CalendarFeed.self), SynchronizedTable(for: SyncMirror.SharedCalendar.self),
             SynchronizedTable(for: SyncMirror.SharedEvent.self),
@@ -399,7 +416,18 @@ private final class Phone {
             sources: try database.calendarSnapshot().sources, calendars: SharedCalendarFixture.calendars, events: events,
             deviceId: database.thisDeviceId(in: household.id), deviceCalendar: calendar, householdCalendar: calendar
         )
-        return try database.passOnCalendars(plan, householdId: household.id, trigger: .open, window: window, now: now)
+        var currentKeys: [String: String] = [:]
+        for event in events {
+            if let key = CalendarPassOn.matchKey(event.externalItemId) { currentKeys[EventForLogic.itemId(ofOccurrence: event.id)] = key }
+        }
+        return try database.passOnCalendars(plan, householdId: household.id, trigger: .open, window: window, now: now, currentKeys: currentKeys)
+    }
+
+    /// The events this device shows from the other devices, each with its "For".
+    func shownFromOthers(_ household: Household) throws -> [CalendarEvent] {
+        let snapshot = try database.calendarSnapshot()
+        let events = SharedCalendarView.events(snapshot.shared, people: snapshot.people)
+        return EventForLogic.apply(try database.eventFors(householdId: household.id), to: events, householdId: household.id)
     }
 
 
@@ -695,5 +723,149 @@ final class FixedCalendarProvider: CalendarProvider {
     func calendars() -> [ExternalCalendar] { access == .granted ? fixedCalendars : [] }
     func events(in interval: DateInterval, calendarIds: Set<String>) -> [ExternalEvent] {
         fixedEvents.filter { calendarIds.contains($0.calendarId) && $0.end > interval.start && $0.start < interval.end }
+    }
+}
+
+// MARK: - Who an event is for, through a change of its shared id
+
+@MainActor
+@Suite("Who an event is for stays on it when the id iOS shares changes", .serialized)
+struct EventForSyncTests {
+    /// Mia's own soccer practice, as her phone's provider gives it, under `uid`.
+    static func soccer(_ uid: String) -> [ExternalEvent] {
+        var events = SharedCalendarFixture.events
+        events[0].externalItemId = uid
+        return events
+    }
+
+    @Test("Set on the phone that made it, \"For Sam\" follows the event when its server hands back a new id")
+    func setWhereMade() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.passOnMiasCalendars([:])
+        let sam = try #require(try mia.database.snapshot().people.first { $0.name == "Sam" })
+        let first = try #require(CalendarPassOn.matchKey("soccer@icloud"))
+        try mia.database.setEventFor(
+            matchKey: first, title: "Soccer practice", start: SharedCalendarFixture.events[0].start, itemId: "own-1",
+            people: [sam.id], householdId: household.id
+        )
+        try await mia.engine.sendChanges()
+
+        let other = try await Phone(cloud, build: .today)
+        try await other.engine.fetchChanges()
+        #expect(try other.shownFromOthers(household).first { $0.title == "Soccer practice" }?.owner == .person(sam.id))
+
+        // The server settles on another id; Mia's next pass re-keys the record.
+        let settled = try #require(CalendarPassOn.matchKey("soccer@server"))
+        try mia.pass(household, events: Self.soccer("soccer@server"), now: SharedCalendarFixture.now.addingTimeInterval(600))
+        try await mia.engine.sendChanges()
+        try await other.engine.fetchChanges()
+        let records = try other.database.eventFors(householdId: household.id)
+        #expect(records.map(\.matchKey) == [settled], "one record, under the new key")
+        let shown = try other.shownFromOthers(household).first { $0.title == "Soccer practice" }
+        #expect(shown?.matchKey == settled)
+        #expect(shown?.owner == .person(sam.id), "still for Sam")
+    }
+
+    @Test("Set on another phone, \"For Sam\" follows the event when the phone that has it passes on its new id")
+    func setElsewhere() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.passOnMiasCalendars([:])
+        try await mia.engine.sendChanges()
+        let other = try await Phone(cloud, build: .today)
+        try await other.engine.fetchChanges()
+        let sam = try #require(try other.database.snapshot().people.first { $0.name == "Sam" })
+        let event = try #require(try other.shownFromOthers(household).first { $0.title == "Soccer practice" })
+        try other.database.setEventFor(
+            matchKey: try #require(event.matchKey), title: event.title, start: event.start, itemId: nil, people: [sam.id], householdId: household.id
+        )
+        try await other.engine.sendChanges()
+        try await mia.engine.fetchChanges()
+
+        try mia.pass(household, events: Self.soccer("soccer@server"), now: SharedCalendarFixture.now.addingTimeInterval(600))
+        try await mia.engine.sendChanges()
+        try await other.engine.fetchChanges()
+        #expect(try other.shownFromOthers(household).first { $0.title == "Soccer practice" }?.owner == .person(sam.id))
+        #expect(try other.database.eventFors(householdId: household.id).count == 1)
+    }
+
+    @Test("Before the re-key, a device that already has the new id finds the record by its title and start; a Busy only one can't, and shows its calendar's owner")
+    func fallback() throws {
+        let household = Household.ID.derived("h")
+        let sam = Person.ID.derived("sam")
+        let start = SharedCalendarFixture.events[0].start
+        let record = EventFor(
+            id: EventFor.id(householdId: household, matchKey: "old"), householdId: household, matchKey: "old",
+            titleKey: EventFor.titleKey("Soccer practice", householdId: household), occurrenceStart: start,
+            personIds: sam.description, setById: nil, setAt: .distantPast
+        )
+        func event(_ title: String, busy: Bool = false, start: Date = start) -> CalendarEvent {
+            var event = CalendarEvent.resolve(
+                ExternalEvent(id: "x", calendarId: "c", title: title, start: start, end: start.addingTimeInterval(3600), isAllDay: false),
+                owner: .person(.derived("mia")), isBusy: busy, calendarTitle: "Mia"
+            )
+            event.matchKey = "new"
+            return event
+        }
+        #expect(EventForLogic.apply([record], to: [event(" soccer  PRACTICE ")], householdId: household)[0].owner == .person(sam))
+        #expect(EventForLogic.apply([record], to: [event("Soccer practice", start: start.addingTimeInterval(3600))], householdId: household)[0].owner == .person(.derived("mia")), "another occurrence waits for the re-key")
+        var busy = record
+        busy.titleKey = nil
+        #expect(EventForLogic.apply([busy], to: [event("", busy: true)], householdId: household)[0].owner == .person(.derived("mia")))
+        // The key is of no use outside the household.
+        #expect(EventFor.titleKey("Soccer practice", householdId: household) != EventFor.titleKey("Soccer practice", householdId: .derived("other")))
+    }
+
+    @Test("A build from before the home calendar keeps syncing everything else, and gets the home calendar and every \"For\" on updating")
+    func olderBuild() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.passOnMiasCalendars([:])
+        let sam = try #require(try mia.database.snapshot().people.first { $0.name == "Sam" })
+        try mia.database.setEventFor(
+            matchKey: try #require(CalendarPassOn.matchKey("soccer@icloud")), title: "Soccer practice",
+            start: SharedCalendarFixture.events[0].start, itemId: "own-1", people: [sam.id], householdId: household.id
+        )
+        try await mia.database.writer.write { db in
+            try HomeCalendar(id: HomeCalendar.id(householdId: household.id), householdId: household.id, title: "Family",
+                             accountKind: "Google", chosenById: nil, chosenAt: SharedCalendarFixture.now).insert(db)
+        }
+        try await mia.engine.sendChanges()
+
+        var older = try await Phone(cloud, build: .beforeHomeCalendar)
+        try await older.engine.fetchChanges()
+        #expect(try older.hasTable("eventFor") == false)
+        for type in ["eventFor", "homeCalendar"] {
+            #expect(try older.waiting(recordType: type) == 1, "\(type) waits in the engine's metadata")
+        }
+        #expect(try older.count("SELECT COUNT(*) FROM sharedEvent") == 4, "and step 1 syncs as before")
+
+        older = try await older.updated()
+        try await older.engine.fetchChanges()
+        #expect(try older.count("SELECT COUNT(*) FROM eventFor") == 1)
+        #expect(try older.count("SELECT COUNT(*) FROM homeCalendar") == 1)
+    }
+
+    @Test("A Busy only event's record re-keys without a title, and nothing unmatched is deleted")
+    func busyRekeys() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.passOnMiasCalendars(["mia-doctor": .busy])
+        let sam = try #require(try mia.database.snapshot().people.first { $0.name == "Sam" })
+        let doctor = SharedCalendarFixture.events[3]
+        try mia.database.setEventFor(
+            matchKey: try #require(CalendarPassOn.matchKey(doctor.externalItemId)), title: nil, start: doctor.start,
+            itemId: "doc-1", people: [sam.id], householdId: household.id
+        )
+        var events = SharedCalendarFixture.events
+        events[3].externalItemId = "SECRET-UID-2"
+        try mia.pass(household, events: events, now: SharedCalendarFixture.now.addingTimeInterval(600))
+        let records = try mia.database.eventFors(householdId: household.id)
+        #expect(records.map(\.matchKey) == [CalendarPassOn.matchKey("SECRET-UID-2")])
+        #expect(records.first?.titleKey == nil)
+        // An event that has gone from the window keeps its record.
+        try mia.pass(household, events: Array(events.prefix(3)), now: SharedCalendarFixture.now.addingTimeInterval(1200))
+        #expect(try mia.database.eventFors(householdId: household.id).count == 1)
     }
 }

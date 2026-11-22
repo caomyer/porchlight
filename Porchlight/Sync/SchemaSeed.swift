@@ -81,7 +81,7 @@ enum SchemaSeed {
     /// Id columns that aren't foreign keys, and the table whose row they name.
     private static let references = [
         "personId": "person", "ownerId": "person", "addedById": "person",
-        "placeId": "foodPlace", "deviceId": "device", "dishId": "dish", "mergedInto": "dish", "recipeId": "recipe",
+        "placeId": "foodPlace", "deviceId": "device", "dishId": "dish", "mergedInto": "dish", "recipeId": "recipe", "chosenById": "device", "setById": "device",
     ]
 
     private static func value(for column: Column, isPrimaryKey: Bool, table: String, ids: [String: String], foreignKeys: [ForeignKeyInfo], now: Date) throws -> DatabaseValue {

@@ -171,17 +171,18 @@ struct SyncSchemaRulesTests {
         "dish": "household", "mealDish": "journalEntry", "mealDishRating": "mealDish",
         "recipe": "dish", "recipePhoto": "dish",
         "calendarFeed": "device", "sharedCalendar": "calendarFeed", "sharedEvent": "sharedCalendar",
+        "homeCalendar": "household", "eventFor": "household",
     ]
 
     /// Tables keyed by their parent's id, one row per parent, instead of an id of their own.
     /// `deviceState` is a device-only key-value table, keyed by its key.
     private static let keyedByParent = [
         "companionPhoto": "companionId", "journalEntryPhotoThumb": "photoId", "journalEntryPhotoImage": "photoId",
-        "deviceState": "key",
+        "deviceState": "key", "calendarItemFor": "itemId",
     ]
 
     /// Tables that stay on the device and never sync.
-    private static let deviceLocal: Set<String> = ["calendarSource", "ambientPhoto", "deviceState"]
+    private static let deviceLocal: Set<String> = ["calendarSource", "ambientPhoto", "deviceState", "calendarItemFor"]
 
     @Test("Every synced table has a text UUID key, no unique index and one cascading parent in the tree")
     func rules() throws {
