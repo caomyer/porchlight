@@ -96,6 +96,31 @@ struct OlderBuildSyncTests {
         // The dishes belong to the household and stay.
         #expect(try newer.count("SELECT COUNT(*) FROM dish") == 2)
     }
+
+    /// The update's catch-up puts the waiting records into the new tables; each engine went
+    /// through them in its own dictionary order, so `mealDishRating` could come before its
+    /// parent `mealDish`, fail its foreign key and stop the catch-up for every table after it.
+    /// SQLiteData is patched to go parents first (project.yml, docs/design/dishes.md, "Why a
+    /// card photo hangs off the dish"); twelve updates make an unlucky order near certain.
+    @Test("Updating from before dishes brings in every dish, line and face on the first launch, every time")
+    func updatingBringsInDishFacesParentsFirst() async throws {
+        for attempt in 1...12 {
+            let cloud = Cloud()
+            let newer = try await Phone(cloud, build: .today)
+            var older = try await Phone(cloud, build: .beforeDishes)
+            let entryId = try newer.logMealWithDish()
+            try newer.giveOwnFace(entryId)
+            try await newer.engine.sendChanges()
+            try await older.engine.fetchChanges()
+            #expect(try older.waiting(recordType: "mealDishRating") == 1, "the face waits, update \(attempt)")
+
+            older = try await older.updated()
+            #expect(try older.count("SELECT COUNT(*) FROM dish") == 2, "the dishes, update \(attempt)")
+            #expect(try older.count("SELECT COUNT(*) FROM mealDish WHERE entryId = ?", entryId) == 2, "the lines, update \(attempt)")
+            #expect(try older.count("SELECT COUNT(*) FROM mealDishRating") == 1, "the face, update \(attempt)")
+            #expect(try older.string("SELECT otherSources FROM journalEntry WHERE id = ?", entryId) == "dineOut,delivery", "update \(attempt)")
+        }
+    }
 }
 
 // MARK: - Recipes
@@ -347,6 +372,14 @@ private final class Phone {
         let meal = try database.addMeal(draft, journalId: journal.id)
         try write("UPDATE journalEntry SET otherSources = 'dineOut,delivery' WHERE id = ?", meal.id)
         return meal.id
+    }
+
+    /// The first person's own face on the meal's first dish: a `mealDishRating` row, whose
+    /// parent is the `mealDish` row.
+    func giveOwnFace(_ entryId: JournalEntry.ID) throws {
+        let line = try #require(try database.writer.read { try MealDish.filter(Column("entryId") == entryId).order(Column("sortOrder")).fetchOne($0) })
+        let person = try #require(try database.snapshot().people.first)
+        try database.setPersonFace(lineId: line.id, personId: person.id, .meh)
     }
 
     func write(_ sql: String, _ arguments: any DatabaseValueConvertible...) throws {
