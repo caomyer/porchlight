@@ -211,15 +211,23 @@ enum CalendarFreshness {
 
     /// One line per device that passes calendars on, for Sync details: "Sam's iPhone:
     /// 312 events, passed on 2:14 PM today, opened".
-    static func detailLines(_ snapshot: SharedCalendarSnapshot, now: Date, calendar: Calendar) -> [(device: String, line: String)] {
+    /// `checkedHere`: when this device last passed on, written or not. An unchanged pass
+    /// stamps the feed at most hourly (`CalendarPassOn.feedRefresh`), so this device's line
+    /// also says when it last looked: "...; checked 10:02 AM, nothing new".
+    static func detailLines(_ snapshot: SharedCalendarSnapshot, now: Date, calendar: Calendar, checkedHere: Date? = nil) -> [(device: String, line: String)] {
         snapshot.feeds.compactMap { feed in
             guard let device = snapshot.devices.first(where: { $0.id == feed.deviceId }) else { return nil }
             let calendars = snapshot.calendars.filter { $0.feedId == feed.id }.count
             let events = feed.eventCount == 1 ? "1 event" : "\(feed.eventCount) events"
             let cals = calendars == 1 ? "1 calendar" : "\(calendars) calendars"
             let when = "\(EventText.format(feed.passedOnAt, calendar, "jmm")) \(day(feed.passedOnAt, now: now, calendar: calendar))"
-            let name = device.id == snapshot.thisDeviceId ? "\(device.name) (this one)" : device.name
-            return (name, "\(cals), \(events), passed on \(when), \(feed.passedOnBy.words)")
+            let isHere = device.id == snapshot.thisDeviceId
+            let name = isHere ? "\(device.name) (this one)" : device.name
+            var line = "\(cals), \(events), passed on \(when), \(feed.passedOnBy.words)"
+            if isHere, let checked = checkedHere, checked.timeIntervalSince(feed.passedOnAt) >= 60 {
+                line += "; checked \(EventText.format(checked, calendar, "jmm")) \(day(checked, now: now, calendar: calendar)), nothing new"
+            }
+            return (name, line)
         }
         .sorted { $0.device < $1.device }
     }
