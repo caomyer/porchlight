@@ -20,7 +20,7 @@ Every number is from the run named in its column, on GitHub's hosted Macs (3 cor
 | A full run from start to green, with no queueing | 48.6 minutes | about 40 minutes: a build of 4 to 9 minutes, then a longest job of 28 to 31 | 30 minutes |
 | A push to a working branch, with no queueing | 48.6 minutes: every push ran everything | about 20 minutes: the unit tests and the smoke set (run 44888821802) | 20 minutes |
 | Unit tests | 572 | 648 | |
-| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 30 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
+| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 40 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
 
 What the table says plainly: the tests take a quarter to a third less time than at the start, with eight journeys added since, and the same test's seconds move by a half and more from one hosted Mac to the next (the unit tests' step took 198, 283 and 452 seconds in three runs of the same code), so one run's total is a sample and not a measurement.
 The ceiling of 120 seconds holds on an ordinary Mac and is broken on a slow one by the two tests that sit nearest to it; they are the next to shorten.
@@ -275,7 +275,9 @@ The first six were each learned from a failed or misleading run in the week of N
   A test process that crashes or exits partway takes with it every test that had not yet reported, and what is printed afterwards can still read as a pass: xcodebuild starts the process again, and the last launch ends with "Test run with 450 tests in 81 suites passed" for the tests that were left.
   So a run's verdict is never one line of xcodebuild's output.
   Run tests through `scripts/test.sh`, never through an `xcodebuild` invocation of your own: the script is what knows that a process started again is a failure, and it reads the result bundle, which counts the crash.
-  It also fails a suite, whatever its totals say, when its log shows the process being started again, a test that started and never reported a result, or a suite that began and never finished (`scripts/lib/lost_process.py`), and when xcodebuild's own status disagrees with a pass; it prints "the test process was lost" and names the test it was in.
+  It also fails a suite, whatever its totals say, when its log shows the process being started again, or stops before xcodebuild's own last word with a test that started and never reported or a suite that never finished (`scripts/lib/lost_process.py`), and when xcodebuild's own status disagrees with a pass; it prints "the test process was lost" and names the test it was in.
+  A test with no result line in a run that xcodebuild finished, with nothing started again, is not a lost test: the app and the simulator write into the same log, and a result line is now and then cut in two by another line.
+  The first form of this check failed a good run for exactly that on the day it was written (run 45046913473: "Every write path stamps this device's objc[20310]: Class UIAccessibilityLoaderWebShared is implemented in both ..." with the rest of the result on the next line), so a check that reads a log line by line may only add to what the result bundle says when the log itself shows the process went.
   Read a run by the script's last lines ("Unit: 686/690 passed, 2 failed", and its status), never by scrolling for a line that says passed.
   Why: on November 22, 2026 a hosted screen that had gained toasts crashed the unit test process for want of a store, and a private script that ran `xcodebuild test-without-building` and read its last Swift Testing summary reported "Test run with 263 tests in 50 suites passed". Through `scripts/test.sh` the same crash ended with "Unit: 712/716 passed, 2 failed" and a failing status.
   This is not the rule for a runner that never started a single test, which is run once more ("Infrastructure failures"), nor for a UI test whose app could not be launched: neither has lost a test that had begun.
@@ -458,7 +460,7 @@ Reproduced on November 22, 2026 with a test that kills the unit test process whe
 So the script already failed the run, before this rule was written, in this reproduction and in the case that prompted it; what read as a pass there was a line of xcodebuild's own output, read by a script that was not this one.
 What the check adds is a second opinion that does not depend on the result bundle, a plain statement of what happened with the test named, and xcodebuild's status, which the script used to drop.
 The UI suites had the same hole in the same form and have the same check: a runner that dies in the middle of a shard after some tests passed is started again by xcodebuild, and the test it was in is named.
-The check reads the log's own lines for each test starting and ending, in XCTest's form and in Swift Testing's; it knows no expected count beyond that, since nothing in the harness holds one for the unit tests.
+The check reads the log's own lines for each test starting and ending, in XCTest's form and in Swift Testing's, to say which test the process was in; it knows no expected count, since nothing in the harness holds one for the unit tests, and it does not judge a finished run by those lines.
 The same reproduction was run once on a hosted Mac (run 45028682577, through a job since taken out of the workflow as not worth keeping) and ended as it must: "Unit: 686/690 passed, 2 failed", "the test process was lost once", the crashed test named, status 1.
 
 
@@ -534,6 +536,8 @@ Do not provoke one for the purpose.
 | 44973740449, November 22, the full suite on the recipe link's branch | Not started | 5 (2 iPads in 152 and 181 s, 3 iPhones in 237 to 261 s) | 63% in a boot step; 47% in any test step | 0 | Neither, and no test needed a second launch. Green on its first attempt |
 | 45004513685, November 22, the full suite with every launch pinned | Not started | 5 (2 iPads in 196 and 269 s, 3 iPhones in 126 to 302 s) | 60% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the pin's own: the debug arrivals were still written on the real day ("The UI tests and the real clock") |
 | 45020375885, November 22, the full suite with the shared calendar | Not started | 5 (2 iPads in 172 and 239 s, 3 iPhones in 153 to 290 s) | 60% in a boot step; 45% in any test step | 0 | Neither, and no test needed a second launch. Green: 146 UI tests in 5,585 seconds, none over 120 |
+| 45035829327, November 22, the full suite with the calendar's add and edit | Not started | 5 (2 iPads in 229 and 322 s, 3 iPhones in 175 to 277 s) | not sampled lower than 60% in a boot step; 29% in one test step, 47% and more in the others | 0 | Neither, and no test needed a second launch. Green: 153 UI tests in 6,186 seconds |
+| 45039811167, November 22, the full suite with Free together | Not started | 5 (2 iPads in 238 and 250 s, 3 iPhones in 180 to 237 s) | 44% in any test step | 0 | Neither. Green, but one test took 2,020 seconds ("Known and not yet explained", the onboarding that never went idle) |
 
 That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
 The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
@@ -598,6 +602,19 @@ A failure that could not be reproduced is written down here with what was ruled 
 - **What may hide it now**: the typing helper (`type(_:into:in:)`) taps the field again before a second try.
   That is right for the tests, and it means this failure would now pass on its second round.
   If a new member reports a name field that looks ready and takes no keys, or the by-hand reproduction loses a round, this is that; the reproduction never taps and never retries.
+
+### Onboarding that never went idle: one test of 2,020 seconds in a green run
+
+- **Seen**: November 22, 2026, run 45039811167 (Wall UI 2 of 2, the first full run with Free together), `FirstRunTests.testOnboardingWithRealCalendarAccess`: passed, in 2,019.6 seconds, where it takes 46 to 87. The job took 58 minutes of its 75.
+- **What the log shows**: from the first screen's Continue to the end, every step XCTest took waited its full 60 seconds for the app to go idle and gave up: "Wait for com.mingyucao.porchlight to idle", then "App animations complete notification not received, will attempt to continue", 33 times in that one test and nowhere else in the job.
+  Memory was fine throughout (47% to 49% free, no swap), so it is not the Mac.
+  Each step then did what it was asked, which is why the test passed.
+- **What it means**: for the length of that launch the app never stopped animating or never let its main run loop rest, on the onboarding screens. A person would not see it; XCTest waits for it before every tap and every query.
+- **Not known**: what kept it busy. Nothing in the onboarding's own views repeats an animation for ever (the only `repeatForever` and `TimelineView(.animation)` in the app are in the care sheet). It has been seen once, in the first run that had Free together and the shared calendar's first pass in the same launch; the runs before it took 57 seconds for the same test.
+- **Why it matters**: one more minute a step and the job passes its limit, and a run that is green hides it: nothing fails. The ceiling of 120 seconds is checked by reading a run's seconds, which nobody does on a green run.
+- **Owner**: the agent on the calendar branches for the cause, if it is the app's; the agent on `tests/pyramid` for making a test that takes ten times its usual seconds visible on a green run.
+- **Next step**: watch the same test in the runs after; if it happens again, take the app's log from the result bundle of that run and look at what the main thread was doing.
+
 
 ## Budgets
 
