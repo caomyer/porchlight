@@ -36,8 +36,10 @@ struct PocketEventEditor: View {
 
     @State private var line = ""
     @State private var title = ""
-    @State private var begin = Date()
-    @State private var end = Date()
+    /// Set from the store's clock when the sheet appears (`load`), before anything is drawn:
+    /// never the real day under a pinned clock, and the new day on a sheet opened next morning.
+    @State private var begin = Date.distantPast
+    @State private var end = Date.distantPast
     @State private var isAllDay = false
     @State private var repeats: EventRepeat?
     @State private var location = ""
@@ -65,7 +67,8 @@ struct PocketEventEditor: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if isNew { lineField } else { titleField }
                     forChips
-                    whenFields
+                    // Only once `load` has set the times from the store's clock.
+                    if loaded { whenFields }
                     repeatsField
                     textField("Where", text: $location, field: "location", id: "event-where")
                     textField("Notes", text: $notes, field: "notes", id: "event-notes", axis: .vertical)

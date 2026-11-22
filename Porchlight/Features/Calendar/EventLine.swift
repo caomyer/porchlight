@@ -29,7 +29,9 @@ enum EventLine {
     /// An event with a start and no end lasts this long.
     static let defaultLength: TimeInterval = 3600
 
-    static func read(_ line: String, now: Date, calendar: Calendar, people: [Person]) -> Reading {
+    /// `device` is the locale the line was typed in, for "3/4": the household's calendar
+    /// carries no region, so the order dates are written in is the person's own (`monthFirst`).
+    static func read(_ line: String, now: Date, calendar: Calendar, people: [Person], device: Locale = .current) -> Reading {
         var words = tokens(line)
         var used = Set<Int>()
         let today = DayKey(now, calendar: calendar)
@@ -63,7 +65,7 @@ enum EventLine {
                     used.insert(index)
                     if isNext || isThis { used.insert(index - 1) }
                     if index > 0, words[index - 1].lower == "on" { used.insert(index - 1) }
-                } else if let found = date(at: index, in: words, today: today, calendar: calendar) {
+                } else if let found = date(at: index, in: words, today: today, calendar: calendar, monthFirst: monthFirst(device: device)) {
                     day = found.day
                     used.formUnion(found.indices)
                     if let before = found.indices.min(), before > 0, words[before - 1].lower == "on" { used.insert(before - 1) }
@@ -197,8 +199,20 @@ enum EventLine {
         "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
     ]
 
+    /// Whether "3/4" is March 4: as the phone the line is typed on writes a short date. The
+    /// household stores no region, and its calendar's locale is no help: made from an
+    /// identifier, it is the device's on iOS and the empty root locale on a Mac. Read from the
+    /// locale's own short date ("M/d", "dd/MM", "d.M."), so every region, not only the US, is
+    /// month first or day first as it writes; before this, Japan was read day first.
+    static func monthFirst(device: Locale = .current) -> Bool {
+        let locale = device
+        let pattern = DateFormatter.dateFormat(fromTemplate: "Md", options: 0, locale: locale) ?? "M/d"
+        guard let month = pattern.firstIndex(of: "M"), let day = pattern.firstIndex(of: "d") else { return true }
+        return month < day
+    }
+
     /// "Nov 26", "26 Nov", "November 26th", "11/26": the next such date, this year or next.
-    private static func date(at index: Int, in words: [Word], today: DayKey, calendar: Calendar) -> (day: DayKey, indices: [Int])? {
+    private static func date(at index: Int, in words: [Word], today: DayKey, calendar: Calendar, monthFirst: Bool) -> (day: DayKey, indices: [Int])? {
         let word = words[index].lower
         func dayNumber(_ text: String) -> Int? {
             let digits = text.replacingOccurrences(of: "st", with: "").replacingOccurrences(of: "nd", with: "")
@@ -214,8 +228,6 @@ enum EventLine {
         } else {
             let parts = word.split(separator: "/").compactMap { Int($0) }
             if word.contains("/"), parts.count == 2 || parts.count == 3 {
-                // Month first where the household's locale writes it so; day first elsewhere.
-                let monthFirst = (calendar.locale ?? .current).region?.identifier == "US" || calendar.locale == nil
                 let (m, d) = monthFirst ? (parts[0], parts[1]) : (parts[1], parts[0])
                 if (1...12).contains(m), (1...31).contains(d) { month = m; dayOfMonth = d; indices = [index] }
             }

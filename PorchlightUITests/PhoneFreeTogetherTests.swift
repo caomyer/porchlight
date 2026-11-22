@@ -38,13 +38,18 @@ final class PhoneFreeTogetherTests: XCTestCase, PhoneTestHelpers {
         // A green evening opens the add sheet from when everyone is free.
         let green = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Everyone free from")).firstMatch
         reveal(green, in: app)
+        // The time the row says everyone is free from, as "7:30".
+        let label = green.label
+        guard let from = label.range(of: #"from \d{1,2}:\d{2}"#, options: .regularExpression).map({ String(label[$0].dropFirst(5)) }) else {
+            return XCTFail("A green row says when: \(label)")
+        }
         green.tap()
         let line = app.descendants(matching: .any).matching(identifier: "event-line").firstMatch
         XCTAssertTrue(line.waitForExistence(timeout: 10), "The add sheet")
         type("Dinner with the Lees", into: line, in: app)
         let reads = app.descendants(matching: .any).matching(identifier: "event-reads-as").firstMatch
         XCTAssertTrue(reads.waitForExistence(timeout: 5) && reads.label.contains("Dinner with the Lees"), reads.label)
-        XCTAssertTrue(reads.label.contains("5:30") || reads.label.contains("PM"), "from the free evening: \(reads.label)")
+        XCTAssertTrue(reads.label.contains("· \(from)"), "from the free evening, \(from): \(reads.label)")
         snapshot("free-62-plan")
         app.buttons["event-save"].tap()
         XCTAssertTrue(line.waitForNonExistence(timeout: 10), "saved")

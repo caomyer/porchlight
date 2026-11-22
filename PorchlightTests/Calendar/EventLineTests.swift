@@ -110,11 +110,24 @@ struct EventLineTests {
         #expect(EventLine.read("Brunch next sunday 10am", now: sunday, calendar: Self.calendar(firstWeekday: 1), people: []).start == Self.at("2026-12-06 10:00"))
     }
 
-    @Test("A date written with slashes is month first in the US and day first elsewhere")
+    @Test("A date in figures is read as the phone writes dates: month first in the US and Japan, day first in Britain, Germany and Australia")
     func slashes() {
-        #expect(EventLine.read("Trip 3/12", now: Self.now, calendar: Self.calendar(), people: []).start == Self.at("2027-03-12 00:00"))
-        let british = Self.calendar(firstWeekday: 2, locale: "en_GB")
-        #expect(EventLine.read("Trip 3/12", now: Self.now, calendar: british, people: []).start == Self.at("2026-12-03 00:00", british))
+        // The product's own household calendar: a time zone and a first weekday, nothing more.
+        let household = Calendar.household(timeZoneIdentifier: "America/Los_Angeles", firstWeekday: 1)
+        #expect(EventLine.monthFirst(device: Locale(identifier: "en_US")))
+        #expect(EventLine.monthFirst(device: Locale(identifier: "ja_JP")))
+        #expect(!EventLine.monthFirst(device: Locale(identifier: "en_GB")))
+        #expect(!EventLine.monthFirst(device: Locale(identifier: "de_DE")))
+        #expect(!EventLine.monthFirst(device: Locale(identifier: "en_AU")))
+        let british = EventLine.read("Dentist 3/4", now: Self.now, calendar: household, people: [], device: Locale(identifier: "en_GB"))
+        #expect(british.start == Self.at("2027-04-03 00:00"), "the 3rd of April")
+        let american = EventLine.read("Dentist 3/4", now: Self.now, calendar: household, people: [], device: Locale(identifier: "en_US"))
+        #expect(american.start == Self.at("2027-03-04 00:00"), "March 4")
+        let december = EventLine.read("Trip 3/12", now: Self.now, calendar: household, people: [], device: Locale(identifier: "en_GB"))
+        #expect(december.start == Self.at("2026-12-03 00:00"), "still this year")
+        // With no locale handed in, the phone's own, whatever it is where the tests run.
+        let own = EventLine.monthFirst(device: .current) ? Self.at("2027-03-12 00:00") : Self.at("2026-12-03 00:00")
+        #expect(EventLine.read("Trip 3/12", now: Self.now, calendar: household, people: []).start == own)
     }
 
     @Test("A line with no day or time starts at the next whole hour, and says it found neither")
