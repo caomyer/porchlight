@@ -27,6 +27,7 @@ extension SyncSchema {
 
 extension AppDatabase {
     static let homeCalendarMigration = "calendar v4: the home calendar, and who an event is for"
+    static let ownerChosenMigration = "calendar v5: whether a calendar's owner was picked here"
 
     /// Adds the household's home calendar and who each event is for, this device's half of the
     /// home calendar, and which of this device's events a "For" was set on.
@@ -41,6 +42,10 @@ extension AppDatabase {
                 CREATE INDEX "eventFor_on_matchKey" ON "eventFor"("matchKey");
                 ALTER TABLE "calendarSource" ADD COLUMN "isHome" INTEGER NOT NULL DEFAULT 0;
                 """)
+        }
+        // On this device only (calendarSource is never synced): no iCloud schema change.
+        migrator.registerMigration(ownerChosenMigration) { db in
+            try db.execute(sql: #"ALTER TABLE "calendarSource" ADD COLUMN "ownerChosen" INTEGER NOT NULL DEFAULT 0"#)
         }
     }
 }

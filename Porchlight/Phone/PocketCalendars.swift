@@ -3,12 +3,14 @@ import UIKit
 
 /// "Calendars on this iPhone": which of this phone's calendars Today shows, and for each
 /// what the household gets (docs/design/calendar-shared.md): Show everything, Keep it
-/// quiet, Busy only or Just me. Asking for calendar access happens here, after saying why.
+/// quiet, Busy only or Just me, and whose it is. Asking for calendar access happens here,
+/// after saying why.
 /// Nothing is passed on from this device until this page has shown the choices once.
 struct PocketCalendars: View {
     @Environment(CalendarStore.self) private var store
     @State private var isAsking = false
     @State private var choosingHome = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         ScrollView {
@@ -115,7 +117,7 @@ struct PocketCalendars: View {
 
     @ViewBuilder
     private var choices: some View {
-        Text("Choose what your household sees from each calendar. A work calendar is a good one to keep quiet: everyone sees one block a day, like \"at work until 5:30\", with the meetings a tap away.")
+        Text("Choose whose each calendar is and what your household sees from it. A work calendar is a good one to keep quiet: everyone sees one block a day, like \"at work until 5:30\", with the meetings a tap away.")
             .phoneFont(.body, 13.5, weight: 500, relativeTo: .subheadline)
             .foregroundStyle(Theme.muted)
             .fixedSize(horizontal: false, vertical: true)
@@ -141,7 +143,65 @@ struct PocketCalendars: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    /// The calendar, then whose it is and what the household sees, each a menu: on one line
+    /// where they fit, the second under the first where they don't.
     private func row(_ calendar: ExternalCalendar, source: CalendarSource) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            showRow(calendar, source: source)
+            FlowLayout(spacing: 8, lineSpacing: 4) {
+                labelled("Belongs to") { ownerMenu(calendar, source: source) }
+                labelled("Household sees") { sharingMenu(calendar, source: source) }
+            }
+            .padding(.leading, typeSize.isAccessibilitySize ? 0 : 34)
+        }
+        .padding(.vertical, 6)
+    }
+
+    /// "Belongs to" beside its menu, or over it at the accessibility sizes, where the two
+    /// don't fit on one line.
+    private func labelled(_ title: String, @ViewBuilder _ menu: () -> some View) -> some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(spacing: 6))
+        return layout {
+            Text(title)
+                .phoneFont(.body, 11.5, weight: 700, relativeTo: .caption)
+                .foregroundStyle(Theme.muted)
+            menu()
+        }
+    }
+
+    private func ownerMenu(_ calendar: ExternalCalendar, source: CalendarSource) -> some View {
+        let name = ownerName(source.owner, people: store.people)
+        return Menu {
+            ForEach(store.people) { person in
+                Button(person.name) { store.setOwner(.person(person.id), for: source) }
+            }
+            Button("Everyone") { store.setOwner(.everyone, for: source) }
+        } label: {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(source.ownerId.flatMap { id in store.people.first { $0.id == id }?.color.color } ?? Theme.everyone)
+                    .frame(width: 8, height: 8)
+                Text(name).lineLimit(1).minimumScaleFactor(0.7)
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+            }
+            // Its whole name where there is room; smaller only at the accessibility sizes.
+            .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
+            .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 7)
+            .background(Theme.surface, in: Capsule())
+            .overlay(Capsule().strokeBorder(Theme.line))
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel("\(calendar.title) belongs to \(name)")
+        .accessibilityIdentifier("owner-\(calendar.title)")
+    }
+
+    private func showRow(_ calendar: ExternalCalendar, source: CalendarSource) -> some View {
         HStack(spacing: 10) {
             Button { store.setShown(!source.isShown, for: source) } label: {
                 HStack(spacing: 10) {
@@ -164,30 +224,34 @@ struct PocketCalendars: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Show \(calendar.title) on Today")
             .accessibilityValue(source.isShown ? "On" : "Off")
-            Menu {
-                ForEach(CalendarChoice.allCases) { choice in
-                    Button { store.setSharing(choice, for: source) } label: {
-                        Text(choice.label)
-                        Text(choice.explanation)
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(source.sharing.label)
-                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
-                }
-                .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
-                .foregroundStyle(Theme.ink)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 7)
-                .background(source.sharing == .justMe ? Theme.surface : Theme.accentSoft, in: Capsule())
-                .overlay(Capsule().strokeBorder(source.sharing == .justMe ? Theme.line : Theme.accent))
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .accessibilityLabel("\(calendar.title) is shared as \(source.sharing.label)")
-            .accessibilityIdentifier("sharing-\(calendar.title)")
         }
-        .padding(.vertical, 4)
+    }
+
+    private func sharingMenu(_ calendar: ExternalCalendar, source: CalendarSource) -> some View {
+        Menu {
+            ForEach(CalendarChoice.allCases) { choice in
+                Button { store.setSharing(choice, for: source) } label: {
+                    Text(choice.label)
+                    Text(choice.explanation)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(source.sharing.label).lineLimit(1).minimumScaleFactor(0.7)
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+            }
+            // Its whole name where there is room; smaller only at the accessibility sizes.
+            .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
+            .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 7)
+            .background(source.sharing == .justMe ? Theme.surface : Theme.accentSoft, in: Capsule())
+            .overlay(Capsule().strokeBorder(source.sharing == .justMe ? Theme.line : Theme.accent))
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel("\(calendar.title) is shared as \(source.sharing.label)")
+        .accessibilityIdentifier("sharing-\(calendar.title)")
     }
 }

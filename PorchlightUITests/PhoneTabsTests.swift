@@ -161,6 +161,8 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         let work = app.buttons["sharing-Work"]
         XCTAssertTrue(work.waitForExistence(timeout: 5))
         XCTAssertEqual(work.label, "Work is shared as Busy only")
+        let owner = app.buttons["owner-Work"]
+        XCTAssertTrue(owner.exists && owner.label.hasPrefix("Work belongs to "), "whose it is, beside the choice, before anything is passed on")
         app.buttons["sharing-Mia"].tap()
         // Each choice in the menu says what it does under its name.
         let justMe = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Just me")).firstMatch

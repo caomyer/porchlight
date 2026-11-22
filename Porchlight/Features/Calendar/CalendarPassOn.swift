@@ -29,14 +29,16 @@ enum CalendarPassOn {
 
     // MARK: Building, where each choice is enforced
 
-    /// The calendar as passed on, or nil for Just me. Busy only passes on no name; the
-    /// account, which can hold an address, is never passed on, only its kind.
+    /// The calendar as passed on, or nil for Just me. Busy only passes on no name, and nor
+    /// does a title that is an email address (a person's own Google calendar): the household
+    /// reads "From James's Google". The account, which can hold an address, is never passed
+    /// on, only its kind.
     static func calendarRecord(_ source: CalendarSource, calendar: ExternalCalendar, deviceId: Device.ID) -> SharedCalendar? {
         guard source.sharing.passesOn else { return nil }
         return SharedCalendar(
             id: SharedCalendar.id(deviceId: deviceId, calendarId: calendar.id),
             feedId: CalendarFeed.id(deviceId: deviceId),
-            title: source.sharing == .busy ? "" : calendar.title,
+            title: source.sharing == .busy || CalendarOwnerGuess.isAddress(calendar.title) ? "" : calendar.title,
             accountKind: calendar.accountKind,
             colorHex: calendar.colorHex,
             ownerId: source.ownerId,

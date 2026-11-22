@@ -499,6 +499,13 @@ final class CalendarStore: StoredFirstObservable {
 
     // MARK: Mapping edits
 
+    /// What to call an event's calendar here: its title, or its account kind ("Google") when
+    /// the title is an email address, as a person's own Google calendar is named.
+    func calendarName(_ event: CalendarEvent) -> String {
+        guard CalendarOwnerGuess.isAddress(event.calendarTitle) else { return event.calendarTitle }
+        return calendars.first { $0.id == event.calendarId }?.accountKind ?? ""
+    }
+
     func setOwner(_ owner: Owner, for source: CalendarSource) {
         let id = source.id
         perform { try database.setCalendarSourceOwner(id: id, owner: owner) }

@@ -269,9 +269,9 @@ private final class Phone {
             try await database.writer.write { db in
                 try db.execute(sql: """
                     DROP TABLE "eventFor"; DROP TABLE "homeCalendar"; DROP TABLE "calendarItemFor";
-                    ALTER TABLE "calendarSource" DROP COLUMN "isHome";
-                    DELETE FROM grdb_migrations WHERE identifier = ?;
-                    """, arguments: [AppDatabase.homeCalendarMigration])
+                    ALTER TABLE "calendarSource" DROP COLUMN "isHome"; ALTER TABLE "calendarSource" DROP COLUMN "ownerChosen";
+                    DELETE FROM grdb_migrations WHERE identifier IN (?, ?);
+                    """, arguments: [AppDatabase.homeCalendarMigration, AppDatabase.ownerChosenMigration])
             }
         }
         if build != .today && build != .beforeHomeCalendar {

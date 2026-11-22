@@ -74,4 +74,39 @@ final class PhoneCalendarTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(app.buttons["calendar-strip-\(Self.key(2))"].isSelected, "with that day picked")
         XCTAssertTrue(app.descendants(matching: .any)["calendar-day-\(Self.key(2))"].exists, "and the list there")
     }
+
+    /// A calendar that is everyone's given to James on his phone's Calendars page: Mia's chip
+    /// stops showing its events (docs/design/calendar-shared.md, "Whose a calendar is").
+    func testChangingWhoseACalendarIs() {
+        let app = launch(["-startScreen", "calendar"])
+        let mia = app.buttons["calendar-chip-Mia"]
+        XCTAssertTrue(mia.waitForExistence(timeout: 10))
+        mia.tap()
+        let lunch = app.buttons["calendar-event-Aunt Rosa over for lunch"]
+        XCTAssertTrue(lunch.waitForExistence(timeout: 5), "Us is everyone's, so Mia's chip shows its lunch")
+
+        app.buttons["you"].tap()
+        let calendars = app.buttons["calendars"]
+        XCTAssertTrue(calendars.waitForExistence(timeout: 5))
+        reveal(calendars, in: app)
+        calendars.waitToSettle()
+        calendars.tap()
+        let owner = app.buttons["owner-Us"]
+        XCTAssertTrue(owner.waitForExistence(timeout: 5))
+        XCTAssertEqual(owner.label, "Us belongs to Everyone")
+        reveal(owner, in: app)
+        owner.tap()
+        app.buttons["James"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Us belongs to James"].waitForExistence(timeout: 5))
+        snapshot("cal-55-belongs-to")
+        app.navigationBars.buttons.firstMatch.tap()
+        let done = app.buttons["Done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        done.tap()
+
+        XCTAssertTrue(mia.waitForExistence(timeout: 5) && mia.isSelected, "back on the tab, Mia's chip still picked")
+        XCTAssertTrue(lunch.waitForNonExistence(timeout: 10), "James's now, so it leaves Mia's")
+        app.buttons["calendar-chip-James"].tap()
+        XCTAssertTrue(lunch.waitForExistence(timeout: 5), "and is under his")
+    }
 }

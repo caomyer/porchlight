@@ -52,6 +52,11 @@ extension AppDatabase {
                 accountKind: calendar.accountKind, chosenById: thisDeviceId(in: householdId), chosenAt: now
             ).save(db)
             try db.execute(sql: "UPDATE calendarSource SET isHome = (externalId = ?) WHERE householdId = ?", arguments: [calendar.id, householdId])
+            // The household's calendar is everyone's, unless someone here said whose it is.
+            try db.execute(
+                sql: "UPDATE calendarSource SET ownerId = NULL WHERE householdId = ? AND externalId = ? AND ownerChosen = 0",
+                arguments: [householdId, calendar.id]
+            )
         }
     }
 

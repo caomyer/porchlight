@@ -23,7 +23,13 @@ Unit tests fill every text field of an event with a marker and fail if the marke
 
 ### A newly seen calendar
 
-A calendar first seen on a device starts as Show everything, and belongs to the guessed owner, as today.
+A calendar first seen on a device starts as Show everything, and belongs to the guessed owner (`CalendarOwnerGuess`).
+A person's name in its title wins, then one in its account; shared-sounding titles ("Family", "Us"), the household's home calendar, birthdays, holidays and subscribed calendars are the household's.
+Anything else is, on a phone, the phone's own person's (a Google calendar titled with its owner's email address is theirs), and on the wall, which is nobody's, the household's.
+iOS says nothing public about whether a calendar is shared with other people, so that is not read.
+Whose it is shows beside each calendar on the phone's Calendars page, next to the choice, before anything is passed on; picking it there (`ownerChosen`, on this device only) means no guess changes it again.
+An earlier build guessed "everyone" where a name didn't match: once, the first time a phone on this build knows its person, calendars still at everyone that nobody picked an owner for are guessed again (a device-local marker in `deviceState`).
+A title that is an email address is never passed on: the household reads "From James's Google", and the phone calls it "Your Google calendar".
 Show everything is the default because the household calendar is the point of the feature, and a family's own calendars (iCloud, Google, school) are what they want to see; a choice that hides by default would leave the wall empty after setup.
 The protection is that nothing is passed on from a device until its calendar choices have been seen there at least once (`deviceState`, "calendar choices seen"): the phone's Calendars page and the wall's calendar settings set it when shown.
 The phone's first-run explanation names work calendars as the ones to set to Keep it quiet.

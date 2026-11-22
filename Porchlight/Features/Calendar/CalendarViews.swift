@@ -452,7 +452,7 @@ struct EventDetail: View {
 
     /// "From Sam's Google · Mia Soccer" for another device's event; "Work calendar" for this one's.
     private var source: String {
-        event.from ?? (event.calendarTitle.isEmpty ? "calendar" : "\(event.calendarTitle) calendar")
+        event.from ?? (store.calendarName(event).isEmpty ? "calendar" : "\(store.calendarName(event)) calendar")
     }
 
     /// A quiet block's meetings, each with its time.

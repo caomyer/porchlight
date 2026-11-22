@@ -77,6 +77,8 @@ struct CalendarSource: Codable, Equatable, Identifiable, Sendable {
     var sharing: CalendarChoice = .everything
     /// This device's half of the household's home calendar (docs/design/calendar-add-edit.md).
     var isHome = false
+    /// Someone picked the owner here ("Belongs to"), so no guess changes it again.
+    var ownerChosen = false
 
     var owner: Owner { ownerId.map(Owner.person) ?? .everyone }
 }
@@ -122,6 +124,13 @@ extension AppDatabase {
             let existing = try CalendarSource
                 .filter(Column("householdId") == householdId)
                 .fetchAll(db)
+            // Whose phone this is: a new calendar nobody's name matches is theirs here.
+            let device = try Device.fetchOne(db, id: thisDeviceId(in: householdId))
+            let phoneOwner = device?.role == .personal ? device?.personId : nil
+            let home = try HomeCalendar.fetchOne(db, id: HomeCalendar.id(householdId: householdId))
+            func isHome(_ calendar: ExternalCalendar) -> Bool {
+                home.map { $0.title == calendar.title && $0.accountKind == calendar.accountKind } ?? false
+            }
             let byExternalId = Dictionary(existing.map { ($0.externalId, $0) }, uniquingKeysWith: { first, _ in first })
             for calendar in calendars {
                 if var source = byExternalId[calendar.id] {
@@ -137,13 +146,28 @@ extension AppDatabase {
                         title: calendar.title,
                         account: calendar.account,
                         colorHex: calendar.colorHex,
-                        ownerId: CalendarOwnerGuess.owner(for: calendar, people: people),
+                        ownerId: CalendarOwnerGuess.owner(for: calendar, people: people, phoneOwner: phoneOwner, isHome: isHome(calendar)),
                         visibility: .full,
                         isShown: true,
                         createdAt: now
                     )
                     try source.insert(db)
                 }
+            }
+            // Once, the first time this phone's person is known: calendars an earlier build
+            // guessed as everyone's, and nobody picked an owner for, are guessed again.
+            let refitKey = "calendarOwnersRefit.\(householdId)"
+            if let phoneOwner, try DeviceState.value(refitKey, db) == nil {
+                let byId = Dictionary(calendars.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                for var source in try CalendarSource.filter(Column("householdId") == householdId).fetchAll(db)
+                where source.ownerId == nil && !source.ownerChosen && !source.isHome {
+                    guard let calendar = byId[source.externalId],
+                          let owner = CalendarOwnerGuess.owner(for: calendar, people: people, phoneOwner: phoneOwner, isHome: isHome(calendar))
+                    else { continue }
+                    source.ownerId = owner
+                    try source.update(db)
+                }
+                try DeviceState.set(refitKey, "done", db)
             }
         }
     }
@@ -161,6 +185,7 @@ extension AppDatabase {
                 }
                 source.ownerId = personId
             }
+            source.ownerChosen = true
             try source.update(db)
         }
     }

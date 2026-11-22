@@ -730,7 +730,8 @@ struct PocketEventPage: View {
     /// "From Sam's Google · Mia Soccer", or this phone's own calendar.
     private var source: String {
         if let from = event.from { return from }
-        let name = event.calendarTitle.isEmpty ? "calendar" : "\(event.calendarTitle) calendar"
+        let title = store.calendarName(event)
+        let name = title.isEmpty ? "calendar" : "\(title) calendar"
         return "Your \(name), on this \(DeviceWords.this)"
     }
 

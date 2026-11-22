@@ -119,23 +119,40 @@ struct CalendarEvent: Identifiable, Equatable, Sendable {
 // MARK: - Owner guess
 
 /// Guesses who a newly found calendar belongs to. nil means the whole household.
+///
+/// A person's name in the title wins (a calendar called "Mia" is Mia's, on any device), then
+/// one in the account. Shared-sounding titles ("Family", "Us"), the household's home calendar,
+/// birthdays, holidays and subscribed calendars are the household's. Anything else on a phone
+/// is the phone's own person's: a calendar titled with an email address, or "Work", on James's
+/// phone is James's. On the wall, which is nobody's, it stays the household's. iOS says
+/// nothing public about whether a calendar is shared with other people, so that is not read.
 enum CalendarOwnerGuess {
     /// Title words that mark a calendar as shared.
     private static let sharedWords: Set<String> = [
         "us", "our", "ours", "family", "home", "household", "shared", "both", "everyone", "kids", "house",
     ]
 
-    static func owner(for calendar: ExternalCalendar, people: [Person]) -> Person.ID? {
+    /// `phoneOwner`: whose phone this is (nil on the wall). `isHome`: the household's home calendar.
+    static func owner(for calendar: ExternalCalendar, people: [Person], phoneOwner: Person.ID? = nil, isHome: Bool = false) -> Person.ID? {
         let titleWords = Set(EventDecoration.tokens(calendar.title))
         let inTitle = people.filter { titleWords.contains(firstName($0)) }
         if inTitle.count == 1 { return inTitle[0].id }
         if inTitle.count > 1 { return nil }
-        if calendar.kind != .regular || !titleWords.isDisjoint(with: sharedWords) || CalendarEvent.isSpecialCalendarTitle(calendar.title) {
+        if isHome || calendar.kind != .regular || !titleWords.isDisjoint(with: sharedWords) || CalendarEvent.isSpecialCalendarTitle(calendar.title) {
             return nil
         }
         let accountWords = Set(EventDecoration.tokens(calendar.account))
         let inAccount = people.filter { accountWords.contains(firstName($0)) }
-        return inAccount.count == 1 ? inAccount[0].id : nil
+        if inAccount.count == 1 { return inAccount[0].id }
+        return phoneOwner.flatMap { owner in people.contains { $0.id == owner } ? owner : nil }
+    }
+
+    /// Whether a calendar's title is an email address, as Google names a person's own
+    /// calendar: shown and passed on by its account kind instead ("Google").
+    static func isAddress(_ title: String) -> Bool {
+        let trimmed = title.trimmingCharacters(in: .whitespaces)
+        guard let at = trimmed.firstIndex(of: "@"), !trimmed.contains(" ") else { return false }
+        return trimmed[trimmed.index(after: at)...].contains(".") && at != trimmed.startIndex
     }
 
     private static func firstName(_ person: Person) -> String {
