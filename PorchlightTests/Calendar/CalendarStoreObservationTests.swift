@@ -11,13 +11,14 @@ import Testing
 @Suite("The calendar store: a pass redraws only what shows the household's calendar")
 struct CalendarStoreObservationTests {
     /// Whether reading `read` registers for a change that `change` then makes: the database's
-    /// answer reaches the store a moment later, so this waits up to two seconds for it, and
-    /// the whole two seconds before saying no change came.
+    /// answer reaches the store a moment later, so this waits up to ten seconds for it (two
+    /// were enough on a development Mac; a hosted one has taken longer over less), and the
+    /// whole ten before saying no change came.
     private func notifies(_ read: @escaping () -> Void, when change: () async throws -> Void) async throws -> Bool {
         let told = Told()
         withObservationTracking(read) { told.value = true }
         try await change()
-        for _ in 0..<20 where !told.value { try await Task.sleep(for: .milliseconds(100)) }
+        for _ in 0..<100 where !told.value { try await Task.sleep(for: .milliseconds(100)) }
         return told.value
     }
 
@@ -43,7 +44,7 @@ struct CalendarStoreObservationTests {
         withObservationTracking({ _ = store.shared }) { shared.value = true }
         // The first pass writes the feed, the calendars and their events.
         #expect(store.passOn(.open)?.events == SharedCalendarFixture.events.count)
-        for _ in 0..<20 where !shared.value { try await Task.sleep(for: .milliseconds(100)) }
+        for _ in 0..<100 where !shared.value { try await Task.sleep(for: .milliseconds(100)) }
         #expect(shared.value, "what shows the household's calendar is told")
         #expect(!choices.value, "the table of this device's calendars isn't")
     }

@@ -65,9 +65,8 @@ final class WallTourTests: XCTestCase {
     /// day, where the grid shows faces; the band's meetings; one event with two faces; and the
     /// month.
     func testCalendarScreens() {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        let morning = String(format: "%04d-%02d-%02dT08:00", parts.year!, parts.month!, parts.day!)
-        let base = ["-startScreen", "calendar", "-sampleSharedCalendar", "stale", "-debugCompanionNow", morning]
+        // The pinned Wednesday at 8 in the morning, so the shots are the same week whenever taken.
+        let base = ["-startScreen", "calendar", "-sampleSharedCalendar", "stale", "-debugCompanionNow", UITestClock.at(8, 0)]
         for (name, mode) in [("c01-week", "week"), ("c02-day", "day"), ("c05-month", "month")] {
             let app = launch(base + ["-calendarMode", mode])
             snapshot(name)
