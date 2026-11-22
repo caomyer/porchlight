@@ -9,20 +9,22 @@ The audit at the end applies it to every UI test in the repository, with measure
 Where things stand, for anyone who does not need the audit.
 Every number is from the run named in its column, on GitHub's hosted Macs (3 cores, 7 GB, iOS 27.2).
 
-| | At the start: November 20, 2026 (run 44828667552) | Now: November 21, 2026 (run 44926520595) | Target |
+| | At the start: November 20, 2026 (run 44828667552) | Now: November 22, 2026 (run 44967355168) | Target |
 |---|---|---|---|
-| UI test seconds, all tests added up | 8,041 | 5,735 | 5,400 |
-| UI tests in the suite | 150 | 136 | |
-| UI tests over 60 seconds | 38 | 26 | |
-| UI tests over 120 seconds | 7 | 0 | 0 |
-| Longest UI test | 746 s | 120 s | 120 s |
-| Longest job's seconds of tests | 2,153 | 1,506, and about 1,300 once the shards are weighed again from this run | 1,080 |
-| A full run from start to green, with no queueing | 48.6 minutes | about 42 minutes: a 6.6 minute build, then a longest job of 35 | 30 minutes |
+| UI test seconds, all tests added up | 8,041 | 6,185, with the eight recipe journeys in it (about 250 s); the two full runs before it were 5,842 with them and 5,067 without | 5,400 |
+| UI tests in the suite | 150 | 142 | |
+| UI tests over 60 seconds | 38 | 29 | |
+| UI tests over 120 seconds | 7 | 2 in this run (`CompanionEditorTests.testAddingARoutineFromSettings` at 164 s and `PhoneSetupTests.testSettingUpTheHouseholdFromThePhone` at 132 s, which took 83 and 92 the run before); none in the two runs before | 0 |
+| Longest UI test | 746 s | 164 s in this run, 97 s the run before | 120 s |
+| Longest job, start to end | 2,153 s of tests | 1,853 s for the whole job (in the two runs before: 1,690 and 1,692) | 1,080 s of tests |
+| A full run from start to green, with no queueing | 48.6 minutes | about 40 minutes: a build of 4 to 9 minutes, then a longest job of 28 to 31 | 30 minutes |
 | A push to a working branch, with no queueing | 48.6 minutes: every push ran everything | about 20 minutes: the unit tests and the smoke set (run 44888821802) | 20 minutes |
-| Unit tests | 572 | 614 | |
+| Unit tests | 572 | 648 | |
+| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 20 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
 
-What the table says plainly: the tests take 29% less time and none is over the ceiling, but a full run is only 14% faster, because each test job now spends about ten minutes on what is not a test (booting a new simulator, settling it, fetching and unpacking the build, installing, collecting results).
-That overhead, not the tests, is the next thing to shorten ("Budgets").
+What the table says plainly: the tests take a quarter to a third less time than at the start, with eight journeys added since, and the same test's seconds move by a half and more from one hosted Mac to the next (the unit tests' step took 198, 283 and 452 seconds in three runs of the same code), so one run's total is a sample and not a measurement.
+The ceiling of 120 seconds holds on an ordinary Mac and is broken on a slow one by the two tests that sit nearest to it; they are the next to shorten.
+A full run is a fifth faster, because each test job still spends five to seven minutes on what is not a test (booting a new simulator, fetching and unpacking the build, installing, collecting results).
 When a row here goes stale, update it from a green full run and name the run.
 
 ## The rule in one paragraph
@@ -443,6 +445,7 @@ Do not provoke one for the purpose.
 | 44956641573, November 21, the full suite, before recipes | Not started | 5 (2 iPads in 139 and 171 s, 3 iPhones in 135 to 251 s) | 59% in a boot step; 45% in any test step, where the wall's shares had gone to 18% and 29% the run before | 0 | Neither, and no test needed a second launch |
 | 44963685565, November 22, the full suite with recipes | Not started | 5 (2 iPads in 169 and 216 s, 3 iPhones in 175 to 235 s) | 62% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the week grid on the real clock in a Sunday's first hour ("Flaky tests") |
 | 44967355168, November 22, the full suite with the two classes pinned | Not started | 5 (2 iPads in 187 and 193 s, 3 iPhones in 205 to 261 s) | 60% in a boot step; 42% in any test step | 0 | Neither, and no test needed a second launch. Green, in a Sunday's second hour |
+| 44973740449, November 22, the full suite on the recipe link's branch | Not started | 5 (2 iPads in 152 and 181 s, 3 iPhones in 237 to 261 s) | 63% in a boot step; 47% in any test step | 0 | Neither, and no test needed a second launch. Green on its first attempt |
 
 That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
 The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
