@@ -206,7 +206,8 @@ struct CalendarScreen: View {
                 days: calendar.weekDays(containing: anchor).map { DayKey($0, calendar: calendar) },
                 today: today,
                 now: now,
-                lanes: lanes(for: .week),
+                // Free together first, right under the week it answers for.
+                lanes: [WallFreeTogether.lane(store: store, now: now, onPlan: plan)] + lanes(for: .week),
                 isDetailed: false,
                 moments: moments,
                 onSelect: select
@@ -234,6 +235,12 @@ struct CalendarScreen: View {
                 }
             )
         }
+    }
+
+    /// A free evening tapped: the add sheet from then, when this iPad has the home calendar.
+    private var plan: ((Date) -> Void)? {
+        guard let home = store.home.calendar else { return nil }
+        return { start in adding = .new(home, at: start) }
     }
 
     private func select(_ event: CalendarEvent) {
