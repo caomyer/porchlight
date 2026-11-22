@@ -44,6 +44,10 @@ on:
         description: "For a measurement only: launchd labels the simulators are not to start, space separated, or \"none\" to start everything; empty is com.apple.PosterBoard, as every run has it"
         required: false
         default: ""
+      crash_a_unit_test:
+        description: "For a check of the harness only: \"yes\" runs the unit tests with one that kills the test process, and is green only if the run is reported as failed"
+        required: false
+        default: ""
       measure_boots:
         description: "For a measurement only: \"yes\" runs no test, and boots the wall's iPad twelve times, each on a Mac of its own, with and without its wallpaper and widget daemons, saying the memory every 15 seconds"
         required: false
@@ -76,7 +80,7 @@ env:
 jobs:
   build:
     name: Build
-    if: ${{ !inputs.only && !inputs.measure_boots }}
+    if: ${{ !inputs.only && !inputs.measure_boots && !inputs.crash_a_unit_test }}
     runs-on: xcode-27
     timeout-minutes: 40
     # What the packed build is, for the test jobs to check their download against.
@@ -98,12 +102,13 @@ jobs:
 
       # Which simulators a run may shut down and which it waits for, and how a corrupted
       # download of the build is caught and fetched again, each checked with stand-ins.
-      - name: Check the simulator rules, the build's download, the runner's start and the boot's stages
+      - name: Check the simulator rules, the build's download, the runner's start, the boot's stages and a lost test process
         run: |
           zsh scripts/ci/check-simulator-rules.sh
           zsh scripts/ci/check-unpack-build.sh
           zsh scripts/ci/check-runner-start.sh
           zsh scripts/ci/check-boot-simulator.sh
+          zsh scripts/ci/check-lost-process.sh
 
       - name: Build
         run: zsh scripts/test.sh --build-only
@@ -243,7 +248,7 @@ jobs:
 
   chosen:
     name: Chosen tests
-    if: ${{ inputs.only && !inputs.measure_boots }}
+    if: ${{ inputs.only && !inputs.measure_boots && !inputs.crash_a_unit_test }}
     runs-on: xcode-27
     timeout-minutes: 120
     steps:
@@ -279,6 +284,49 @@ jobs:
           path: results
           if-no-files-found: ignore
           retention-days: 7
+
+  # A check of the harness, run by hand: the unit tests with one test that kills the test
+  # process partway (PorchlightTests/Shared/HarnessCrashTests.swift). The job is green only
+  # if scripts/test.sh fails the run and says the process was lost; a run that is called a
+  # pass with its process gone turns this red (docs/design/testing.md, "A run that loses
+  # its process fails").
+  crashed:
+    name: A unit run that loses its process fails
+    if: ${{ inputs.crash_a_unit_test == 'yes' }}
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Restore the Swift packages
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.PACKAGES }}
+          key: spm-${{ hashFiles('project.yml') }}
+
+      - name: Pick the simulators
+        run: zsh scripts/ci/pick-simulators.sh
+
+      - name: The unit tests, with one that kills the process
+        env:
+          TEST_RUNNER_PORCHLIGHT_CRASH_A_UNIT_TEST: "1"
+        run: |
+          status=0
+          zsh scripts/ci/with-heartbeat.sh zsh scripts/test.sh --unit-only --progress --runtime "$RUNTIME" > run.log 2>&1 || status=$?
+          grep -E "^Unit|^\[unit\].*(HarnessCrash|harness)|TEST EXECUTE|Took:" run.log || true
+          if (( status == 0 )); then
+            echo "::error::The unit run lost its process and was reported as a pass."
+            exit 1
+          fi
+          if ! grep -q "Unit: the test process was lost" run.log; then
+            echo "::error::The unit run failed, but not saying that its process was lost."
+            tail -40 run.log
+            exit 1
+          fi
+          echo "The run failed with status $status and said its process was lost, as it must."
 
   # A measurement, never part of a push: what booting the wall's iPad costs a hosted Mac,
   # which has 7 GB, and what it costs when the simulator is told not to start the daemons
