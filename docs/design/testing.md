@@ -212,6 +212,7 @@ One shot per shape of the screen stays, not one per wording.
 
 Each rule is named by its first sentence, and is referred to by that name, here and in other documents: a number would change the day a rule is added, and a reference to "rule 10" has already pointed at the wrong rule once.
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
+"A run that loses its process fails" is from a crash on November 22 that was read as a pass.
 "A frame inside the screen does not prove the ink is inside the frame" is from a defect found by eye on November 21, and "A test leaves the simulator as it found it" from reading two tests that day; the others come from what the UI tests' own comments record.
 
 - **A test's outcome never depends on the real clock.**
@@ -262,6 +263,14 @@ The first six were each learned from a failed or misleading run in the week of N
 - **A test that needs the network or real delivery timing runs by hand, not in the suite.**
   Guard it with `XCTSkipUnless` on an environment variable, as `PhoneRemindersTests.testDeliveryByHand` and `FoodMealsTests.testLiveRestaurantSearchByHand` do, and when it is asked for it fails, never skips.
   Why: a test that skips itself when the network is down reports nothing either way.
+- **A run that loses its process fails.**
+  A test process that crashes or exits partway takes with it every test that had not yet reported, and what is printed afterwards can still read as a pass: xcodebuild starts the process again, and the last launch ends with "Test run with 450 tests in 81 suites passed" for the tests that were left.
+  So a run's verdict is never one line of its output.
+  `scripts/test.sh` fails a suite, whatever its totals say, when its log shows the process being started again, a test that started and never reported a result, or a suite that began and never finished (`scripts/lib/lost_process.py`), and when xcodebuild's own status disagrees with a pass; it prints "the test process was lost" and names the test it was in.
+  Read a run by the script's last lines ("Unit: 686/690 passed, 2 failed", and its status), never by scrolling for a line that says passed, and never by a build tool's "succeeded" for the step before.
+  Why: on November 22, 2026 a hosted screen that had gained toasts crashed the unit test process for want of a store, and the run was read as passed.
+  This is not the rule for a runner that never started a single test, which is run once more ("Infrastructure failures"), nor for a UI test whose app could not be launched: neither has lost a test that had begun.
+  A crash in a test is a failure and is never run again.
 
 ## Tiers
 
@@ -422,6 +431,26 @@ Each kind seen is listed here with what the scripts now do about it, so the next
 | "Failed to launch", "Failed to get launch progress", "does not have a process ID", "Failed to terminate", with no crash report | Several runs a day on the hosted Macs | XCTest could not start, or quit, the app for one test | That test runs once more on its own, and the summary says "passed on a second launch" (`scripts/lib/launch_retry.py`); any other failure stands |
 
 `zsh scripts/ci/check-runner-start.sh`, `zsh scripts/ci/check-unpack-build.sh` and `zsh scripts/ci/check-boot-simulator.sh` check the first three rules against sample logs, a stand-in download and a stand-in simulator, and run with every build.
+`zsh scripts/ci/check-lost-process.sh` checks the hard rule "A run that loses its process fails" the same way, against sample logs, and runs with every build too.
+
+#### A test process that is lost partway
+
+Reproduced on November 22, 2026 with a test that kills the unit test process when asked (`HarnessCrashTests`, `TEST_RUNNER_PORCHLIGHT_CRASH_A_UNIT_TEST=1 zsh scripts/test.sh --unit-only`).
+
+| | What happened |
+|---|---|
+| The process | Crashed in the test, was started again by xcodebuild, crashed in the same test again, and was started a third time, when xcodebuild left that test out and ran the rest |
+| xcodebuild's log, at the end | "Test run with 450 tests in 81 suites passed after 158.237 seconds", and only after it "Failing tests: HandwritingTests.withoutRoomItIsCut(), HarnessCrashTests.crashesWhenAsked()" and "TEST EXECUTE FAILED" |
+| An innocent test | `HandwritingTests.withoutRoomItIsCut()` was running beside it when the process went, and was counted as failed with it: the unit tests run side by side, so a crash fails whatever was in flight |
+| `scripts/test.sh`, before this rule | "Unit: 686/690 passed, 2 failed", status 1: the result bundle had it right in this case. The script had no way to know had the bundle been wrong, and it dropped xcodebuild's status |
+| `scripts/test.sh`, now | The same line, then "Unit: the test process was lost, so this run is failed whatever its totals say", "the test process was lost 2 times", the one test that started and never reported, and the crash's own words from the log |
+
+So in the case reproduced, the script already failed the run, and what read as a pass was a line of xcodebuild's own output.
+What was missing was any defence if the result bundle is wrong or absent of the lost tests, a plain statement of what happened, and xcodebuild's status.
+The UI suites had the same hole in the same form and have the same check: a runner that dies in the middle of a shard after some tests passed is started again by xcodebuild, and the test it was in is named.
+The check reads the log's own lines for each test starting and ending, in XCTest's form and in Swift Testing's; it knows no expected count beyond that, since nothing in the harness holds one for the unit tests.
+`gh workflow run Tests -f crash_a_unit_test=yes` runs the same reproduction on a hosted Mac, and is green only if the run is reported as failed and says its process was lost.
+
 
 #### What a new simulator's first boot costs
 
