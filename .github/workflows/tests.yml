@@ -44,6 +44,10 @@ on:
         description: "For a measurement only: launchd labels the simulators are not to start, space separated, or \"none\" to start everything; empty is com.apple.PosterBoard, as every run has it"
         required: false
         default: ""
+      test_limit:
+        description: "For a check of the harness only: the seconds one UI test may run before it is stopped and failed; empty is 420"
+        required: false
+        default: ""
       measure_boots:
         description: "For a measurement only: \"yes\" runs no test, and boots the wall's iPad twelve times, each on a Mac of its own, with and without its wallpaper and widget daemons, saying the memory every 15 seconds"
         required: false
@@ -66,6 +70,7 @@ env:
   PORCHLIGHT_TEST_SLOTS: "1"
   RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-2
   PORCHLIGHT_CI_IPAD: ${{ inputs.ipad }}
+  PORCHLIGHT_TEST_LIMIT_SECONDS: ${{ inputs.test_limit || '420' }}
   # A new simulator's wallpaper daemon is not started: its first-boot work took these Macs
   # into swap, and jobs were cancelled in it (scripts/lib/simulators.sh).
   PORCHLIGHT_SIM_DISABLED_DAEMONS: ${{ inputs.quiet || 'com.apple.PosterBoard' }}
@@ -98,13 +103,14 @@ jobs:
 
       # Which simulators a run may shut down and which it waits for, and how a corrupted
       # download of the build is caught and fetched again, each checked with stand-ins.
-      - name: Check the simulator rules, the build's download, the runner's start, the boot's stages and a lost test process
+      - name: Check the simulator rules, the build's download, the runner's start, the boot's stages, a lost test process and the slow test report
         run: |
           zsh scripts/ci/check-simulator-rules.sh
           zsh scripts/ci/check-unpack-build.sh
           zsh scripts/ci/check-runner-start.sh
           zsh scripts/ci/check-boot-simulator.sh
           zsh scripts/ci/check-lost-process.sh
+          zsh scripts/ci/check-slow-tests.sh
 
       - name: Build
         run: zsh scripts/test.sh --build-only

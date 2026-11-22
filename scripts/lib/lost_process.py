@@ -95,7 +95,7 @@ def lost(log_text):
     if not restarts:
         problems.append("the log stops before xcodebuild said how the run ended")
     if restarts:
-        problems.append("the test process was lost %s (it exited or crashed) and was started again" % ("once" if restarts == 1 else "%d times" % restarts))
+        problems.append("the test process was lost %s (it exited, crashed, or a test passed its time limit) and was started again" % ("once" if restarts == 1 else "%d times" % restarts))
     if unfinished:
         shown = ", ".join(unfinished[:5]) + (" and %d more" % (len(unfinished) - 5) if len(unfinished) > 5 else "")
         problems.append("%d of the %d tests that started never reported a result: %s" % (len(unfinished), len(started), shown))
