@@ -13,10 +13,9 @@ final class PhoneRecipesTests: XCTestCase, PhoneTestHelpers {
         try XCTSkipIf(isPad, "The phone tests run on an iPhone")
     }
 
-    /// Today at 6:40 pm, so a meal cooked from a recipe is guessed to be dinner.
+    /// The pinned day (`UITestClock`) at 6:40 pm, so a meal cooked from a recipe is guessed to be dinner.
     private static var dinnerTime: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT18:40", parts.year!, parts.month!, parts.day!)
+        UITestClock.at(18, 40)
     }
 
     private func launch(_ arguments: [String] = []) -> XCUIApplication {

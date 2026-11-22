@@ -77,11 +77,10 @@ final class LoggedEntryTests: XCTestCase {
         snapshot("51-walk-fixed")
     }
 
-    /// Today at 5:20 pm for `-debugCompanionNow`: the day is today's, as the sample household's
-    /// is, and the time of day is fixed, so nothing here depends on when the suite runs.
+    /// The pinned day (`UITestClock`) at 5:20 pm for `-debugCompanionNow`, so nothing here
+    /// depends on when the suite runs.
     private static var evening: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
+        UITestClock.at(17, 20)
     }
 
     func testOpeningMealsFromToday() {

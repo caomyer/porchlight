@@ -4,7 +4,7 @@ import XCTest
 /// catching up, chores, the You sheet, the night look and the largest text size.
 /// Runs only on an iPhone simulator (`scripts/test.sh --phone`); the iPad run skips it.
 ///
-/// Time is pinned to 5:20 pm today with `-debugCompanionNow`, so Yo-Yo's evening walk
+/// Time is pinned to 5:20 pm on the pinned day (`UITestClock`) with `-debugCompanionNow`, so Yo-Yo's evening walk
 /// and dinner are open whenever the suite runs. The sample household also missed
 /// yesterday's dinner, gives James the leaky faucet, and leaves the vacuuming to anyone.
 @MainActor
@@ -21,8 +21,7 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
     }
 
     private static var evening: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
+        UITestClock.at(17, 20)
     }
 
     private func launch(_ arguments: [String] = [], me: String? = "James") -> XCUIApplication {
@@ -131,8 +130,7 @@ final class PhoneTests: XCTestCase, PhoneTestHelpers {
     /// Late in the evening Yo-Yo is all set, and with the faucet fixed nothing is left for James.
     func testAllClear() {
         let app = XCUIApplication.porchlight()
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        let late = String(format: "%04d-%02d-%02dT21:30", parts.year!, parts.month!, parts.day!)
+        let late = UITestClock.at(21, 30)
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", late, "-me", "James"]
         app.launch()
         XCTAssertTrue(app.staticTexts["Yo-Yo is all set"].waitForExistence(timeout: 60), "A finished day folds to one line")

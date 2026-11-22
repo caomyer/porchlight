@@ -11,7 +11,7 @@ final class DayAtAGlanceTests: XCTestCase {
 
     private func launch(_ arguments: [String]) -> XCUIApplication {
         let app = XCUIApplication.porchlight()
-        app.launchArguments = ["-sampleHousehold"] + UITestClock.arguments + arguments
+        app.launchArguments = ["-sampleHousehold"] + arguments
         app.launch()
         _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
         return app
