@@ -23,7 +23,11 @@ struct CalendarScreen: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
             VStack(alignment: .leading, spacing: 16) {
-                header(now: CompanionClock.at(context.date))
+                VStack(alignment: .leading, spacing: 4) {
+                    header(now: CompanionClock.at(context.date))
+                    // "Sam's calendar, updated Tuesday": quietly, when a phone has gone quiet.
+                    StaleCalendarLines(sources: store.staleSources, fontSize: 13.5)
+                }
                 content(now: CompanionClock.at(context.date))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .simultaneousGesture(swipe)
@@ -364,7 +368,7 @@ struct EventDetail: View {
                     if let emoji = event.emoji {
                         Text(emoji).font(.system(size: 32))
                     } else {
-                        Image(systemName: event.isBusy ? "lock.fill" : "calendar")
+                        Image(systemName: event.isBusy ? "lock.fill" : (event.isQuiet ? "briefcase.fill" : "calendar"))
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundStyle(color)
                     }
@@ -386,13 +390,17 @@ struct EventDetail: View {
                     row("mappin", location)
                 }
                 HStack(spacing: 12) {
-                    OwnerAvatar(owner: event.owner, people: store.people, size: 26)
-                        .frame(width: 22)
-                    Text("\(ownerName(event.owner, people: store.people)) · \(event.calendarTitle) calendar")
+                    OwnerFaces(owners: event.owners, people: store.people, size: 26)
+                        .frame(minWidth: 22)
+                    Text("\(event.owners.map { ownerName($0, people: store.people) }.joined(separator: " and ")) · \(source)")
                         .font(.body(15, weight: 600))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 if event.isBusy {
                     row("eye.slash", "This calendar is shown as Busy only, so details stay private.")
+                }
+                if event.isQuiet, !event.quietEvents.isEmpty {
+                    quietList
                 }
                 if let notes = event.notes {
                     Text(notes)
@@ -409,8 +417,47 @@ struct EventDetail: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// "From Sam's Google · Mia Soccer" for another device's event; "Work calendar" for this one's.
+    private var source: String {
+        event.from ?? (event.calendarTitle.isEmpty ? "calendar" : "\(event.calendarTitle) calendar")
+    }
+
+    /// A quiet block's meetings, each with its time.
+    private var quietList: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(event.quietEvents.prefix(8).enumerated()), id: \.element.id) { index, item in
+                if index > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(item.isAllDayLike ? "All day" : EventText.format(item.start, calendar, "jmm"))
+                        .font(.body(14, weight: 700))
+                        .foregroundStyle(Theme.muted)
+                        .frame(width: 76, alignment: .leading)
+                    Text(item.title)
+                        .font(.body(15, weight: 600))
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 9)
+            }
+            if event.quietEvents.count > 8 {
+                Text("and \(event.quietEvents.count - 8) more")
+                    .font(.body(13, weight: 600))
+                    .foregroundStyle(Theme.muted)
+                    .padding(.top, 6)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
+        .background(Theme.surface2.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("quiet-events")
+    }
+
     private var when: String {
         let date = EventText.format(event.start, calendar, "EEEE MMMM d")
+        if event.isQuiet, !event.isAllDay {
+            return "\(date) · \(QuietWords.detail(event, calendar: calendar))"
+        }
         if event.isAllDayLike {
             if let span = EventText.daySpan(event, calendar: calendar) { return "All day · \(span)" }
             return "\(date) · All day"

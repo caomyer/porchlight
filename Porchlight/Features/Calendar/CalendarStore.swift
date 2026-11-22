@@ -286,7 +286,7 @@ final class CalendarStore: StoredFirstObservable {
         let calendar = calendar
         let dayStart = day.startDate(in: calendar)
         return events(on: day).filter { !$0.isAllDayLike }.map { event in
-            var subtitle = EventText.timeRange(event, calendar: calendar)
+            var subtitle = event.isQuiet ? QuietWords.detail(event, calendar: calendar) : EventText.timeRange(event, calendar: calendar)
             if let location = event.location { subtitle += " · \(location)" }
             return TimelineItem(
                 id: "calendar-\(event.id)",
@@ -297,7 +297,7 @@ final class CalendarStore: StoredFirstObservable {
                 subtitle: subtitle,
                 owner: event.owner,
                 leading: AnyView(EventMark(event: event, color: color(for: event.owner))),
-                trailing: AnyView(OwnerAvatar(owner: event.owner, people: people)),
+                trailing: AnyView(OwnerFaces(owners: event.owners, people: people, size: 30)),
                 target: .event(event.id)
             )
         }
@@ -315,6 +315,18 @@ final class CalendarStore: StoredFirstObservable {
     /// Special days coming up in the next month, for the Today card.
     func countdowns(limit: Int = 3) -> [Countdown] {
         CountdownPicker.pick(from: events, today: today, calendar: calendar, limit: limit)
+    }
+
+    /// Whether another device has passed its calendars on, so there is a household calendar
+    /// to show even on a device with none of its own.
+    var hasOthersCalendars: Bool {
+        let mine = snapshot.shared.thisDeviceId.map { CalendarFeed.id(deviceId: $0) }
+        return snapshot.shared.calendars.contains { $0.feedId != mine }
+    }
+
+    /// Whether this device shows any of its own calendars.
+    var showsOwnCalendars: Bool {
+        access == .granted && mappings.contains { $0.source.isShown }
     }
 
     /// Other devices whose calendars are over a day old: "Sam's calendar, updated Tuesday".

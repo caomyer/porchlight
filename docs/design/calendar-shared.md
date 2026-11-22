@@ -71,6 +71,9 @@ The wall, which is always on, also runs it every hour.
 - The same event is shown once: two events match when their `matchKey` and start are equal, or, when either has no key, when title, start and end are equal (Busy only events, which have no title, match only by key).
   A match shows one event with each owner's face.
 - Keep it quiet events from another device are drawn as one block per owner per day, from the first start to the last end: "Alex at work" with "Until 5:30 PM · 3 meetings", and tapping it lists them. On the device that has the calendar they show in full.
+  On the wall's grid the block is a soft band behind the day's other events rather than a column beside them, so a long work day doesn't narrow everything else; the events lie over it, inset enough to show its edge, and two people's bands share the width.
+  In lists (Today, the phone's card and Next 7 days) it is one row.
+- An event for more than one person shows each face, in lists and in its sheet; the sheet says where it came from ("From Sam's Google · Mia Soccer").
 - Busy only events read "Busy", as today.
 
 ### How fresh

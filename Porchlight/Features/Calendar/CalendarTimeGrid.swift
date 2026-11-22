@@ -177,9 +177,16 @@ struct TimeGrid: View {
         }
         // Very short events still need room for a title.
         let minimumDuration = Double(18 / hourHeight) * 3600
-        let slots = OverlapLayout.slots(timed.map {
-            OverlapLayout.Item(id: $0.id, start: max($0.start, dayStart), end: max($0.end, $0.start.addingTimeInterval(minimumDuration)))
-        })
+        // A quiet calendar's day is a soft band behind the day's events, not a column beside
+        // them, so a long work day doesn't narrow everything else: quiet bands share the
+        // width among themselves, and the other events lie over them, inset to show the edge.
+        let quiet = timed.filter(\.isQuiet)
+        let events = timed.filter { !$0.isQuiet }
+        func items(_ list: [CalendarEvent]) -> [OverlapLayout.Item<String>] {
+            list.map { OverlapLayout.Item(id: $0.id, start: max($0.start, dayStart), end: max($0.end, $0.start.addingTimeInterval(minimumDuration))) }
+        }
+        let slots = OverlapLayout.slots(items(events)).merging(OverlapLayout.slots(items(quiet))) { first, _ in first }
+        let bandInset: CGFloat = quiet.isEmpty ? 0 : 10
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
         let isToday = day == today
 
@@ -188,11 +195,12 @@ struct TimeGrid: View {
                 .fill(isToday ? Theme.accent.opacity(0.05) : .clear)
                 .frame(width: width, height: height)
             VLine()
-            ForEach(timed) { event in
+            ForEach(quiet + events) { event in
                 let slot = slots[event.id] ?? .init(column: 0, columns: 1)
                 let top = y(max(event.start, dayStart)) + 1
                 let bottom = y(min(event.end, dayEnd))
-                let inner = width - 8 - momentRoom
+                let inset = event.isQuiet ? 0 : bandInset
+                let inner = width - 8 - momentRoom - inset
                 let blockWidth = inner / CGFloat(slot.columns) - (slot.columns > 1 ? 2 : 0)
                 EventBlock(
                     event: event,
@@ -203,7 +211,7 @@ struct TimeGrid: View {
                     people: store.people
                 )
                 .frame(width: blockWidth, height: max(bottom - top - 2, 18))
-                .offset(x: 4 + CGFloat(slot.column) * (inner / CGFloat(slot.columns)), y: top)
+                .offset(x: 4 + inset + CGFloat(slot.column) * (inner / CGFloat(slot.columns)), y: top)
                 .onTapGesture { onSelect(event) }
             }
             momentLayer(moments, y: y, width: width, height: height, room: momentRoom)
@@ -283,7 +291,8 @@ private struct NowLine: View {
     }
 }
 
-/// A timed event in the grid: tinted block with a colored left edge.
+/// A timed event in the grid: tinted block with a colored left edge. A quiet calendar's
+/// day is one softer block, "Alex at work until 5:30", its meetings a tap away.
 private struct EventBlock: View {
     let event: CalendarEvent
     let color: Color
@@ -298,7 +307,7 @@ private struct EventBlock: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.body(isDetailed ? 16 : 12.5, weight: 700))
-                    .foregroundStyle(event.isBusy ? Theme.muted : Theme.ink)
+                    .foregroundStyle(event.isBusy || event.isQuiet ? Theme.muted : Theme.ink)
                     .lineLimit(titleLines)
                 if showsTime {
                     Text(timeText)
@@ -316,16 +325,16 @@ private struct EventBlock: View {
             }
             Spacer(minLength: 0)
             if isDetailed, height >= 36 {
-                OwnerAvatar(owner: event.owner, people: people, size: 26)
+                OwnerFaces(owners: event.owners, people: people, size: 26)
             }
         }
         .padding(.vertical, isDetailed && height >= 40 ? 7 : 4)
         .padding(.leading, isDetailed ? 14 : 9)
         .padding(.trailing, isDetailed ? 10 : 5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(color.wash(event.isBusy ? 0.08 : 0.15), in: shape)
+        .background(color.wash(event.isBusy || event.isQuiet ? 0.08 : 0.15), in: shape)
         .overlay(alignment: .leading) {
-            Rectangle().fill(color.opacity(event.isBusy ? 0.5 : 1)).frame(width: 4)
+            Rectangle().fill(color.opacity(event.isBusy || event.isQuiet ? 0.5 : 1)).frame(width: 4)
         }
         .clipShape(shape)
         .contentShape(shape)
@@ -342,10 +351,12 @@ private struct EventBlock: View {
     }
 
     private var showsTime: Bool {
-        isDetailed ? height >= 40 : event.end.timeIntervalSince(event.start) >= 1.25 * 3600 && height >= 36
+        if event.isQuiet { return height >= 36 }
+        return isDetailed ? height >= 40 : event.end.timeIntervalSince(event.start) >= 1.25 * 3600 && height >= 36
     }
 
     private var timeText: String {
+        if event.isQuiet { return QuietWords.gridUntil(event, calendar: calendar, detailed: isDetailed) }
         if isDetailed {
             var text = EventText.timeRange(event, calendar: calendar)
             if let location = event.location { text += " · \(location)" }

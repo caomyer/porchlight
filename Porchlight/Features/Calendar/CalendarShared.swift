@@ -147,16 +147,21 @@ enum QuietWords {
     }
 
     static func detail(_ block: CalendarEvent, calendar: Calendar) -> String {
-        let count = block.quietEvents.count
-        let things = count == 1 ? "1 meeting" : "\(count) meetings"
-        guard !block.isAllDay else { return things }
-        return "Until \(EventText.format(block.end, calendar, "jmm")) · \(things)"
+        guard !block.isAllDay else { return count(block) }
+        return "Until \(EventText.format(block.end, calendar, "jmm")) · \(count(block))"
     }
 
-    /// The wall grid's one line: "Alex at work until 5:30".
-    static func gridTitle(_ block: CalendarEvent, calendar: Calendar) -> String {
-        guard !block.isAllDay else { return block.title }
-        return "\(block.title) until \(EventText.format(block.end, calendar, "jmm"))"
+    /// "3 meetings"
+    static func count(_ block: CalendarEvent) -> String {
+        block.quietEvents.count == 1 ? "1 meeting" : "\(block.quietEvents.count) meetings"
+    }
+
+    /// The wall grid's line under the name, in the grid's own time style: "until 5:30p" in
+    /// the week, "until 5:30 PM · 3 meetings" in the day.
+    static func gridUntil(_ block: CalendarEvent, calendar: Calendar, detailed: Bool) -> String {
+        guard !block.isAllDay else { return count(block) }
+        if detailed { return "until \(EventText.format(block.end, calendar, "jmm")) · \(count(block))" }
+        return "until \(EventText.shortTime(block.end, calendar: calendar))"
     }
 }
 

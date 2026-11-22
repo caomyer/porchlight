@@ -53,7 +53,7 @@ private struct TimelineTargetHost: ViewModifier {
             case let .meal(id):
                 openMeal = OpenMeal(id: id)
             case let .event(id):
-                openEvent = calendarStore.events.first { $0.id == id }
+                openEvent = calendarStore.event(id: id)
             case let .chore(choreId, day):
                 choreSheet = home.snapshot.chores.first { $0.id == choreId }.map { .task($0, day) }
             }

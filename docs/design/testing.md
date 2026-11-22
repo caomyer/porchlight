@@ -116,7 +116,7 @@ All nine are proven in this repository.
 | The fake iCloud | `SyncHarness`, `SyncControllerTests` | What sync sends, receives and says |
 | A SwiftUI view drawn with `ImageRenderer` in the unit bundle | `WidgetRenderTests` | Review shots of self-contained views in light, dark and the largest text, in milliseconds |
 | A component measured in a `UIHostingController` in the unit bundle | `TimeFieldLayoutTests` | A component's layout facts at every Dynamic Type size: it grows, it fits the width, it stacks instead of overlapping |
-| A whole screen hosted in a window in the unit bundle (`HostedScreen`) | `PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketDishesScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketRecipesScreenTests` | Where every element of a screen sits, and a picture of the whole page, in light, dark and the largest text |
+| A whole screen hosted in a window in the unit bundle (`HostedScreen`) | `PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketDishesScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketRecipesScreenTests`, `PocketSharedCalendarScreenTests` | Where every element of a screen sits, and a picture of the whole page, in light, dark and the largest text |
 | A list row's layout read from that hosted page's picture (`HostedRowLayout`) | `PocketRecipesScreenTests` (the bank), `PocketDishesScreenTests` (the dishes list), each with a name and a line as long as they come, and seen failing with a fit-or-stack switch put back | Whether every row of a list keeps one layout at a given text size (the words beside the picture at the standard sizes, below it at the accessibility sizes), where a row reads to VoiceOver as one element and its picture and name have no frames of their own |
 | A line of text laid out with Core Text, its ink measured | `HandwritingTests`, `HandCompanionTests` | Whether a face's ink stays inside the box a `Text` gives it, at every size, with and without a fallback face |
 
@@ -166,6 +166,7 @@ The night look and the largest text size are checked by eye from screenshots, pl
 - One looks test per class at most, visiting the class's screens in as few launches as it can: navigate between screens inside a launch instead of launching once per screen.
 - A look is a launch, so three looks of one screen are three launches; do not also launch per screen.
 - Never repeat a journey's steps in a looks test to get to a screen; start there with a debug launch argument (`-debugFoodView`, `-debugCompanionSheet`, `-debugYouPage`).
+  The shared calendar adds `-sampleSharedCalendar YES|stale`: Mia's iPhone has passed on her work as Keep it quiet, her own calendar in full and her doctor's as Busy only, twenty minutes ago or two days ago.
   The recipes add `-debugFoodView recipes|recipe|recipe-long|recipe-edit|recipe-plan` (the bank, the first recipe, or the recipe with the most ingredients opened, in its editor, or being planned) and `-sampleFood norecipes|long` (an empty bank, or a recipe as long as they come, cooked once, with a card).
 - A layout fact that holds for a component everywhere (the time pill, the photo row) is asserted once, in one looks test, not in each class that shows the component.
 
@@ -185,6 +186,7 @@ Review shots come from two places, and each screen's are named so a person knows
 | Food: the Where pills, the photo row and reframing, paper under the status bar | none yet: the status bar is not there in a hosted screen, and the editor's row needs the meal's photos handed in | | `PhoneFoodTests.testWhereLooks`, `testPhotoRowAndReframeLooks` and `testPaperUnderTheStatusBarAtNightAtTheLargestSize`: one look each, the night look at the largest size (`where-20-phone-largest-dark`, `parity-30-edit-row-largest-dark`, `parity-31-reframe-largest-dark`, `b5-60` to `b5-63` `-largest-dark`); `testNightLook` and `testLargestText` for the diary and a meal's page |
 | Lists, Glow, Pitch in | `lists-<look>.png`, `glow-<look>.png`, `pitch-in-<look>.png` | light, dark, largest, largest-dark | `PhoneTabsTests.testLooks`: the real tabs in the night look at the largest size, the field and the cash-in button whole, cashing in to the celebration, the next 7 days (`m3-90-lists-largest-dark`, `m3-91-glow-largest-dark`, `m3-83-celebration-largest-dark`, `m3-94-next-7-days-largest-dark`); the journeys for adding, checking off and cashing in |
 | The Food diary on this week, last week and an empty week | `food-week-0-<look>.png`, `food-week-1-<look>.png`, `food-week-3-<look>.png` | light, dark, largest, largest-dark | `PhoneFoodTests.testChangingWeeks`: back a week, a meal opened and Back to the same week, a past slot filled and kept in its week, back to this week (`b5-30-last-week`) |
+| The household calendar on the phone: another device's quiet row, Busy only row and stale line | `shared-calendar-YES-<look>.png`, `shared-calendar-stale-<look>.png` | light, dark, largest, largest-dark | `PhoneSharedCalendarTests`: Today's card shows another device's events. The wall has no hosted looks and no night look: `WallSharedCalendarTests` shows its week with another device's quiet block, its meetings on tap, one event with both faces and the stale line (`cal-10-week` to `cal-12-both-faces`), and Just me taking a calendar out (`cal-20-just-me`) |
 | Recipes: the bank, an empty bank, a recipe's page, a home dish's way to its recipe | `recipes-bank-<look>.png`, `recipes-empty-<look>.png`, `recipes-page-<look>.png`, `recipes-dish-<look>.png`, `recipes-dish-none-<look>.png` | light, dark, largest, largest-dark | `PhoneRecipesTests`: adding a recipe to a dish we cook, cooking from the bank, planning a dinner from the bank and from "What we cook", ingredients to the grocery list (`recipes-01-empty` to `recipes-30-picked`). The wall has no hosted looks and no night look: `WallRecipesTests` keeps the same four journeys (`w4-01-empty` to `w4-30-groceries`), and `WallTourTests.testRecipeScreens` photographs the wall's recipe screens with `-sampleFood long` for review, by hand with `--tour` |
 | Joining, the sync banner, the household's name on Today | none yet | | `PhoneHouseholdTests.testLooks`: the night look at the largest size, Join and Continue within reach, the banner fitting, the household named whole (`phone-140-join-preview-largest-dark`, `phone-141-join-who-largest-dark`, `phone-142-banner-largest-dark`, `a5-22-today-header-largest-dark`, `a5-23-today-slots-largest-dark`) |
 | Today | none yet | | `PhoneTests.testLooks`: the night look at the largest size, the log button whole and full width (`phone-90-largest-text-dark`, `phone-91-largest-text-chores-dark`); `phone-10` to `phone-12` from the journey |
@@ -778,6 +780,15 @@ Unfrozen on November 21, when the dish editor landed.
 | testNightLook | 24 | Shots | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size; the care sheet's look is hosted |  | done |
 | testLargestText | 41 | Log button whole and full width | Merged into `testLooks`, which keeps its assertions |  | done, 41 s measured for `testLooks` |
 
+#### PhoneSharedCalendarTests (new)
+
+Added with the shared calendar on November 22, 2026 (docs/design/calendar-shared.md); its looks are hosted (`PocketSharedCalendarScreenTests`).
+The clock is pinned to today at 8 in the morning.
+
+| Test | s | Asserts | Verdict | Saves | Status |
+|---|---|---|---|---|---|
+| testAnotherDevicesCalendarsOnToday | | Another device's work is one quiet row on "At home today", with its meetings counted; its events beside this phone's | Keep; merging and the quiet block are `SharedCalendarViewTests` | | |
+
 #### PhoneRecipesTests (112 s)
 
 Added with recipes on November 21, 2026, and measured in run 44931660927; every one is under the 120 second limit.
@@ -902,6 +913,8 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | WallTourTests.testHandwritingOnDayPage | 32 | Strokes, Done | Keep (gesture) | | |
 | WallTourTests.testSheetsWithTheKeyboardUp | 44 | Two sheets' fields above the keyboard | Keep (keyboard) | | |
 | WallTourTests.testScreens | 0 | Screenshots only | Not in the suite; `--tour` | | |
+| WallSharedCalendarTests.testAnotherDevicesCalendarsOnTheWall | | Another device's quiet block on the week, its meetings on tap with where they come from, one shared event with both faces, the stale line | Keep; merging, quiet blocks and freshness are `SharedCalendarViewTests`; the clock pinned to 8 in the morning | | |
+| WallSharedCalendarTests.testJustMeLeavesTheHousehold | | A calendar set to Just me leaves what the wall passes on (Sync details counts one fewer) | Keep; what each choice passes on is `CalendarPassOnTests`, and removal for everyone is `SharedCalendarSyncTests` | | |
 | WallTourTests.testRecipeScreens | 0 | Screenshots only: the bank with a long name, the empty bank, the kitchen view at its top and scrolled, the editor with a card, planning, "What we cook", the week's dinners marked 📖 | Not in the suite; `--tour` | | |
 | WallRecipesTests.testAddingARecipeToADishWeCook | 24 | A recipe typed for a dish we cook joins it, with its history | Keep | | |
 | WallRecipesTests.testCookingFromTheBank | 29 | We made this opens Snap with the dish on the meal; it saves | Keep | | |
@@ -945,6 +958,10 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | `RecipeLogicTests`, `RecipeBankTests` | Pure functions, clock pinned and swept | A pasted recipe's lines and steps, a link, grocery names without amounts, the bank's words, "Haven't made in a while" at the day's edge | `PhoneRecipesTests` and `WallRecipesTests`: the journeys only |
 | `RecipeDatabaseTests` | The real database in memory | Saving, joining a dish we cook, card photos, removing with Undo, what removing, merging and renaming a dish do to its recipe and planned dinners, what we cook suggested for a dinner | The same journeys |
 | `OlderBuildSyncTests` (recipes) | The fake iCloud, with older builds' tables | An older build keeps a recipe, its card photo and a dinner's dish, and an updated device brings them in | None: no UI test can run an older build |
+| `CalendarPassOnTests` | Pure functions, clock and calendars handed in, the window swept over a year in two zones | What each of the four choices passes on (marker words that must never reach a Busy only or Just me record, nor the account or the raw event id), the window, the match key, all-day days, the difference between passes, and the migration of today's choices | `WallSharedCalendarTests.testJustMeLeavesTheHousehold` |
+| `SharedCalendarViewTests` | Pure functions, clock pinned | Each event once with every owner's face, keys before words, quiet blocks and their words, how fresh each device is, Sync details' lines | `WallSharedCalendarTests`, `PhoneSharedCalendarTests` |
+| `SharedCalendarSyncTests` | The fake iCloud, two devices | Mia's phone passes on and Sam's shows, with no marker word reaching iCloud; an unchanged pass writes no event; Just me and leaving remove for everyone; nothing before the choices are seen; a build from before keeps syncing and gets every event, parents first, on updating | None: no UI test runs two devices |
+| `PocketSharedCalendarScreenTests` | Hosted whole screen, clock pinned | Next 7 days with another device's quiet rows, Busy only row and stale line, in four looks | `PhoneSharedCalendarTests`; its shots are `shared-calendar-<value>-<look>.png` |
 | `PocketRecipesScreenTests` | Hosted whole screen, with `HostedRowLayout` | The bank (a name and a line as long as they come), an empty bank, a recipe's page and a home dish's way to its recipe, in four looks; one row layout per list at each size | `PhoneRecipesTests`; its shots are `recipes-<kind>-<look>.png` |
 
 ### What the audit adds up to

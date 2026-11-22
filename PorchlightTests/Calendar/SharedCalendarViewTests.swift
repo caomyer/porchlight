@@ -99,7 +99,7 @@ struct SharedCalendarViewTests {
         #expect(tuesday.start == Self.at("2026-11-24 09:00") && tuesday.end == Self.at("2026-11-24 17:30"))
         #expect(tuesday.quietEvents.map(\.title) == ["Standup", "Planning", "Review"])
         #expect(Self.plain(QuietWords.detail(tuesday, calendar: Self.calendar)) == "Until 5:30 PM · 3 meetings")
-        #expect(Self.plain(QuietWords.gridTitle(tuesday, calendar: Self.calendar)) == "Alex at work until 5:30 PM")
+        #expect(Self.plain(QuietWords.gridUntil(tuesday, calendar: Self.calendar, detailed: true)) == "until 5:30 PM · 3 meetings")
         #expect(shown.contains { $0.title == "Soccer practice" && !$0.isQuiet })
     }
 

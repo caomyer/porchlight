@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// "Next 7 days": the calendars on this phone, read-only, grouped by day in each
-/// person's color. An event opens in the Calendar app; nothing is stored here.
+/// "Next 7 days": the household's calendars, this phone's and what the others passed on,
+/// read-only, grouped by day in each person's color. An event opens in the Calendar app.
 struct PocketNextWeek: View {
     @Environment(AppModel.self) private var model
     @Environment(CalendarStore.self) private var calendarStore
@@ -12,7 +12,7 @@ struct PocketNextWeek: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("From the calendars on this \(DeviceWords.this)")
+                    Text("From the household's calendars")
                         .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
                         .foregroundStyle(Theme.muted)
                     Text("Next 7 days")
@@ -41,6 +41,7 @@ struct PocketNextWeek: View {
                     }
                     .phoneCard()
                 }
+                StaleCalendarLines(sources: calendarStore.staleSources, fontSize: 12.5)
                 Text("Tap an event to open it in Calendar. Events are made there, not here.")
                     .phoneFont(.body, 12.5, weight: 500, relativeTo: .footnote)
                     .foregroundStyle(Theme.muted)
@@ -56,7 +57,13 @@ struct PocketNextWeek: View {
         let calendar = calendarStore.calendar
         let time = event.isAllDayLike ? "All day" : ClockFormat.time(max(event.start, day.startDate(in: calendar)), calendar: calendar)
         let owner: String? = if case let .person(id) = event.owner { model.person(id)?.name } else { nil }
-        let detail = event.isBusy ? [owner, "busy only"].compactMap { $0 }.joined(separator: " · ") : [owner, event.location].compactMap { $0 }.joined(separator: " · ")
+        let detail = if event.isQuiet {
+            QuietWords.detail(event, calendar: calendar)
+        } else if event.isBusy {
+            [owner, "busy only"].compactMap { $0 }.joined(separator: " · ")
+        } else {
+            [owner, event.location].compactMap { $0 }.joined(separator: " · ")
+        }
         return Button {
             if let url = URL(string: "calshow:\(event.start.timeIntervalSinceReferenceDate)") { openURL(url) }
         } label: {
@@ -67,9 +74,6 @@ struct PocketNextWeek: View {
                     .foregroundStyle(Theme.muted)
                     .frame(minWidth: 46, alignment: .leading)
                 HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(calendarStore.color(for: event.owner))
-                        .frame(width: 4, height: 28)
                     VStack(alignment: .leading, spacing: 1) {
                         Text([event.emoji, event.title].compactMap { $0 }.joined(separator: " "))
                             .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
@@ -80,10 +84,16 @@ struct PocketNextWeek: View {
                         }
                     }
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    if case let .person(id) = event.owner {
-                        PersonAvatar(model.person(id), size: .small)
+                    .frame(minHeight: 28)
+                    .padding(.leading, 14)
+                    // The person's color, as tall as the words beside it at any text size.
+                    .overlay(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(calendarStore.color(for: event.owner))
+                            .frame(width: 4)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    PocketFaces(owners: event.owners)
                 }
             }
             .padding(.vertical, 7)

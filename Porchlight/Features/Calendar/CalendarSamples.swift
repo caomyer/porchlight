@@ -20,6 +20,53 @@ enum CalendarSamples {
         }
     }
 
+    /// `-sampleSharedCalendar YES` (or `stale`, two days old): Mia's iPhone has passed on
+    /// her work calendar as Keep it quiet, her own in full (with the climbing gym she shares
+    /// with James, so it shows both faces) and her doctor's as Busy only
+    /// (docs/design/calendar-shared.md).
+    static func seedShared(_ database: AppDatabase, household: Household, people: [Person], now: Date,
+                           value: String? = UserDefaults.standard.string(forKey: "sampleSharedCalendar")) throws {
+        guard let value, let mia = people.first(where: { $0.name == "Mia" }) else { return }
+        let calendar = household.calendar
+        let today = DayKey(now, calendar: calendar)
+        func at(_ offset: Int, _ hour: Double) -> Date {
+            today.adding(days: offset, calendar: calendar).startDate(in: calendar).addingTimeInterval(hour * 3600)
+        }
+        let deviceId = Device.ID.derived("sample-mias-iphone")
+        let feedId = CalendarFeed.id(deviceId: deviceId)
+        let passedOn = value == "stale" ? now.addingTimeInterval(-50 * 3600) : now.addingTimeInterval(-20 * 60)
+        let window = CalendarPassOn.window(today: today, calendar: calendar)
+        func shared(_ id: String, _ title: String, _ kind: String, _ color: Int, _ choice: CalendarChoice) -> SharedCalendar {
+            SharedCalendar(id: SharedCalendar.id(deviceId: deviceId, calendarId: id), feedId: feedId, title: choice == .busy ? "" : title,
+                           accountKind: kind, colorHex: color, ownerId: mia.id, choice: choice)
+        }
+        let work = shared("work", "Work", "Exchange", 0x7E8CA0, .quiet)
+        let own = shared("own", "Mia", "iCloud", 0xDD7558, .everything)
+        let doctor = shared("doctor", "", "Google", 0x9AA0A6, .busy)
+        func event(_ calendar: SharedCalendar, _ id: String, _ title: String?, _ start: Date, _ end: Date, location: String? = nil) -> SharedEvent {
+            SharedEvent(id: SharedEvent.id(sharedCalendarId: calendar.id, occurrence: id), sharedCalendarId: calendar.id, matchKey: nil,
+                        title: title, location: location, notes: nil, start: start, end: end, isAllDay: false)
+        }
+        let events = [
+            event(work, "standup-0", "Standup", at(0, 9), at(0, 9.5)),
+            event(work, "crit-0", "Design crit", at(0, 11), at(0, 12)),
+            event(work, "review-0", "Launch review", at(0, 14), at(0, 17.5)),
+            event(work, "standup-1", "Standup", at(1, 9), at(1, 9.5)),
+            event(work, "planning-1", "Planning", at(1, 13), at(1, 15)),
+            event(own, "climb-0", "Climbing gym", at(0, 10), at(0, 11.5), location: "Mission Cliffs"),
+            event(own, "ballet-1", "Ava's ballet recital", at(1, 18), at(1, 19.5), location: "Lincoln Hall"),
+            event(doctor, "doctor-2", nil, at(2, 8), at(2, 9)),
+        ]
+        try database.writer.write { db in
+            try Device(id: deviceId, householdId: household.id, name: "Mia's iPhone", role: .personal, model: "iPhone",
+                       personId: mia.id, createdAt: passedOn, seenAt: passedOn).save(db)
+            try CalendarFeed(id: feedId, deviceId: deviceId, passedOnAt: passedOn, passedOnBy: .background,
+                             windowStart: window.start, windowEnd: window.end, eventCount: events.count).save(db)
+            for calendar in [work, own, doctor] { try calendar.save(db) }
+            for event in events { try event.save(db) }
+        }
+    }
+
     static let james = "sample-james"
     static let work = "sample-work"
     static let mia = "sample-mia"

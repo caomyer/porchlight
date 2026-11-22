@@ -38,6 +38,7 @@ struct SyncDetails: View {
 
 private struct SyncDetailsBody: View {
     @Environment(SyncController.self) private var sync
+    @Environment(CalendarStore.self) private var calendarStore
     let compact: Bool
     @State private var counts: SyncController.Counts?
     @State private var checking = false
@@ -70,6 +71,13 @@ private struct SyncDetailsBody: View {
             // Not sync, but the one other thing this device fetches from Apple on its own.
             row("Handwriting fonts", HandCompanionFonts.shared.summary)
                 .accessibilityIdentifier("sync-details-hand-fonts")
+            // How fresh each device keeps the shared calendar (docs/design/calendar-shared.md,
+            // "How fresh"): one line per device, to read the numbers off real devices.
+            let lines = CalendarFreshness.detailLines(calendarStore.snapshot.shared, now: CompanionClock.now(), calendar: calendarStore.calendar)
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                row("Calendars, \(line.device)", line.line)
+            }
+            .accessibilityIdentifier("sync-details-calendars")
             Button {
                 checking = true
                 Task {
