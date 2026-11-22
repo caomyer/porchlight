@@ -137,7 +137,23 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         XCTAssertTrue(name.label.hasPrefix("Last week"), "Back lands on the week it left: \(name.label)")
 
-        // A slot nobody filled thirteen days ago: snapped into, the meal stays in that week.
+        app.buttons["week-this"].tap()
+        XCTAssertTrue(name.label.hasPrefix("This week"), name.label)
+        XCTAssertFalse(app.buttons["week-this"].exists)
+        XCTAssertTrue(element(app, beginningWith: "On this day").exists, "This week has \"On this day\" again")
+    }
+
+    /// A slot nobody filled thirteen days ago: snapped into, the meal stays in that week,
+    /// and the diary stays on it. A test of its own: with the weeks above it was one test of
+    /// 94 to 121 seconds.
+    func testAPastSlotsMealStaysInItsWeek() {
+        let app = launch(["-debugCamera", "sample", "-cameraAccess", "allowed"])
+        let name = app.staticTexts["week-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        app.buttons["week-back"].tap()
+        XCTAssertTrue(app.buttons["week-this"].waitForExistence(timeout: 5))
+        XCTAssertTrue(name.label.hasPrefix("Last week"), name.label)
+
         let slot = app.buttons["plate-\(UITestClock.day(-13))-Lunch"]
         reveal(slot, in: app)
         slot.tap()
@@ -156,11 +172,6 @@ final class PhoneFoodTests: XCTestCase, PhoneTestHelpers {
         let soup = app.buttons["meal-Leftover soup"]
         reveal(soup, in: app)
         XCTAssertTrue(soup.exists, "It is in last week's diary")
-
-        app.buttons["week-this"].tap()
-        XCTAssertTrue(name.label.hasPrefix("This week"), name.label)
-        XCTAssertFalse(app.buttons["week-this"].exists)
-        XCTAssertTrue(element(app, beginningWith: "On this day").exists, "This week has \"On this day\" again")
     }
 
     // MARK: Where, one kind or several

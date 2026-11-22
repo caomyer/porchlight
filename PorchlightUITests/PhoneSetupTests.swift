@@ -127,6 +127,14 @@ final class PhoneSetupTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(archive.waitForExistence(timeout: 5))
         archive.tap()
         XCTAssertTrue(app.buttons["person-Nana"].waitForNonExistence(timeout: 5), "Archived, so not among the people")
+    }
+
+    /// The rest of setting the household up from the phone: a chore and a list. A test of
+    /// its own, started on the household's page (`-debugYouPage household`): with the people
+    /// above it was one test of 90 to 153 seconds, over the limit on a slow Mac.
+    func testAChoreAndAListFromThePhone() {
+        let app = launch(["-sampleHousehold", "-me", "James", "-debugSharing", "invited", "-startScreen", "you", "-debugYouPage", "household"])
+        XCTAssertTrue(app.staticTexts["Household"].waitForExistence(timeout: 60))
 
         // A chore, through the wall's editor.
         let chores = app.buttons["household-chores"]

@@ -46,6 +46,19 @@ struct SampleClockTests {
         }
     }
 
+    /// The app is the unit tests' host, and its clock is pinned there too, so a hosted
+    /// screen, the sample it shows and every default `now` agree on the day.
+    @Test("The unit tests themselves run on the pinned Wednesday morning")
+    func theUnitTestsAreOnThePinnedClock() throws {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        let pinned = try #require(formatter.date(from: CompanionClock.unitTestsNow))
+        #expect(CompanionClock.now() == pinned)
+        #expect(CompanionClock.at(.distantPast) == pinned, "and a screen's own date gives way to it")
+        #expect(CompanionClock.unitTestsNow == "2026-11-18T10:30", "the same time as `UITestClock.midweek` in the UI tests")
+    }
+
     @Test("At the UI tests' pinned time the week has walks, today has its breakfast, and the pancakes are six days back")
     func thePinnedTime() throws {
         let sample = try sample(day: 18, hour: 10, minute: 30)
