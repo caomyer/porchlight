@@ -170,6 +170,7 @@ struct SyncSchemaRulesTests {
         "device": "household",
         "dish": "household", "mealDish": "journalEntry", "mealDishRating": "mealDish",
         "recipe": "dish", "recipePhoto": "dish",
+        "calendarFeed": "device", "sharedCalendar": "calendarFeed", "sharedEvent": "sharedCalendar",
     ]
 
     /// Tables keyed by their parent's id, one row per parent, instead of an id of their own.

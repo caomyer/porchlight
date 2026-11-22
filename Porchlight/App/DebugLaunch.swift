@@ -136,6 +136,7 @@ enum DebugLaunch {
         let snapshot = try database.snapshot()
         guard let seeded = snapshot.household else { return household }
         try CalendarSamples.seed(database, household: seeded, people: snapshot.people)
+        try CalendarSamples.seedShared(database, household: seeded, people: snapshot.people, now: CompanionClock.now())
         try CompanionSamples.seed(database, household: seeded, people: snapshot.people)
         try FoodSamples.seed(database, household: seeded, people: snapshot.people)
         try HomeSamples.seed(database, household: seeded, people: snapshot.people)

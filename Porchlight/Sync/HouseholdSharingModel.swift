@@ -88,6 +88,10 @@ final class HouseholdSharingModel: StoredFirstObservable {
     /// from this device. Everything this person logged stays with the household. `app`
     /// forgets the household first, so its going isn't shown as someone removing it.
     func leave(_ household: Household, app: AppModel) async throws {
+        // What this device passed on of its calendars goes for everyone first, while it can
+        // still reach the household (docs/design/calendar-shared.md, "Removing").
+        try database.withdrawCalendars(householdId: household.id)
+        _ = await SyncController.current?.sendSoon(timeout: .seconds(15))
         var failure: (any Error)?
         await app.removeHouseholdHere {
             do {

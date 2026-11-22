@@ -155,14 +155,17 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         reveal(choose, in: app)
         XCTAssertTrue(choose.exists, "No calendars yet: one row to choose them")
         choose.tap()
-        XCTAssertTrue(app.staticTexts["Show your calendars on Today"].waitForExistence(timeout: 5), "Why, before the system asks")
+        XCTAssertTrue(app.staticTexts["Bring your calendars to the household"].waitForExistence(timeout: 5), "Why, before the system asks")
         snapshot("m3-60-calendars-ask")
         app.buttons["allow-calendars"].tap()
         let work = app.buttons["sharing-Work"]
         XCTAssertTrue(work.waitForExistence(timeout: 5))
         XCTAssertEqual(work.label, "Work is shared as Busy only")
         app.buttons["sharing-Mia"].tap()
-        app.buttons["Just me"].tap()
+        // Each choice in the menu says what it does under its name.
+        let justMe = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Just me")).firstMatch
+        XCTAssertTrue(justMe.waitForExistence(timeout: 5))
+        justMe.tap()
         XCTAssertTrue(app.buttons["Mia is shared as Just me"].waitForExistence(timeout: 5))
         snapshot("m3-61-calendars")
     }

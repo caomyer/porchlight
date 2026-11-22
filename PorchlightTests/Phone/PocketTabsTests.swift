@@ -153,15 +153,18 @@ struct PocketTabsTests {
             ExternalCalendar(id: "work", title: "Work", account: "Google", colorHex: 0x336699, kind: .regular),
         ])
         var source = try #require(try db.calendarSnapshot().sources.first)
-        #expect(source.sharing == .household, "A new calendar starts shared with the household")
-        for choice in CalendarSharing.allCases {
+        #expect(source.sharing == .everything, "A new calendar starts as Show everything")
+        for choice in CalendarChoice.allCases {
             try db.setCalendarSourceSharing(id: source.id, sharing: choice)
             source = try #require(try db.calendarSnapshot().sources.first)
             #expect(source.sharing == choice)
         }
-        try db.setCalendarSourceSharing(id: source.id, sharing: .busyOnly)
+        try db.setCalendarSourceSharing(id: source.id, sharing: .busy)
         source = try #require(try db.calendarSnapshot().sources.first)
         #expect(source.visibility == .busy)
         #expect(!source.isPersonal)
+        try db.setCalendarSourceSharing(id: source.id, sharing: .justMe)
+        source = try #require(try db.calendarSnapshot().sources.first)
+        #expect(source.isPersonal && source.visibility == .full)
     }
 }

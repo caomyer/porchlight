@@ -39,10 +39,12 @@ private func event(
 }
 
 private func source(visibility: CalendarVisibility = .full, shown: Bool = true, ownerId: Person.ID? = nil) -> CalendarSource {
-    CalendarSource(
+    var source = CalendarSource(
         id: 1, householdId: 1, externalId: "c", title: "Cal", account: "iCloud", colorHex: 0,
         ownerId: ownerId, visibility: visibility, isShown: shown, createdAt: .now
     )
+    (visibility == .busy ? CalendarChoice.busy : .everything).apply(to: &source)
+    return source
 }
 
 // MARK: - Mapping
@@ -102,14 +104,14 @@ struct CalendarMappingTests {
         let source = try #require(try db.calendarSnapshot().sources.first)
         let mia = try #require(people.first { $0.name == "Mia" }?.id)
         try db.setCalendarSourceOwner(id: source.id, owner: .person(mia))
-        try db.setCalendarSourceVisibility(id: source.id, visibility: .busy)
+        try db.setCalendarSourceSharing(id: source.id, sharing: .busy)
         try db.setCalendarSourceShown(id: source.id, isShown: false)
 
         try db.syncCalendarSources(householdId: id, calendars: [ExternalCalendar(id: "a", title: "Renamed", account: "y", colorHex: 2)])
         let updated = try #require(try db.calendarSnapshot().sources.first)
         #expect(try db.calendarSnapshot().sources.count == 1)
         #expect(updated.title == "Renamed" && updated.account == "y" && updated.colorHex == 2)
-        #expect(updated.ownerId == mia && updated.visibility == .busy && !updated.isShown)
+        #expect(updated.ownerId == mia && updated.sharing == .busy && updated.visibility == .busy && !updated.isShown)
     }
 
     @Test("Owners must live in the same household; removing a person hands calendars to everyone")
@@ -434,7 +436,7 @@ struct CalendarStoreTests {
     @Test("Today outputs: timeline items, all-day chips and countdowns")
     func todayOutputs() throws {
         let (store, _, _, people) = try makeStore()
-        store.setVisibility(.busy, for: try #require(store.mappings.first { $0.calendar.id == "work" }?.source))
+        store.setSharing(.busy, for: try #require(store.mappings.first { $0.calendar.id == "work" }?.source))
         store.reload()
         let items = store.timelineItems(for: key(7))
         #expect(items.map(\.title) == ["Busy", "Climbing gym"])
@@ -458,12 +460,12 @@ struct CalendarStoreTests {
     func edits() throws {
         let (store, _, db, people) = try makeStore()
         let work = try #require(store.mappings.first { $0.calendar.id == "work" }?.source)
-        #expect(work.visibility == .full)
-        store.setVisibility(.busy, for: work)
+        #expect(work.sharing == .everything)
+        store.setSharing(.busy, for: work)
         store.reload()
         #expect(store.timelineItems(for: key(7)).map(\.title) == ["Busy", "Climbing gym"])
 
-        store.setVisibility(.full, for: try #require(store.mappings.first { $0.calendar.id == "work" }?.source))
+        store.setSharing(.everything, for: try #require(store.mappings.first { $0.calendar.id == "work" }?.source))
         store.reload()
         #expect(store.timelineItems(for: key(7)).map(\.title) == ["Secret project", "Climbing gym"])
 

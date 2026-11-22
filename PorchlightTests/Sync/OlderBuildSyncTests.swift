@@ -226,6 +226,13 @@ private final class Cloud {
         }
     }
 
+    /// Each record's fields as text, by record name, to tell which changed.
+    func fields(type: String) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: records(type: type).map { record in
+            (record.recordID.recordName, record.allKeys().sorted().map { "\($0)=\(record.encryptedValues[$0] ?? record[$0] ?? "nil" as NSString)" }.joined(separator: ";"))
+        })
+    }
+
     func record(_ id: some CustomStringConvertible, type: String) -> CKRecord? {
         records(type: type).first { $0.recordID.recordName.hasPrefix(id.description.lowercased()) }
     }
@@ -241,17 +248,33 @@ private final class Phone {
     let engine: SyncEngine
     let build: Build
 
-    /// Which build a device runs: today's, the one from before recipes (dishes, but no
-    /// recipe tables and no planned dinner's dish), or the one from before dishes.
-    enum Build { case today, beforeRecipes, beforeDishes }
+    /// Which build a device runs: today's, the one from before the shared calendar, the one
+    /// from before recipes (dishes, but no recipe tables and no planned dinner's dish), or
+    /// the one from before dishes.
+    enum Build { case today, beforeCalendar, beforeRecipes, beforeDishes }
 
-    init(_ cloud: Cloud, build: Build, folder: URL? = nil) async throws {
+    /// Each device its own install, so each has its own row in the household.
+    init(_ cloud: Cloud, build: Build, folder: URL? = nil, install: String = UUID().uuidString) async throws {
         self.cloud = cloud
         self.build = build
         self.folder = folder ?? FileManager.default.temporaryDirectory
             .appendingPathComponent("older-build-\(UUID().uuidString)", isDirectory: true)
-        database = try AppDatabase.openOnDisk(folder: self.folder)
+        let installFile = self.folder.appendingPathComponent("install")
+        try FileManager.default.createDirectory(at: self.folder, withIntermediateDirectories: true)
+        let install = (try? String(contentsOf: installFile, encoding: .utf8)) ?? install
+        try install.write(to: installFile, atomically: true, encoding: .utf8)
+        database = try AppDatabase.openOnDisk(folder: self.folder, installId: install)
         if build != .today {
+            // Before the shared calendar: none of its tables, and no choice per calendar.
+            try await database.writer.write { db in
+                try db.execute(sql: """
+                    DROP TABLE "sharedEvent"; DROP TABLE "sharedCalendar"; DROP TABLE "calendarFeed";
+                    ALTER TABLE "calendarSource" DROP COLUMN "sharing";
+                    DELETE FROM grdb_migrations WHERE identifier = ?;
+                    """, arguments: [AppDatabase.sharedCalendarMigration])
+            }
+        }
+        if build == .beforeRecipes || build == .beforeDishes {
             // Before recipes: no recipe tables and no `dishId` on a planned dinner. Updating
             // runs that migration again.
             try await database.writer.write { db in
@@ -289,6 +312,7 @@ private final class Phone {
             tables: {
                 switch build {
                 case .today: Self.newerTables
+                case .beforeCalendar: Self.beforeCalendarTables
                 case .beforeRecipes: Self.beforeRecipesTables
                 case .beforeDishes: Self.olderTables
                 }
@@ -326,6 +350,13 @@ private final class Phone {
     }
 
     static var newerTables: [any SynchronizableTable] {
+        beforeCalendarTables + [
+            SynchronizedTable(for: SyncMirror.CalendarFeed.self), SynchronizedTable(for: SyncMirror.SharedCalendar.self),
+            SynchronizedTable(for: SyncMirror.SharedEvent.self),
+        ]
+    }
+
+    static var beforeCalendarTables: [any SynchronizableTable] {
         [
             SynchronizedTable(for: SyncMirror.Household.self), SynchronizedTable(for: SyncMirror.Person.self),
             SynchronizedTable(for: SyncMirror.Journal.self), SynchronizedTable(for: SyncMirror.FoodPlace.self),
@@ -334,8 +365,43 @@ private final class Phone {
             SynchronizedTable(for: SyncMirror.Dish.self), SynchronizedTable(for: SyncMirror.MealDish.self),
             SynchronizedTable(for: SyncMirror.MealDishRating.self),
             SynchronizedTable(for: SyncMirror.Recipe.self), SynchronizedTable(for: SyncMirror.RecipePhoto.self),
+            SynchronizedTable(for: SyncMirror.Device.self),
         ]
     }
+
+    /// A household with Mia, this device as her phone, and her calendars as the provider
+    /// would give them, chosen as asked; then one pass, as the store makes it. Returns the
+    /// household.
+    @discardableResult
+    func passOnMiasCalendars(_ choices: [String: CalendarChoice], household existing: Household? = nil, now: Date = SharedCalendarFixture.now) throws -> Household {
+        let household = try existing ?? database.createHousehold(
+            name: "The Lake House", people: [PersonDraft(name: "Mia", color: .coral), PersonDraft(name: "Sam", color: .blue)]
+        )
+        try database.markSetupCompleted(householdId: household.id)
+        let mia = try #require(try database.snapshot().people.first { $0.name == "Mia" })
+        try database.saveThisDevice(ThisDevice(name: "Mia's iPhone", role: .personal, model: "iPhone", personId: mia.id), in: household.id, now: now)
+        try database.syncCalendarSources(householdId: household.id, calendars: SharedCalendarFixture.calendars, now: now)
+        for source in try database.calendarSnapshot().sources {
+            try database.setCalendarSourceOwner(id: source.id, owner: .person(mia.id))
+            try database.setCalendarSourceSharing(id: source.id, sharing: choices[source.externalId] ?? .everything)
+        }
+        try database.markCalendarChoicesSeen(now: now)
+        try pass(household, now: now)
+        return household
+    }
+
+    /// One pass of this device's calendars, as `CalendarStore.passOn` makes it.
+    @discardableResult
+    func pass(_ household: Household, events: [ExternalEvent] = SharedCalendarFixture.events, now: Date = SharedCalendarFixture.now) throws -> CalendarPassResult? {
+        let calendar = household.calendar
+        let window = CalendarPassOn.window(today: DayKey(now, calendar: calendar), calendar: calendar)
+        let plan = CalendarPassOn.plan(
+            sources: try database.calendarSnapshot().sources, calendars: SharedCalendarFixture.calendars, events: events,
+            deviceId: database.thisDeviceId(in: household.id), deviceCalendar: calendar, householdCalendar: calendar
+        )
+        return try database.passOnCalendars(plan, householdId: household.id, trigger: .open, window: window, now: now)
+    }
+
 
     /// A household, a home dinner of chicken curry, its recipe with a photo of the card,
     /// and Friday's dinner planned from it. Returns the dish.
@@ -435,5 +501,199 @@ private enum OlderMirror {
         var createdAt: Date
         var placeId: UUID?
         var deviceId: UUID?
+    }
+}
+
+// MARK: - The shared calendar
+
+/// Mia's calendars, as her phone's provider gives them: her own, her work, and a doctor's
+/// calendar, each event's words marked so a test can tell whether they left the phone.
+enum SharedCalendarFixture {
+    static let now = Date(timeIntervalSince1970: 1_795_363_200) // Nov 22, 2026, 16:00 UTC, 08:00 in Los Angeles
+
+    static let calendars = [
+        ExternalCalendar(id: "mia-own", title: "Mia", account: "iCloud · mia@example.com", colorHex: 0xDD7558, accountKind: "iCloud"),
+        ExternalCalendar(id: "mia-work", title: "Work", account: "Exchange · mia@work.example", colorHex: 0x7E8CA0, accountKind: "Exchange"),
+        ExternalCalendar(id: "mia-doctor", title: "SECRET-CAL", account: "Google · mia@example.com", colorHex: 0x9AA0A6, accountKind: "Google"),
+    ]
+
+    static let events: [ExternalEvent] = [
+        ExternalEvent(id: "own-1@1", calendarId: "mia-own", title: "Soccer practice", location: "Lincoln field", start: now.addingTimeInterval(7 * 3600), end: now.addingTimeInterval(9 * 3600), isAllDay: false, externalItemId: "soccer@icloud"),
+        ExternalEvent(id: "work-1@1", calendarId: "mia-work", title: "Standup", start: now.addingTimeInterval(3600), end: now.addingTimeInterval(2 * 3600), isAllDay: false, externalItemId: "standup@work"),
+        ExternalEvent(id: "work-2@1", calendarId: "mia-work", title: "Planning", start: now.addingTimeInterval(5 * 3600), end: now.addingTimeInterval(6 * 3600), isAllDay: false),
+        ExternalEvent(id: "doc-1@1", calendarId: "mia-doctor", title: "SECRET-TITLE", location: "SECRET-PLACE", notes: "SECRET-NOTE", start: now.addingTimeInterval(26 * 3600), end: now.addingTimeInterval(27 * 3600), isAllDay: false, externalItemId: "SECRET-UID"),
+    ]
+
+    static let secrets = ["SECRET-TITLE", "SECRET-PLACE", "SECRET-NOTE", "SECRET-CAL", "SECRET-UID", "mia@example.com", "mia@work.example"]
+
+    /// Every string in every field of a record.
+    static func strings(_ record: CKRecord) -> [String] {
+        record.allKeys().compactMap { record.encryptedValues[$0] as? String ?? record[$0] as? String }
+    }
+}
+
+@MainActor
+@Suite("The shared calendar between two devices", .serialized)
+struct SharedCalendarSyncTests {
+    @Test("Mia's phone passes her calendars on, Sam's phone shows them, and Busy only and Just me keep their words on her phone")
+    func passesOn() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.passOnMiasCalendars(["mia-own": .everything, "mia-work": .quiet, "mia-doctor": .busy])
+        try await mia.engine.sendChanges()
+
+        // Nothing of the doctor's calendar but its times reached iCloud, nor any account.
+        for type in ["calendarFeed", "sharedCalendar", "sharedEvent"] {
+            for record in cloud.records(type: type) {
+                for text in SharedCalendarFixture.strings(record) {
+                    for secret in SharedCalendarFixture.secrets { #expect(!text.contains(secret), "\(secret) reached iCloud in \(type)") }
+                }
+            }
+        }
+        #expect(cloud.records(type: "sharedEvent").count == 4)
+
+        let sam = try await Phone(cloud, build: .today)
+        try await sam.engine.fetchChanges()
+        let samId = try #require(try sam.database.snapshot().people.first { $0.name == "Sam" }?.id)
+        try sam.database.saveThisDevice(ThisDevice(name: "Sam's iPhone", role: .personal, model: "iPhone", personId: samId), in: household.id)
+        let snapshot = try sam.database.calendarSnapshot()
+        let shown = SharedCalendarView.events(snapshot.shared, people: snapshot.people)
+        #expect(shown.map(\.title).sorted() == ["Busy", "Planning", "Soccer practice", "Standup"])
+        #expect(shown.filter(\.isQuiet).map(\.title).sorted() == ["Planning", "Standup"])
+        #expect(shown.first { $0.title == "Soccer practice" }?.location == "Lincoln field")
+        let miaId = try #require(snapshot.people.first { $0.name == "Mia" }?.id)
+        #expect(shown.allSatisfy { $0.owner == .person(miaId) })
+        let blocks = SharedCalendarView.quietBlocks(shown, people: snapshot.people, calendar: household.calendar)
+        let block = try #require(blocks.first { $0.isQuiet })
+        #expect(block.title == "Mia at work" && block.quietEvents.count == 2)
+        #expect(block.start == SharedCalendarFixture.now.addingTimeInterval(3600) && block.end == SharedCalendarFixture.now.addingTimeInterval(6 * 3600))
+
+        // Mia's phone never shows its own passed-on copy.
+        let own = try mia.database.calendarSnapshot()
+        #expect(SharedCalendarView.events(own.shared, people: own.people).isEmpty)
+    }
+
+    @Test("A pass with nothing new sends no event again; a changed event sends only that event")
+    func passesOnOnlyWhatChanged() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.passOnMiasCalendars([:])
+        try await mia.engine.sendChanges()
+        let first = cloud.fields(type: "sharedEvent")
+        let feed = cloud.fields(type: "calendarFeed")
+        #expect(first.count == 4)
+
+        let same = try #require(try mia.pass(household, now: SharedCalendarFixture.now.addingTimeInterval(60)))
+        // No row written is nothing sent: the engine sends only the rows a write touched.
+        #expect(same.inserted == 0 && same.updated == 0 && same.deleted == 0)
+        try await mia.engine.sendChanges()
+        #expect(cloud.fields(type: "sharedEvent") == first)
+        #expect(cloud.fields(type: "calendarFeed") != feed, "the feed says when")
+
+        var events = SharedCalendarFixture.events
+        events[0].title = "Soccer game"
+        let result = try #require(try mia.pass(household, events: events, now: SharedCalendarFixture.now.addingTimeInterval(120)))
+        #expect(result.updated == 1 && result.inserted == 0 && result.deleted == 0)
+        try await mia.engine.sendChanges()
+        let after = cloud.fields(type: "sharedEvent")
+        #expect(after.filter { first[$0.key] != $0.value }.count == 1, "only the changed event changed")
+    }
+
+    @Test("Setting a calendar to Just me, then leaving, removes what the phone passed on, for everyone")
+    func removing() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.passOnMiasCalendars([:])
+        try await mia.engine.sendChanges()
+        let sam = try await Phone(cloud, build: .today)
+        try await sam.engine.fetchChanges()
+        #expect(try sam.count("SELECT COUNT(*) FROM sharedEvent") == 4)
+
+        let work = try #require(try mia.database.calendarSnapshot().sources.first { $0.externalId == "mia-work" })
+        try mia.database.setCalendarSourceSharing(id: work.id, sharing: .justMe)
+        try mia.pass(household)
+        try await mia.engine.sendChanges()
+        try await sam.engine.fetchChanges()
+        #expect(try sam.count("SELECT COUNT(*) FROM sharedEvent") == 2)
+        #expect(try sam.count("SELECT COUNT(*) FROM sharedCalendar") == 2)
+        #expect(cloud.records(type: "sharedEvent").count == 2, "gone from iCloud too")
+
+        try mia.database.withdrawCalendars(householdId: household.id)
+        try await mia.engine.sendChanges()
+        try await sam.engine.fetchChanges()
+        #expect(try sam.count("SELECT COUNT(*) FROM calendarFeed") == 0)
+        #expect(try sam.count("SELECT COUNT(*) FROM sharedEvent") == 0)
+        #expect(cloud.records(type: "sharedEvent").isEmpty && cloud.records(type: "sharedCalendar").isEmpty)
+    }
+
+    @Test("Nothing is passed on before the choices have been seen on the device")
+    func notBeforeChoicesSeen() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.database.createHousehold(name: "Home", people: [PersonDraft(name: "Mia", color: .coral)])
+        try mia.database.saveThisDevice(ThisDevice(name: "Mia's iPhone", role: .personal, model: "iPhone"), in: household.id)
+        try mia.database.syncCalendarSources(householdId: household.id, calendars: SharedCalendarFixture.calendars)
+        let provider = FixedCalendarProvider(calendars: SharedCalendarFixture.calendars, events: SharedCalendarFixture.events)
+        let store = CalendarStore(database: mia.database, provider: provider, now: { SharedCalendarFixture.now }, passesOn: false)
+        #expect(store.passOn(.open) == nil)
+        #expect(try mia.count("SELECT COUNT(*) FROM calendarFeed") == 0)
+        store.choicesSeen()
+        try await Task.sleep(for: .milliseconds(200))
+        let result = try #require(store.passOn(.open))
+        #expect(result.events == 4)
+    }
+
+    @Test("A build from before the shared calendar keeps syncing everything else, can't remove a device that passed calendars on, and gets them on updating")
+    func olderBuild() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .today)
+        let household = try mia.passOnMiasCalendars([:])
+        try await mia.engine.sendChanges()
+
+        var older = try await Phone(cloud, build: .beforeCalendar)
+        try await older.engine.fetchChanges()
+        #expect(try older.hasTable("sharedEvent") == false)
+        for type in ["calendarFeed", "sharedCalendar", "sharedEvent"] {
+            #expect(try older.waiting(recordType: type) > 0, "\(type) waits in the engine's metadata")
+        }
+        // It still syncs the rest: a meal it logs reaches today's build.
+        let journal = try older.database.ensureFoodJournal(householdId: household.id)
+        let meal = MealDraft(day: DayKey(SharedCalendarFixture.now, calendar: household.calendar), slot: "Dinner", eaterIds: try older.database.snapshot().people.map(\.id), eatenAt: SharedCalendarFixture.now)
+        _ = try older.database.addMeal(meal, journalId: journal.id)
+        try await older.engine.sendChanges()
+        try await mia.engine.fetchChanges()
+        #expect(try mia.count("SELECT COUNT(*) FROM journalEntry") == 1)
+
+        // Removing Mia's phone there: iCloud keeps a device that is still a parent.
+        let deviceId = mia.database.thisDeviceId(in: household.id)
+        try older.write("DELETE FROM device WHERE id = ?", deviceId)
+        try await older.engine.sendChanges()
+        #expect(cloud.record(deviceId, type: "device") != nil)
+        #expect(cloud.records(type: "sharedEvent").count == 4)
+
+        older = try await older.updated()
+        try await older.engine.fetchChanges()
+        #expect(try older.count("SELECT COUNT(*) FROM sharedEvent") == 4, "every event on the first launch, parents first")
+        #expect(try older.count("SELECT COUNT(*) FROM calendarFeed") == 1)
+    }
+}
+
+/// A provider that always has the same calendars and events.
+@MainActor
+final class FixedCalendarProvider: CalendarProvider {
+    let fixedCalendars: [ExternalCalendar]
+    let fixedEvents: [ExternalEvent]
+    var onChange: (@MainActor () -> Void)?
+    var access: CalendarAccess = .granted
+
+    init(calendars: [ExternalCalendar], events: [ExternalEvent]) {
+        fixedCalendars = calendars
+        fixedEvents = events
+    }
+
+    func requestAccess() async -> CalendarAccess { access }
+    func calendars() -> [ExternalCalendar] { access == .granted ? fixedCalendars : [] }
+    func events(in interval: DateInterval, calendarIds: Set<String>) -> [ExternalEvent] {
+        fixedEvents.filter { calendarIds.contains($0.calendarId) && $0.end > interval.start && $0.start < interval.end }
     }
 }

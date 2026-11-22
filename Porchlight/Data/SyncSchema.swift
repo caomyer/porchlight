@@ -19,7 +19,7 @@ enum SyncSchema {
     /// Every id column: a lowercase UUID, which SQLiteData and CloudKit record names expect.
     static let id = #""id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid())"#
 
-    private static func parent(_ column: String, _ table: String) -> String {
+    static func parent(_ column: String, _ table: String) -> String {
         #""\#(column)" TEXT NOT NULL REFERENCES "\#(table)"("id") ON DELETE CASCADE"#
     }
 
@@ -194,7 +194,7 @@ enum SyncSchema {
 
     /// Every table, synced or not, in the order the migrations create them.
     static var all: [Table] {
-        tables + photoTables + householdTables + dishTables + recipeTables
+        tables + photoTables + householdTables + dishTables + recipeTables + calendarTables
     }
 
     /// Every synced table, parents before children, in the order the sync engine is given them.

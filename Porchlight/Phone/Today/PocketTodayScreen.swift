@@ -245,7 +245,7 @@ private struct PocketAgendaCard: View {
     @Environment(CalendarStore.self) private var calendarStore
 
     var body: some View {
-        if calendarStore.access != .granted || !calendarStore.mappings.contains(where: \.source.isShown) {
+        if !calendarStore.showsOwnCalendars && !calendarStore.hasOthersCalendars {
             Button { open(.calendars) } label: {
                 HStack(spacing: 10) {
                     Text("📅").phoneFont(.body, 20).accessibilityHidden(true)
@@ -294,19 +294,42 @@ private struct PocketAgendaCard: View {
                 VStack(spacing: 0) {
                     ForEach(Array(allDay.enumerated()), id: \.element.id) { index, item in
                         if index > 0 { RowDivider() }
-                        row(time: "All day", title: item.title, subtitle: nil, owner: item.owner)
+                        row(time: "All day", title: item.title, subtitle: nil, owners: owners(item.id, item.owner))
                     }
                     ForEach(Array(timed.enumerated()), id: \.element.id) { index, item in
                         if index > 0 || !allDay.isEmpty { RowDivider() }
-                        row(time: ClockFormat.time(item.time, calendar: calendarStore.calendar), title: item.title, subtitle: item.subtitle, owner: item.owner)
+                        row(time: ClockFormat.time(item.time, calendar: calendarStore.calendar), title: item.title, subtitle: item.subtitle, owners: owners(item.id, item.owner))
                     }
+                }
+                StaleCalendarLines(sources: calendarStore.staleSources, fontSize: 12)
+                    .padding(.top, 4)
+                if !calendarStore.showsOwnCalendars {
+                    RowDivider()
+                    Button { open(.calendars) } label: {
+                        HStack(spacing: 8) {
+                            Text("Add this \(DeviceWords.this)'s calendars")
+                                .phoneFont(.body, 13, weight: 700, relativeTo: .footnote)
+                                .foregroundStyle(Theme.accent)
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.muted)
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("choose-calendars")
                 }
             }
             .phoneCard()
         }
     }
 
-    private func row(time: String, title: String, subtitle: String?, owner: Owner) -> some View {
+    /// Everyone the event is for: the owner, and anyone else with the same event.
+    private func owners(_ itemId: String, _ owner: Owner) -> [Owner] {
+        calendarStore.event(id: String(itemId.dropFirst("calendar-".count)))?.owners ?? [owner]
+    }
+
+    private func row(time: String, title: String, subtitle: String?, owners: [Owner]) -> some View {
         AdaptiveRow {
             Text(time)
                 .phoneFont(.body, 12, weight: 700, relativeTo: .caption)
@@ -324,13 +347,31 @@ private struct PocketAgendaCard: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                if case let .person(id) = owner {
-                    PersonAvatar(model.person(id), size: .small)
-                }
+                PocketFaces(owners: owners)
             }
         }
         .padding(.vertical, 7)
         .frame(minHeight: 44)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The small faces of everyone an event is for; none for the whole household.
+struct PocketFaces: View {
+    let owners: [Owner]
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let people = owners.compactMap { owner -> Person? in
+            if case let .person(id) = owner { return model.person(id) } else { return nil }
+        }
+        if !people.isEmpty {
+            HStack(spacing: -8) {
+                ForEach(people) { person in
+                    PersonAvatar(person, size: .small)
+                        .background(Circle().fill(Theme.surface).padding(-1.5))
+                }
+            }
+        }
     }
 }

@@ -71,38 +71,20 @@ struct CalendarSource: Codable, Equatable, Identifiable, Sendable {
     var visibility: CalendarVisibility
     var isShown: Bool
     var createdAt: Date
-    /// Kept to this device ("Just me"), never shown to the household. Calendars are only
-    /// read on the device that has them today, so this matters once mappings sync.
+    /// Kept to this device ("Just me"). Kept in step with `sharing`, which says it now.
     var isPersonal = false
+    /// What the household gets from this calendar (docs/design/calendar-shared.md).
+    var sharing: CalendarChoice = .everything
 
     var owner: Owner { ownerId.map(Owner.person) ?? .everyone }
-
-    /// How the phone's Calendars page describes the calendar's sharing.
-    var sharing: CalendarSharing {
-        if isPersonal { return .justMe }
-        return visibility == .busy ? .busyOnly : .household
-    }
 }
 
-/// What someone chooses for one of their calendars on the phone: shared with the
-/// household in full, shared as busy only, or kept to this device.
-enum CalendarSharing: String, CaseIterable, Identifiable, Sendable {
-    case household, busyOnly, justMe
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .household: "Household"
-        case .busyOnly: "Busy only"
-        case .justMe: "Just me"
-        }
-    }
-
-    /// The source's settings for this choice.
+extension CalendarChoice {
+    /// The source's settings for this choice, the older columns kept in step with it.
     func apply(to source: inout CalendarSource) {
+        source.sharing = self
         source.isPersonal = self == .justMe
-        source.visibility = self == .busyOnly ? .busy : .full
+        source.visibility = self == .busy ? .busy : .full
     }
 }
 
@@ -181,11 +163,7 @@ extension AppDatabase {
         }
     }
 
-    func setCalendarSourceVisibility(id: CalendarSource.ID, visibility: CalendarVisibility) throws {
-        try updateCalendarSource(id: id) { $0.visibility = visibility }
-    }
-
-    func setCalendarSourceSharing(id: CalendarSource.ID, sharing: CalendarSharing) throws {
+    func setCalendarSourceSharing(id: CalendarSource.ID, sharing: CalendarChoice) throws {
         try updateCalendarSource(id: id) { sharing.apply(to: &$0) }
     }
 
@@ -209,29 +187,47 @@ struct CalendarSnapshot: Equatable, Sendable {
     var household: Household?
     var people: [Person]
     var sources: [CalendarSource]
+    /// Whether this device's calendar choices have been shown here: nothing is passed on before.
+    var choicesSeen = false
+    /// What every device passed on (docs/design/calendar-shared.md).
+    var shared: SharedCalendarSnapshot = .empty
 
     static let empty = CalendarSnapshot(household: nil, people: [], sources: [])
 
-    static func fetch(_ db: Database) throws -> CalendarSnapshot {
+    static func fetch(_ db: Database, install: String) throws -> CalendarSnapshot {
         let base = try HouseholdSnapshot.fetch(db)
         guard let id = base.household?.id else { return .empty }
         let sources = try CalendarSource
             .filter(Column("householdId") == id)
             .order(Column("createdAt"), Column("id"))
             .fetchAll(db)
-        return CalendarSnapshot(household: base.household, people: base.people, sources: sources)
+        return CalendarSnapshot(
+            household: base.household, people: base.people, sources: sources,
+            choicesSeen: try DeviceState.value(.calendarChoicesSeen, db) != nil,
+            shared: try SharedCalendarSnapshot.fetch(db, householdId: id, thisDeviceId: Device.id(householdId: id, install: install))
+        )
     }
 }
 
 extension AppDatabase {
     func calendarSnapshot() throws -> CalendarSnapshot {
-        try writer.read(CalendarSnapshot.fetch)
+        let install = installId
+        return try writer.read { try CalendarSnapshot.fetch($0, install: install) }
     }
 
     func calendarUpdates() -> AsyncValueObservation<CalendarSnapshot> {
-        ValueObservation
-            .tracking(CalendarSnapshot.fetch)
+        let install = installId
+        return ValueObservation
+            .tracking { try CalendarSnapshot.fetch($0, install: install) }
             .removeDuplicates()
             .values(in: writer)
+    }
+
+    /// Remembers that this device's calendar choices have been shown, once.
+    func markCalendarChoicesSeen(now: Date = .now) throws {
+        try writer.write { db in
+            guard try DeviceState.value(.calendarChoicesSeen, db) == nil else { return }
+            try DeviceState.set(.calendarChoicesSeen, ISO8601DateFormatter().string(from: now), db)
+        }
     }
 }

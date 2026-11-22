@@ -23,6 +23,19 @@ struct CalendarEvent: Identifiable, Equatable, Sendable {
     var calendarTitle: String
     /// From a calendar named like Birthdays or Holidays (or Contacts' birthdays).
     var isFromSpecialCalendar: Bool
+    /// The same event on every device (`CalendarPassOn.matchKey`), to show it once.
+    var matchKey: String? = nil
+    /// The others whose calendars have the same event: each shows a face beside the owner's.
+    var alsoFor: [Owner] = []
+    /// Passed on from another device's calendar set to Keep it quiet.
+    var isQuiet = false
+    /// For a quiet block: the events it stands for, listed on tap.
+    var quietEvents: [CalendarEvent] = []
+    /// Where it came from, for the event's sheet: "From Sam's Google". nil for this device's own.
+    var from: String? = nil
+
+    /// The owner and everyone else with the same event, each once.
+    var owners: [Owner] { [owner] + alsoFor.filter { $0 != owner } }
 
     /// Spans the all-day lane: all-day events and anything a day or longer.
     var isAllDayLike: Bool { isAllDay || end.timeIntervalSince(start) >= 24 * 3600 }
@@ -34,7 +47,15 @@ struct CalendarEvent: Identifiable, Equatable, Sendable {
     /// calendar is hidden from the wall.
     static func resolve(_ event: ExternalEvent, source: CalendarSource, kind: ExternalCalendar.Kind = .regular) -> CalendarEvent? {
         guard source.isShown else { return nil }
-        let special = kind == .birthdays || isSpecialCalendarTitle(source.title)
+        var resolved = resolve(event, owner: source.owner, isBusy: source.sharing == .busy, calendarTitle: source.title, kind: kind)
+        resolved.matchKey = CalendarPassOn.matchKey(event.externalItemId)
+        return resolved
+    }
+
+    /// Applies an owner and a choice to one occurrence: a Busy only one keeps its times
+    /// and reads "Busy"; the rest get their emoji and celebration from the title.
+    static func resolve(_ event: ExternalEvent, owner: Owner, isBusy: Bool, calendarTitle: String, kind: ExternalCalendar.Kind = .regular) -> CalendarEvent {
+        let special = kind == .birthdays || isSpecialCalendarTitle(calendarTitle)
         var resolved = CalendarEvent(
             id: event.id,
             calendarId: event.calendarId,
@@ -46,9 +67,9 @@ struct CalendarEvent: Identifiable, Equatable, Sendable {
             start: event.start,
             end: max(event.end, event.start),
             isAllDay: event.isAllDay,
-            owner: source.owner,
-            isBusy: source.visibility == .busy,
-            calendarTitle: source.title,
+            owner: owner,
+            isBusy: isBusy,
+            calendarTitle: calendarTitle,
             isFromSpecialCalendar: special
         )
         guard !resolved.isBusy else { return resolved }

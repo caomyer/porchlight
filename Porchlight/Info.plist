@@ -6,6 +6,7 @@
 	<array>
 		<string>com.mingyucao.porchlight.widgets.refresh</string>
 		<string>com.mingyucao.porchlight.sync.send</string>
+		<string>com.mingyucao.porchlight.calendar.passOn</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>

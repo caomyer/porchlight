@@ -83,6 +83,9 @@ enum DeviceState {
         case currentHouseholdName
         /// Changes on every launch; compared with UserDefaults (`DatabaseIdentity`).
         case databaseToken
+        /// When this device's calendar choices were first shown: nothing is passed on from
+        /// a device before (docs/design/calendar-shared.md, "A newly seen calendar").
+        case calendarChoicesSeen
     }
 
     /// Who owns a household this device joined, so it can say who removed it.
