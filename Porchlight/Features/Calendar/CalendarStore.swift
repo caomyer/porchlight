@@ -84,7 +84,7 @@ final class CalendarStore: StoredFirstObservable {
         self.init(database: database, provider: Self.defaultProvider())
     }
 
-    init(database: AppDatabase, provider: any CalendarProvider, now: @escaping () -> Date = { .now }) {
+    init(database: AppDatabase, provider: any CalendarProvider, now: @escaping () -> Date = { CompanionClock.now() }) {
         self.database = database
         self.provider = provider
         self.now = now

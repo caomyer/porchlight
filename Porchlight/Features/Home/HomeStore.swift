@@ -36,7 +36,7 @@ final class HomeStore: StoredFirstObservable {
         self.database = database
         self.photoLibrary = photoLibrary
         let household = try? database.snapshot().household
-        today = DayKey(.now, calendar: household?.calendar ?? .current)
+        today = DayKey(CompanionClock.now(), calendar: household?.calendar ?? .current)
         // Read synchronously once so the first frame has data, then keep listening.
         if let first = try? database.homeSnapshot(since: Self.windowStart(for: today, calendar: household?.calendar ?? .current)) {
             snapshot = first
@@ -136,7 +136,7 @@ final class HomeStore: StoredFirstObservable {
                     let switched = snapshot.household?.id != self.snapshot.household?.id
                     self.snapshot = snapshot
                     if switched {
-                        let today = DayKey(.now, calendar: self.calendar)
+                        let today = DayKey(CompanionClock.now(), calendar: self.calendar)
                         if today != self.today { self.today = today }
                     }
                 }
@@ -153,7 +153,7 @@ final class HomeStore: StoredFirstObservable {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(30))
                 guard let self else { return }
-                let now = DayKey(.now, calendar: self.calendar)
+                let now = DayKey(CompanionClock.now(), calendar: self.calendar)
                 if now != self.today {
                     self.today = now
                     self.observe()
@@ -194,7 +194,7 @@ final class HomeStore: StoredFirstObservable {
 
     /// Checks a chore off today unless it is already done, crediting `personId` for
     /// "Anyone" chores. Nil, with `lastError` set, when it is rejected.
-    func complete(_ chore: Chore, by personId: Person.ID?, now: Date = .now) -> ChoreCheckOff? {
+    func complete(_ chore: Chore, by personId: Person.ID?, now: Date = CompanionClock.now()) -> ChoreCheckOff? {
         let id = chore.id
         let day = today
         var result: ChoreCheckOff?
@@ -219,7 +219,7 @@ final class HomeStore: StoredFirstObservable {
     /// Spends a reached reward's stars ("cash in") and starts it over. Returns the cash-in,
     /// or nil when it didn't happen (another tap or device already cashed this round in).
     @discardableResult
-    func cashIn(_ reward: Reward, now: Date = .now) -> RewardRedemption? {
+    func cashIn(_ reward: Reward, now: Date = CompanionClock.now()) -> RewardRedemption? {
         let id = reward.id
         let stars = earned(toward: reward)
         let known = snapshot.redemptions.first { $0.rewardId == id }?.id

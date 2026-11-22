@@ -416,7 +416,7 @@ struct LogTimeField<Leading: View>: View {
     @Binding var time: LogTime
     /// Within one day, e.g. the meal's day up to now.
     let range: ClosedRange<Date>
-    var now: Date = .now
+    var now: Date = CompanionClock.now()
     /// How long it lasted, so "just now" means it just ended.
     var lasting = 0
     var suggestions: [(title: String, time: LogTime)] = []

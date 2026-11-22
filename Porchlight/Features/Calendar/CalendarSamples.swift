@@ -60,7 +60,7 @@ final class SampleCalendarProvider: CalendarProvider {
     private let calendar: Calendar
     private lazy var allEvents: [ExternalEvent] = makeEvents()
 
-    init(calendar: Calendar = .current, now: Date = .now) {
+    init(calendar: Calendar = .current, now: Date = CompanionClock.now()) {
         self.calendar = calendar
         self.today = calendar.startOfDay(for: now)
     }

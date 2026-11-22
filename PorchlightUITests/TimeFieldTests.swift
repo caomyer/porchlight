@@ -48,7 +48,7 @@ final class TimeFieldTests: XCTestCase {
     /// is one tap, and AM | PM flips the half of the day.
     func testTypingAMealTime() {
         let app = XCUIApplication.porchlight()
-        app.launchArguments = ["-sampleHousehold", "-startScreen", "food"]
+        app.launchArguments = ["-sampleHousehold", "-startScreen", "food"] + UITestClock.arguments
         app.launch()
 
         let meal = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Breakfast: Pancakes'")).firstMatch
@@ -103,7 +103,7 @@ final class TimeFieldTests: XCTestCase {
         // afterwards, pass or fail, so nothing here has to put them back.
         forgetDisplaySettingsAfterwards()
         let app = XCUIApplication.porchlight()
-        app.launchArguments = ["-sampleHousehold", "-startScreen", "settings"]
+        app.launchArguments = ["-sampleHousehold", "-startScreen", "settings"] + UITestClock.arguments
         app.launch()
 
         XCTAssertTrue(app.textFields["Household name"].firstMatch.waitForExistence(timeout: 30))
@@ -126,7 +126,7 @@ final class TimeFieldTests: XCTestCase {
     /// A routine's window can't end before it starts, and says so.
     func testARoutineWindow() {
         let app = XCUIApplication.porchlight()
-        app.launchArguments = ["-sampleHousehold", "-startScreen", "settings", "-debugCompanionSheet", "routine"]
+        app.launchArguments = ["-sampleHousehold", "-startScreen", "settings", "-debugCompanionSheet", "routine"] + UITestClock.arguments
         app.launch()
 
         let start = element(app, "window-start"), end = element(app, "window-end")

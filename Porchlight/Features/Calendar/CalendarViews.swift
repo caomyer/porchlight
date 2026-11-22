@@ -15,7 +15,7 @@ struct CalendarScreen: View {
 
     @State private var mode: CalendarMode = .initial
     /// Any date inside the visible week, month or day.
-    @State private var anchor = Date.now
+    @State private var anchor = CompanionClock.now()
     @State private var selected: CalendarEvent?
 
     private var calendar: Calendar { store.calendar }
@@ -23,8 +23,8 @@ struct CalendarScreen: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
             VStack(alignment: .leading, spacing: 16) {
-                header(now: context.date)
-                content(now: context.date)
+                header(now: CompanionClock.at(context.date))
+                content(now: CompanionClock.at(context.date))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .simultaneousGesture(swipe)
             }

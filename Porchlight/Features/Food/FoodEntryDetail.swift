@@ -482,7 +482,7 @@ struct MealEdit: Equatable {
     }
 
     /// The meal's day, up to now if that's today.
-    static func timeRange(for entry: JournalEntry, calendar: Calendar, now: Date = .now) -> ClosedRange<Date> {
+    static func timeRange(for entry: JournalEntry, calendar: Calendar, now: Date = CompanionClock.now()) -> ClosedRange<Date> {
         let start = entry.dayKey.startDate(in: calendar)
         let end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-60) ?? start
         return start...max(start, min(end, now))
@@ -492,7 +492,7 @@ struct MealEdit: Equatable {
     /// to that slot's usual hour, so the day's timeline keeps meals in order.
     func draft(for entry: JournalEntry, calendar: Calendar) -> MealDraft {
         let range = Self.timeRange(for: entry, calendar: calendar)
-        var eatenAt = min(max(time.start(now: .now), range.lowerBound), range.upperBound)
+        var eatenAt = min(max(time.start(now: CompanionClock.now()), range.lowerBound), range.upperBound)
         if slot != entry.slot, time == .at(entry.eatenAt) {
             eatenAt = MealSlot.usualTime(of: slot, on: entry.dayKey, calendar: calendar)
         }

@@ -134,20 +134,28 @@ struct CompanionSnapshot: Equatable, Sendable {
     }
 }
 
-/// "Now" for companion screens, the sample household and the phone's writes. DEBUG
-/// builds can pin it with the `-debugCompanionNow 2026-11-07T18:05` launch argument for
-/// screenshots and UI tests.
+/// "Now" for every screen's idea of what day and what time it is, for the sample household
+/// and for the phone's writes. DEBUG builds can pin it with the
+/// `-debugCompanionNow 2026-11-07T18:05` launch argument for screenshots and UI tests: a
+/// pinned clock stands still, so a test that starts at 11:59 pm does not see the day change
+/// under it, and one that starts on a Sunday does not find the week empty.
+///
+/// It is not for stamps: when a row was written, how long ago a device was seen, how long
+/// the wall has gone untouched. Those stay on the real clock, pinned or not.
 enum CompanionClock {
-    static func now() -> Date {
+    static func now() -> Date { at(.now) }
+
+    /// The time a screen was handed (a `TimelineView`'s date), or the pinned time instead.
+    static func at(_ date: Date) -> Date {
         #if DEBUG
         if let text = UserDefaults.standard.string(forKey: "debugCompanionNow") {
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-            if let date = formatter.date(from: text) { return date }
+            if let pinned = formatter.date(from: text) { return pinned }
         }
         #endif
-        return .now
+        return date
     }
 }
 

@@ -28,7 +28,7 @@ struct FoodScreen: View {
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            let today = store.today(context.date)
+            let today = store.today(CompanionClock.at(context.date))
             ZStack {
                 VStack(alignment: .leading, spacing: 16) {
                     header(today: today)
@@ -279,7 +279,7 @@ struct FoodTodayCard: View {
     var body: some View {
         if store.isEnabled {
             TimelineView(.everyMinute) { context in
-                let today = store.today(context.date)
+                let today = store.today(CompanionClock.at(context.date))
                 card(today: today)
             }
             .wallCover(item: $capture) { request in
