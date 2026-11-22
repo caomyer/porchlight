@@ -20,7 +20,7 @@ Every number is from the run named in its column, on GitHub's hosted Macs (3 cor
 | A full run from start to green, with no queueing | 48.6 minutes | about 40 minutes: a build of 4 to 9 minutes, then a longest job of 28 to 31 | 30 minutes |
 | A push to a working branch, with no queueing | 48.6 minutes: every push ran everything | about 20 minutes: the unit tests and the smoke set (run 44888821802) | 20 minutes |
 | Unit tests | 572 | 648 | |
-| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 20 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
+| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 25 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
 
 What the table says plainly: the tests take a quarter to a third less time than at the start, with eight journeys added since, and the same test's seconds move by a half and more from one hosted Mac to the next (the unit tests' step took 198, 283 and 452 seconds in three runs of the same code), so one run's total is a sample and not a measurement.
 The ceiling of 120 seconds holds on an ordinary Mac and is broken on a slow one by the two tests that sit nearest to it; they are the next to shorten.
@@ -357,6 +357,11 @@ Before it, 2 classes were pinned whole, 11 were pinned to the real day at a fixe
 | The real day at 5:20 pm | `PhoneRemindersTests` | The real day of the week. Its reminders are handed to iOS, which delivers them by the real clock, so a day in the past could never ring |
 | The simulator's real calendar | `FirstRunTests`, for the events it is shown after the system's prompt | It asserts the prompt and the first screen, not a day |
 
+The first full run with every launch pinned (45004513685) passed 141 of 142 UI tests, in 5,563 seconds with none over 120.
+The one that failed was `HouseholdTests.testRowsFromPhonesAreTaggedAndArrivalsNamed`: the debug arrivals it launches with (`-debugArrival`) tagged the real day's rows as from Mia's phone and logged James's walk on the real day, while Today showed the pinned one.
+They now use the day the screens call today (`DebugArrivals`), and keep the real clock for when the row arrived.
+That is the kind of place a pin finds: a debug seeder that still asks the real clock which day it is.
+
 The hosted screens in the unit tests seed the same sample around the real time (`PocketWeekScreenTests`, `PocketCareSheetScreenTests`, `PocketTabsScreenTests`, `PocketFoodScreenTests`, `PocketDishesScreenTests`, `PocketRecipesScreenTests`); they assert where things sit and not what day it is, and the samples take the time as a parameter, so they can be pinned the same way.
 
 #### A new feature and the clock
@@ -465,6 +470,7 @@ Do not provoke one for the purpose.
 | 44963685565, November 22, the full suite with recipes | Not started | 5 (2 iPads in 169 and 216 s, 3 iPhones in 175 to 235 s) | 62% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the week grid on the real clock in a Sunday's first hour ("Flaky tests") |
 | 44967355168, November 22, the full suite with the two classes pinned | Not started | 5 (2 iPads in 187 and 193 s, 3 iPhones in 205 to 261 s) | 60% in a boot step; 42% in any test step | 0 | Neither, and no test needed a second launch. Green, in a Sunday's second hour |
 | 44973740449, November 22, the full suite on the recipe link's branch | Not started | 5 (2 iPads in 152 and 181 s, 3 iPhones in 237 to 261 s) | 63% in a boot step; 47% in any test step | 0 | Neither, and no test needed a second launch. Green on its first attempt |
+| 45004513685, November 22, the full suite with every launch pinned | Not started | 5 (2 iPads in 196 and 269 s, 3 iPhones in 126 to 302 s) | 60% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the pin's own: the debug arrivals were still written on the real day ("The UI tests and the real clock") |
 
 That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
 The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
@@ -929,7 +935,8 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | WallRecipesTests.testCookingFromTheBank | 29 | We made this opens Snap with the dish on the meal; it saves | Keep | | |
 | WallRecipesTests.testPlanningADinnerFromTheBank | 26 | Plan it, tonight, said | Keep | | |
 | WallRecipesTests.testIngredientsToTheGroceryList | 24 | Two ticked go to groceries; Undo takes them back | Keep; the grocery names are `RecipeLogicTests` | | |
-| CompanionEditorTests.testAddingARoutineFromSettings | 103 | Editor, routine, photo picker, save | Keep; over the limit, split at the photo picker | 20 | |
+| CompanionEditorTests.testAddingARoutineFromSettings | 103 | Editor, routine, save | Keep. It took 164 s on a slow Mac in run 44967355168 (76 to 103 in others), so the photo picker became a test of its own | | done |
+| CompanionEditorTests.testThePhotoPickerOpensFromTheEditor | 22 locally | The system's photo picker opens from the editor, Cancel puts it away, and the editor still answers | New on November 22: started in the editor with `-debugCompanionSheet editor` | | |
 | FirstRunTests.testOnboardingWithRealCalendarAccess | 101 | First run with the real prompt | Keep (smoke); its length is the system prompt's | | |
 | ScrollingTests.testSettingsScrollsToTheLastSection | 32 | Settings scrolls to the end | Keep (scrolling) | | |
 | ScrollingTests.testTouchesKeepTheWallAwake | 55 | Touches hold off Ambient, timed against a 12 second "minute" | Down for the rule (`IdleRuleTests`, every time handed in); the UI test is now `testTouchesReachTheIdleWatcherAndAnUntouchedWallGoesToAmbient`: a real drag is counted by the idle watcher, and an untouched wall goes to Ambient, neither of which a slow Mac can fail. It went red on the release line on November 21 ("Flaky tests") |  | done, 34 s measured |
