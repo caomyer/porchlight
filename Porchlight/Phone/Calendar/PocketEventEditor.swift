@@ -8,11 +8,14 @@ import SwiftUI
 struct PocketEventEditor: View {
     /// What it starts from: a new event in `calendar`, or a change to an existing one.
     enum Start: Identifiable {
-        case new(ExternalCalendar)
+        /// A new event in `calendar`; `at` is a start chosen before the sheet opened (a free
+        /// evening in Free together): what the line says replaces it only when it names a day
+        /// or a time, read from that day. In the item itself, so the sheet never sees a stale one.
+        case new(ExternalCalendar, at: Date? = nil)
         case edit(CalendarEvent, EventDraft)
         var id: String {
             switch self {
-            case let .new(calendar): "new-\(calendar.id)"
+            case let .new(calendar, at): "new-\(calendar.id)-\(at?.timeIntervalSinceReferenceDate ?? 0)"
             case let .edit(event, _): "edit-\(event.id)"
             }
         }
@@ -21,6 +24,9 @@ struct PocketEventEditor: View {
     let start: Start
     /// A line already typed into a new event, read as if typed (the hosted looks start here).
     var startingLine = ""
+    private var startingAt: Date? {
+        if case let .new(_, at) = start { at } else { nil }
+    }
     /// Told once the event is saved, with what to say.
     var onSaved: (String) -> Void = { _ in }
 
@@ -48,7 +54,7 @@ struct PocketEventEditor: View {
 
     private var calendar: ExternalCalendar? {
         switch start {
-        case let .new(calendar): calendar
+        case let .new(calendar, _): calendar
         case let .edit(_, draft): store.calendars.first { $0.id == draft.calendarId }
         }
     }
@@ -144,9 +150,10 @@ struct PocketEventEditor: View {
     }
 
     private func read(_ text: String) {
-        let reading = EventLine.read(text, now: store.now(), calendar: store.calendar, people: store.people)
+        let reference = startingAt.map { store.calendar.startOfDay(for: $0) } ?? store.now()
+        let reading = EventLine.read(text, now: reference, calendar: store.calendar, people: store.people)
         if !edited.contains("title") { title = reading.title }
-        if !edited.contains("when") {
+        if !edited.contains("when"), startingAt == nil || reading.foundDay || reading.foundTime {
             begin = reading.start
             end = reading.end
             isAllDay = reading.isAllDay
@@ -294,7 +301,7 @@ struct PocketEventEditor: View {
         switch start {
         case .new:
             let now = store.now()
-            let next = store.calendar.nextDate(after: now, matching: DateComponents(minute: 0), matchingPolicy: .nextTime) ?? now
+            let next = startingAt ?? store.calendar.nextDate(after: now, matching: DateComponents(minute: 0), matchingPolicy: .nextTime) ?? now
             begin = next
             end = next.addingTimeInterval(3600)
             if !startingLine.isEmpty { line = startingLine; read(startingLine) }

@@ -23,6 +23,7 @@ PhoneRecipesTests 132
 PhoneSharedCalendarTests 40
 PhoneCalendarTests 60
 PhoneCalendarEditTests 70
+PhoneFreeTogetherTests 45
 FoodMealsTests 294
 HouseholdTests 272
 MealPhotosTests 138
@@ -34,7 +35,7 @@ WallTourTests 119
 LoggedEntryTests 90
 PitchInTests 99
 WallRecipesTests 117
-WallSharedCalendarTests 120
+WallSharedCalendarTests 150
 CatchUpTests 91
 CompanionEditorTests 115
 DayAtAGlanceTests 75

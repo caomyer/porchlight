@@ -96,6 +96,21 @@ final class WallSharedCalendarTests: XCTestCase {
         snapshot("cal-81-wall-added")
     }
 
+    /// Free together under the week (docs/design/calendar-free-together.md): tonight's cell
+    /// says who is free, and a green one opens the add sheet from that evening.
+    func testFreeTogetherUnderTheWeek() {
+        let app = launch(["-sampleSharedCalendar", "YES", "-sampleHomeCalendar", "YES", "-startScreen", "calendar"])
+        let tonight = app.descendants(matching: .any)["wall-free-\(UITestClock.day(0))"]
+        XCTAssertTrue(tonight.waitForExistence(timeout: 30), "A cell for tonight under the week")
+        XCTAssertTrue(tonight.label.hasPrefix("Tonight"), tonight.label)
+        snapshot("free-80-wall-row")
+        let green = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "free from")).firstMatch
+        XCTAssertTrue(green.exists, "An evening where everyone is free plans something")
+        green.tap()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "event-line").firstMatch.waitForExistence(timeout: 10), "the add sheet")
+        snapshot("free-81-wall-plan")
+    }
+
     /// Opens Sync details and returns this device's calendars line, on screen.
     private func calendarsLine(_ app: XCUIApplication) -> XCUIElement {
         let details = app.buttons["sync-details"]

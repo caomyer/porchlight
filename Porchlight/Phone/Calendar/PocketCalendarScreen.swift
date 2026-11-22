@@ -7,7 +7,8 @@ import UIKit
 /// person, a week strip with a dot per person each day, and a list that starts at the picked
 /// day and runs on through the next two weeks. "+" adds an event to the household's home
 /// calendar, and an event's page changes or deletes one this phone may write
-/// (docs/design/calendar-add-edit.md).
+/// (docs/design/calendar-add-edit.md). "Free together" swaps the week and the list for the
+/// coming evenings and weekend days (docs/design/calendar-free-together.md).
 struct PocketCalendarScreen: View {
     @Environment(CalendarStore.self) private var store
     @Environment(ToastCenter.self) private var toasts
@@ -26,11 +27,16 @@ struct PocketCalendarScreen: View {
     @State private var choosingHome = false
     /// Why "+" can't add here: no home calendar on this phone, or one it can't write.
     @State private var cantAdd: String?
+    /// Free together instead of the calendar (docs/design/calendar-free-together.md).
+    @State private var showsFree = false
+    /// When a free evening was tapped: the new event starts then, once a home calendar is chosen.
+    @State private var planStart: Date?
     /// The day it opens on, when not today (hosted checks; a link to a day later).
     private let start: DayKey?
 
-    init(start: DayKey? = nil) {
+    init(start: DayKey? = nil, free: Bool = false) {
         self.start = start
+        _showsFree = State(initialValue: free)
     }
 
     var body: some View {
@@ -42,8 +48,11 @@ struct PocketCalendarScreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 header(week: week, day: day, calendar: calendar)
+                viewPicker
                 chips
-                if monthOpen {
+                if showsFree {
+                    PocketFreeTogether(filter: filter) { add(at: $0) }
+                } else if monthOpen {
                     PocketCalendarMonth(month: day, picked: day, today: today, filter: filter, events: events) { chosen in
                         pick(chosen, today: today, calendar: calendar)
                         withAnimation(.easeOut(duration: 0.2)) { monthOpen = false }
@@ -54,7 +63,9 @@ struct PocketCalendarScreen: View {
                         .gesture(swipe(today: today, calendar: calendar))
                 }
                 StaleCalendarLines(sources: store.staleSources, fontSize: 12.5)
-                list(from: day, today: today, calendar: calendar, events: events)
+                if !showsFree {
+                    list(from: day, today: today, calendar: calendar, events: events)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
@@ -77,7 +88,7 @@ struct PocketCalendarScreen: View {
             PocketHomeCalendarSheet { calendar in
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(450))
-                    if let found = store.home.calendar ?? (calendar.allowsWrites ? calendar : nil) { editing = .new(found) }
+                    if let found = store.home.calendar ?? (calendar.allowsWrites ? calendar : nil) { editing = .new(found, at: planStart) }
                 }
             }
         }
@@ -115,32 +126,41 @@ struct PocketCalendarScreen: View {
             : PocketCalendarLogic.title(for: week, calendar: calendar)
         return HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Calendar")
+                Text(showsFree ? "Evenings and weekends" : "Calendar")
                     .phoneFont(.body, 12.5, weight: 700, relativeTo: .footnote)
                     .foregroundStyle(Theme.muted)
-                Button {
-                    withAnimation(.easeOut(duration: 0.2)) { monthOpen.toggle() }
-                } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(title)
-                            .phoneFont(.display, 28, weight: 600, relativeTo: .largeTitle)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Image(systemName: monthOpen ? "chevron.up" : "chevron.down")
-                            .phoneFont(.body, 14, weight: 800, relativeTo: .title3)
-                            .foregroundStyle(Theme.accent)
+                if showsFree {
+                    // No month to open here: the title says what the rows are.
+                    Text("Free together")
+                        .phoneFont(.display, 28, weight: 600, relativeTo: .largeTitle)
+                        .foregroundStyle(Theme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                } else {
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) { monthOpen.toggle() }
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(title)
+                                .phoneFont(.display, 28, weight: 600, relativeTo: .largeTitle)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Image(systemName: monthOpen ? "chevron.up" : "chevron.down")
+                                .phoneFont(.body, 14, weight: 800, relativeTo: .title3)
+                                .foregroundStyle(Theme.accent)
+                        }
+                        .foregroundStyle(Theme.ink)
+                        .contentShape(Rectangle())
                     }
-                    .foregroundStyle(Theme.ink)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(title)
+                    .accessibilityValue(monthOpen ? "Month open" : "Week")
+                    .accessibilityHint(monthOpen ? "Folds the month back to the week" : "Opens the month")
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("calendar-month-title")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(title)
-                .accessibilityValue(monthOpen ? "Month open" : "Week")
-                .accessibilityHint(monthOpen ? "Folds the month back to the week" : "Opens the month")
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("calendar-month-title")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: add) {
+            Button { add() } label: {
                 Image(systemName: "plus")
                     .phoneFont(.body, 17, weight: 800, relativeTo: .title3)
                     .foregroundStyle(Theme.surface)
@@ -157,15 +177,49 @@ struct PocketCalendarScreen: View {
     }
 
     /// "+": the sheet, in the home calendar; first choosing one if the household hasn't.
-    private func add() {
+    /// From a free evening, the new event starts `at` then.
+    private func add(at start: Date? = nil) {
+        planStart = start
         switch store.home {
-        case let .found(calendar): editing = .new(calendar)
+        case let .found(calendar): editing = .new(calendar, at: start)
         case .notChosen, .ambiguous: choosingHome = true
         case let .notHere(home):
             cantAdd = "Add events from a phone that has \(HomeCalendarLogic.name(home)), the household's home calendar."
         case let .readOnly(calendar):
             cantAdd = "\(calendar.title) can't be added to on this \(DeviceWords.this) any more."
         }
+    }
+
+    // MARK: Calendar or Free together
+
+    /// "Calendar | Free together", as the proposal's frame shows.
+    private var viewPicker: some View {
+        HStack(spacing: 4) {
+            viewOption("Calendar", isOn: !showsFree, id: "calendar-view-calendar") { showsFree = false }
+            viewOption("Free together", isOn: showsFree, id: "calendar-view-free") { showsFree = true }
+        }
+        .padding(3)
+        .background(Theme.surface2, in: Capsule())
+    }
+
+    private func viewOption(_ title: String, isOn: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) { action() }
+        } label: {
+            Text(title)
+                .phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(isOn ? Theme.ink : Theme.muted)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, minHeight: 36)
+                .background(isOn ? Theme.surface : .clear, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .accessibilityIdentifier(id)
     }
 
     // MARK: People
@@ -322,6 +376,7 @@ struct PocketCalendarScreen: View {
             pick(store.today.adding(days: offset, calendar: store.calendar), today: store.today, calendar: store.calendar)
         }
         if UserDefaults.standard.bool(forKey: "debugCalendarMonth") { monthOpen = true }
+        if UserDefaults.standard.string(forKey: "debugCalendarView") == "free" { showsFree = true }
     }
     #endif
 }
