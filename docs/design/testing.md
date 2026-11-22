@@ -20,7 +20,7 @@ Every number is from the run named in its column, on GitHub's hosted Macs (3 cor
 | A full run from start to green, with no queueing | 48.6 minutes | about 40 minutes: a build of 4 to 9 minutes, then a longest job of 28 to 31 | 30 minutes |
 | A push to a working branch, with no queueing | 48.6 minutes: every push ran everything | about 20 minutes: the unit tests and the smoke set (run 44888821802) | 20 minutes |
 | Unit tests | 572 | 648 | |
-| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 25 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
+| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 30 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
 
 What the table says plainly: the tests take a quarter to a third less time than at the start, with eight journeys added since, and the same test's seconds move by a half and more from one hosted Mac to the next (the unit tests' step took 198, 283 and 452 seconds in three runs of the same code), so one run's total is a sample and not a measurement.
 The ceiling of 120 seconds holds on an ordinary Mac and is broken on a slow one by the two tests that sit nearest to it; they are the next to shorten.
@@ -492,6 +492,7 @@ Do not provoke one for the purpose.
 | 44967355168, November 22, the full suite with the two classes pinned | Not started | 5 (2 iPads in 187 and 193 s, 3 iPhones in 205 to 261 s) | 60% in a boot step; 42% in any test step | 0 | Neither, and no test needed a second launch. Green, in a Sunday's second hour |
 | 44973740449, November 22, the full suite on the recipe link's branch | Not started | 5 (2 iPads in 152 and 181 s, 3 iPhones in 237 to 261 s) | 63% in a boot step; 47% in any test step | 0 | Neither, and no test needed a second launch. Green on its first attempt |
 | 45004513685, November 22, the full suite with every launch pinned | Not started | 5 (2 iPads in 196 and 269 s, 3 iPhones in 126 to 302 s) | 60% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the pin's own: the debug arrivals were still written on the real day ("The UI tests and the real clock") |
+| 45020375885, November 22, the full suite with the shared calendar | Not started | 5 (2 iPads in 172 and 239 s, 3 iPhones in 153 to 290 s) | 60% in a boot step; 45% in any test step | 0 | Neither, and no test needed a second launch. Green: 146 UI tests in 5,585 seconds, none over 120 |
 
 That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
 The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
@@ -834,7 +835,7 @@ The clock is pinned to `UITestClock`'s Wednesday at 8 in the morning; the branch
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
-| testAnotherDevicesCalendarsOnToday | | Another device's work is one quiet row on "At home today", with its meetings counted; its events beside this phone's | Keep; merging and the quiet block are `SharedCalendarViewTests` | | |
+| testAnotherDevicesCalendarsOnToday | 21 to 37 | Another device's work is one quiet row on "At home today", with its meetings counted; its events beside this phone's | Keep; merging and the quiet block are `SharedCalendarViewTests` | | |
 
 #### PhoneRecipesTests (112 s)
 
@@ -960,8 +961,8 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | WallTourTests.testHandwritingOnDayPage | 32 | Strokes, Done | Keep (gesture) | | |
 | WallTourTests.testSheetsWithTheKeyboardUp | 44 | Two sheets' fields above the keyboard | Keep (keyboard) | | |
 | WallTourTests.testScreens | 0 | Screenshots only | Not in the suite; `--tour` | | |
-| WallSharedCalendarTests.testAnotherDevicesCalendarsOnTheWall | | Another device's quiet block on the week, its meetings on tap with where they come from, one shared event with both faces, the stale line | Keep; merging, quiet blocks and freshness are `SharedCalendarViewTests`; the clock pinned to `UITestClock`'s Wednesday at 8 in the morning, so the stale line reads "updated Monday" | | |
-| WallSharedCalendarTests.testJustMeLeavesTheHousehold | | A calendar set to Just me leaves what the wall passes on (Sync details counts one fewer) | Keep; what each choice passes on is `CalendarPassOnTests`, and removal for everyone is `SharedCalendarSyncTests` | | |
+| WallSharedCalendarTests.testAnotherDevicesCalendarsOnTheWall | 18 to 50 | Another device's quiet block on the week, its meetings on tap with where they come from, one shared event with both faces, the stale line | Keep; merging, quiet blocks and freshness are `SharedCalendarViewTests`; the clock pinned to `UITestClock`'s Wednesday at 8 in the morning, so the stale line reads "updated Monday" | | |
+| WallSharedCalendarTests.testJustMeLeavesTheHousehold | 63 in the full run 45020375885, 127 in run 45013466026 on a Mac that had also built: it scrolls Settings four times with swipes, and is the next to shorten if it comes near the limit again | A calendar set to Just me leaves what the wall passes on (Sync details counts one fewer) | Keep; what each choice passes on is `CalendarPassOnTests`, and removal for everyone is `SharedCalendarSyncTests` | | |
 | WallTourTests.testRecipeScreens | 0 | Screenshots only: the bank with a long name, the empty bank, the kitchen view at its top and scrolled, the editor with a card, planning, "What we cook", the week's dinners marked 📖 | Not in the suite; `--tour` | | |
 | WallRecipesTests.testAddingARecipeToADishWeCook | 24 | A recipe typed for a dish we cook joins it, with its history | Keep | | |
 | WallRecipesTests.testCookingFromTheBank | 29 | We made this opens Snap with the dish on the meal; it saves | Keep | | |
