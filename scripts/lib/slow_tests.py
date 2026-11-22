@@ -28,7 +28,8 @@ import os
 import re
 import sys
 
-CEILING = 120.0
+# PORCHLIGHT_TEST_CEILING_SECONDS lowers it for a check of this report by hand.
+CEILING = float(os.environ.get("PORCHLIGHT_TEST_CEILING_SECONDS") or 120)
 IDLE_GIVEN_UP = "App animations complete notification not received"
 MOST_IDLE = 2
 
