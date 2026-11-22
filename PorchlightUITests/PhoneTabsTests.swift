@@ -317,20 +317,23 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         reveal(done, in: app)
         done.tap()
 
+        // Today's card opens the Calendar tab, which has replaced Next 7 days; at the
+        // largest size all five tabs are still in the bar.
         app.tabBars.buttons["Today"].tap()
-        let next = app.buttons["next-7-days"]
-        reveal(next, in: app)
-        next.tap()
-        XCTAssertTrue(app.staticTexts["Next 7 days"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["TODAY"].exists, "Grouped by day")
-        snapshot("m3-94-next-7-days-largest-dark")
+        let calendar = app.buttons["open-calendar"]
+        reveal(calendar, in: app)
+        calendar.tap()
+        XCTAssertTrue(app.tabBars.buttons["Calendar"].isSelected)
+        XCTAssertTrue(app.buttons["calendar-month-title"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.tabBars.buttons.count, 5, "five tabs at the largest size")
+        snapshot("m3-94-calendar-largest-dark")
     }
 
     /// Every tab, scrolled, keeps paper under the status bar, at the usual size and the largest.
     func testPaperUnderTheStatusBar() {
         for size in ["", "UICTContentSizeCategoryAccessibilityXXXL"] {
             let app = launch(size.isEmpty ? [] : ["-UIPreferredContentSizeCategoryName", size])
-            for tab in ["Today", "Food", "Lists", "Glow"] {
+            for tab in ["Today", "Calendar", "Food", "Lists", "Glow"] {
                 app.tabBars.buttons[tab].tap()
                 Thread.sleep(forTimeInterval: 0.5)
                 XCTAssertTrue(app.buttons["you"].exists, "You is on every tab: \(tab)")

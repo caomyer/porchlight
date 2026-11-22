@@ -21,7 +21,7 @@ final class PhoneSharedCalendarTests: XCTestCase, PhoneTestHelpers {
         app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.morning, "-me", "James", "-sampleSharedCalendar", "YES", "-startScreen", "today"]
         app.launch()
         waitUntilResponsive(app)
-        let work = element(app, beginningWith: "9:00, Mia at work")
+        let work = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Mia at work")).firstMatch
         reveal(work, in: app)
         XCTAssertTrue(work.exists, "Mia's work is one quiet row")
         XCTAssertTrue(work.label.contains("3 meetings"), work.label)

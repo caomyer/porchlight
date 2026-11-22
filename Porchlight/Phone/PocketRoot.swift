@@ -44,6 +44,15 @@ extension EnvironmentValues {
 
     /// Opens the You sheet; every tab's avatar calls it.
     @Entry var openYou: OpenYouAction? = nil
+
+    /// Opens the Calendar tab, from Today's "At home today".
+    @Entry var openCalendar: OpenCalendarAction? = nil
+}
+
+/// Opens the Calendar tab.
+struct OpenCalendarAction {
+    let open: @MainActor () -> Void
+    @MainActor func callAsFunction() { open() }
 }
 
 /// Opens the You sheet, at its top or on one of its pages (an empty tab opens Household).

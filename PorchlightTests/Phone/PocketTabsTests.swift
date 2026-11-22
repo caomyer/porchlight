@@ -99,33 +99,6 @@ struct PocketTabsTests {
         #expect(PocketGlowLogic.rewards(rewards, me: F.james) { _ in 4 }.map(\.reward.id) == [2, 1])
     }
 
-    // MARK: Next 7 days
-
-    private func event(_ id: String, day: Int, _ hour: Double, allDay: Bool = false) -> CalendarEvent {
-        let start = F.date(day: day, 0).addingTimeInterval(hour * 3600)
-        return CalendarEvent(
-            id: id, calendarId: "c", title: id, emoji: nil, celebration: nil, location: nil, notes: nil,
-            start: start, end: start.addingTimeInterval(allDay ? 24 * 3600 : 3600), isAllDay: allDay,
-            owner: .everyone, isBusy: false, calendarTitle: "Family", isFromSpecialCalendar: false
-        )
-    }
-
-    @Test("The next 7 days skip empty days and put all-day events first")
-    func nextDays() {
-        let events: [DayKey: [CalendarEvent]] = [
-            F.key(7): [event("Dinner", day: 7, 19), event("Rosa visiting", day: 7, 0, allDay: true)],
-            F.key(9): [event("Yoga", day: 9, 18), event("Brunch", day: 9, 10)],
-            F.key(20): [event("Too far", day: 20, 9)],
-        ]
-        let days = PocketAgendaLogic.nextDays(from: F.key(7), count: 7, calendar: calendar) { events[$0] ?? [] }
-        #expect(days.map(\.day) == [F.key(7), F.key(9)])
-        #expect(days[0].events.map(\.id) == ["Rosa visiting", "Dinner"])
-        #expect(days[1].events.map(\.id) == ["Brunch", "Yoga"])
-        #expect(PocketAgendaLogic.dayTitle(F.key(7), today: F.key(7), calendar: calendar) == "Today")
-        #expect(PocketAgendaLogic.dayTitle(F.key(8), today: F.key(7), calendar: calendar) == "Tomorrow")
-        #expect(PocketAgendaLogic.dayTitle(F.key(9), today: F.key(7), calendar: calendar) == F.key(9).formatted(.dateTime.weekday(.wide), calendar: calendar))
-    }
-
     // MARK: Pitch in
 
     @Test("Pitch in's week counts every chore day this week, done or still to come")

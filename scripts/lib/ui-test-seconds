@@ -20,6 +20,7 @@ PhoneDishesTests 158
 PhoneCatchUpTests 133
 PhoneRecipesTests 112
 PhoneSharedCalendarTests 40
+PhoneCalendarTests 60
 FoodMealsTests 286
 HouseholdTests 258
 MealPhotosTests 187

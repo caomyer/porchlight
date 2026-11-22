@@ -28,7 +28,6 @@ struct PocketTodayScreen: View {
                         switch route {
                         case let .companion(id): PocketCompanionWeek(companionId: id, logging: logging)
                         case .pitchIn: PocketPitchIn(logging: logging)
-                        case .nextWeek: PocketNextWeek()
                         case .calendars: PocketCalendars()
                         }
                     }
@@ -198,7 +197,6 @@ struct PocketTodayScreen: View {
         switch UserDefaults.standard.string(forKey: "startScreen") {
         case "week": if let first = companions.companions.first { path = [.companion(first.id)] }
         case "pitchIn": path = [.pitchIn]
-        case "nextWeek": path = [.nextWeek]
         case "calendars": path = [.calendars]
         default: break
         }
@@ -224,7 +222,6 @@ struct PocketTodayScreen: View {
 enum PocketRoute: Hashable {
     case companion(Companion.ID)
     case pitchIn
-    case nextWeek
     case calendars
 }
 
@@ -243,6 +240,7 @@ struct PocketAgendaCard: View {
 
     @Environment(AppModel.self) private var model
     @Environment(CalendarStore.self) private var calendarStore
+    @Environment(\.openCalendar) private var openCalendar
 
     var body: some View {
         if !calendarStore.showsOwnCalendars && !calendarStore.hasOthersCalendars {
@@ -275,15 +273,16 @@ struct PocketAgendaCard: View {
                 HStack(alignment: .firstTextBaseline) {
                     PhoneCardHeader(title: "At home today")
                     Spacer(minLength: 8)
-                    Button { open(.nextWeek) } label: {
-                        Text("Next 7 days ›")
+                    // The whole household calendar is its own tab now; this opens it on today.
+                    Button { openCalendar?() } label: {
+                        Text("Calendar ›")
                             .phoneFont(.body, 12, weight: 800, relativeTo: .caption)
                             .foregroundStyle(Theme.accent)
                             .frame(minHeight: 44)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("next-7-days")
+                    .accessibilityIdentifier("open-calendar")
                 }
                 if allDay.isEmpty && timed.isEmpty {
                     Text("Nothing on the calendars today.")
@@ -298,7 +297,11 @@ struct PocketAgendaCard: View {
                     }
                     ForEach(Array(timed.enumerated()), id: \.element.id) { index, item in
                         if index > 0 || !allDay.isEmpty { RowDivider() }
-                        row(time: ClockFormat.time(item.time, calendar: calendarStore.calendar), title: item.title, subtitle: item.subtitle, owners: owners(item.id, item.owner))
+                        // The tab's own line: the end with morning or afternoon said, and the place.
+                        let event = calendarStore.event(id: String(item.id.dropFirst("calendar-".count)))
+                        row(time: ClockFormat.phoneTime(item.time, calendar: calendarStore.calendar), title: item.title,
+                            subtitle: event.map { PocketCalendarLogic.detail($0, calendar: calendarStore.calendar) } ?? item.subtitle,
+                            owners: event?.owners ?? [item.owner])
                     }
                 }
                 StaleCalendarLines(sources: calendarStore.staleSources, fontSize: 12)
@@ -335,7 +338,7 @@ struct PocketAgendaCard: View {
                 .phoneFont(.body, 12, weight: 700, relativeTo: .caption)
                 .monospacedDigit()
                 .foregroundStyle(Theme.muted)
-                .frame(minWidth: 46, alignment: .leading)
+                .frame(minWidth: 62, alignment: .leading)
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)

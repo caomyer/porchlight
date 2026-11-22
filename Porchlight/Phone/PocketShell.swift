@@ -1,13 +1,14 @@
 import SwiftUI
 import UIKit
 
-/// The phone's four tabs. "You" is the avatar at the top right of every tab.
+/// The phone's five tabs. "You" is the avatar at the top right of every tab.
 enum PocketTab: String, CaseIterable, Hashable {
-    case today, food, lists, glow
+    case today, calendar, food, lists, glow
 
     var title: String {
         switch self {
         case .today: "Today"
+        case .calendar: "Calendar"
         case .food: "Food"
         case .lists: "Lists"
         case .glow: "Glow"
@@ -18,6 +19,7 @@ enum PocketTab: String, CaseIterable, Hashable {
     var symbol: String {
         switch self {
         case .today: "house"
+        case .calendar: "calendar"
         case .food: "fork.knife"
         case .lists: "list.bullet"
         case .glow: "sparkles"
@@ -59,11 +61,12 @@ struct PocketShell: View {
         .environment(\.openYou, OpenYouAction { page in
             you = YouRequest(page: page)
         })
+        .environment(\.openCalendar, OpenCalendarAction { tab = .calendar })
         .hostsToasts(toasts)
         .sheet(item: $you) { request in
             YouSheet(start: request.page)
         }
-        // A widget's tap: porchlight://lists opens Lists.
+        // A widget's tap: porchlight://lists opens Lists, porchlight://calendar the calendar.
         .onOpenURL { url in
             guard url.scheme == "porchlight", let opened = url.host().flatMap(PocketTab.init(rawValue:)) else { return }
             you = nil
@@ -81,6 +84,7 @@ struct PocketShell: View {
     private func screen(_ tab: PocketTab) -> some View {
         switch tab {
         case .today: PocketTodayScreen()
+        case .calendar: PocketCalendarScreen()
         case .lists: PocketListsScreen()
         case .glow: PocketGlowScreen()
         case .food: PocketFoodScreen()
@@ -88,7 +92,7 @@ struct PocketShell: View {
     }
 
     #if DEBUG
-    /// `-startScreen today|food|lists|glow|you` opens a tab, or the You sheet over Today.
+    /// `-startScreen today|calendar|food|lists|glow|you` opens a tab, or the You sheet over Today.
     private func applyDebugStart() {
         guard let name = UserDefaults.standard.string(forKey: "startScreen") else { return }
         if name == "you" {

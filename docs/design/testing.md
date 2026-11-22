@@ -781,6 +781,15 @@ Unfrozen on November 21, when the dish editor landed.
 | testNightLook | 24 | Shots | Merged with testLargestText into `testLooks`: one launch in the night look at the largest size; the care sheet's look is hosted |  | done |
 | testLargestText | 41 | Log button whole and full width | Merged into `testLooks`, which keeps its assertions |  | done, 41 s measured for `testLooks` |
 
+#### PhoneCalendarTests (new)
+
+The phone's Calendar tab (docs/design/calendar-phone-tab.md), added November 22, 2026; its looks are hosted (`PocketSharedCalendarScreenTests`), the clock pinned to today at 8 in the morning.
+
+| Test | s | Asserts | Verdict | Saves | Status |
+|---|---|---|---|---|---|
+| testTheWeekAPersonAndAnEvent | | Today picked; another day picked starts the list there with a way back; a person's chip leaves out another's own events; another device's event opens its page in the app, without "Open in Calendar" | Keep; weeks, dots, filtering and the list are `PocketCalendarLogicTests` | | |
+| testTheMonth | | The title unfolds the month; a day picks it and folds back, the list there | Keep; the month grid is `PocketCalendarLogicTests` | | |
+
 #### PhoneSharedCalendarTests (new)
 
 Added with the shared calendar on November 22, 2026 (docs/design/calendar-shared.md); its looks are hosted (`PocketSharedCalendarScreenTests`).
@@ -962,7 +971,8 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | `CalendarPassOnTests` | Pure functions, clock and calendars handed in, the window swept over a year in two zones | What each of the four choices passes on (marker words that must never reach a Busy only or Just me record, nor the account or the raw event id), the window, the match key, all-day days, the difference between passes, and the migration of today's choices | `WallSharedCalendarTests.testJustMeLeavesTheHousehold` |
 | `SharedCalendarViewTests` | Pure functions, clock pinned | Each event once with every owner's face, keys before words, quiet blocks and their words, how fresh each device is, Sync details' lines | `WallSharedCalendarTests`, `PhoneSharedCalendarTests` |
 | `SharedCalendarSyncTests` | The fake iCloud, two devices | Mia's phone passes on and Sam's shows, with no marker word reaching iCloud; an unchanged pass writes no event; Just me and leaving remove for everyone; nothing before the choices are seen; a build from before keeps syncing and gets every event, parents first, on updating | None: no UI test runs two devices |
-| `PocketSharedCalendarScreenTests` | Hosted whole screen, clock pinned | Next 7 days with another device's quiet rows, Busy only row and stale line, in four looks | `PhoneSharedCalendarTests`; its shots are `shared-calendar-<value>-<look>.png` |
+| `PocketCalendarLogicTests` | Pure functions, calendars and days handed in, weeks swept over a year from Sunday and from Monday | Weeks from the household's first weekday, paging across the clocks changing, the month grid, the header across two months or years, dots, the person filter, the list's days, and the time style in 12 and 24 hours | `PhoneCalendarTests` |
+| `PocketSharedCalendarScreenTests` | Hosted whole screen, clock pinned | The Calendar tab and Today's card with another device's quiet rows, Busy only row and stale line; a week across two months with a long title and a day of eight things, the strip's days even and level; in four looks | `PhoneSharedCalendarTests`, `PhoneCalendarTests`; its shots are `shared-calendar-*` and `calendar-busy-week-<look>.png` |
 | `PocketRecipesScreenTests` | Hosted whole screen, with `HostedRowLayout` | The bank (a name and a line as long as they come), an empty bank, a recipe's page and a home dish's way to its recipe, in four looks; one row layout per list at each size | `PhoneRecipesTests`; its shots are `recipes-<kind>-<look>.png` |
 
 ### What the audit adds up to
