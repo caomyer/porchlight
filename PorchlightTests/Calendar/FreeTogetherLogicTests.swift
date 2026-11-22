@@ -263,6 +263,7 @@ struct FreeTogetherLogicTests {
         let games = Self.event("Game night", "2026-11-19 18:00", "2026-11-19 21:00", owner: .person(kids[1]), also: [.person(kids[2])])
         let found = time("2026-11-19", [games], people: kids)
         #expect(found.map { words.busyLines($0, people: people, household: 4).map(\.sentence) } == ["Ben and Cy busy: Game night, 6:00 to 9:00\u{202F}PM"])
+        #expect(found.map { words.freeLines($0, people: people) } == ["Ava and Di free from 5:30\u{202F}PM"], "those free at the same time, said once")
     }
 
     @Test("Ranges say the period once, across noon twice, and 24-hour phones use 24 hours")

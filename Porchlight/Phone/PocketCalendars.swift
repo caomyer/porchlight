@@ -211,7 +211,8 @@ struct PocketCalendars: View {
                         .frame(width: 10, height: 10)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(calendar.title).phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                        Text(calendar.account)
+                        // A calendar named by its address says the address once: then the kind.
+                        Text(CalendarOwnerGuess.isAddress(calendar.title) && calendar.account.contains(calendar.title) ? calendar.accountKind : calendar.account)
                             .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
                             .foregroundStyle(Theme.muted)
                     }

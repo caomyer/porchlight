@@ -50,15 +50,6 @@ struct PocketFreeTogetherScreenTests {
             PocketCalendarScreen(free: true).environment(model).environment(store).environment(ToastCenter()).environment(\.me, james), look: look
         )
         try hosted.saveShot("free-together-\(look.name)")
-        // The whole page at the largest sizes is taller than a picture can be drawn
-        // (`drawHierarchy` gives a blank one past 8192 pixels): the first rows alone, to look at.
-        if look.textSize.isAccessibilityCategory {
-            let rows = try await HostedScreen.host(
-                ScrollView { PocketFreeTogether(filter: .everyone, days: 5).padding(16) }.background(Theme.background)
-                    .environment(model).environment(store).environment(\.me, james), look: look
-            )
-            try rows.saveShot("free-together-rows-\(look.name)")
-        }
         return hosted
     }
 

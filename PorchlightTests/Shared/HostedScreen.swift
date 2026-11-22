@@ -101,20 +101,136 @@ struct HostedScreen {
             }
         }
         let elements = read(host.view as Any)
-        // As tall as the content, so the image is the whole page.
-        let bottom = elements.map(\.frame.maxY).max() ?? size.height
-        window.frame.size.height = min(max(size.height, bottom + 24), 8000)
-        window.layoutIfNeeded()
-        try await Task.sleep(for: .milliseconds(100))
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
+        let image = try await picture(of: window, elements: elements)
         return HostedScreen(elements: elements, image: image)
     }
 
-    enum Failure: Error {
+    enum Failure: Error, CustomStringConvertible {
         case noScene
         case nothingToActivate(String)
+        /// The picture has nothing drawn where the page has words: from this many points
+        /// down to this many.
+        case blankPicture(from: Int, to: Int, of: Int)
+
+        var description: String {
+            switch self {
+            case .noScene: "The unit tests' host has no window scene to host a screen in"
+            case let .nothingToActivate(label): "Nothing to activate beginning with \"\(label)\""
+            case let .blankPicture(from, to, of):
+                "The page's picture is blank from \(from) to \(to) points down (of \(of)), where the page has words: the shot would be an empty image"
+            }
+        }
+    }
+
+    /// The tallest piece drawn at once, in points. `drawHierarchy` gives back a blank picture,
+    /// with no error, once what it draws is taller than about 8192 pixels, which at this
+    /// simulator's two pixels a point is 4096 points: a long page at the largest text size
+    /// is past that (Free together's fourteen rows came to about 5,400 points on November
+    /// 22, 2026, and its saved shot was an empty image while every check passed).
+    static let tallestDrawn: CGFloat = 2400
+
+    /// The whole page as one image, however tall. A page that fits in one piece is drawn in
+    /// a window as tall as its content. A taller one is drawn in pieces: the window is kept
+    /// at one piece's height, the page's scroll view is moved a piece at a time, and each
+    /// piece is put in its place in one tall image. Then the image is checked against the
+    /// page: where the page has words, the picture must have something drawn, and a picture
+    /// that is blank there fails the test instead of being saved as a shot.
+    private static func picture(of window: UIWindow, elements: [Element]) async throws -> UIImage {
+        let bottom = elements.map(\.frame.maxY).max() ?? size.height
+        let height = max(size.height, bottom + 24)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = window.screen.scale
+        func drawn() async throws -> UIImage {
+            window.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(100))
+            return UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+        }
+        var image: UIImage
+        if height <= tallestDrawn {
+            window.frame.size.height = height
+            image = try await drawn()
+        } else if let scroll = tallestScrollView(in: window) {
+            window.frame.size.height = tallestDrawn
+            window.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(100))
+            // Where the scroll view sits in the window, and how far its content goes.
+            let port = scroll.convert(scroll.bounds, to: window).intersection(window.bounds)
+            let top = -scroll.adjustedContentInset.top
+            let last = max(top, scroll.contentSize.height + scroll.adjustedContentInset.bottom - scroll.bounds.height)
+            let whole = CGSize(width: size.width, height: port.minY + (last - top) + port.height)
+            var pieces: [(image: UIImage, at: CGFloat)] = []
+            var offset = top
+            while true {
+                scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: offset), animated: false)
+                pieces.append((try await drawn(), offset - top))
+                if offset >= last { break }
+                offset = min(offset + port.height, last)
+            }
+            scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: top), animated: false)
+            image = UIGraphicsImageRenderer(size: whole, format: format).image { context in
+                for (index, piece) in pieces.enumerated() {
+                    // The first piece brings what is above the scroll view with it; the others
+                    // only the part of the window the scroll view shows.
+                    let source = index == 0 ? CGRect(x: 0, y: 0, width: size.width, height: port.maxY) : port
+                    context.cgContext.saveGState()
+                    context.cgContext.clip(to: CGRect(x: source.minX, y: source.minY + piece.at, width: source.width, height: source.height))
+                    piece.image.draw(at: CGPoint(x: 0, y: piece.at))
+                    context.cgContext.restoreGState()
+                }
+            }
+        } else {
+            // No scroll view to move: the top of the page, as much as can be drawn.
+            window.frame.size.height = tallestDrawn
+            image = try await drawn()
+        }
+        try checkNotBlank(image, against: elements)
+        return image
+    }
+
+    /// The scroll view with the most content below its own height: the page's.
+    private static func tallestScrollView(in view: UIView) -> UIScrollView? {
+        var best: UIScrollView?
+        func look(_ view: UIView) {
+            if let scroll = view as? UIScrollView, scroll.contentSize.height > scroll.bounds.height,
+               scroll.contentSize.height > (best?.contentSize.height ?? 0) {
+                best = scroll
+            }
+            view.subviews.forEach(look)
+        }
+        look(view)
+        return best
+    }
+
+    /// Fails when a stretch of the picture that the page has words in is one flat colour.
+    /// The picture is looked at in bands of 400 points; a band counts when an element with a
+    /// label sits wholly inside it and inside the picture.
+    static func checkNotBlank(_ image: UIImage, against elements: [Element]) throws {
+        guard let cgImage = image.cgImage, let data = cgImage.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return }
+        let scale = image.scale, perPixel = cgImage.bitsPerPixel / 8, perRow = cgImage.bytesPerRow
+        let band: CGFloat = 400
+        var y: CGFloat = 0
+        while y < image.size.height {
+            let stretch = CGRect(x: 0, y: y, width: image.size.width, height: min(band, image.size.height - y))
+            defer { y += band }
+            guard elements.contains(where: { !$0.label.isEmpty && $0.frame.height >= 8 && stretch.contains($0.frame) }) else { continue }
+            var first: [UInt8]?
+            var varied = false
+            var row = Int(stretch.minY * scale)
+            let lastRow = min(Int(stretch.maxY * scale), cgImage.height) - 1
+            while row <= lastRow, !varied {
+                var column = 0
+                while column < cgImage.width {
+                    let at = row * perRow + column * perPixel
+                    let pixel = [bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]
+                    if let first { if pixel != first { varied = true; break } } else { first = pixel }
+                    column += 6
+                }
+                row += 6
+            }
+            if !varied { throw Failure.blankPicture(from: Int(stretch.minY), to: Int(stretch.maxY), of: Int(image.size.height)) }
+        }
     }
 
     private static func find(_ root: Any, beginningWith prefix: String, depth: Int = 0) -> NSObject? {

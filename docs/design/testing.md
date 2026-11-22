@@ -20,7 +20,7 @@ Every number is from the run named in its column, on GitHub's hosted Macs (3 cor
 | A full run from start to green, with no queueing | 48.6 minutes | about 40 minutes: a build of 4 to 9 minutes, then a longest job of 28 to 31 | 30 minutes |
 | A push to a working branch, with no queueing | 48.6 minutes: every push ran everything | about 20 minutes: the unit tests and the smoke set (run 44888821802) | 20 minutes |
 | Unit tests | 572 | 648 | |
-| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 30 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
+| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 50 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
 
 What the table says plainly: the tests take a quarter to a third less time than at the start, with eight journeys added since, and the same test's seconds move by a half and more from one hosted Mac to the next (the unit tests' step took 198, 283 and 452 seconds in three runs of the same code), so one run's total is a sample and not a measurement.
 The ceiling of 120 seconds holds on an ordinary Mac and is broken on a slow one by the two tests that sit nearest to it; they are the next to shorten.
@@ -152,6 +152,12 @@ What the spike of November 20 found, so its limits are known:
   There is no status bar, tab bar, navigation bar, sheet or keyboard, nothing is hit-tested and no gesture runs, so "can it be tapped", "is it under the keyboard", "does paper show under the status bar" and "does the sheet close" stay UI tests.
 - **The clock is the app's.**
   The screens and the sample data read `CompanionClock` themselves, which only the process-wide `-debugCompanionNow` pins, so a hosted test asserts where things sit, never a time, a count or a day's name, until the clock can be handed in.
+- **A page taller than one drawing is drawn in pieces, and a blank picture fails.**
+  `drawHierarchy` gives back a blank picture, and no error, once what it draws is taller than about 8192 pixels, which is 4096 points here.
+  A long page at the largest text size is past that: Free together's fourteen rows came to about 5,400 points on November 22, 2026, and its saved shot was an empty image while every check on the page passed.
+  So `HostedScreen` draws a page of more than 2,400 points in pieces, moving the page's scroll view a piece at a time and putting each piece in its place in one tall image, and then looks at the image against the page: a stretch that has words in it and is one flat colour in the picture fails the test (`Failure.blankPicture`).
+  `HostedScreenTests` hosts a page of 12,000 points with striped rows and finds each row's stripe where the page says the row is; with every piece drawn at the top instead, it fails.
+  A page with no scroll view to move is drawn as far as one drawing reaches, and the blank check still applies to what it holds.
 - **Each screen needs its stores, and a missing one stops the whole run.**
   A screen hosted without an environment object it reads does not fail its test: SwiftUI stops the process, and every unit test after it is lost with it, so add the store the crash names and run again.
   The week needs a `CompanionStore`, a `ToastCenter` and `me`; a screen that reads more of the environment needs more, and one that reads `UIDevice` or the real permission state would need a seam first.
@@ -170,6 +176,7 @@ The night look and the largest text size are checked by eye from screenshots, pl
 - A look is a launch, so three looks of one screen are three launches; do not also launch per screen.
 - Never repeat a journey's steps in a looks test to get to a screen; start there with a debug launch argument (`-debugFoodView`, `-debugCompanionSheet`, `-debugYouPage`).
   The shared calendar adds `-sampleSharedCalendar YES|stale`: Mia's iPhone has passed on her work as Keep it quiet, her own calendar in full and her doctor's as Busy only, twenty minutes ago or two days ago.
+  For looking at the calendar by hand, `-sampleCalendarEvents none|long` (calendars with nothing in them, or one event today with a title and a place as long as they come) and `-samplePeople N` (a household of up to six).
   Adding and editing adds `-sampleHomeCalendar YES`: the household's home calendar is the sample's "Us", with a weekly piano lesson on Thursdays at 4 in it.
   The recipes add `-debugFoodView recipes|recipe|recipe-long|recipe-edit|recipe-plan` (the bank, the first recipe, or the recipe with the most ingredients opened, in its editor, or being planned) and `-sampleFood norecipes|long` (an empty bank, or a recipe as long as they come, cooked once, with a card).
 - A layout fact that holds for a component everywhere (the time pill, the photo row) is asserted once, in one looks test, not in each class that shows the component.
@@ -214,6 +221,8 @@ One shot per shape of the screen stays, not one per wording.
 Each rule is named by its first sentence, and is referred to by that name, here and in other documents: a number would change the day a rule is added, and a reference to "rule 10" has already pointed at the wrong rule once.
 The first six were each learned from a failed or misleading run in the week of November 16, 2026.
 "A run that loses its process fails" is from a crash on November 22 that was read as a pass.
+"The shipped configuration is compiled in CI" is from a commit with four green full runs whose archive did not compile, the same day.
+"A test that runs away is stopped and failed, and a test that waited on the app is kept" is from a test that passed in 2,020 seconds, the same day again.
 "A frame inside the screen does not prove the ink is inside the frame" is from a defect found by eye on November 21, and "A test leaves the simulator as it found it" from reading two tests that day; the others come from what the UI tests' own comments record.
 
 - **A test's outcome never depends on the real clock.**
@@ -268,11 +277,27 @@ The first six were each learned from a failed or misleading run in the week of N
   A test process that crashes or exits partway takes with it every test that had not yet reported, and what is printed afterwards can still read as a pass: xcodebuild starts the process again, and the last launch ends with "Test run with 450 tests in 81 suites passed" for the tests that were left.
   So a run's verdict is never one line of xcodebuild's output.
   Run tests through `scripts/test.sh`, never through an `xcodebuild` invocation of your own: the script is what knows that a process started again is a failure, and it reads the result bundle, which counts the crash.
-  It also fails a suite, whatever its totals say, when its log shows the process being started again, a test that started and never reported a result, or a suite that began and never finished (`scripts/lib/lost_process.py`), and when xcodebuild's own status disagrees with a pass; it prints "the test process was lost" and names the test it was in.
+  It also fails a suite, whatever its totals say, when its log shows the process being started again, or stops before xcodebuild's own last word with a test that started and never reported or a suite that never finished (`scripts/lib/lost_process.py`), and when xcodebuild's own status disagrees with a pass; it prints "the test process was lost" and names the test it was in.
+  A test with no result line in a run that xcodebuild finished, with nothing started again, is not a lost test: the app and the simulator write into the same log, and a result line is now and then cut in two by another line.
+  The first form of this check failed a good run for exactly that on the day it was written (run 45046913473: "Every write path stamps this device's objc[20310]: Class UIAccessibilityLoaderWebShared is implemented in both ..." with the rest of the result on the next line), so a check that reads a log line by line may only add to what the result bundle says when the log itself shows the process went.
   Read a run by the script's last lines ("Unit: 686/690 passed, 2 failed", and its status), never by scrolling for a line that says passed.
   Why: on November 22, 2026 a hosted screen that had gained toasts crashed the unit test process for want of a store, and a private script that ran `xcodebuild test-without-building` and read its last Swift Testing summary reported "Test run with 263 tests in 50 suites passed". Through `scripts/test.sh` the same crash ended with "Unit: 712/716 passed, 2 failed" and a failing status.
   This is not the rule for a runner that never started a single test, which is run once more ("Infrastructure failures"), nor for a UI test whose app could not be launched: neither has lost a test that had begun.
   A crash in a test is a failure and is never run again.
+- **The shipped configuration is compiled in CI.**
+  The tests build Debug and only Debug, so nothing the tests do can say that what goes to TestFlight compiles.
+  Every push and every full run also compiles the app and its widgets in Release, for a device, with signing off (the "Release build" job, `scripts/ci/build-release.sh`), and a run is not green without it.
+  It is the same compile the archive makes, so run it before archiving too: `zsh scripts/ci/build-release.sh`.
+  It takes about six minutes on a development Mac and took 20 minutes 13 seconds on a hosted one, with nothing cached (run 45054388170); as a job of its own beside the tests' build it adds a Mac and nothing to the time a run takes, which the test jobs set at 28 minutes and more.
+  Why: on November 22, 2026 a `@State` was declared inside an `#if DEBUG` block and read outside it. Debug built, every test passed, four full runs were green on that commit, and its TestFlight archive failed with "cannot find 'holdsStill' in scope" ("What the suite missed").
+  Anything declared under `#if DEBUG` and used outside it is this trap; the compiler finds it in Release in minutes, and no test can.
+- **A test that runs away is stopped and failed, and a test that waited on the app is kept.**
+  The ceiling of 120 seconds is what a test is written to; it is read off a run's seconds, which nobody reads on a green run.
+  So there is a hard stop as well: xcodebuild gives every UI test 420 seconds (`PORCHLIGHT_TEST_LIMIT_SECONDS`, in whole minutes), stops one that passes it and fails it, and the run is red with the test's name. No healthy test has come near it; the slowest seen on a hosted Mac is 164.
+  And after each UI suite `scripts/lib/slow_tests.py` names every test that took more than 120 seconds, and every test in which XCTest gave up waiting for the app to go idle more than twice ("App animations complete notification not received"), with its seconds and its count, in the output and in the job's summary, where it shows in a green run too.
+  For a suite with such a test the whole result bundle is uploaded, pass or fail, since it holds the app's own log for that launch, and with it the simulator's log of the app over the test's span (cut at 40 MB before it is packed).
+  Why: on November 22, 2026 the onboarding test passed after 2,020 seconds, having waited out XCTest's 60 seconds for the app to go idle 33 times; the run was green, nothing was kept, and it could not be explained afterwards ("Known and not yet explained").
+  `zsh scripts/ci/check-slow-tests.sh` checks the report against sample logs with every build.
 
 ## Tiers
 
@@ -451,7 +476,7 @@ Reproduced on November 22, 2026 with a test that kills the unit test process whe
 So the script already failed the run, before this rule was written, in this reproduction and in the case that prompted it; what read as a pass there was a line of xcodebuild's own output, read by a script that was not this one.
 What the check adds is a second opinion that does not depend on the result bundle, a plain statement of what happened with the test named, and xcodebuild's status, which the script used to drop.
 The UI suites had the same hole in the same form and have the same check: a runner that dies in the middle of a shard after some tests passed is started again by xcodebuild, and the test it was in is named.
-The check reads the log's own lines for each test starting and ending, in XCTest's form and in Swift Testing's; it knows no expected count beyond that, since nothing in the harness holds one for the unit tests.
+The check reads the log's own lines for each test starting and ending, in XCTest's form and in Swift Testing's, to say which test the process was in; it knows no expected count, since nothing in the harness holds one for the unit tests, and it does not judge a finished run by those lines.
 The same reproduction was run once on a hosted Mac (run 45028682577, through a job since taken out of the workflow as not worth keeping) and ended as it must: "Unit: 686/690 passed, 2 failed", "the test process was lost once", the crashed test named, status 1.
 
 
@@ -527,6 +552,10 @@ Do not provoke one for the purpose.
 | 44973740449, November 22, the full suite on the recipe link's branch | Not started | 5 (2 iPads in 152 and 181 s, 3 iPhones in 237 to 261 s) | 63% in a boot step; 47% in any test step | 0 | Neither, and no test needed a second launch. Green on its first attempt |
 | 45004513685, November 22, the full suite with every launch pinned | Not started | 5 (2 iPads in 196 and 269 s, 3 iPhones in 126 to 302 s) | 60% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the pin's own: the debug arrivals were still written on the real day ("The UI tests and the real clock") |
 | 45020375885, November 22, the full suite with the shared calendar | Not started | 5 (2 iPads in 172 and 239 s, 3 iPhones in 153 to 290 s) | 60% in a boot step; 45% in any test step | 0 | Neither, and no test needed a second launch. Green: 146 UI tests in 5,585 seconds, none over 120 |
+| 45035829327, November 22, the full suite with the calendar's add and edit | Not started | 5 (2 iPads in 229 and 322 s, 3 iPhones in 175 to 277 s) | not sampled lower than 60% in a boot step; 29% in one test step, 47% and more in the others | 0 | Neither, and no test needed a second launch. Green: 153 UI tests in 6,186 seconds |
+| 45039811167, November 22, the full suite with Free together | Not started | 5 (2 iPads in 238 and 250 s, 3 iPhones in 180 to 237 s) | 44% in any test step | 0 | Neither. Green, but one test took 2,020 seconds ("Known and not yet explained", the onboarding that never went idle) |
+| 45053643489, November 22, the full suite the first calendar build shipped on | Not started | 5 (2 iPads in 228 and 285 s, 3 iPhones in 198 to 272 s) | 46% in any test step | 0 | Neither. Green: 155 UI tests in 6,780 seconds, one of 135 |
+| 45054388170, November 22, the full suite with the Release build beside it | Not started | 5 (2 iPads in 164 and 237 s, 3 iPhones in 126 to 221 s) | 43% in any test step | 0 | Neither, and no test needed a second launch. Green: 155 UI tests in 5,820 seconds, none over 120 |
 
 That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
 The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
@@ -591,6 +620,32 @@ A failure that could not be reproduced is written down here with what was ruled 
 - **What may hide it now**: the typing helper (`type(_:into:in:)`) taps the field again before a second try.
   That is right for the tests, and it means this failure would now pass on its second round.
   If a new member reports a name field that looks ready and takes no keys, or the by-hand reproduction loses a round, this is that; the reproduction never taps and never retries.
+
+### Onboarding that never went idle: one test of 2,020 seconds in a green run
+
+- **Seen**: November 22, 2026, run 45039811167 (Wall UI 2 of 2, the first full run with Free together), `FirstRunTests.testOnboardingWithRealCalendarAccess`: passed, in 2,019.6 seconds, where it takes 46 to 87. The job took 58 minutes of its 75.
+- **What the log shows**: from the first screen's Continue to the end, every step XCTest took waited its full 60 seconds for the app to go idle and gave up: "Wait for com.mingyucao.porchlight to idle", then "App animations complete notification not received, will attempt to continue", 33 times in that one test and nowhere else in the job.
+  Memory was fine throughout (47% to 49% free, no swap), so it is not the Mac.
+  Each step then did what it was asked, which is why the test passed.
+- **What it means**: for the length of that launch the app never stopped animating or never let its main run loop rest, on the onboarding screens. A person would not see it; XCTest waits for it before every tap and every query.
+- **Not known**: what kept it busy. Nothing in the onboarding's own views repeats an animation for ever (the only `repeatForever` and `TimelineView(.animation)` in the app are in the care sheet). It has been seen once, in the first run that had Free together and the shared calendar's first pass in the same launch; the runs before it took 57 seconds for the same test.
+- **Why it matters**: one more minute a step and the job passes its limit, and a run that is green hides it: nothing fails. The ceiling of 120 seconds is checked by reading a run's seconds, which nobody does on a green run.
+- **Owner**: the agent on the calendar branches for the cause, if it is the app's; the agent on `tests/pyramid` for making a test that takes ten times its usual seconds visible on a green run.
+- **Where the waits were**: the first idle wait that never returned was the one after Return in the household's name, on the first onboarding screen, 12.9 seconds in. Every wait on the app after it timed out at 60.0 seconds, on every screen to the end, Settings after onboarding included; the waits on SpringBoard between them all returned at once. The calendar permission prompt came at 1,043 seconds, long after it had begun, and did not end it. It was the ninth test of its share, on an iPad Pro 13-inch (M5) with the wallpaper daemon not started; the tests before and after it had no idle wait given up.
+- **Ruled out since**: the app, as far as it can be reproduced. The same test through `scripts/test.sh` on iOS 27.2 and 17.5 took 48 and 68 seconds with no idle wait given up, and the wall left for five minutes after a real first run does one pass at launch and nothing after.
+- **Count**: 1 occurrence, in run 45039811167. The same test took 57 seconds in the run before it (45035829327), and 61.6 and 59.8 in the two full runs after it (45053643489 and 45054388170), with no idle wait given up.
+- **Next step**: the next occurrence is kept by itself: the time limit stops it at 420 seconds, and its suite's result bundle and the simulator's log of the app are uploaded (the hard rule "A test that runs away is stopped and failed, and a test that waited on the app is kept"). Read the app's log from that bundle for what the main thread was doing from the moment the household is named.
+
+## What the suite missed
+
+What reached a person, or would have, with every test green; each with what now stands in its way.
+
+| What | When | Why no test saw it | What stands in its way now |
+|---|---|---|---|
+| The TestFlight archive did not compile: `Porchlight/Shell/WallView.swift:112`, "cannot find 'holdsStill' in scope" | November 22, 2026, on commit fb6900b, which had four green full runs. Nothing reached TestFlight | A `@State private var holdsStill` was declared inside the `#if DEBUG` block beside the test-only `touchesSeen`, and read outside it. CI ran `xcodebuild build-for-testing` in Debug and nothing else, so the configuration that ships was never compiled | The "Release build" job compiles the app and its widgets in Release on every push and every full run (the hard rule "The shipped configuration is compiled in CI"). The declaration was moved out of the block |
+| A handwritten title's ink cut off at its last letter, with every frame inside the screen | November 21, 2026, found by eye | A frame inside the screen does not prove the ink is inside the frame | `HandwritingTests` measures the ink (the hard rule of that name) |
+| A blank review shot for a page taller than about 4,096 points, with every check on the page passing | November 22, 2026, Free together at the largest size | `drawHierarchy` returns a blank picture past about 8192 pixels, and nothing looked at the picture | `HostedScreen` draws a tall page in pieces and fails on a picture that is blank where the page has words |
+
 
 ## Budgets
 
@@ -1080,10 +1135,12 @@ Seconds are from a local run of the unit suite; all of them together are under t
 | `EventLineTests` | Pure functions, clock pinned to a Tuesday morning, first weekdays and locales handed in | The one-line reader's phrase table: weekdays, next and this, today, tonight and tomorrow, dates either way round, times, bare hours, ranges, durations, all day, and household names as For; a line with no day or time | `PhoneCalendarEditTests.testAddingAnEvent`, `WallSharedCalendarTests.testAddingAnEventOnTheWall` |
 | `CalendarOwnerTests` | Pure functions, and the real database in memory as a phone and as the wall | Whose a newly seen calendar is, swept over titles (a name, an email address, Work, Family, another member's name, empty) on James's phone, Mia's and the wall; the household's own kinds; the one-time correction leaving picked owners alone; the home calendar made everyone's; an address never passed on as a title; Free together busy for the owner alone; a changed owner reaching the passed-on calendar | `PhoneCalendarTests.testChangingWhoseACalendarIs` |
 | `PocketCalendarsScreenTests` | Hosted whole page, four looks | Each calendar's "Belongs to" and "Household sees" menus, across the screen, under the name, stacked at the accessibility sizes | `PhoneTabsTests.testChoosingCalendars`; its shots are `calendars-page-<look>.png` |
+| `EventLineTests`, the sweeps added by the audit of November 22 | The same table in three time zones (Los Angeles, Auckland, Kolkata) and from a Sunday and a Monday start; "tomorrow 10am" across both of Los Angeles's clock changes | That a line reads to the same day and hour wherever the household is and whichever day starts its week, that an hour is an hour on a 25-hour day, and that 90 minutes is 90 minutes through the repeated hour. Nothing in the reader failed | The same journeys |
 | `FreeTogetherLogicTests` | Pure functions, the UI tests' Wednesday, swept over a year in two zones | The two weeks, weekend days by locale, tonight from now, the windows' edges and the two- and three-hour thresholds, events across midnight and a weekend, the clocks changing, quiet work as one block, Busy only, For, everyone's and shared events, all-day events never busy, one person, four people, 12 and 24 hours | `PhoneFreeTogetherTests`, `WallSharedCalendarTests.testFreeTogetherUnderTheWeek` |
-| `PocketFreeTogetherScreenTests` | Hosted whole screen, the UI tests' Wednesday | Tonight, a book club, a party for everyone, a free Saturday afternoon and a visitor all weekend, each row's words, across the screen in four looks; at the largest sizes the first five rows are saved too, as the whole page is taller than a picture can be drawn | `PhoneFreeTogetherTests`; its shots are `free-together-<look>.png` and `free-together-rows-<look>.png` |
+| `PocketFreeTogetherScreenTests` | Hosted whole screen, the UI tests' Wednesday | Tonight, a book club, a party for everyone, a free Saturday afternoon and a visitor all weekend, each row's words, across the screen in four looks | `PhoneFreeTogetherTests`; its shots are `free-together-<look>.png` |
 | `PocketEventSheetsScreenTests` | Hosted whole sheets, clock pinned to the UI tests' Wednesday | The home calendar chooser, a new event read from one line, a weekly event's page with Edit and Delete, and its editor, each across the screen in four looks; at the accessibility sizes the day and time stack under their label | `PhoneCalendarEditTests`; its shots are `event-<sheet>-<look>.png`; asking "this event or future ones" is a system dialog, in the journey only |
 | `CalendarWriteTests` | The real database in memory, a fake calendar provider written in memory | Resolving and choosing the home calendar, adding with For, For the calendar's owner storing nothing, a read only calendar, this event and future events, delete and Undo, who can change an event, and an id that changes after saving | `PhoneCalendarEditTests` |
+| `CalendarWriteTests`, its waits | As above | After each write the test waits for what it is about to check (the event in the store, the home calendar found), asking every 50 milliseconds for ten seconds at the most; it had slept a fixed 400 milliseconds fifteen times, which was a guess on a slow Mac | The same journeys |
 | `EventForSyncTests` | The fake iCloud, two devices and an older build | Who an event is for, set where it was made or on another device, kept by an older build, carried across an id change by the device that has the event, by title and start meanwhile, and for Busy only events | None: no UI test runs two devices |
 | `PocketSharedCalendarScreenTests` | Hosted whole screen, clock pinned | The Calendar tab and Today's card with another device's quiet rows, Busy only row and stale line; a week across two months with a long title and a day of eight things, the strip's days even and level; in four looks | `PhoneSharedCalendarTests`, `PhoneCalendarTests`; its shots are `shared-calendar-*` and `calendar-busy-week-<look>.png` |
 | `PocketRecipesScreenTests` | Hosted whole screen, with `HostedRowLayout` | The bank (a name and a line as long as they come), an empty bank, a recipe's page and a home dish's way to its recipe, in four looks; one row layout per list at each size | `PhoneRecipesTests`; its shots are `recipes-<kind>-<look>.png` |

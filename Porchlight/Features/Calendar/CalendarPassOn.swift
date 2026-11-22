@@ -8,6 +8,10 @@ import GRDB
 
 enum CalendarPassOn {
     /// Days passed on before today, and after it.
+    /// How often a pass that changes nothing still stamps the feed: often enough for "updated
+    /// Tuesday", which only counts days, without a write to iCloud on every app open, change
+    /// notification and hourly pass of an idle device.
+    static let feedRefresh: TimeInterval = 3600
     static let daysBack = 14
     static let daysAhead = 90
     /// Notes are cut to this many characters: enough to read, little to send.
@@ -217,10 +221,16 @@ extension AppDatabase {
                 id: feedId, deviceId: deviceId, passedOnAt: now, passedOnBy: trigger,
                 windowStart: window.start, windowEnd: window.end, eventCount: plan.events.count
             )
-            try feed.save(db)
             let calendars = try SharedCalendar.filter(Column("feedId") == feedId).fetchAll(db)
             let events = try SharedEvent.filter(calendars.map(\.id).contains(Column("sharedCalendarId"))).fetchAll(db)
             let diff = CalendarPassOn.diff(wanted: plan, calendars: calendars, events: events)
+            // Nothing new, the same window, and stamped within the hour: write nothing at all.
+            let stamped = try CalendarFeed.fetchOne(db, id: feedId)
+            let unchanged = diff.isEmpty && stamped.map {
+                $0.windowStart == window.start && $0.windowEnd == window.end && $0.eventCount == plan.events.count
+                    && now.timeIntervalSince($0.passedOnAt) < CalendarPassOn.feedRefresh && now >= $0.passedOnAt
+            } ?? false
+            if !unchanged { try feed.save(db) }
             let before = Dictionary(events.map { ($0.id, $0.matchKey) }, uniquingKeysWith: { first, _ in first })
             for event in diff.updateEvents {
                 if let old = before[event.id] ?? nil, let new = event.matchKey, old != new {

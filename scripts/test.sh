@@ -34,6 +34,7 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 # then finds simctl only on the PATH.
 export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 source scripts/lib/simulators.sh
+source scripts/lib/stage.sh
 source scripts/lib/runner-start.sh
 
 unit=1
@@ -250,6 +251,33 @@ verdict() {
   return $bad
 }
 
+# The longest one UI test may run, in seconds, before xcodebuild stops it and fails it. The
+# ceiling a test is written to is 120 (docs/design/testing.md, "Budgets"); this is the hard
+# stop, which no healthy test comes near on the slowest hosted Mac seen (164 seconds), and
+# which a test that has run away meets: on November 22, 2026 one passed after 2,020
+# seconds. xcodebuild counts in whole minutes.
+test_limit=${PORCHLIGHT_TEST_LIMIT_SECONDS:-420}
+limits=(-test-timeouts-enabled YES -default-test-execution-time-allowance "$test_limit" -maximum-test-execution-time-allowance "$test_limit")
+
+# After a UI suite: names the tests that took longer than the ceiling or waited on an app
+# that would not go idle (scripts/lib/slow_tests.py), and for each keeps the simulator's
+# own log of the app over the test's span, beside the suite's log. The suite's whole result
+# bundle is then kept too (scripts/ci/collect-results.sh), green run or not.
+slow_tests() {
+  local name=$1 sim=$2 log=$3 keep="${3%.log}.keep" class test span from to
+  rm -f "$keep"
+  python3 scripts/lib/slow_tests.py "$name" "$log" "$keep" || true
+  [[ -s "$keep" ]] || return 0
+  while read -r class test span; do
+    from=${span%%|*} to=${span##*|}
+    [[ -n "$from" && -n "$to" ]] || continue
+    # Bounded twice: two minutes to read the log, and 40 MB of it before it is packed.
+    porchlight_stage "the simulator's log for $class.$test" 120 zsh -c \
+      'xcrun simctl spawn "$1" log show --start "$2" --end "$3" --style compact --predicate "process == \"Porchlight\"" 2>/dev/null | head -c 40000000 | gzip > "$4"' \
+      - "$sim" "$from" "$to" "${log%.log}-$class-$test-simulator.log.gz" || true
+  done < "$keep"
+}
+
 # Runs one UI suite: `ui_suite <name> <udid> <selection...>`, into $results/<name>.xcresult.
 ui_suite() {
   local name=$1 sim=$2
@@ -260,7 +288,7 @@ ui_suite() {
   for attempt in 1 2; do
     rm -rf "$results/$name.xcresult"
     { xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
-      "$@" "${clones[@]}" -resultBundlePath "$results/$name.xcresult"; echo $? > "$results/$name.status" } 2>&1 | record "$results/$name.log" || true
+      "$@" "${clones[@]}" "${limits[@]}" -resultBundlePath "$results/$name.xcresult"; echo $? > "$results/$name.status" } 2>&1 | record "$results/$name.log" || true
     # A simulator under memory pressure can fail to start the test runner at all ("Timed out
     # while loading Accessibility", the runner crashing before it connects, or "The test
     # runner crashed while preparing to run tests"). No test started, so the whole run is
@@ -276,6 +304,7 @@ ui_suite() {
     cp "$results/$name.log" "$results/$name-never-started.log"
   done
   summarize < "$results/$name.log" | grep -v "passed (" | sed "s/^/[$name] /"
+  slow_tests "$name" "$sim" "$results/$name.log"
   # A test XCTest could not start the app for, on a busy simulator, runs once more on its own; any
   # other failure stands (scripts/lib/launch_retry.py).
   local again test
@@ -286,7 +315,7 @@ ui_suite() {
   (( ${#retry} )) || return 0
   echo "[$name] XCTest could not start the app for ${(j:, :)${(f)again}}; running them once more"
   xcodebuild test-without-building -xctestrun "$(xctestrun PorchlightUI)" -destination "id=$sim" \
-    "${retry[@]}" -resultBundlePath "$results/$name-retry.xcresult" 2>&1 | record "$results/$name-retry.log" || true
+    "${retry[@]}" "${limits[@]}" -resultBundlePath "$results/$name-retry.xcresult" 2>&1 | record "$results/$name-retry.log" || true
   summarize < "$results/$name-retry.log" | grep -v "passed (" | sed "s/^/[$name, again] /"
 }
 

@@ -31,6 +31,7 @@ On a wall without it, in its place: "To add an event, use a phone that has Famil
 The line ("Leo dentist thu 4pm") is read on the device with no network and no model (`EventLine.read`):
 
 1. Dates and times by `NSDataDetector` on the line, with the household's calendar, time zone and the pinned clock as the reference date; then simple rules the detector misses or gets wrong for a family calendar: a weekday alone is the next one (today counts if the time is still ahead), "tonight" is 7 PM today, "noon", "lunch" (12:30), "dinner" (6:30 PM), a bare hour from 7 to 11 without "am" is morning and from 1 to 6 is afternoon ("soccer 4" is 4 PM), "all day".
+   A date in figures ("3/4") is read in the order the phone writes dates: the household's calendar carries no region, and the order is the typist's habit, so March 4 on a US phone and the 3rd of April on a British or German one.
 2. A range ("4-5pm", "4pm to 6", "from 4 for 2 hours") sets the end; otherwise an hour, or all day for a date with no time.
 3. A person's first name, at the start or after "for", sets "For" and stays in the title ("Leo dentist" stays "Leo dentist"; the household reads it that way on the wall).
 4. What remains, trimmed of the date words, is the title, its first letter capitalized.

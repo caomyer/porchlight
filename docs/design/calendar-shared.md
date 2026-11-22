@@ -67,7 +67,10 @@ device (exists)
    `passedOnAt` is the store's `now`, the screens' clock (`CompanionClock`), not `Date.now`, on purpose.
    In a release build the two are the same instant; in a DEBUG build with a pinned clock, the stale line ("updated Tuesday") compares it with that same pinned `now`, so a pass just made never reads as days old.
    Do not change it to the real clock without changing the stale check with it.
-5. SQLiteData sends what changed; an unchanged calendar sends one small feed record.
+   A pass that changes nothing (no row, the same window and count) leaves the feed alone while its `passedOnAt` is under an hour old (`CalendarPassOn.feedRefresh`), so an idle device writes to iCloud at most once an hour; the window rolling at the day's turn is a change and writes.
+   The device keeps, unsynced, when it last looked, and Sync details adds it to its own line: "checked 10:02 AM, nothing new".
+   Nothing reads a stamp under a day old as stale, so the hour costs no freshness.
+5. SQLiteData sends what changed; an unchanged pass sends nothing, or once an hour one small feed record.
 
 It runs when EventKit says something changed (gathered over two seconds), when the app comes to the front, when a choice changes, at the day's turn (the window rolls), and from a background refresh (`BGAppRefreshTask`, `com.mingyucao.porchlight.calendar.passOn`, asked for again each time, earliest in an hour), which iOS grants when it chooses.
 The wall, which is always on, also runs it every hour.

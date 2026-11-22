@@ -7,9 +7,9 @@ import Testing
 /// Angeles, unless a row says otherwise.
 @Suite("Reading one typed line into an event")
 struct EventLineTests {
-    static func calendar(firstWeekday: Int = 1, locale: String = "en_US") -> Calendar {
+    static func calendar(firstWeekday: Int = 1, locale: String = "en_US", zone: String = "America/Los_Angeles") -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        calendar.timeZone = TimeZone(identifier: zone)!
         calendar.locale = Locale(identifier: locale)
         calendar.firstWeekday = firstWeekday
         return calendar
@@ -95,6 +95,43 @@ struct EventLineTests {
         #expect(reading.forIds == (row.forLeo ? [Self.leo.id] : (row.line.hasPrefix("Mia") ? [Self.mia.id] : [])))
     }
 
+    /// The table is written in a household's own wall-clock time, so the same line must read
+    /// to the same day and hour wherever the household is and whichever day starts its week
+    /// (docs/design/testing.md, the hard rule "A test's outcome never depends on the real
+    /// clock": at least two zones, and both first weekdays). Auckland is a day ahead of Los
+    /// Angeles and on summer time in November; Kolkata is half an hour off the hour.
+    @Test("Every line reads the same in three time zones and from a Monday or a Sunday start", arguments: [
+        ["America/Los_Angeles", "2"], ["Pacific/Auckland", "1"], ["Pacific/Auckland", "2"], ["Asia/Kolkata", "1"], ["Asia/Kolkata", "2"],
+    ])
+    func readsEverywhere(place: [String]) {
+        let calendar = Self.calendar(firstWeekday: Int(place[1])!, zone: place[0])
+        for row in Self.rows {
+            let reading = EventLine.read(row.line, now: Self.at(row.now, calendar), calendar: calendar, people: [Self.leo, Self.mia])
+            #expect(reading.title == row.title, "\(row.line)")
+            #expect(reading.start == Self.at(row.start, calendar), "\(row.line): start \(reading.start)")
+            if row.end == "all day" {
+                #expect(reading.isAllDay, "\(row.line)")
+            } else {
+                #expect(reading.end == Self.at(row.end, calendar), "\(row.line): end \(reading.end)")
+            }
+        }
+    }
+
+    /// The days the clocks change in Los Angeles: November 1, 2026 has 25 hours and March 14,
+    /// 2027 has 23. "Tomorrow at 10" is 10 on the clock both times, and an hour is an hour.
+    @Test("Across a clock change, tomorrow's 10 am is 10 am and an hour-long event is an hour")
+    func clockChanges() {
+        for (evening, morning, end) in [("2026-10-31 21:00", "2026-11-01 10:00", "2026-11-01 11:00"), ("2027-03-13 21:00", "2027-03-14 10:00", "2027-03-14 11:00")] {
+            let reading = EventLine.read("Brunch tomorrow 10am", now: Self.at(evening), calendar: Self.calendar(), people: [])
+            #expect(reading.start == Self.at(morning), "from \(evening): \(reading.start)")
+            #expect(reading.end == Self.at(end), "from \(evening): \(reading.end)")
+            #expect(reading.end.timeIntervalSince(reading.start) == 3600)
+        }
+        // An event that begins before the clocks go back and runs through the repeated hour.
+        let late = EventLine.read("Party tonight for 90 minutes", now: Self.at("2026-10-31 08:00"), calendar: Self.calendar(), people: [])
+        #expect(late.end.timeIntervalSince(late.start) == 90 * 60)
+    }
+
     @Test("\"Next\" a weekday is in the household's following week, from a Sunday or a Monday start")
     func nextWeek() {
         // Saturday, November 28: next Monday is two days on whichever day starts the week.
@@ -110,11 +147,24 @@ struct EventLineTests {
         #expect(EventLine.read("Brunch next sunday 10am", now: sunday, calendar: Self.calendar(firstWeekday: 1), people: []).start == Self.at("2026-12-06 10:00"))
     }
 
-    @Test("A date written with slashes is month first in the US and day first elsewhere")
+    @Test("A date in figures is read as the phone writes dates: month first in the US and Japan, day first in Britain, Germany and Australia")
     func slashes() {
-        #expect(EventLine.read("Trip 3/12", now: Self.now, calendar: Self.calendar(), people: []).start == Self.at("2027-03-12 00:00"))
-        let british = Self.calendar(firstWeekday: 2, locale: "en_GB")
-        #expect(EventLine.read("Trip 3/12", now: Self.now, calendar: british, people: []).start == Self.at("2026-12-03 00:00", british))
+        // The product's own household calendar: a time zone and a first weekday, nothing more.
+        let household = Calendar.household(timeZoneIdentifier: "America/Los_Angeles", firstWeekday: 1)
+        #expect(EventLine.monthFirst(device: Locale(identifier: "en_US")))
+        #expect(EventLine.monthFirst(device: Locale(identifier: "ja_JP")))
+        #expect(!EventLine.monthFirst(device: Locale(identifier: "en_GB")))
+        #expect(!EventLine.monthFirst(device: Locale(identifier: "de_DE")))
+        #expect(!EventLine.monthFirst(device: Locale(identifier: "en_AU")))
+        let british = EventLine.read("Dentist 3/4", now: Self.now, calendar: household, people: [], device: Locale(identifier: "en_GB"))
+        #expect(british.start == Self.at("2027-04-03 00:00"), "the 3rd of April")
+        let american = EventLine.read("Dentist 3/4", now: Self.now, calendar: household, people: [], device: Locale(identifier: "en_US"))
+        #expect(american.start == Self.at("2027-03-04 00:00"), "March 4")
+        let december = EventLine.read("Trip 3/12", now: Self.now, calendar: household, people: [], device: Locale(identifier: "en_GB"))
+        #expect(december.start == Self.at("2026-12-03 00:00"), "still this year")
+        // With no locale handed in, the phone's own, whatever it is where the tests run.
+        let own = EventLine.monthFirst(device: .current) ? Self.at("2027-03-12 00:00") : Self.at("2026-12-03 00:00")
+        #expect(EventLine.read("Trip 3/12", now: Self.now, calendar: household, people: []).start == own)
     }
 
     @Test("A line with no day or time starts at the next whole hour, and says it found neither")

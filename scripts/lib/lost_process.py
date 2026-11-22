@@ -7,9 +7,16 @@ the process again, the last launch ends with "Test run with N tests passed" for 
 that were left. So a run is failed, whatever its result bundle says, when its log shows
 
   - the process being started again after it went ("Restarting after unexpected exit,
-    crash, or test timeout"), or a crash with nothing started after it;
-  - a test that started and never said passed, failed or skipped, in any launch;
-  - a suite that started and never said it ended.
+    crash, or test timeout");
+  - or a log that stops without xcodebuild's own last word ("** TEST EXECUTE SUCCEEDED **"
+    or "FAILED"), with a test that started and never said passed, failed or skipped, or a
+    suite that started and never said it ended.
+
+A test or a suite with no result line is named when the process was lost, to say where it
+went, but is never by itself a failure in a run that xcodebuild finished: the app writes
+into the same log, and a result line is now and then cut in two by another line. On
+November 22, 2026 a good run was failed for a test whose "passed" was split that way, the
+day this check was written.
 
     lost_process.py <name> <log>
 
@@ -78,8 +85,17 @@ def lost(log_text):
     unfinished = [name for name in started if name not in ended]
     open_suites = [name for name in suites_started if name not in suites_ended]
     problems = []
+    # xcodebuild's last word. With it and no restart, the run kept its process, and a test
+    # with no result line is a line that was cut, not a test that was lost.
+    finished = "** TEST EXECUTE SUCCEEDED **" in log_text or "** TEST EXECUTE FAILED **" in log_text
+    if finished and not restarts:
+        return []
+    if not restarts and not unfinished and not open_suites:
+        return []
+    if not restarts:
+        problems.append("the log stops before xcodebuild said how the run ended")
     if restarts:
-        problems.append("the test process was lost %s (it exited or crashed) and was started again" % ("once" if restarts == 1 else "%d times" % restarts))
+        problems.append("the test process was lost %s (it exited, crashed, or a test passed its time limit) and was started again" % ("once" if restarts == 1 else "%d times" % restarts))
     if unfinished:
         shown = ", ".join(unfinished[:5]) + (" and %d more" % (len(unfinished) - 5) if len(unfinished) > 5 else "")
         problems.append("%d of the %d tests that started never reported a result: %s" % (len(unfinished), len(started), shown))
