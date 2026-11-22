@@ -56,6 +56,29 @@ So it is a small synced record, `eventFor`, one per event series, keyed so every
 Showing: an event's owners are its `eventFor` people when there is one, else its calendar's owner, as today.
 That holds for every event, not only home calendar ones, so "For" can be set on any event a device shows whose match key it has; it is the household's view of the event and changes nothing in the real calendar.
 An event with no match key (a calendar that doesn't share ids, which home calendars do) can't be given a "For"; the sheet says so instead of offering it.
+"For" is the household's, so an event kept to its phone (Just me) has none.
+
+### Keeping "For" on its event when the id changes
+
+The id iOS shares across devices (`calendarItemExternalIdentifier`) is not settled for an event just made: Exchange and Google can hand back another after the server first accepts the event, and a repeating event's detached occurrences have their own quirks.
+Step 1's matching survives that with its fallback (title, start, end); a "For" must not be lost either, so it is held three ways:
+
+1. **The device that has the event re-keys it.**
+   Every device that has an event's calendar knows the event by its local id (`calendarItemIdentifier`), which doesn't change on that device.
+   Two places notice when the shared id moves under it:
+   - when a pass compares an occurrence with what it passed on before (its `sharedEvent` row's id is made from the local id), a changed match key re-keys any `eventFor` with the old key;
+   - a device that set a "For" on an event it has (above all, the one that just made it) remembers that event's local id beside the record (`calendarItemFor`, on the device only), and on every pass re-keys the record if the event's match key is no longer the one it holds.
+   Re-keying writes the record under its new id, with its people, and removes the old one, in one write, which every device then gets.
+2. **A fallback key while that hasn't happened yet.**
+   The record also carries the start of the occurrence it was set on and a key of its title: a hash of the title, lowercased and trimmed, together with the household's id, so it is no use outside the household.
+   A device that finds no record for an event's match key uses the record whose title key and start are the event's.
+   That catches the gap between a new event's first pass and the re-key, for that occurrence.
+   An event on a Busy only calendar has no title to key, so its record has no fallback key; until the re-key it shows its calendar's owner.
+3. **Nothing is guessed.**
+   A record that matches no event by either key is kept, not deleted, so a "For" comes back when its event does (a calendar briefly hidden or a phone a week quiet); it is removed only with Undo's delete or when it is set to everyone.
+
+What can still lose a "For": an event whose shared id changes on a device that is never opened again and has no other device with its calendar.
+The calendar's owner shows then, as before step 3, and the person can set "For" again.
 
 ## Editing and deleting
 
@@ -98,15 +121,29 @@ household
 │                  title, accountKind, chosenById (a device id), chosenAt
 └── eventFor       one per event series that has been given a "For"
                    id derived from the household and the match key
-                   matchKey, personIds (comma-separated person ids, '' for everyone), setById, setAt
+                   matchKey, titleKey (NULL for Busy only), occurrenceStart,
+                   personIds (comma-separated person ids, '' for everyone), setById, setAt
 ```
 
-Both hang off the household, which every device has, so an older build keeps them waiting and an updated one puts them in at once.
-`calendarSource` (device only) gains `isHome`.
+`calendarSource` (device only) gains `isHome`, and a device-only table `calendarItemFor` remembers which of this device's events (by local id) a record was set on.
+
+### Older builds
+
+Both new tables hang off the household, which every device has.
+A device on the build before this has neither: its sync engine keeps their records in its metadata, it syncs everything else as before, and on updating puts them in at once, parents first (SQLiteData's ordering fix).
+Until it updates it shows each event's calendar owner, as before step 3, and offers no "+".
+An event it changes in its own calendar is the calendar service's business, not Porchlight's, so nothing is lost by its not knowing.
+Removing the household's device or person there removes nothing of either table: a `homeCalendar` names devices and people by plain ids, and so does `eventFor`.
+`OlderBuildSyncTests` covers both, as for step 1.
 
 ## Tests
 
 - `EventLineTests`: a table of real phrases on the pinned clock: weekdays and "next Friday", "tomorrow", "tonight", times with and without am or pm and the bare-hour rule, 24-hour times, ranges and durations, dates across the year's end, all day, a person's name at the start and after "for", both first weekdays, and a 12- and a 24-hour phone.
 - EventKit stays behind `CalendarProvider`, which gains writes (save, delete, make a calendar); `FakeCalendarProvider` records them, and the store's add, edit, delete, undo and "this and future" are unit tests against it.
+- The fake provider can change an event's shared id after it is saved, as Google and Exchange do; tests make an event "For Leo", change its id, and require that every device still shows it for Leo: by the fallback before the next pass, and by the re-keyed record after it; and that a Busy only event's record re-keys without a fallback.
 - The home calendar's matching (one, none, two candidates; title or account changed; read only) and "For" precedence are unit tests; `homeCalendar` and `eventFor` across two devices and an older build join `SharedCalendarSyncTests` and `OlderBuildSyncTests`.
 - UI: one journey adding an event on the phone, one editing one (with "This and future events"), one adding on the wall.
+
+## On a real device
+
+The simulator can't show a calendar server changing an event's id, so the build's checklist has, with a shared Google calendar as the home calendar: add "Leo dentist thu 4pm" on a phone, check it reads "For Leo" there and on the wall at once, then again after the phone has been online a few minutes and opened again (the server's id has settled by then), and after a day.
