@@ -442,6 +442,7 @@ Do not provoke one for the purpose.
 |---|---|---|---|---|---|
 | 44956641573, November 21, the full suite, before recipes | Not started | 5 (2 iPads in 139 and 171 s, 3 iPhones in 135 to 251 s) | 59% in a boot step; 45% in any test step, where the wall's shares had gone to 18% and 29% the run before | 0 | Neither, and no test needed a second launch |
 | 44963685565, November 22, the full suite with recipes | Not started | 5 (2 iPads in 169 and 216 s, 3 iPhones in 175 to 235 s) | 62% in a boot step; 44% in any test step | 0 | Neither, and no test needed a second launch. Its one failure was the week grid on the real clock in a Sunday's first hour ("Flaky tests") |
+| 44967355168, November 22, the full suite with the two classes pinned | Not started | 5 (2 iPads in 187 and 193 s, 3 iPhones in 205 to 261 s) | 60% in a boot step; 42% in any test step | 0 | Neither, and no test needed a second launch. Green, in a Sunday's second hour |
 
 That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
 The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
