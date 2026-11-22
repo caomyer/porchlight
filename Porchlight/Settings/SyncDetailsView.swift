@@ -73,7 +73,7 @@ private struct SyncDetailsBody: View {
                 .accessibilityIdentifier("sync-details-hand-fonts")
             // How fresh each device keeps the shared calendar (docs/design/calendar-shared.md,
             // "How fresh"): one line per device, to read the numbers off real devices.
-            let lines = CalendarFreshness.detailLines(calendarStore.snapshot.shared, now: CompanionClock.now(), calendar: calendarStore.calendar)
+            let lines = CalendarFreshness.detailLines(calendarStore.shared, now: CompanionClock.now(), calendar: calendarStore.calendar)
             ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                 row("Calendars, \(line.device)", line.line)
             }
