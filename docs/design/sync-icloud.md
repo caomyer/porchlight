@@ -386,6 +386,8 @@ What SQLiteData 1.13.0 does, read from its source and checked by tests:
   New meanings therefore go in new columns, never as new values in old ones.
 - **Every save of a row carries every column, and each column's modification time,** even a nil one: `sqlitedata_icloud_userModificationTime_<column>` is written for every column.
   So once a build with a new column ships, every save of that table sends the new field, and Production must have it first.
+- **New tables, on the device that updates:** 1.13.0 puts the records it kept into the new tables in no set order, so a child table could come before its parent and stop there.
+  The app builds SQLiteData from our fork, which sorts them parents first (`project.yml`; docs/design/dishes.md, "Why a card photo hangs off the dish").
 
 ### Where, one kind or several
 

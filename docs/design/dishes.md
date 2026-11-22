@@ -193,13 +193,18 @@ A child table that comes before its parent fails its foreign key, the engine sto
 `OlderBuildSyncTests.updatingBringsInRecipes` failed exactly so with the proposal's shape ("FOREIGN KEY constraint failed" inserting into `recipePhotoThumb`).
 The engine's ordinary fetch has no such problem: it sorts records parents first and retries any that fail.
 
-So no new table may hang off another new one.
+So the recipe tables were made flat: no new table hangs off another new one.
 `recipe` and `recipePhoto` both hang off `dish`, which every such device has, and a card photo names its recipe with a plain id.
 Its two pictures are columns of its row (both iCloud assets), and nothing reads them but `PhotoImages` and the recipe's page: `RecipePhoto` selects everything else, `RecipePhotoRow` is the whole row for saving and for Undo, and the storage meter reads their sizes with `LENGTH`, which doesn't load them.
 Removing a recipe removes its card photos itself (`RecipeTidy.delete`), since they don't cascade from it; removing the dish takes both.
 
 Step 1 has the same shape in one place: `mealDishRating` hangs off `mealDish`, both new in "dishes v1".
-By the same path, a device that updated from before dishes, while other devices had given their own faces, can have needed more than one launch to show them; no test covers that case yet.
+By the same path, a device that updated from before dishes, while other devices had given their own faces, could need more than one launch to show them.
+
+The ordering itself is now fixed, in our fork of SQLiteData (`caomyer/sqlite-data`, branch `porchlight/update-order`, pinned by revision in `project.yml`): the engine updates the changed tables parents first, as its ordinary fetch does.
+`OlderBuildSyncTests.updatingBringsInDishFacesParentsFirst` updates a device from before dishes twelve times, each with `mealDishRating` records waiting beside `mealDish` ones, and requires every face to arrive on the first launch; against SQLiteData 1.13.0 it fails in some of the twelve.
+So a new table may hang off another new one again, and future parent and child tables need not be flat; the recipe tables stay as they are.
+Back to `pointfreeco/sqlite-data` at the first release that carries the fix.
 
 ### Ids and joining
 

@@ -24,9 +24,17 @@ packages:
   GRDB:
     url: https://github.com/groue/GRDB.swift
     exactVersion: 7.11.1
+  # SQLiteData 1.13.0 with one patch, from our public fork (branch porchlight/update-order):
+  # after a schema change, the sync engine updates the changed tables in dictionary order,
+  # which differs from one engine to the next, so a child table could come before its
+  # parent, fail its foreign key and stop the catch-up for every table after it, to be
+  # retried and fail again on later launches. The patch sorts them parents first, as the
+  # rest of the engine does (docs/design/dishes.md, "Why a card photo hangs off the dish";
+  # OlderBuildSyncTests.updatingBringsInDishFacesParentsFirst). Pinned by revision, not
+  # branch. Go back to pointfreeco/sqlite-data at the first release that carries the fix.
   SQLiteData:
-    url: https://github.com/pointfreeco/sqlite-data
-    exactVersion: 1.13.0
+    url: https://github.com/caomyer/sqlite-data
+    revision: bd2ac356193fb34c7cf0877b108513f3fd758d97
 targets:
   Porchlight:
     type: application
