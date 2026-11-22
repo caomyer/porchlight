@@ -179,6 +179,16 @@ final class SampleCalendarProvider: CalendarProvider {
             ))
         }
 
+        // `-sampleCalendarEvents none`: calendars with nothing in them; `long`: one event today
+        // with a title and a place as long as they come, besides the rest.
+        switch UserDefaults.standard.string(forKey: "sampleCalendarEvents") {
+        case "none": return []
+        case "long":
+            timed(0, Self.us, 17.5, 18.5, "Parent-teacher conferences for the whole of the fourth grade, bring the reading log",
+                  "Lincoln Elementary School, the library on the second floor, past the gym")
+        default: break
+        }
+
         // `-sampleHomeCalendar YES`: piano every Thursday at 4, in the home calendar.
         if UserDefaults.standard.bool(forKey: "sampleHomeCalendar") {
             let weekday = calendar.component(.weekday, from: today)

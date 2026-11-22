@@ -205,7 +205,7 @@ enum FreeTogetherLogic {
     }
 }
 
-/// The words of Free together: "Everyone free from 5:30 PM", "Sam out: Book club, 7:00 to
+/// The words of Free together: "Everyone free from 5:30 PM", "Sam busy: Book club, 7:00 to
 /// 9:00 PM", "Alex at work until 7:30 PM". Times in the phone's style (`ClockFormat.phoneTime`),
 /// 12 or 24 hours as the device says.
 struct FreeWords {
@@ -279,12 +279,19 @@ struct FreeWords {
         return "Everyone busy"
     }
 
-    /// "Mia free from 7:30 PM", for those who are, when not everyone is.
+    /// "Mia free from 7:30 PM", for those who are, when not everyone is; those free at the
+    /// same time are said once ("James, Ava and Leo free from 5:30 PM").
     func freeLines(_ time: FreeTime, people: [Person]) -> [String] {
         guard time.everyoneFrom == nil else { return [] }
-        return people.compactMap { person in
-            time.free[person.id].map { "\(person.name) free \(when($0, time.freeUntil[person.id] ?? time.window.end, in: time))" }
+        var order: [String] = []
+        var who: [String: [Person.ID]] = [:]
+        for person in people {
+            guard let from = time.free[person.id] else { continue }
+            let phrase = when(from, time.freeUntil[person.id] ?? time.window.end, in: time)
+            if who[phrase] == nil { order.append(phrase) }
+            who[phrase, default: []].append(person.id)
         }
+        return order.map { "\(Self.names(who[$0]!, people: people, household: 0)) free \($0)" }
     }
 
     /// "Sam", "Sam and Alex", or "Everyone" when it is the whole household.

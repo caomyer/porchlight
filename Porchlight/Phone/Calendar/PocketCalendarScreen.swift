@@ -141,9 +141,11 @@ struct PocketCalendarScreen: View {
                         withAnimation(.easeOut(duration: 0.2)) { monthOpen.toggle() }
                     } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            // One line, made smaller where it must be, rather than "Novemb" over "er".
                             Text(title)
                                 .phoneFont(.display, 28, weight: 600, relativeTo: .largeTitle)
-                                .fixedSize(horizontal: false, vertical: true)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
                             Image(systemName: monthOpen ? "chevron.up" : "chevron.down")
                                 .phoneFont(.body, 14, weight: 800, relativeTo: .title3)
                                 .foregroundStyle(Theme.accent)
@@ -163,6 +165,8 @@ struct PocketCalendarScreen: View {
             Button { add() } label: {
                 Image(systemName: "plus")
                     .phoneFont(.body, 17, weight: 800, relativeTo: .title3)
+                    // The circle keeps its size; the plus stays inside it.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(Theme.surface)
                     .frame(width: 36, height: 36)
                     .background(Theme.accent, in: Circle())
@@ -193,6 +197,10 @@ struct PocketCalendarScreen: View {
     // MARK: Calendar or Free together
 
     /// "Calendar | Free together", as the proposal's frame shows.
+    /// The picked half: paper on the track by day, a step lighter than the track at night
+    /// (the night paper is darker than the track, which read as the half not picked).
+    private static let segmentOn = Color(light: 0xFFFCF6, dark: 0x4A413A)
+
     private var viewPicker: some View {
         HStack(spacing: 4) {
             viewOption("Calendar", isOn: !showsFree, id: "calendar-view-calendar") { showsFree = false }
@@ -206,15 +214,17 @@ struct PocketCalendarScreen: View {
         Button {
             withAnimation(.easeOut(duration: 0.15)) { action() }
         } label: {
+            // A two-way switch, grown no further than its words fit whole on one line each.
             Text(title)
                 .phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .foregroundStyle(isOn ? Theme.ink : Theme.muted)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity, minHeight: 36)
-                .background(isOn ? Theme.surface : .clear, in: Capsule())
+                .background(isOn ? Self.segmentOn : .clear, in: Capsule())
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
