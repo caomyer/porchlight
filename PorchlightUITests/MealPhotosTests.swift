@@ -125,6 +125,27 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
         XCTAssertEqual(app.descendants(matching: .any)["meal-pager"].label, "Avocado toast", "Saving removes the photo")
     }
 
+    /// Drags the reframe screen's square to the left, and fails unless it moved.
+    ///
+    /// On November 22, 2026 (run 45005016341) the square still read "50 percent across"
+    /// straight after one drag made the moment the screen existed, on a change with no UI
+    /// code in it. Either the drag began while the screen was still arriving and never
+    /// reached it, or the value was read before it had followed the gesture; the log cannot
+    /// say which. So this waits for the screen to be still, waits for the square to say it
+    /// moved, and drags again, twice at the most, if it did not. What a drag of a given length does to the square is
+    /// `PhotoFramingTests`; this only shows that the gesture reaches it.
+    private func dragTheSquare(in frameWindow: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        let before = frameWindow.value as? String ?? ""
+        frameWindow.waitToSettle()
+        for _ in 0..<3 {
+            frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.1, thenDragTo: frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
+            let moved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value != %@", before), object: frameWindow)
+            if XCTWaiter().wait(for: [moved], timeout: 4) == .completed { return }
+        }
+        XCTFail("Dragging moves the square: after three drags it is still at \(before)", file: file, line: line)
+    }
+
     /// The polaroid opens the whole shot, and a photo can be reframed in Edit.
     func testWholePhotoAndReframing() {
         let app = launch(["-startScreen", "food"])
@@ -149,10 +170,7 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
         tile.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.55)).tap()
         let frameWindow = app.descendants(matching: .any)["reframe-window"]
         XCTAssertTrue(frameWindow.waitForExistence(timeout: 5), "Tapping the cover opens it to be reframed")
-        let before = frameWindow.value as? String
-        frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 0.1, thenDragTo: frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
-        XCTAssertNotEqual(frameWindow.value as? String, before, "Dragging moves the square")
+        dragTheSquare(in: frameWindow)
         snapshot("50-reframe")
         app.buttons["Done"].tap()
         XCTAssertTrue(frameWindow.waitForNonExistence(timeout: 5))
@@ -181,8 +199,7 @@ final class MealPhotosTests: XCTestCase, PhoneTestHelpers {
         reframe.tap()
         let frameWindow = app.descendants(matching: .any)["reframe-window"]
         XCTAssertTrue(frameWindow.waitForExistence(timeout: 5), "Reframe opens the second photo to frame")
-        frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 0.1, thenDragTo: frameWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
+        dragTheSquare(in: frameWindow)
         snapshot("50b-reframe-second")
         app.buttons["Done"].tap()
         XCTAssertTrue(frameWindow.waitForNonExistence(timeout: 5), "Done goes back to the row")
