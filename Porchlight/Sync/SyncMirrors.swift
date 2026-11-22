@@ -318,6 +318,39 @@ enum SyncMirror {
         var image: Data
     }
 
+    // The shared calendar (docs/design/calendar-shared.md).
+
+    @Table("calendarFeed") struct CalendarFeed {
+        let id: UUID
+        var deviceId: UUID
+        var passedOnAt: Date
+        var passedOnBy: String
+        var windowStart: Date
+        var windowEnd: Date
+        var eventCount: Int
+    }
+
+    @Table("sharedCalendar") struct SharedCalendar {
+        let id: UUID
+        var feedId: UUID
+        var title: String
+        var accountKind: String
+        var colorHex: Int
+        var ownerId: UUID?
+        var choice: String
+    }
+
+    @Table("sharedEvent") struct SharedEvent {
+        let id: UUID
+        var sharedCalendarId: UUID
+        var matchKey: String?
+        var title: String?
+        var location: String?
+        var notes: String?
+        var start: Date
+        var end: Date
+        var isAllDay: Bool
+    }
 }
 
 extension SyncMirror {
@@ -335,6 +368,7 @@ extension SyncMirror {
         Device.self,
         Dish.self, MealDish.self, MealDishRating.self,
         Recipe.self, RecipePhoto.self,
+        CalendarFeed.self, SharedCalendar.self, SharedEvent.self,
     ]
 
     /// The zone the household lives in, the engine's own default.
@@ -361,6 +395,7 @@ extension SyncMirror {
             Device.self,
             Dish.self, MealDish.self, MealDishRating.self,
             Recipe.self, RecipePhoto.self,
+            CalendarFeed.self, SharedCalendar.self, SharedEvent.self,
             containerIdentifier: SyncController.containerIdentifier,
             defaultZone: zone,
             startImmediately: false,

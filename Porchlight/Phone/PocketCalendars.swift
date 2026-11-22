@@ -2,9 +2,9 @@ import SwiftUI
 import UIKit
 
 /// "Calendars on this iPhone": which of this phone's calendars Today shows, and for each
-/// whether it belongs to the household, is shared as busy only, or is just mine. Asking
-/// for calendar access happens here, after saying why; the calendar ids never leave the
-/// device (`calendarSource` is device-local).
+/// what the household gets (docs/design/calendar-shared.md): Show everything, Keep it
+/// quiet, Busy only or Just me. Asking for calendar access happens here, after saying why.
+/// Nothing is passed on from this device until this page has shown the choices once.
 struct PocketCalendars: View {
     @Environment(CalendarStore.self) private var store
     @State private var isAsking = false
@@ -38,9 +38,9 @@ struct PocketCalendars: View {
     /// Why first, then the system prompt.
     private var askFirst: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Show your calendars on Today")
+            Text("Bring your calendars to the household")
                 .phoneFont(.display, 20, weight: 600, relativeTo: .title3)
-            Text("Porchlight reads the calendars this \(DeviceWords.this) already has, like iCloud, Google and Outlook, to show today's plans and the next 7 days. It never changes them, and their events stay on this \(DeviceWords.this).")
+            Text("Porchlight reads the calendars this \(DeviceWords.this) already has, like iCloud, Google and Outlook, and passes on the ones you choose, so the wall and everyone's phone show them. It never changes them.")
                 .phoneFont(.body, 14, weight: 500)
                 .foregroundStyle(Theme.muted)
             Button("Allow calendar access") {
@@ -76,9 +76,11 @@ struct PocketCalendars: View {
 
     @ViewBuilder
     private var choices: some View {
-        Text("Tick the calendars Today shows. On this \(DeviceWords.this), Household and Just me show their events in full, and Busy only shows them as \"Busy\", without titles.")
+        Text("Choose what your household sees from each calendar. A work calendar is a good one to keep quiet: everyone sees one block a day, like \"at work until 5:30\", with the meetings a tap away.")
             .phoneFont(.body, 13.5, weight: 500, relativeTo: .subheadline)
             .foregroundStyle(Theme.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .onAppear { store.choicesSeen() }
         let mappings = store.mappings
         if mappings.isEmpty {
             Text("This \(DeviceWords.this) has no calendars yet. Add an account in Settings › Calendar.")
@@ -94,9 +96,10 @@ struct PocketCalendars: View {
             }
             .phoneCard()
         }
-        Text("Events are read on this \(DeviceWords.this) and never stored or sent anywhere by Porchlight.")
+        Text("Passed on through your household's iCloud, to the people in it. Busy only sends the times, never titles, places or notes. Just me sends nothing. The tick is for Today on this \(DeviceWords.this).")
             .phoneFont(.body, 12.5, weight: 500, relativeTo: .footnote)
             .foregroundStyle(Theme.muted)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func row(_ calendar: ExternalCalendar, source: CalendarSource) -> some View {
@@ -123,8 +126,11 @@ struct PocketCalendars: View {
             .accessibilityLabel("Show \(calendar.title) on Today")
             .accessibilityValue(source.isShown ? "On" : "Off")
             Menu {
-                ForEach(CalendarSharing.allCases) { sharing in
-                    Button(sharing.label) { store.setSharing(sharing, for: source) }
+                ForEach(CalendarChoice.allCases) { choice in
+                    Button { store.setSharing(choice, for: source) } label: {
+                        Text(choice.label)
+                        Text(choice.explanation)
+                    }
                 }
             } label: {
                 HStack(spacing: 4) {
@@ -135,8 +141,8 @@ struct PocketCalendars: View {
                 .foregroundStyle(Theme.ink)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 7)
-                .background(source.sharing == .household ? Theme.accentSoft : Theme.surface, in: Capsule())
-                .overlay(Capsule().strokeBorder(source.sharing == .household ? Theme.accent : Theme.line))
+                .background(source.sharing == .justMe ? Theme.surface : Theme.accentSoft, in: Capsule())
+                .overlay(Capsule().strokeBorder(source.sharing == .justMe ? Theme.line : Theme.accent))
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }

@@ -75,6 +75,14 @@ final class CalendarStore: StoredFirstObservable {
     @ObservationIgnored private var focusWindow: DateInterval?
     @ObservationIgnored private var observation: Task<Void, Never>?
     @ObservationIgnored private var dayObserver: (any NSObjectProtocol)?
+    /// The pass waiting out its short delay, so a burst of changes is passed on once.
+    @ObservationIgnored private var passTask: Task<Void, Never>?
+    @ObservationIgnored private var hourly: Task<Void, Never>?
+    @ObservationIgnored private var appObservers: [any NSObjectProtocol] = []
+    /// The calendar this device shows its own events in: where its all-day events fall.
+    @ObservationIgnored private let deviceCalendar: Calendar
+    /// The store a background refresh passes on from (`CalendarPassOnRefresh`).
+    @ObservationIgnored nonisolated(unsafe) static weak var shared: CalendarStore?
 
     /// Days loaded around today, before and after.
     static let pastDays = 42
@@ -84,17 +92,46 @@ final class CalendarStore: StoredFirstObservable {
         self.init(database: database, provider: Self.defaultProvider())
     }
 
-    init(database: AppDatabase, provider: any CalendarProvider, now: @escaping () -> Date = { CompanionClock.now() }) {
+    init(
+        database: AppDatabase, provider: any CalendarProvider, now: @escaping () -> Date = { CompanionClock.now() },
+        deviceCalendar: Calendar = .autoupdatingCurrent, passesOn: Bool = true
+    ) {
         self.database = database
         self.provider = provider
         self.now = now
+        self.deviceCalendar = deviceCalendar
         self.storedAccess = provider.access
         if let first = try? database.calendarSnapshot() { snapshot = first }
-        provider.onChange = { [weak self] in self?.reload() }
+        provider.onChange = { [weak self] in
+            self?.reload()
+            self?.passOnSoon(.change)
+        }
         reload()
         observe()
         dayObserver = NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.reload() }
+            MainActor.assumeIsolated {
+                self?.reload()
+                self?.passOnSoon(.day)
+            }
+        }
+        guard passesOn else { return }
+        Self.shared = self
+        passOnSoon(.open)
+        // Coming to the front catches up; going to the back asks iOS for the next refresh.
+        appObservers = [
+            NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.passOnSoon(.open, after: .milliseconds(500)) }
+            },
+            NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+                CalendarPassOnRefresh.schedule()
+            },
+        ]
+        // The wall is always on: it passes on every hour, which also rolls the window.
+        hourly = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3600))
+                self?.passOnSoon(.day, after: .zero)
+            }
         }
     }
 
@@ -135,7 +172,11 @@ final class CalendarStore: StoredFirstObservable {
     private func apply(_ newSnapshot: CalendarSnapshot) {
         guard newSnapshot != snapshot else { return }
         let householdChanged = newSnapshot.household?.id != snapshot.household?.id
+        let choicesFirstSeen = newSnapshot.choicesSeen && !snapshot.choicesSeen
+        let choicesChanged = newSnapshot.sources.map { [$0.sharing.rawValue, $0.ownerId?.description ?? ""] }
+            != snapshot.sources.map { [$0.sharing.rawValue, $0.ownerId?.description ?? ""] }
         snapshot = newSnapshot
+        if householdChanged || choicesFirstSeen { passOnSoon(.open) } else if choicesChanged { passOnSoon(.choice, after: .milliseconds(300)) }
         if householdChanged || needsSync {
             syncSources()
         }
@@ -205,13 +246,17 @@ final class CalendarStore: StoredFirstObservable {
         resolve()
     }
 
-    /// Applies the mapping to the raw events and indexes them by day.
+    /// Applies the mapping to the raw events, adds what the other devices passed on, each
+    /// event once and quiet calendars as one block a day, and indexes them by day.
     private func resolve() {
         let sources = Dictionary(snapshot.sources.map { ($0.externalId, $0) }, uniquingKeysWith: { first, _ in first })
         let kinds = Dictionary(calendars.map { ($0.id, $0.kind) }, uniquingKeysWith: { first, _ in first })
-        let resolved = rawEvents
+        let own = rawEvents
             .compactMap { event in sources[event.calendarId].flatMap { CalendarEvent.resolve(event, source: $0, kind: kinds[event.calendarId] ?? .regular) } }
             .sorted { ($0.start, $0.end, $0.id) < ($1.start, $1.end, $1.id) }
+        let others = SharedCalendarView.events(snapshot.shared, people: snapshot.people)
+        let merged = SharedCalendarView.merge(own: own, others: others)
+        let resolved = SharedCalendarView.quietBlocks(merged, people: snapshot.people, calendar: calendar)
         let calendar = calendar
         var byDay: [DayKey: [CalendarEvent]] = [:]
         for event in resolved {
@@ -272,6 +317,65 @@ final class CalendarStore: StoredFirstObservable {
         CountdownPicker.pick(from: events, today: today, calendar: calendar, limit: limit)
     }
 
+    /// Other devices whose calendars are over a day old: "Sam's calendar, updated Tuesday".
+    var staleSources: [StaleCalendarSource] {
+        CalendarFreshness.stale(snapshot.shared, people: people, now: now(), calendar: calendar)
+    }
+
+    /// The event with `id`, a quiet block's own events included, for its sheet.
+    func event(id: String) -> CalendarEvent? {
+        events.first { $0.id == id } ?? events.lazy.flatMap(\.quietEvents).first { $0.id == id }
+    }
+
+    // MARK: Passing on
+
+    /// Passes on after a short wait, so a burst of changes is passed on once.
+    func passOnSoon(_ trigger: CalendarPassTrigger, after delay: Duration = .seconds(2)) {
+        passTask?.cancel()
+        passTask = Task { [weak self] in
+            if delay > .zero { try? await Task.sleep(for: delay) }
+            guard !Task.isCancelled else { return }
+            self?.passOn(trigger)
+        }
+    }
+
+    /// Passes this device's calendars on to the household (docs/design/calendar-shared.md,
+    /// "Passing on"): nothing before its choices have been seen here; without calendar
+    /// access, what it passed on before is removed.
+    @discardableResult
+    func passOn(_ trigger: CalendarPassTrigger) -> CalendarPassResult? {
+        guard let household = snapshot.household else { return nil }
+        access = provider.access
+        guard access == .granted else {
+            if access == .denied { perform { try database.withdrawCalendars(householdId: household.id) } }
+            return nil
+        }
+        guard snapshot.choicesSeen else { return nil }
+        let calendar = calendar
+        let window = CalendarPassOn.window(today: DayKey(now(), calendar: calendar), calendar: calendar)
+        let available = provider.calendars()
+        let passing = Set(snapshot.sources.filter(\.sharing.passesOn).map(\.externalId)).intersection(available.map(\.id))
+        let events = provider.events(in: window, calendarIds: passing)
+        let plan = CalendarPassOn.plan(
+            sources: snapshot.sources, calendars: available, events: events,
+            deviceId: database.thisDeviceId(in: household.id), deviceCalendar: deviceCalendar, householdCalendar: calendar
+        )
+        do {
+            let result = try database.passOnCalendars(plan, householdId: household.id, trigger: trigger, window: window, now: now())
+            lastError = nil
+            return result
+        } catch {
+            lastError = error.userMessage
+            return nil
+        }
+    }
+
+    /// Remembers that the choices were shown here, which lets this device pass on.
+    func choicesSeen() {
+        guard !snapshot.choicesSeen else { return }
+        perform { try database.markCalendarChoicesSeen() }
+    }
+
     func color(for owner: Owner) -> Color {
         switch owner {
         case .everyone: Theme.everyone
@@ -286,12 +390,7 @@ final class CalendarStore: StoredFirstObservable {
         perform { try database.setCalendarSourceOwner(id: id, owner: owner) }
     }
 
-    func setVisibility(_ visibility: CalendarVisibility, for source: CalendarSource) {
-        let id = source.id
-        perform { try database.setCalendarSourceVisibility(id: id, visibility: visibility) }
-    }
-
-    func setSharing(_ sharing: CalendarSharing, for source: CalendarSource) {
+    func setSharing(_ sharing: CalendarChoice, for source: CalendarSource) {
         let id = source.id
         perform { try database.setCalendarSourceSharing(id: id, sharing: sharing) }
     }

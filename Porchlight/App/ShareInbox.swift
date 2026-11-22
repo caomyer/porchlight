@@ -30,6 +30,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         WidgetSummaryKeeper.registerBackgroundRefresh()
         // And a send tried again later, for a log a background launch couldn't get up in time.
         SyncSendRetry.register()
+        // And the calendars passed on when the phone isn't opened (docs/design/calendar-shared.md).
+        CalendarPassOnRefresh.register()
         return true
     }
 

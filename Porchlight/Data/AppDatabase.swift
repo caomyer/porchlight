@@ -27,7 +27,7 @@ struct AppDatabase: Sendable {
     }
 
     /// The on-device database in Application Support.
-    static func openOnDisk(folder: URL = AppFiles.root, fileManager: FileManager = .default) throws -> AppDatabase {
+    static func openOnDisk(folder: URL = AppFiles.root, fileManager: FileManager = .default, installId: String = DeviceInstall.id()) throws -> AppDatabase {
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent("porchlight.sqlite")
         let exists = fileManager.fileExists(atPath: url.path)
@@ -37,7 +37,7 @@ struct AppDatabase: Sendable {
         if exists {
             try keepCopyBeforeSync(pool, at: url, fileManager: fileManager)
         }
-        return try AppDatabase(pool, files: folder)
+        return try AppDatabase(pool, files: folder, installId: installId)
     }
 
     /// An empty in-memory database, for tests and previews. It never syncs, so it has no
@@ -118,6 +118,7 @@ struct AppDatabase: Sendable {
         registerFoodMigrationsAfterSync(&migrator)
         registerDishMigrations(&migrator)
         registerRecipeMigrations(&migrator)
+        registerSharedCalendarMigrations(&migrator)
         return migrator
     }
 }

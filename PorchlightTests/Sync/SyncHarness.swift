@@ -103,6 +103,20 @@ final class SyncHarness {
         )
         try database.setMeal(day: today, title: "Tacos", emoji: "🌮", householdId: household.id, dishId: tacos.dish.id)
 
+        // This device's calendars, passed on: one calendar and one of its events.
+        let calendars = [ExternalCalendar(id: "home", title: "Home", account: "iCloud", colorHex: 0x336699, accountKind: "iCloud")]
+        try database.syncCalendarSources(householdId: household.id, calendars: calendars)
+        let start = today.startDate(in: household.calendar).addingTimeInterval(19 * 3600)
+        let plan = CalendarPassOn.plan(
+            sources: try database.calendarSnapshot().sources, calendars: calendars,
+            events: [ExternalEvent(id: "dinner@1", calendarId: "home", title: "Dinner with the Lees", start: start, end: start.addingTimeInterval(7200), isAllDay: false)],
+            deviceId: database.thisDeviceId(in: household.id), deviceCalendar: household.calendar, householdCalendar: household.calendar
+        )
+        try database.passOnCalendars(
+            plan, householdId: household.id, trigger: .open,
+            window: CalendarPassOn.window(today: today, calendar: household.calendar), now: .now
+        )
+
         let journal = try database.ensureFoodJournal(householdId: household.id)
         var dinner = MealDraft(
             day: today, slot: MealSlot.defaultNames[2], sources: MealSources([.dineOut, .company]), title: "Sushi", emoji: "🍣",

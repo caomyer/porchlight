@@ -12,6 +12,33 @@ DEFINE SCHEMA
         GRANT READ TO "_world"
     );
 
+    RECORD TYPE calendarFeed (
+        "___createTime"                                    TIMESTAMP,
+        "___createdBy"                                     REFERENCE,
+        "___etag"                                          STRING,
+        "___modTime"                                       TIMESTAMP,
+        "___modifiedBy"                                    REFERENCE,
+        "___recordID"                                      REFERENCE,
+        deviceId                                           ENCRYPTED STRING,
+        eventCount                                         ENCRYPTED INT64,
+        id                                                 ENCRYPTED STRING,
+        passedOnAt                                         ENCRYPTED TIMESTAMP,
+        passedOnBy                                         ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_deviceId    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_eventCount  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id          ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_passedOnAt  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_passedOnBy  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_windowEnd   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_windowStart ENCRYPTED INT64,
+        windowEnd                                          ENCRYPTED TIMESTAMP,
+        windowStart                                        ENCRYPTED TIMESTAMP,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE careLog (
         "___createTime"                                        TIMESTAMP,
         "___createdBy"                                         REFERENCE,
@@ -818,6 +845,64 @@ DEFINE SCHEMA
         sqlitedata_icloud_userModificationTime_rewardId   ENCRYPTED INT64,
         sqlitedata_icloud_userModificationTime_stars      ENCRYPTED INT64,
         stars                                             ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE sharedCalendar (
+        "___createTime"                                    TIMESTAMP,
+        "___createdBy"                                     REFERENCE,
+        "___etag"                                          STRING,
+        "___modTime"                                       TIMESTAMP,
+        "___modifiedBy"                                    REFERENCE,
+        "___recordID"                                      REFERENCE,
+        accountKind                                        ENCRYPTED STRING,
+        choice                                             ENCRYPTED STRING,
+        colorHex                                           ENCRYPTED INT64,
+        feedId                                             ENCRYPTED STRING,
+        id                                                 ENCRYPTED STRING,
+        ownerId                                            ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_accountKind ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_choice      ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_colorHex    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_feedId      ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id          ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_ownerId     ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_title       ENCRYPTED INT64,
+        title                                              ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE sharedEvent (
+        "___createTime"                                         TIMESTAMP,
+        "___createdBy"                                          REFERENCE,
+        "___etag"                                               STRING,
+        "___modTime"                                            TIMESTAMP,
+        "___modifiedBy"                                         REFERENCE,
+        "___recordID"                                           REFERENCE,
+        end                                                     ENCRYPTED TIMESTAMP,
+        id                                                      ENCRYPTED STRING,
+        isAllDay                                                ENCRYPTED INT64,
+        location                                                ENCRYPTED STRING,
+        matchKey                                                ENCRYPTED STRING,
+        notes                                                   ENCRYPTED STRING,
+        sharedCalendarId                                        ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_end              ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id               ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_isAllDay         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_location         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_matchKey         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_notes            ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_sharedCalendarId ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_start            ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_title            ENCRYPTED INT64,
+        start                                                   ENCRYPTED TIMESTAMP,
+        title                                                   ENCRYPTED STRING,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

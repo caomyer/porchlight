@@ -59,7 +59,7 @@ private struct AccessPrompt: View {
             CalendarTile(size: 72)
             Text("Show your calendars on the wall")
                 .font(.display(26))
-            Text("Porchlight reads the calendars this iPad already has, like iCloud, Google and Outlook. It never changes them.")
+            Text("Porchlight reads the calendars this iPad already has, like iCloud, Google and Outlook, and passes on the ones you choose to everyone's phones. It never changes them.")
                 .font(.body(15, weight: 500))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
@@ -208,7 +208,7 @@ private struct LinkTip: View {
 
 private enum Columns {
     static let owner: CGFloat = 150
-    static let visibility: CGFloat = 130
+    static let visibility: CGFloat = 170
     static let toggle: CGFloat = 70
     static let spacing: CGFloat = 12
 }
@@ -223,7 +223,7 @@ private struct MappingTable: View {
                 Text("Calendar · \(mappings.count) found").frame(maxWidth: .infinity, alignment: .leading)
                 Text("Account").frame(maxWidth: .infinity, alignment: .leading)
                 Text("Belongs to").frame(width: Columns.owner, alignment: .leading)
-                Text("Show as").frame(width: Columns.visibility, alignment: .leading)
+                Text("Household sees").frame(width: Columns.visibility, alignment: .leading)
                 Text("On wall").frame(width: Columns.toggle, alignment: .leading)
             }
             .font(.body(11.5, weight: 800))
@@ -252,6 +252,8 @@ private struct MappingTable: View {
         .foregroundStyle(Theme.ink)
         .background(SurfaceShape(cornerRadius: Theme.radius))
         .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        // The choices have been seen here, so this iPad may pass its calendars on.
+        .onAppear { if !mappings.isEmpty { store.choicesSeen() } }
     }
 
     private func rows(_ mappings: [(calendar: ExternalCalendar, source: CalendarSource)]) -> some View {
@@ -322,15 +324,19 @@ private struct MappingRow: View {
 
     private var visibilityMenu: some View {
         Menu {
-            ForEach(CalendarVisibility.allCases, id: \.self) { option in
-                Button(option.label) { store.setVisibility(option, for: source) }
+            ForEach(CalendarChoice.allCases) { choice in
+                Button { store.setSharing(choice, for: source) } label: {
+                    Text(choice.label)
+                    Text(choice.explanation)
+                }
             }
         } label: {
             DropdownLabel {
-                Text(source.visibility.label)
+                Text(source.sharing.label)
             }
         }
-        .accessibilityLabel("Show \(calendar.title) as \(source.visibility.label)")
+        .accessibilityLabel("\(calendar.title): the household sees \(source.sharing.label)")
+        .accessibilityIdentifier("sharing-\(calendar.title)")
     }
 }
 

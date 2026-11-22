@@ -28,6 +28,8 @@ struct ExternalCalendar: Equatable, Identifiable, Sendable {
     /// 0xRRGGBB
     var colorHex: Int
     var kind: Kind = .regular
+    /// A word for where it comes from, never an address: what the household is told.
+    var accountKind: String = "On this device"
 }
 
 /// One occurrence of an event. Recurring events arrive already expanded.
@@ -41,6 +43,8 @@ struct ExternalEvent: Equatable, Identifiable, Sendable {
     var start: Date
     var end: Date
     var isAllDay: Bool
+    /// The id iOS means to be the same on every device for the same event, if it has one.
+    var externalItemId: String? = nil
 }
 
 /// A source of calendars and events. EventKit is the first; a direct Google
@@ -103,7 +107,8 @@ final class EventKitProvider: CalendarProvider {
                     title: calendar.title,
                     account: Self.account(of: calendar),
                     colorHex: calendar.cgColor.map(Self.hex) ?? 0x9AA0A6,
-                    kind: calendar.type == .birthday ? .birthdays : (calendar.type == .subscription ? .subscribed : .regular)
+                    kind: calendar.type == .birthday ? .birthdays : (calendar.type == .subscription ? .subscribed : .regular),
+                    accountKind: Self.accountKind(of: calendar)
                 )
             }
             .sorted { ($0.account, $0.title) < ($1.account, $1.title) }
@@ -125,8 +130,30 @@ final class EventKitProvider: CalendarProvider {
                 notes: event.notes?.nilIfBlank,
                 start: start,
                 end: max(end, start),
-                isAllDay: event.isAllDay
+                isAllDay: event.isAllDay,
+                externalItemId: event.calendarItemExternalIdentifier
             )
+        }
+    }
+
+    /// Where a calendar comes from, in a word: never the account's address.
+    private static func accountKind(of calendar: EKCalendar) -> String {
+        switch calendar.type {
+        case .birthday: return "Birthdays"
+        case .subscription: return "Subscribed"
+        case .exchange: return "Exchange"
+        case .local: return "On this device"
+        default: break
+        }
+        guard let source = calendar.source else { return "On this device" }
+        switch source.sourceType {
+        case .local: return "On this device"
+        case .exchange: return "Exchange"
+        case .calDAV:
+            if source.title.localizedCaseInsensitiveContains("icloud") { return "iCloud" }
+            if source.title.localizedCaseInsensitiveContains("gmail") || source.title.localizedCaseInsensitiveContains("google") { return "Google" }
+            return "Calendar"
+        default: return "Calendar"
         }
     }
 

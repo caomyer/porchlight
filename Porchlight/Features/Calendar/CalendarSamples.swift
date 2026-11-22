@@ -11,7 +11,7 @@ enum CalendarSamples {
             let id = source.id
             switch source.externalId {
             case work:
-                try database.setCalendarSourceVisibility(id: id, visibility: .busy)
+                try database.setCalendarSourceSharing(id: id, sharing: .busy)
             case holidays:
                 try database.setCalendarSourceShown(id: id, isShown: false)
             default:
