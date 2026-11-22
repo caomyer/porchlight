@@ -80,6 +80,11 @@ final class CalendarStore: StoredFirstObservable {
 
     @ObservationIgnored private var storedEvents: [CalendarEvent] = []
     @ObservationIgnored @StoredFirst var lastError: String? = nil
+    /// When this device last passed on, written or not: kept here and never synced, so Sync
+    /// details can say "checked 10:02 AM, nothing new" without a write to iCloud.
+    private(set) var lastChecked: Date?
+    /// How many passes have run, for the test that no pass leads to another.
+    @ObservationIgnored private(set) var passes = 0
 
     @ObservationIgnored private let provider: any CalendarProvider
     /// The screens' clock (`CompanionClock` unless a test hands in its own).
@@ -458,6 +463,7 @@ final class CalendarStore: StoredFirstObservable {
     /// access, what it passed on before is removed.
     @discardableResult
     func passOn(_ trigger: CalendarPassTrigger) -> CalendarPassResult? {
+        passes += 1
         guard let household = snapshot.household else { return nil }
         access = provider.access
         guard access == .granted else {
@@ -482,6 +488,7 @@ final class CalendarStore: StoredFirstObservable {
             }
             let result = try database.passOnCalendars(plan, householdId: household.id, trigger: trigger, window: window, now: now(), currentKeys: currentKeys)
             lastError = nil
+            if result != nil { lastChecked = now() }
             return result
         } catch {
             lastError = error.userMessage

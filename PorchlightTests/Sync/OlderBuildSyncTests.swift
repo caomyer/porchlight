@@ -601,7 +601,7 @@ struct SharedCalendarSyncTests {
         #expect(SharedCalendarView.events(own.shared, people: own.people).isEmpty)
     }
 
-    @Test("A pass with nothing new sends no event again; a changed event sends only that event")
+    @Test("A pass with nothing new sends nothing within the hour, then only the feed's stamp; a changed event sends only that event")
     func passesOnOnlyWhatChanged() async throws {
         let cloud = Cloud()
         let mia = try await Phone(cloud, build: .today)
@@ -616,11 +616,17 @@ struct SharedCalendarSyncTests {
         #expect(same.inserted == 0 && same.updated == 0 && same.deleted == 0)
         try await mia.engine.sendChanges()
         #expect(cloud.fields(type: "sharedEvent") == first)
-        #expect(cloud.fields(type: "calendarFeed") != feed, "the feed says when")
+        #expect(cloud.fields(type: "calendarFeed") == feed, "a minute on, not even the feed (CalendarPassOn.feedRefresh)")
+
+        let later = try #require(try mia.pass(household, now: SharedCalendarFixture.now.addingTimeInterval(61 * 60)))
+        #expect(later.inserted == 0 && later.updated == 0 && later.deleted == 0)
+        try await mia.engine.sendChanges()
+        #expect(cloud.fields(type: "sharedEvent") == first)
+        #expect(cloud.fields(type: "calendarFeed") != feed, "an hour on, the feed says when")
 
         var events = SharedCalendarFixture.events
         events[0].title = "Soccer game"
-        let result = try #require(try mia.pass(household, events: events, now: SharedCalendarFixture.now.addingTimeInterval(120)))
+        let result = try #require(try mia.pass(household, events: events, now: SharedCalendarFixture.now.addingTimeInterval(62 * 60)))
         #expect(result.updated == 1 && result.inserted == 0 && result.deleted == 0)
         try await mia.engine.sendChanges()
         let after = cloud.fields(type: "sharedEvent")
