@@ -20,7 +20,7 @@ Every number is from the run named in its column, on GitHub's hosted Macs (3 cor
 | A full run from start to green, with no queueing | 48.6 minutes | about 40 minutes: a build of 4 to 9 minutes, then a longest job of 28 to 31 | 30 minutes |
 | A push to a working branch, with no queueing | 48.6 minutes: every push ran everything | about 20 minutes: the unit tests and the smoke set (run 44888821802) | 20 minutes |
 | Unit tests | 572 | 648 | |
-| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 50 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
+| Jobs cancelled while booting a simulator | not counted | about one iPad job in five on November 21; none in the 55 boots since the wallpaper daemon stopped being started ("What a new simulator's first boot costs") | 0 |
 
 What the table says plainly: the tests take a quarter to a third less time than at the start, with eight journeys added since, and the same test's seconds move by a half and more from one hosted Mac to the next (the unit tests' step took 198, 283 and 452 seconds in three runs of the same code), so one run's total is a sample and not a measurement.
 The ceiling of 120 seconds holds on an ordinary Mac and is broken on a slow one by the two tests that sit nearest to it; they are the next to shorten.
@@ -556,6 +556,7 @@ Do not provoke one for the purpose.
 | 45039811167, November 22, the full suite with Free together | Not started | 5 (2 iPads in 238 and 250 s, 3 iPhones in 180 to 237 s) | 44% in any test step | 0 | Neither. Green, but one test took 2,020 seconds ("Known and not yet explained", the onboarding that never went idle) |
 | 45053643489, November 22, the full suite the first calendar build shipped on | Not started | 5 (2 iPads in 228 and 285 s, 3 iPhones in 198 to 272 s) | 46% in any test step | 0 | Neither. Green: 155 UI tests in 6,780 seconds, one of 135 |
 | 45054388170, November 22, the full suite with the Release build beside it | Not started | 5 (2 iPads in 164 and 237 s, 3 iPhones in 126 to 221 s) | 43% in any test step | 0 | Neither, and no test needed a second launch. Green: 155 UI tests in 5,820 seconds, none over 120 |
+| 45063459513, November 22, the full suite with the time limit and the slow test report | Not started | 5 | 33% in one test step, 45% and more in the others | 0 | Neither, and no test needed a second launch. Green: 155 UI tests in 6,266 seconds, none over 120, no idle wait given up |
 
 That first run is also what says no test depends on the wallpaper: all five jobs passed with it off, among them the tests that work on the home screen itself (`PhoneRemindersTests`, which reads notifications there, and `FirstRunTests`, which answers the system's prompts).
 The hosted screens and the ink checks draw the app's own views in the unit bundle and never see a wallpaper.
@@ -633,7 +634,7 @@ A failure that could not be reproduced is written down here with what was ruled 
 - **Owner**: the agent on the calendar branches for the cause, if it is the app's; the agent on `tests/pyramid` for making a test that takes ten times its usual seconds visible on a green run.
 - **Where the waits were**: the first idle wait that never returned was the one after Return in the household's name, on the first onboarding screen, 12.9 seconds in. Every wait on the app after it timed out at 60.0 seconds, on every screen to the end, Settings after onboarding included; the waits on SpringBoard between them all returned at once. The calendar permission prompt came at 1,043 seconds, long after it had begun, and did not end it. It was the ninth test of its share, on an iPad Pro 13-inch (M5) with the wallpaper daemon not started; the tests before and after it had no idle wait given up.
 - **Ruled out since**: the app, as far as it can be reproduced. The same test through `scripts/test.sh` on iOS 27.2 and 17.5 took 48 and 68 seconds with no idle wait given up, and the wall left for five minutes after a real first run does one pass at launch and nothing after.
-- **Count**: 1 occurrence, in run 45039811167. The same test took 57 seconds in the run before it (45035829327), and 61.6 and 59.8 in the two full runs after it (45053643489 and 45054388170), with no idle wait given up.
+- **Count**: 1 occurrence, in run 45039811167. The same test took 57 seconds in the run before it (45035829327), and 61.6, 59.8 and 63.2 in the three full runs after it (45053643489, 45054388170 and 45063459513), with no idle wait given up.
 - **Next step**: the next occurrence is kept by itself: the time limit stops it at 420 seconds, and its suite's result bundle and the simulator's log of the app are uploaded (the hard rule "A test that runs away is stopped and failed, and a test that waited on the app is kept"). Read the app's log from that bundle for what the main thread was doing from the moment the household is named.
 
 ## What the suite missed
