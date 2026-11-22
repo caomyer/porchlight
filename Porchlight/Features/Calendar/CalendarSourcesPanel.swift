@@ -312,7 +312,7 @@ private struct MappingRow: View {
             ForEach(store.people) { person in
                 Button(person.name) { store.setOwner(.person(person.id), for: source) }
             }
-            Button("Both") { store.setOwner(.everyone, for: source) }
+            Button("Everyone") { store.setOwner(.everyone, for: source) }
         } label: {
             DropdownLabel {
                 OwnerAvatar(owner: source.owner, people: store.people, size: 22)

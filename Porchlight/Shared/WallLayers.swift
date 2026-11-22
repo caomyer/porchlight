@@ -20,6 +20,15 @@ extension View {
         modifier(WallLayerSource(item: item, layer: content))
     }
 
+    /// Keeps the wall's screen from moving for the keyboard while `isOpen`: a sheet over it is
+    /// what is being typed into, and only the sheet should lift or scroll. Without it the
+    /// screen behind gives up the keyboard's height and squashes (the week's hours shrink,
+    /// titles truncate). `wallCover` and `wallSheet` say so themselves; a system `.sheet`
+    /// on the wall says it with this.
+    func holdsWallStill(_ isOpen: Bool) -> some View {
+        transformPreference(WallHoldsStillKey.self) { $0 = $0 || isOpen }
+    }
+
     /// Draws the wall layers requested anywhere inside this view. Applied once at the
     /// root; each layer hosts its own, so sheets can open sheets.
     func hostsWallLayers() -> some View {
@@ -39,6 +48,12 @@ private struct WallLayerKey: PreferenceKey {
     }
 }
 
+/// Whether something over the wall's screen is open (`holdsWallStill`), read by `WallView`.
+struct WallHoldsStillKey: PreferenceKey {
+    static var defaultValue: Bool { false }
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+}
+
 private struct WallLayerSource<Item: Identifiable, Layer: View>: ViewModifier {
     @Binding var item: Item?
     let layer: (Item) -> Layer
@@ -53,6 +68,7 @@ private struct WallLayerSource<Item: Identifiable, Layer: View>: ViewModifier {
             .transformPreference(WallLayerKey.self) { layers in
                 if let item, let id { layers.append(WallLayer(id: id, view: AnyView(layer(item)))) }
             }
+            .holdsWallStill(item != nil)
     }
 }
 

@@ -74,14 +74,14 @@ extension Calendar {
 
 // MARK: - Ownership and color
 
-/// Who something belongs to: one person, or the whole household ("Both").
+/// Who something belongs to: one person, or the whole household ("Everyone").
 enum Owner: Hashable, Sendable {
     case person(Person.ID)
     case everyone
 }
 
 extension Theme {
-    /// The color for shared, whole-household things ("Both").
+    /// The color for shared, whole-household things ("Everyone").
     static let everyone = Color(hex: 0xB8935A)
 }
 

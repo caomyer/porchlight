@@ -51,6 +51,8 @@ struct WallView: View {
     /// How many touches the idle watcher has seen, for the UI test that checks a real touch
     /// reaches it (`ScrollingTests`); shown only with `-debugIdleSecondsPerMinute`.
     @State private var touchesSeen = 0
+    /// A sheet is open over the screen, so the screen ignores the keyboard (`holdsWallStill`).
+    @State private var holdsStill = false
     #endif
     @State private var showAmbient = false
     /// Settings opens on Family & devices once, after setup's "Invite phones now".
@@ -105,6 +107,10 @@ struct WallView: View {
             screen
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .opensTimelineTargets()
+                // A field on the screen itself (a list's new item, a setting) still lifts
+                // it; one in a sheet over it lifts only the sheet.
+                .ignoresSafeArea(holdsStill ? .keyboard : [])
+                .onPreferenceChange(WallHoldsStillKey.self) { holdsStill = $0 }
         }
         .background(Theme.background)
         .ignoresSafeArea(.container, edges: .vertical)

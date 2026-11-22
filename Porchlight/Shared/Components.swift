@@ -220,7 +220,7 @@ struct WallSheet<Content: View>: View {
 }
 
 /// The avatar for an owner: the person's colored initial, or a heart for the
-/// whole household ("Both" / "Anyone").
+/// whole household ("Everyone" / "Anyone").
 struct OwnerAvatar: View {
     @Environment(AppModel.self) private var model
     let owner: Owner

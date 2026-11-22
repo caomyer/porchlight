@@ -14,7 +14,7 @@ extension AppDatabase {
                 t.column("title", .text).notNull()
                 t.column("account", .text).notNull()
                 t.column("colorHex", .integer).notNull()
-                // NULL means the whole household ("Both").
+                // NULL means the whole household ("Everyone").
                 t.belongsTo("owner", inTable: "person", onDelete: .setNull)
                 t.column("visibility", .text).notNull()
                 t.column("isShown", .boolean).notNull()

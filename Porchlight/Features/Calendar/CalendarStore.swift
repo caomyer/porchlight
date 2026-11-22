@@ -82,7 +82,8 @@ final class CalendarStore: StoredFirstObservable {
     @ObservationIgnored @StoredFirst var lastError: String? = nil
 
     @ObservationIgnored private let provider: any CalendarProvider
-    @ObservationIgnored private let now: () -> Date
+    /// The screens' clock (`CompanionClock` unless a test hands in its own).
+    @ObservationIgnored let now: () -> Date
     @ObservationIgnored private var rawEvents: [ExternalEvent] = []
     @ObservationIgnored private var eventsByDay: [DayKey: [CalendarEvent]] = [:]
     @ObservationIgnored private var fetchedCalendarIds: Set<String> = []

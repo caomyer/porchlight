@@ -55,6 +55,7 @@ struct CalendarScreen: View {
             PocketEventEditor(start: start)
                 .environment(\.dynamicTypeSize, .xxLarge)
         }
+        .holdsWallStill(adding != nil)
         .task(id: visibleInterval) {
             if let visibleInterval {
                 store.show(visibleInterval)
@@ -167,7 +168,7 @@ struct CalendarScreen: View {
             ForEach(model.people) { person in
                 LegendItem(color: person.color.color, title: person.name)
             }
-            LegendItem(color: Theme.everyone, title: "Both")
+            LegendItem(color: Theme.everyone, title: "Everyone")
             if withLanes {
                 ForEach(lanes(for: mode)) { lane in
                     HStack(spacing: 6) {
@@ -370,11 +371,11 @@ struct EventMark: View {
 }
 
 /// A person's avatar, or a heart for the whole household.
-/// "James", "Mia" or "Both".
+/// "James", "Mia" or "Everyone".
 func ownerName(_ owner: Owner, people: [Person]) -> String {
     switch owner {
-    case .everyone: "Both"
-    case let .person(id): people.first { $0.id == id }?.name ?? "Both"
+    case .everyone: "Everyone"
+    case let .person(id): people.first { $0.id == id }?.name ?? "Everyone"
     }
 }
 

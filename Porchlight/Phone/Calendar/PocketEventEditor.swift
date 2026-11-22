@@ -19,11 +19,14 @@ struct PocketEventEditor: View {
     }
 
     let start: Start
+    /// A line already typed into a new event, read as if typed (the hosted looks start here).
+    var startingLine = ""
     /// Told once the event is saved, with what to say.
     var onSaved: (String) -> Void = { _ in }
 
     @Environment(CalendarStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var line = ""
     @State private var title = ""
@@ -105,12 +108,22 @@ struct PocketEventEditor: View {
 
     private var lineField: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField("Leo dentist thu 4pm", text: $line)
+            // Wraps rather than scrolls, so the whole line can be read back at any size.
+            TextField("Leo dentist thu 4pm", text: $line, axis: .vertical)
+                .lineLimit(1...4)
                 .phoneFont(.body, 17, weight: 600)
                 .focused($lineFocused)
                 .submitLabel(.done)
                 .fieldStyle()
-                .onChange(of: line) { _, newLine in read(newLine) }
+                .onChange(of: line) { _, newLine in
+                    // Return is Done: it ends the line instead of starting another.
+                    if newLine.contains("\n") {
+                        line = newLine.replacingOccurrences(of: "\n", with: "")
+                        lineFocused = false
+                        return
+                    }
+                    read(newLine)
+                }
                 .accessibilityIdentifier("event-line")
             if !line.trimmingCharacters(in: .whitespaces).isEmpty {
                 (Text("Reads as ").foregroundStyle(Theme.muted) + Text(readsAs).fontWeight(.heavy).foregroundStyle(Theme.ink))
@@ -131,7 +144,7 @@ struct PocketEventEditor: View {
     }
 
     private func read(_ text: String) {
-        let reading = EventLine.read(text, now: CompanionClock.now(), calendar: store.calendar, people: store.people)
+        let reading = EventLine.read(text, now: store.now(), calendar: store.calendar, people: store.people)
         if !edited.contains("title") { title = reading.title }
         if !edited.contains("when") {
             begin = reading.start
@@ -176,26 +189,51 @@ struct PocketEventEditor: View {
                     .tint(Theme.accent)
                     .frame(minHeight: 44)
                 RowDivider()
-                DatePicker("Starts", selection: Binding(get: { begin }, set: { new in
+                dateRow("Starts", selection: Binding(get: { begin }, set: { new in
                     edited.insert("when")
                     let length = end.timeIntervalSince(begin)
                     begin = new
                     end = new.addingTimeInterval(max(length, 0))
-                }), displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
-                .phoneFont(.body, 15, weight: 600)
-                .frame(minHeight: 44)
+                }))
                 .accessibilityIdentifier("event-starts")
                 if !isAllDay {
                     RowDivider()
-                    DatePicker("Ends", selection: Binding(get: { end }, set: { edited.insert("when"); end = max($0, begin) }),
-                               in: begin..., displayedComponents: [.date, .hourAndMinute])
-                        .phoneFont(.body, 15, weight: 600)
-                        .frame(minHeight: 44)
+                    dateRow("Ends", selection: Binding(get: { end }, set: { edited.insert("when"); end = max($0, begin) }), from: begin)
                 }
             }
             .environment(\.timeZone, store.calendar.timeZone)
             .phoneCard()
         }
+    }
+
+    /// "Starts" with its day and time: on one line, or at the accessibility sizes the label
+    /// over the day and the time over each other, where a line can't hold them (the system's
+    /// own row then lays out to no size at all).
+    private func dateRow(_ title: String, selection: Binding<Date>, from earliest: Date? = nil) -> some View {
+        let stacked = typeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
+            Text(title).phoneFont(.body, 15, weight: 600)
+            if !stacked { Spacer(minLength: 8) }
+            picker(title, selection, from: earliest, [.date])
+            if !isAllDay { picker(title, selection, from: earliest, [.hourAndMinute]) }
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.vertical, stacked ? 10 : 0)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func picker(_ title: String, _ selection: Binding<Date>, from earliest: Date?, _ components: DatePickerComponents) -> some View {
+        Group {
+            if let earliest {
+                DatePicker("", selection: selection, in: earliest..., displayedComponents: components)
+            } else {
+                DatePicker("", selection: selection, displayedComponents: components)
+            }
+        }
+        .labelsHidden()
+        .phoneFont(.body, 15, weight: 600)
+        .accessibilityLabel(components == [.date] ? "\(title), day" : "\(title), time")
     }
 
     private var repeatsField: some View {
@@ -255,11 +293,12 @@ struct PocketEventEditor: View {
         loaded = true
         switch start {
         case .new:
-            let now = CompanionClock.now()
+            let now = store.now()
             let next = store.calendar.nextDate(after: now, matching: DateComponents(minute: 0), matchingPolicy: .nextTime) ?? now
             begin = next
             end = next.addingTimeInterval(3600)
-            lineFocused = true
+            if !startingLine.isEmpty { line = startingLine; read(startingLine) }
+            lineFocused = startingLine.isEmpty
         case let .edit(event, draft):
             title = draft.title
             begin = draft.start
@@ -311,6 +350,8 @@ struct PocketHomeCalendarSheet: View {
     @Environment(CalendarStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var failure: String?
+    /// The calendar's swatch grows with the text, as the title beside it does.
+    @ScaledMetric(relativeTo: .subheadline) private var swatch: CGFloat = 10
 
     var body: some View {
         PhoneSheet(label: "Once, for the household", title: "Choose a home calendar") {
@@ -322,8 +363,12 @@ struct PocketHomeCalendarSheet: View {
                 ForEach(Array(store.writableCalendars.enumerated()), id: \.element.id) { index, calendar in
                     if index > 0 { RowDivider() }
                     Button { choose(calendar) } label: {
-                        HStack(spacing: 10) {
-                            RoundedRectangle(cornerRadius: 3).fill(Color(hex: UInt32(truncatingIfNeeded: calendar.colorHex))).frame(width: 10, height: 10)
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            // On the title's line, not centered on the two lines.
+                            RoundedRectangle(cornerRadius: swatch * 0.3)
+                                .fill(Color(hex: UInt32(truncatingIfNeeded: calendar.colorHex)))
+                                .frame(width: swatch, height: swatch)
+                                .alignmentGuide(.firstTextBaseline) { $0[.bottom] - swatch * 0.05 }
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(calendar.title).phoneFont(.body, 15, weight: 700, relativeTo: .subheadline)
                                 Text(calendar.accountKind).phoneFont(.body, 12, weight: 600, relativeTo: .caption).foregroundStyle(Theme.muted)
