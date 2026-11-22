@@ -162,6 +162,11 @@ final class CalendarStore: StoredFirstObservable {
 
     /// The household's calendar for all day math.
     var calendar: Calendar { snapshot.household?.calendar ?? .current }
+    /// Whether there are any calendars to read: this device's, or another device's passed on.
+    /// Without them nobody has anything planned, which says nothing about being free.
+    var hasCalendars: Bool {
+        access == .granted || shared.feeds.contains { $0.deviceId != shared.thisDeviceId }
+    }
     var people: [Person] { snapshot.people }
     var today: DayKey { DayKey(now(), calendar: calendar) }
 

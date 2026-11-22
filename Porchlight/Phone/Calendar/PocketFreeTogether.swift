@@ -21,25 +21,36 @@ struct PocketFreeTogether: View {
         }
         let times = FreeTogetherLogic.times(events: store.events, people: asked.map(\.id), from: store.now(), days: days, calendar: calendar)
         let words = FreeWords(calendar: calendar)
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(spacing: 0) {
-                ForEach(Array(times.enumerated()), id: \.element.id) { index, time in
-                    if index > 0 { RowDivider() }
-                    PocketFreeRow(time: time, asked: asked, words: words, onPlan: onPlan)
-                }
-            }
-            .phoneCard()
-            Text("From the calendars your household shares. All-day events are listed, never counted as busy.")
-                .phoneFont(.body, 12, weight: 600, relativeTo: .footnote)
+        if !store.hasCalendars {
+            // With no calendars at all, every evening would read as free.
+            Text("Free together reads the calendars your household shares. Add this phone's calendars, or share them from another phone, and the free evenings show here.")
+                .phoneFont(.body, 14, weight: 600, relativeTo: .subheadline)
                 .foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .phoneCard()
+                .accessibilityIdentifier("free-together-empty")
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(spacing: 0) {
+                    ForEach(Array(times.enumerated()), id: \.element.id) { index, time in
+                        if index > 0 { RowDivider() }
+                        PocketFreeRow(time: time, asked: asked, words: words, onPlan: onPlan)
+                    }
+                }
+                .phoneCard()
+                Text("From the calendars your household shares. All-day events are listed, never counted as busy.")
+                    .phoneFont(.body, 12, weight: 600, relativeTo: .footnote)
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("free-together")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("free-together")
     }
 }
 
-/// "Evening / Thu 19" beside "Everyone free from 5:30 PM", or "Sam out" over "Book club,
+/// "Evening / Thu 19" beside "Everyone free from 5:30 PM", or "Sam busy" over "Book club,
 /// 7:00 to 9:00 PM"; at the accessibility sizes the day goes over the answer.
 private struct PocketFreeRow: View {
     let time: FreeTime

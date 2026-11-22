@@ -207,7 +207,7 @@ struct CalendarScreen: View {
                 today: today,
                 now: now,
                 // Free together first, right under the week it answers for.
-                lanes: [WallFreeTogether.lane(store: store, now: now, onPlan: plan)] + lanes(for: .week),
+                lanes: (store.hasCalendars ? [WallFreeTogether.lane(store: store, now: now, onPlan: plan)] : []) + lanes(for: .week),
                 isDetailed: false,
                 moments: moments,
                 onSelect: select

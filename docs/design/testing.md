@@ -176,6 +176,7 @@ The night look and the largest text size are checked by eye from screenshots, pl
 - A look is a launch, so three looks of one screen are three launches; do not also launch per screen.
 - Never repeat a journey's steps in a looks test to get to a screen; start there with a debug launch argument (`-debugFoodView`, `-debugCompanionSheet`, `-debugYouPage`).
   The shared calendar adds `-sampleSharedCalendar YES|stale`: Mia's iPhone has passed on her work as Keep it quiet, her own calendar in full and her doctor's as Busy only, twenty minutes ago or two days ago.
+  For looking at the calendar by hand, `-sampleCalendarEvents none|long` (calendars with nothing in them, or one event today with a title and a place as long as they come) and `-samplePeople N` (a household of up to six).
   Adding and editing adds `-sampleHomeCalendar YES`: the household's home calendar is the sample's "Us", with a weekly piano lesson on Thursdays at 4 in it.
   The recipes add `-debugFoodView recipes|recipe|recipe-long|recipe-edit|recipe-plan` (the bank, the first recipe, or the recipe with the most ingredients opened, in its editor, or being planned) and `-sampleFood norecipes|long` (an empty bank, or a recipe as long as they come, cooked once, with a card).
 - A layout fact that holds for a component everywhere (the time pill, the photo row) is asserted once, in one looks test, not in each class that shows the component.

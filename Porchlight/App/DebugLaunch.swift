@@ -7,6 +7,7 @@ import UserNotifications
 ///   -resetData          start from an empty database (shows onboarding)
 ///   -sampleHousehold    start with a sample two-person household
 ///   -samplePhotos N     with -sampleHousehold, also put N painted photos in the photo frame
+///   -samplePeople N     with -sampleHousehold, N people instead of two (up to six)
 ///   -me NAME            on a phone, belong to the person called NAME (skips "Which one is you?")
 ///   -debugRemoved       this device's household was removed by its owner (journey A6)
 ///   -debugForgetDisplay YES   with either of the first two: the wall's display settings
@@ -128,10 +129,12 @@ enum DebugLaunch {
     @MainActor
     @discardableResult
     static func seedSampleHousehold(_ database: AppDatabase) throws -> Household {
-        let household = try database.createHousehold(
-            name: "The Lake House",
-            people: [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)]
-        )
+        var people = [PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral)]
+        let more = ["Ava", "Leo", "Grandma Rosa", "Sam"]
+        for index in 0..<max(0, min(UserDefaults.standard.integer(forKey: "samplePeople"), 6) - 2) {
+            people.append(PersonDraft(name: more[index], color: .suggested(for: index + 2)))
+        }
+        let household = try database.createHousehold(name: "The Lake House", people: people)
         try database.markSetupCompleted(householdId: household.id)
         let snapshot = try database.snapshot()
         guard let seeded = snapshot.household else { return household }
