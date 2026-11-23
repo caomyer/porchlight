@@ -1,54 +1,73 @@
 import SwiftUI
 
 /// "Glow": what everyone gives the household, and what it adds up to. Every star earned
-/// this week (a chore done, a walk, a feed) is a spark around the porch light; below,
-/// each person's week, the rewards they're saving toward, and what happened lately.
+/// in the week (a chore done, a walk, a feed) is a spark around the porch light; below,
+/// each person's week and what they did, the rewards being saved toward and already
+/// enjoyed, and what happened lately. The week steps back as far as the first star, and a
+/// person's card opens to their own week. The same reading as the phone's (`GlowStory`).
 struct GlowScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var store
     @State private var editing: RewardSheet?
+    /// How many weeks before this one the page shows.
+    @State private var weeksBack = 0
 
     enum RewardSheet: Identifiable {
         case new
         case edit(Reward)
+        case person(Person.ID)
         var id: String {
             switch self {
             case .new: "new"
             case let .edit(reward): "edit-\(reward.id)"
+            case let .person(id): "person-\(id)"
             }
         }
     }
 
     var body: some View {
+        let calendar = store.calendar
+        let limit = GlowWeeks.limit(firstDay: store.snapshot.firstStarDay, today: store.today, calendar: calendar)
+        let shown = min(max(weeksBack, 0), limit)
+        let week = GlowWeeks.week(weeksBack: shown, today: store.today, calendar: calendar)
+        let isThisWeek = shown == 0
         let summary = GlowSummary(
             people: model.people,
             earnings: store.snapshot.earnings,
             redemptions: store.snapshot.redemptions,
             rewards: store.snapshot.rewards,
             lifetime: store.snapshot.lifetimeStars,
-            week: store.week,
-            today: store.today,
-            calendar: store.calendar
+            week: week,
+            today: GlowWeeks.readThrough(week, today: store.today),
+            calendar: calendar,
+            feedWithinWeek: !isThisWeek
         )
         VStack(alignment: .leading, spacing: 16) {
-            HomeHeader(title: "Glow", subtitle: subtitle) {
+            HomeHeader(title: "Glow", subtitle: "everyone's stars, " + WeekPaging.range(week.days, calendar: calendar)) {
+                if limit > 0 {
+                    WallWeekSteps(weeksBack: shown, limit: limit, spoken: "\(WeekPaging.weekName(weeksBack: shown)), \(WeekPaging.range(week.days, calendar: calendar))", go: go)
+                        .padding(.trailing, 8)
+                }
                 HeaderChip(title: "New reward", symbol: "plus") { present(.new) }
             }
             HStack(alignment: .top, spacing: 16) {
                 VStack(spacing: 16) {
-                    PorchLightHero(summary: summary)
+                    PorchLightHero(summary: summary, isThisWeek: isThisWeek)
                         .frame(height: 236)
                     HStack(alignment: .top, spacing: 16) {
                         ForEach(summary.people) { glow in
-                            PersonGlowCard(glow: glow, days: store.week.days, today: store.today)
+                            PersonGlowCard(
+                                glow: glow, days: week.days, today: store.today, isThisWeek: isThisWeek,
+                                tasks: GlowStory.tasks(store.snapshot.earnings, in: week, people: model.people, person: glow.id)
+                            ) { present(.person(glow.id)) }
                         }
                     }
                     .frame(maxHeight: .infinity, alignment: .top)
                 }
                 .frame(maxWidth: .infinity)
                 VStack(spacing: 16) {
-                    RewardsCard(onNew: { present(.new) }, onEdit: { present(.edit($0)) })
-                    LatelyCard(feed: summary.feed)
+                    RewardsCard(week: isThisWeek ? nil : week, onNew: { present(.new) }, onEdit: { present(.edit($0)) })
+                    LatelyCard(title: isThisWeek ? "Lately" : "That week", feed: summary.feed)
                         .frame(maxHeight: .infinity, alignment: .top)
                 }
                 .frame(width: 340)
@@ -56,17 +75,23 @@ struct GlowScreen: View {
         }
         .padding(.horizontal, 26)
         .padding(.vertical, 22)
+        // A new day starts on this week again.
+        .onChange(of: store.today) { weeksBack = 0 }
         .wallSheet(item: $editing, width: 640) { sheet in
             switch sheet {
             case .new: RewardEditor(reward: nil)
             case let .edit(reward): RewardEditor(reward: reward)
+            case let .person(id): GlowPersonSheet(personId: id, weeksBack: shown)
             }
         }
     }
 
-    private var subtitle: String {
-        "everyone's stars, " + store.week.first.formatted(.dateTime.month(.abbreviated).day(), calendar: store.calendar)
-            + " - " + store.week.last.formatted(.dateTime.month(.abbreviated).day(), calendar: store.calendar)
+    /// Steps to another week. Stars from before the usual window are read as a week is
+    /// asked for, with the week before it for its trend.
+    private func go(_ asked: Int) {
+        let calendar = store.calendar
+        store.include(from: GlowWeeks.loadFrom(GlowWeeks.week(weeksBack: asked, today: store.today, calendar: calendar), calendar: calendar))
+        weeksBack = asked
     }
 
     private func present(_ sheet: RewardSheet) {
@@ -81,6 +106,7 @@ struct GlowScreen: View {
 private struct PorchLightHero: View {
     @Environment(AppModel.self) private var model
     let summary: GlowSummary
+    var isThisWeek = true
 
     var body: some View {
         GeometryReader { proxy in
@@ -128,20 +154,17 @@ private struct PorchLightHero: View {
     }
 
     private var headline: String {
-        switch summary.weekStars {
-        case 0: "The porch light is waiting"
-        case 1: "1 star lit the porch this week"
-        default: "\(summary.weekStars) stars lit the porch this week"
-        }
+        let when = isThisWeek ? "this week" : "that week"
+        return summary.weekStars == 0
+            ? (isThisWeek ? "The porch light is waiting" : "The porch stayed dark that week")
+            : "\(StarWords.count(summary.weekStars)) lit the porch \(when)"
     }
 
     private var detail: String {
         if summary.weekStars == 0 {
-            return "Check off a chore or look after a companion, and it starts to glow."
+            return isThisWeek ? "Check off a chore or look after a companion, and it starts to glow." : "Nobody earned a star."
         }
-        let before = summary.lastWeekSoFar
-        let change = summary.weekStars - before
-        let trend = before == 0 ? "A bright start." : change > 0 ? "\(change) more than this time last week." : change == 0 ? "Right on pace with last week." : "This time last week: \(before)."
+        let trend = GlowWords.trend(stars: summary.weekStars, before: summary.lastWeekSoFar, isThisWeek: isThisWeek).map { $0 + "." } ?? ""
         let helpers = summary.people.filter { $0.weekStars > 0 }.map(\.person.name)
         let thanks = helpers.isEmpty ? "" : " Thanks to " + ListFormat.join(helpers) + "."
         return trend + thanks
@@ -229,16 +252,30 @@ struct SparkShape: Shape {
 
 // MARK: - People
 
+/// One person's week: their stars, their days, what they did in words and by task, and how
+/// it sits beside their own last week. It opens to their own page.
 private struct PersonGlowCard: View {
     let glow: GlowSummary.PersonGlow
     let days: [DayKey]
     let today: DayKey
+    var isThisWeek = true
+    /// What they did that week, most stars first.
+    var tasks: [GlowTask] = []
+    let onOpen: () -> Void
 
     @Environment(HomeStore.self) private var store
 
     var body: some View {
+        Button(action: onOpen) { card }
+            .buttonStyle(PressableStyle())
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Opens \(glow.person.name.possessive) week")
+            .accessibilityIdentifier("glow-person-\(glow.person.name)")
+    }
+
+    private var card: some View {
         let color = glow.person.color.color
-        VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 Avatar(person: glow.person, size: 44)
                 Text(glow.person.name)
@@ -252,42 +289,56 @@ private struct PersonGlowCard: View {
                     StarIcon(size: 22)
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(glow.weekStars) stars this week")
+                .accessibilityLabel("\(StarWords.count(glow.weekStars)) \(isThisWeek ? "this week" : "that week")")
             }
             DayBars(values: glow.byDay, days: days, today: today, color: color, calendar: store.calendar)
                 .frame(minHeight: 86, maxHeight: 150)
             VStack(alignment: .leading, spacing: 7) {
-                line("🧹", count(glow.choresDone, "chore", "chores"))
-                line("🐾", count(glow.careGiven, "time caring", "times caring"))
-                if let favorite = glow.favorite {
-                    line(favorite.emoji, "Most: \(favorite.title) ×\(favorite.count)")
+                let did = GlowWords.did(chores: glow.choresDone, care: glow.careGiven)
+                Text(did.isEmpty ? (isThisWeek ? "Nothing yet this week" : "Nothing that week") : did.joined(separator: " · "))
+                    .font(.body(14, weight: 600))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                if !tasks.isEmpty {
+                    Text(GlowWords.taskLine(tasks))
+                        .font(.body(13.5, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("glow-tasks-\(glow.person.name)")
                 }
             }
             Spacer(minLength: 0)
-            Text("\(glow.lifetimeStars) stars all time")
-                .font(.body(12.5, weight: 700))
-                .foregroundStyle(Theme.muted)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(footer)
+                    .font(.body(12.5, weight: 700))
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.muted)
+                    .accessibilityHidden(true)
+            }
         }
         .foregroundStyle(Theme.ink)
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(SurfaceShape(cornerRadius: Theme.radius))
+        .contentShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
     }
 
-    private func count(_ n: Int, _ one: String, _ many: String) -> String {
-        "\(n) \(n == 1 ? one : many)"
-    }
-
-    private func line(_ emoji: String, _ text: String) -> some View {
-        HStack(spacing: 8) {
-            Text(emoji).font(.system(size: 14)).frame(width: 20)
-            Text(text).font(.body(14, weight: 600)).lineLimit(1)
-        }
+    /// "Up 3 on last week · 41 stars all time": their own trend, then all time.
+    private var footer: String {
+        let allTime = "\(StarWords.count(glow.lifetimeStars)) all time"
+        guard let trend = GlowWords.ownTrend(stars: glow.weekStars, before: glow.lastWeekSoFar, isThisWeek: isThisWeek) else { return allTime }
+        return trend.prefix(1).uppercased() + trend.dropFirst() + " · " + allTime
     }
 }
 
 /// Stars per day as soft bars, today's day letter in the accent color.
-private struct DayBars: View {
+struct DayBars: View {
     let values: [Int]
     let days: [DayKey]
     let today: DayKey
@@ -324,6 +375,8 @@ private struct DayBars: View {
 private struct RewardsCard: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var store
+    /// The earlier week the page is on, when it is: what was cashed in is that week's then.
+    var week: HomeWeek?
     let onNew: () -> Void
     let onEdit: (Reward) -> Void
 
@@ -332,7 +385,13 @@ private struct RewardsCard: View {
             .filter { !$0.archived }
             .sorted { ($0.ownerId == nil ? 0 : 1, $0.sortOrder) < ($1.ownerId == nil ? 0 : 1, $1.sortOrder) }
         VStack(alignment: .leading, spacing: 12) {
-            Text("Saving up for").font(.display(19))
+            HStack(alignment: .firstTextBaseline) {
+                Text("Saving up for").font(.display(19))
+                Spacer(minLength: 4)
+                if week != nil {
+                    Text("now").font(.body(12.5, weight: 700)).foregroundStyle(Theme.muted)
+                }
+            }
             if rewards.isEmpty {
                 Button(action: onNew) {
                     Text("Add a treat to earn stars toward: an ice cream trip, a movie night, a day out together.")
@@ -357,10 +416,43 @@ private struct RewardsCard: View {
                     )
                 }
             }
+            cashedIn
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(SurfaceShape(cornerRadius: Theme.radius))
+    }
+}
+
+extension RewardsCard {
+    /// The rewards already enjoyed: the last few, or an earlier week's own.
+    @ViewBuilder
+    fileprivate var cashedIn: some View {
+        let all = GlowStory.cashedIn(store.snapshot.redemptions, rewards: store.snapshot.rewards, in: week)
+        if !all.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(week == nil ? "CASHED IN" : "CASHED IN THAT WEEK")
+                    .font(.body(11, weight: 800))
+                    .kerning(1)
+                    .foregroundStyle(Theme.muted)
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(all.prefix(week == nil ? 2 : 4)) { item in
+                    let who = item.personId.flatMap(model.person)?.name ?? "everyone"
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(item.emoji).font(.system(size: 14)).frame(width: 20)
+                        Text(item.title).font(.body(14, weight: 700)).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text("\(GlowWords.day(item.day, today: store.today, calendar: store.calendar)) · \(who)")
+                            .font(.body(12.5, weight: 600))
+                            .foregroundStyle(Theme.muted)
+                            .lineLimit(1)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .padding(.top, 2)
+            .accessibilityIdentifier("glow-cashed-in")
+        }
     }
 }
 
@@ -369,13 +461,14 @@ private struct RewardsCard: View {
 private struct LatelyCard: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var store
+    var title = "Lately"
     let feed: [GlowSummary.FeedItem]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Lately").font(.display(19))
+            Text(title).font(.display(19))
             if feed.isEmpty {
-                Text("Stars show up here as soon as someone pitches in.")
+                Text(title == "Lately" ? "Stars show up here as soon as someone pitches in." : "Nothing happened that week.")
                     .font(.body(14, weight: 600))
                     .foregroundStyle(Theme.muted)
             }
@@ -436,5 +529,126 @@ private struct LatelyCard: View {
             when = day.formatted(.dateTime.weekday(.wide), calendar: calendar)
         }
         return "\(who) · \(when)"
+    }
+}
+
+// MARK: - Week steps
+
+/// "‹ Last week ›" in a wall page's header: Food's steps, as a companion's page has them.
+/// Back stops at the first week there is; forward isn't there on this week.
+struct WallWeekSteps: View {
+    let weeksBack: Int
+    let limit: Int
+    /// What VoiceOver reads for the week: "Last week, Nov 8 to 14".
+    let spoken: String
+    let go: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if weeksBack < limit {
+                PagerButton(symbol: "chevron.left", label: "Previous week") { go(weeksBack + 1) }
+                    .accessibilityIdentifier("week-back")
+            }
+            Text(WeekPaging.weekName(weeksBack: weeksBack))
+                .font(.body(14, weight: 700))
+                .foregroundStyle(weeksBack == 0 ? Theme.muted : Theme.ink)
+                .lineLimit(1)
+                .fixedSize()
+                .accessibilityLabel(spoken)
+                .accessibilityIdentifier("week-name")
+            if weeksBack > 0 {
+                PagerButton(symbol: "chevron.right", label: "Next week") { go(weeksBack - 1) }
+                    .accessibilityIdentifier("week-forward")
+            }
+        }
+    }
+}
+
+// MARK: - One person
+
+/// One person's Glow on the wall, opened from their card: the week beside their own last
+/// week, their stars each day, what they did, and their own treats.
+struct GlowPersonSheet: View {
+    let personId: Person.ID
+    let weeksBack: Int
+
+    @Environment(AppModel.self) private var model
+    @Environment(HomeStore.self) private var store
+    @Environment(\.closeWallSheet) private var close
+
+    var body: some View {
+        let calendar = store.calendar
+        let week = GlowWeeks.week(weeksBack: weeksBack, today: store.today, calendar: calendar)
+        let isThisWeek = weeksBack == 0
+        let summary = GlowSummary(
+            people: model.people, earnings: store.snapshot.earnings, redemptions: store.snapshot.redemptions,
+            rewards: store.snapshot.rewards, lifetime: store.snapshot.lifetimeStars,
+            week: week, today: GlowWeeks.readThrough(week, today: store.today), calendar: calendar
+        )
+        if let glow = summary.people.first(where: { $0.id == personId }) {
+            let tasks = GlowStory.tasks(store.snapshot.earnings, in: week, people: model.people, person: personId)
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 14) {
+                    Avatar(person: glow.person, size: 56)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(glow.person.name.possessive) week").font(.display(28))
+                        Text(WeekPaging.weekName(weeksBack: weeksBack) + ", " + WeekPaging.range(week.days, calendar: calendar))
+                            .font(.body(15))
+                            .foregroundStyle(Theme.muted)
+                    }
+                    .padding(.trailing, 40)
+                }
+                HStack(spacing: 12) {
+                    number(glow.weekStars, "\(StarWords.noun(glow.weekStars)) \(isThisWeek ? "this week" : "that week")")
+                    number(glow.lastWeekStars, "\(StarWords.noun(glow.lastWeekStars)) \(isThisWeek ? "last week" : "the week before")")
+                    number(glow.lifetimeStars, "\(StarWords.noun(glow.lifetimeStars)) all time")
+                }
+                DayBars(values: glow.byDay, days: week.days, today: store.today, color: glow.person.color.color, calendar: calendar)
+                    .frame(height: 96)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("What \(glow.person.name) did").font(.display(19))
+                    if tasks.isEmpty {
+                        Text(isThisWeek ? "Nothing yet this week." : "Nothing that week.")
+                            .font(.body(14, weight: 600))
+                            .foregroundStyle(Theme.muted)
+                    }
+                    ForEach(tasks.prefix(6)) { task in
+                        HStack(spacing: 10) {
+                            Text(task.emoji).font(.system(size: 18)).frame(width: 26)
+                            Text(task.title).font(.body(15.5, weight: 700)).lineLimit(1)
+                            Text(GlowWords.times(task.times)).font(.body(13.5, weight: 600)).foregroundStyle(Theme.muted)
+                            Spacer(minLength: 4)
+                            StarsTag(stars: task.stars)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                let treats = store.snapshot.rewards.filter { !$0.archived && $0.ownerId == personId }
+                if !treats.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(treats.count == 1 ? "\(glow.person.name.possessive) own treat" : "\(glow.person.name.possessive) own treats").font(.display(19))
+                        ForEach(treats) { reward in
+                            RewardCard(status: ChoreBoard.RewardStatus(reward: reward, earned: store.earned(toward: reward)), onEdit: nil)
+                        }
+                    }
+                }
+                HStack {
+                    Spacer()
+                    Button("Done") { close() }.buttonStyle(PrimaryButtonStyle())
+                }
+            }
+            .foregroundStyle(Theme.ink)
+        }
+    }
+
+    private func number(_ value: Int, _ title: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(value)").font(.display(30)).monospacedDigit()
+            Text(title).font(.body(13, weight: 600)).foregroundStyle(Theme.muted)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }

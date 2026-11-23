@@ -521,6 +521,8 @@ struct HomeSnapshot: Equatable, Sendable {
     var earnings: [StarEarning] = []
     /// Every star each person has ever earned.
     var lifetimeStars: [Person.ID: Int] = [:]
+    /// The day of the first star anyone earned: how far back Glow's weeks go.
+    var firstStarDay: DayKey?
     /// Rewards cashed in, newest first.
     var redemptions: [RewardRedemption] = []
     var lists: [HomeList] = []
@@ -557,6 +559,7 @@ struct HomeSnapshot: Equatable, Sendable {
             """, arguments: [householdId, from])
         let earnings = try StarLedger.earnings(db, householdId: householdId, from: DayKey(rawValue: from), calendar: household.calendar)
         let lifetimeStars = try StarLedger.lifetimeStars(db, householdId: householdId)
+        let firstStarDay = try StarLedger.firstDay(db, householdId: householdId, calendar: household.calendar)
         let redemptions = try RewardRedemption.fetchAll(db, sql: """
             SELECT rr.* FROM rewardRedemption rr JOIN reward r ON r.id = rr.rewardId
             WHERE r.householdId = ? ORDER BY rr.redeemedAt DESC, rr.id DESC
@@ -573,7 +576,7 @@ struct HomeSnapshot: Equatable, Sendable {
         let photos = try AmbientPhoto.filter(Column("householdId") == householdId).order(Column("createdAt"), Column("id")).fetchAll(db)
         return HomeSnapshot(
             household: household, people: everyone.active, everyone: everyone, chores: chores, completions: completions, rewards: rewards,
-            earnings: earnings, lifetimeStars: lifetimeStars, redemptions: redemptions, lists: lists, items: items, meals: meals, photos: photos
+            earnings: earnings, lifetimeStars: lifetimeStars, firstStarDay: firstStarDay, redemptions: redemptions, lists: lists, items: items, meals: meals, photos: photos
         )
     }
 }
@@ -615,6 +618,21 @@ enum StarLedger {
             )
         }
         return (chores + care).sorted { ($0.at, $0.id) < ($1.at, $1.id) }
+    }
+
+    /// The day of the first star anyone earned, from a chore or from care; nil before any.
+    static func firstDay(_ db: Database, householdId: Household.ID, calendar: Calendar) throws -> DayKey? {
+        let chore = try String.fetchOne(db, sql: """
+            SELECT MIN(cc.day) FROM choreCompletion cc JOIN chore c ON c.id = cc.choreId
+            WHERE c.householdId = ? AND cc.stars > 0
+            """, arguments: [householdId]).map(DayKey.init(rawValue:))
+        let care = try Date.fetchOne(db, sql: """
+            SELECT MIN(l.occurredAt) FROM careLog l
+            JOIN careRoutine r ON r.id = l.careRoutineId
+            JOIN companion c ON c.id = r.companionId
+            WHERE c.householdId = ? AND l.stars > 0 AND EXISTS (SELECT 1 FROM careLogPerson p WHERE p.careLogId = l.id)
+            """, arguments: [householdId]).map { DayKey($0, calendar: calendar) }
+        return [chore, care].compactMap { $0 }.min()
     }
 
     /// Every star each person has earned, ever.

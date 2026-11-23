@@ -2,17 +2,25 @@ import SwiftUI
 
 /// The Glow tab: what the household did for each other this week. The week's stars with
 /// my share and the trend, what is being saved for, everyone side by side, what the stars
-/// were for, and what just happened. Anyone opens to their own week. Cashing in asks once,
-/// naming everyone who earned it, and this phone celebrates.
+/// were for, what just happened and what was cashed in. Anyone opens to their own week, and
+/// the week's pager looks back as far as the first star. Cashing in asks once, naming
+/// everyone who earned it, and this phone celebrates.
 struct PocketGlowScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var home
     @Environment(\.me) private var me
     @State private var path: [GlowRoute] = []
+    /// How many weeks before this one the page shows; a person's page follows it.
+    @State private var weeksBack: Int
     @State private var confirming: ChoreBoard.RewardStatus?
     @State private var celebrating: GlowCelebration?
     /// A cash-in made in the sheet, celebrated once the sheet has closed.
     @State private var cashedIn: GlowCelebration?
+
+    /// Opens on an earlier week: screenshots and tests.
+    init(weeksBack: Int = 0) {
+        _weeksBack = State(initialValue: weeksBack)
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -22,7 +30,7 @@ struct PocketGlowScreen: View {
                 .navigationDestination(for: GlowRoute.self) { route in
                     switch route {
                     case let .person(id):
-                        PocketGlowPerson(personId: id) { confirming = $0 }
+                        PocketGlowPerson(personId: id, weeksBack: $weeksBack) { confirming = $0 }
                             .toolbar { ToolbarItem(placement: .topBarTrailing) { PocketYouButton() } }
                             .toolbarBackground(Theme.background, for: .navigationBar)
                             .navigationBarTitleDisplayMode(.inline)
@@ -30,6 +38,10 @@ struct PocketGlowScreen: View {
                 }
         }
         .tint(Theme.accent)
+        // A new day starts on this week again.
+        .onChange(of: home.today) { weeksBack = 0 }
+        // Opened on an earlier week, its stars are read like a step back to it.
+        .onAppear { if weeksBack > 0 { pager.page.go(pager.weeksBack) } }
         .sheet(item: $confirming, onDismiss: celebrate) { status in
             CashInSheet(status: status, earners: earners(status.reward)) { cashIn(status) }
         }
@@ -42,15 +54,18 @@ struct PocketGlowScreen: View {
     }
 
     private var page: some View {
-        let week = GlowReading(home: home, people: model.people, weeksBack: 0)
+        let pager = pager
+        let week = GlowReading(home: home, people: model.people, weeksBack: pager.weeksBack)
         return ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 PocketHeader(small: WeekPaging.range(week.week.days, calendar: home.calendar), title: "Glow")
+                if pager.limit > 0 { WeekPager(page: pager.page) }
                 hero(week)
-                saving
+                saving(week)
                 everyone(week)
                 whereFrom(week)
                 lately(week)
+                cashedIn(week)
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
@@ -60,6 +75,10 @@ struct PocketGlowScreen: View {
         .background(Theme.background)
         .paperUnderStatusBar()
     }
+
+    /// The week shown and how to show another: back to the week of the first star. Stars
+    /// from before the usual window are read as a week is asked for.
+    private var pager: GlowPager { GlowPager(home: home, weeksBack: $weeksBack) }
 
     private func earners(_ reward: Reward) -> [Person] {
         PocketGlowLogic.earners(of: reward, earnings: home.snapshot.earnings, redemptions: home.snapshot.redemptions, people: model.everyone)
@@ -119,13 +138,17 @@ struct PocketGlowScreen: View {
 
     // MARK: Saving for
 
+    /// What is being saved for now, whichever week is shown; an earlier week says so.
     @ViewBuilder
-    private var saving: some View {
+    private func saving(_ week: GlowReading) -> some View {
         let statuses = me.map { me in PocketGlowLogic.rewards(home.snapshot.rewards, me: me.id) { home.earned(toward: $0) } }
             ?? home.snapshot.rewards.filter { !$0.archived && $0.isShared }.map { ChoreBoard.RewardStatus(reward: $0, earned: home.earned(toward: $0)) }
         if !statuses.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                PhoneCardHeader(title: "Saving for", meta: statuses.count == 1 ? (statuses[0].reward.isShared ? "family reward" : "your treat") : "\(statuses.count) rewards")
+                PhoneCardHeader(
+                    title: "Saving for",
+                    meta: !week.isThisWeek ? "now" : statuses.count == 1 ? (statuses[0].reward.isShared ? "family reward" : "your treat") : "\(statuses.count) rewards"
+                )
                 ForEach(statuses) { status in
                     GlowRewardRow(status: status) { confirming = status }
                 }
@@ -216,7 +239,7 @@ struct PocketGlowScreen: View {
         let days = GlowStory.lately(week.summary.feed, today: home.today, calendar: home.calendar)
         if !days.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                PhoneCardHeader(title: "Lately")
+                PhoneCardHeader(title: week.isThisWeek ? "Lately" : "That week")
                 ForEach(days) { day in
                     Text(day.title.uppercased())
                         .phoneFont(.body, 11, weight: 800, relativeTo: .caption2)
@@ -234,6 +257,38 @@ struct PocketGlowScreen: View {
         }
     }
 
+    // MARK: Cashed in
+
+    /// The rewards already enjoyed: the household's last few, or an earlier week's own.
+    @ViewBuilder
+    private func cashedIn(_ week: GlowReading) -> some View {
+        let all = GlowStory.cashedIn(home.snapshot.redemptions, rewards: home.snapshot.rewards, in: week.isThisWeek ? nil : week.week)
+        if !all.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                PhoneCardHeader(title: "Cashed in", meta: week.isThisWeek ? "\(all.count) so far" : "that week")
+                ForEach(Array(all.prefix(5).enumerated()), id: \.element.id) { index, item in
+                    if index > 0 { GlowDivider() }
+                    let whose = item.personId.map { $0 == me?.id ? "you" : model.person($0)?.name ?? "someone" } ?? "everyone"
+                    HStack(spacing: 12) {
+                        Text(item.emoji).phoneFont(.body, 22).frame(minWidth: 28).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(item.title).phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
+                            Text(GlowWords.cashedInDetail(item, who: whose, today: home.today, calendar: home.calendar))
+                                .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                                .foregroundStyle(Theme.muted)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(minHeight: 40)
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .phoneCard()
+            .accessibilityIdentifier("glow-cashed-in")
+        }
+    }
+
     private func who(_ item: GlowSummary.FeedItem) -> String {
         guard let id = item.personId else { return item.isCashIn ? "Everyone" : "Someone" }
         return id == me?.id ? "You" : model.person(id)?.name ?? "Someone"
@@ -248,6 +303,35 @@ struct PocketGlowScreen: View {
 
 enum GlowRoute: Hashable {
     case person(Person.ID)
+}
+
+/// Which of Glow's weeks is shown, for the page and a person's page alike.
+@MainActor
+struct GlowPager {
+    /// The week shown: never further back than there is anything to show.
+    let weeksBack: Int
+    let limit: Int
+    private let spoken: String
+    private let go: (Int) -> Void
+
+    /// Reads and steps `weeksBack`. Stars from before the usual window are read as a week
+    /// is asked for, with the week before it for its trend.
+    init(home: HomeStore, weeksBack: Binding<Int>) {
+        let calendar = home.calendar
+        let today = home.today
+        limit = GlowWeeks.limit(firstDay: home.snapshot.firstStarDay, today: today, calendar: calendar)
+        self.weeksBack = min(max(weeksBack.wrappedValue, 0), limit)
+        let week = GlowWeeks.week(weeksBack: self.weeksBack, today: today, calendar: calendar)
+        spoken = "\(WeekPaging.weekName(weeksBack: self.weeksBack)), \(WeekPaging.range(week.days, calendar: calendar))"
+        go = { asked in
+            home.include(from: GlowWeeks.loadFrom(GlowWeeks.week(weeksBack: asked, today: today, calendar: calendar), calendar: calendar))
+            weeksBack.wrappedValue = asked
+        }
+    }
+
+    var page: WeekPage {
+        WeekPage(weeksBack: weeksBack, limit: limit, spoken: spoken, go: go)
+    }
 }
 
 /// One week of Glow read from the store: the same reading for the page and a person's page.

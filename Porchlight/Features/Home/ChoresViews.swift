@@ -366,11 +366,18 @@ struct ProgressBar: View {
 struct RewardCard: View {
     @Environment(HomeStore.self) private var store
     let status: ChoreBoard.RewardStatus
-    let onEdit: () -> Void
+    /// Opens the reward to edit; nil for a card that only shows it.
+    let onEdit: (() -> Void)?
 
     var body: some View {
-        Button(action: onEdit) { card }
-            .buttonStyle(PressableStyle())
+        Group {
+            if let onEdit {
+                Button(action: onEdit) { card.accessibilityHint("Edit the reward") }
+                    .buttonStyle(PressableStyle())
+            } else {
+                card
+            }
+        }
             .overlay(alignment: .bottomTrailing) {
                 if status.isReached {
                     Button {
@@ -421,7 +428,6 @@ struct RewardCard: View {
         .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Edit the reward")
     }
 }
 

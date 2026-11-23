@@ -37,9 +37,9 @@ struct PocketGlowScreenTests {
         return House(db: db, model: AppModel(database: db), home: HomeStore(database: db), me: snapshot.people[0], other: snapshot.people[1])
     }
 
-    private func glow(_ house: House, look: HostedScreen.Look, shot: String) async throws -> HostedScreen {
+    private func glow(_ house: House, look: HostedScreen.Look, shot: String, weeksBack: Int = 0) async throws -> HostedScreen {
         let hosted = try await HostedScreen.host(
-            PocketGlowScreen().environment(house.model).environment(house.home).environment(\.me, house.me), look: look
+            PocketGlowScreen(weeksBack: weeksBack).environment(house.model).environment(house.home).environment(\.me, house.me), look: look
         )
         try hosted.saveShot("\(shot)-\(look.name)")
         return hosted
@@ -78,8 +78,9 @@ struct PocketGlowScreenTests {
     func person(lookName: String) async throws {
         let look = HostedScreen.Look.named(lookName)
         let house = try house()
+        let weeksBack = 0
         let page = try await HostedScreen.host(
-            NavigationStack { PocketGlowPerson(personId: house.other.id) { _ in } }
+            NavigationStack { PocketGlowPerson(personId: house.other.id, weeksBack: .constant(weeksBack)) { _ in } }
                 .environment(house.model).environment(house.home).environment(\.me, house.me),
             look: look
         )
@@ -92,6 +93,65 @@ struct PocketGlowScreenTests {
         #expect(page.elements.contains { $0.label.hasPrefix("What Mia did") }, "what she did:\n\(page.listing)")
         #expect(page.elements.contains { $0.label.hasPrefix("Mia's own treat") }, "her own treat:\n\(page.listing)")
         #expect(!page.elements.contains { $0.isButton && $0.label.hasPrefix("Cash in") }, "someone else's treat is theirs to cash in:\n\(page.listing)")
+    }
+
+    @Test(
+        "An earlier week tells what was earned and enjoyed then, and says that saving is about now",
+        arguments: ["light", "largest-dark"]
+    )
+    func earlierWeek(lookName: String) async throws {
+        let look = HostedScreen.Look.named(lookName)
+        let page = try await glow(try house(), look: look, shot: "glow-last-week", weeksBack: 1)
+        #expect(page.offSides.isEmpty, "nothing runs off either side (\(look)): \(page.offSides.map { "\($0.label.prefix(30)) \($0.frame.integral)" })")
+        #expect(page.elements.contains { $0.label.hasPrefix("Last week, ") }, "the pager names the week:\n\(page.listing)")
+        #expect(page.elements.contains { $0.isButton && $0.label == "Back to this week" }, "a way back:\n\(page.listing)")
+        #expect(page.elements.contains { $0.isButton && $0.label == "Next week" }, "a step forward:\n\(page.listing)")
+        #expect(page.elements.contains { $0.label.contains("that week") }, "the labels say that week:\n\(page.listing)")
+        #expect(!page.elements.contains { $0.label.contains("this time last week") }, "an earlier week is compared whole:\n\(page.listing)")
+        #expect(page.elements.contains { $0.label.hasPrefix("Saving for") && $0.label.contains("now") }, "saving is about now:\n\(page.listing)")
+        #expect(page.elements.contains { $0.label.hasPrefix("That week") }, "what happened that week:\n\(page.listing)")
+        #expect(!page.elements.contains { $0.label == "TODAY" }, "nothing of today on an earlier week:\n\(page.listing)")
+    }
+
+    @Test("This week has a way back, as far as the first star, and what was cashed in stays as a history")
+    func lookingBack() async throws {
+        let house = try house()
+        let page = try await glow(house, look: .light, shot: "glow-pager")
+        #expect(page.elements.contains { $0.isButton && $0.label == "Previous week" }, "a way back:\n\(page.listing)")
+        #expect(!page.elements.contains { $0.isButton && $0.label == "Next week" }, "nothing after this week:\n\(page.listing)")
+        #expect(page.elements.contains { $0.label.hasPrefix("Cashed in") }, "what was cashed in:\n\(page.listing)")
+        #expect(page.elements.contains { $0.label.hasPrefix("Ice cream trip") }, "the treat already enjoyed:\n\(page.listing)")
+        // The samples go back four weeks; the pager goes no further than the first star.
+        let first = try #require(house.home.snapshot.firstStarDay)
+        let limit = GlowWeeks.limit(firstDay: first, today: house.home.today, calendar: house.home.calendar)
+        #expect(limit >= 3 && limit <= 5, "back to the first star: \(limit) weeks from \(first)")
+        let furthest = try await glow(house, look: .light, shot: "glow-first-week", weeksBack: 40)
+        #expect(!furthest.elements.contains { $0.isButton && $0.label == "Previous week" }, "the first week is the last step back:\n\(furthest.listing)")
+        #expect(furthest.elements.contains { $0.label.hasPrefix("\(limit) weeks ago, ") }, "asked for further, it shows the first week:\n\(furthest.listing)")
+    }
+
+    @Test("Stars from before the usual window are read when an earlier week is asked for")
+    func readsFurtherBack() async throws {
+        let house = try house()
+        let calendar = house.home.calendar
+        // Past every sample, so nothing but the pager's own asking loads it.
+        let week = GlowWeeks.week(weeksBack: 30, today: house.home.today, calendar: calendar)
+        let from = GlowWeeks.loadFrom(week, calendar: calendar)
+        let old = try house.db.saveChore(
+            ChoreDraft(title: "Old chore", emoji: "🧺", ownerId: house.me.id, recurrence: .daily, anchorDay: from, timeHint: nil, stars: 2),
+            householdId: try #require(house.home.householdId)
+        )
+        try house.db.toggleChore(id: old.id, day: week.first, personId: house.me.id, now: week.first.startDate(in: calendar))
+        try house.db.toggleChore(id: old.id, day: from, personId: house.me.id, now: from.startDate(in: calendar))
+        let home = HomeStore(database: house.db)
+        #expect(!home.snapshot.earnings.contains { week.contains($0.day) }, "not read until asked for")
+        var weeksBack = 0
+        let pager = GlowPager(home: home, weeksBack: Binding(get: { weeksBack }, set: { weeksBack = $0 }))
+        #expect(pager.limit == 31, "back to the week of the first star: \(pager.limit)")
+        pager.page.go(30)
+        #expect(weeksBack == 30)
+        #expect(home.snapshot.earnings.contains { week.contains($0.day) }, "that week's stars are read")
+        #expect(home.snapshot.earnings.contains { $0.day == from }, "and the week before it, for the trend")
     }
 }
 #endif

@@ -4,6 +4,8 @@ import SwiftUI
 /// beside anyone else), their stars each day, what they did, and their own treat.
 struct PocketGlowPerson: View {
     let personId: Person.ID
+    /// The week Glow is on; this page shows the same one and can step it.
+    @Binding var weeksBack: Int
     let onCashIn: (ChoreBoard.RewardStatus) -> Void
 
     @Environment(AppModel.self) private var model
@@ -12,7 +14,8 @@ struct PocketGlowPerson: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let week = GlowReading(home: home, people: model.people, weeksBack: 0)
+        let pager = GlowPager(home: home, weeksBack: $weeksBack)
+        let week = GlowReading(home: home, people: model.people, weeksBack: pager.weeksBack)
         if let glow = week.summary.people.first(where: { $0.id == personId }) {
             let isMe = personId == me?.id
             let whose = isMe ? "Your" : glow.person.name.possessive
@@ -23,10 +26,11 @@ struct PocketGlowPerson: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         PersonAvatar(glow.person, size: .large)
                     }
+                    if pager.limit > 0 { WeekPager(page: pager.page) }
                     numbers(glow, week: week)
                     days(glow, week: week, whose: whose)
                     did(week: week, isMe: isMe, name: glow.person.name)
-                    treats(glow.person, whose: whose)
+                    treats(glow.person, whose: whose, isThisWeek: week.isThisWeek)
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
@@ -85,13 +89,13 @@ struct PocketGlowPerson: View {
 
     /// Their own treats, each with how far it is. Only its owner's phone cashes one in.
     @ViewBuilder
-    private func treats(_ person: Person, whose: String) -> some View {
+    private func treats(_ person: Person, whose: String, isThisWeek: Bool) -> some View {
         let statuses = home.snapshot.rewards
             .filter { !$0.archived && $0.ownerId == person.id }
             .map { ChoreBoard.RewardStatus(reward: $0, earned: home.earned(toward: $0)) }
         if !statuses.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                PhoneCardHeader(title: statuses.count == 1 ? "\(whose) own treat" : "\(whose) own treats")
+                PhoneCardHeader(title: statuses.count == 1 ? "\(whose) own treat" : "\(whose) own treats", meta: isThisWeek ? nil : "now")
                 ForEach(statuses) { status in
                     GlowRewardRow(status: status, canCashIn: person.id == me?.id || me == nil) { onCashIn(status) }
                 }
