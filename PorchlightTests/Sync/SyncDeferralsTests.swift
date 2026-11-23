@@ -1,7 +1,9 @@
+import CloudKit
 import Foundation
 import GRDB
 import Testing
 @testable import Porchlight
+@testable import SQLiteData
 
 /// A record iCloud refuses is kept and sent again, never lost, and Sync details says so in
 /// words a person can read aloud (docs/design/sync-icloud.md, "A record sent before its
@@ -19,34 +21,36 @@ struct SyncDeferralsTests {
         try await engine.syncChanges()
         #expect(try harness.unsynced() == [])
 
-        // A walk logged while paused, then only who walked queued for iCloud: the walk itself
-        // is on this device and has never been sent, as when its own save was lost.
-        controller.setEnabled(false)
-        await controller.settle()
+        // A walk logged, then its own save dropped from what the engine will send, as when
+        // it was lost: who walked goes to iCloud without it.
         let routine = try #require(try await harness.database.writer.read { db in try CareRoutine.fetchOne(db) })
         let people = try harness.database.snapshot().people.map(\.id)
         let log = try harness.database.logCare(routineId: routine.id, CareLogDraft(people: people, occurredAt: CompanionClock.now()))
-        try await harness.database.writer.write { db in
-            try db.execute(sql: "DELETE FROM sqlitedata_icloud_pendingRecordZoneChanges")
-            for row in try CareLogPerson.filter(Column("careLogId") == log.id).fetchAll(db) {
-                try row.update(db)
-            }
+        let walk = CKRecord.ID(recordName: SyncMirror.CareLog.recordName(for: log.id.uuid), zoneID: SyncMirror.householdZone.zoneID)
+        let state = engine.private.state
+        for _ in 0..<100 where !state.pendingRecordZoneChanges.contains(.saveRecord(walk)) {
+            try await Task.sleep(for: .milliseconds(20))
         }
-        controller.setEnabled(true)
-        await controller.settle()
+        #expect(state.pendingRecordZoneChanges.contains(.saveRecord(walk)), "the walk was queued: \(state.pendingRecordZoneChanges)")
+        state.remove(pendingRecordZoneChanges: [.saveRecord(walk)])
 
         // iCloud refuses who walked, as its walk isn't there: it stays here.
-        try await engine.syncChanges()
+        try await engine.sendChanges()
         #expect(try walkers(of: log.id, in: harness) == people.count)
-        await controller.settle()
-        #expect(controller.trace.deferrals.held == people.count)
-        #expect(controller.trace.deferrals.heldLine().hasPrefix("Held \(people.count) records until their parent arrived. Last: who walked or fed, "))
+        // The engine tells the app from its own task; the count lands on the main actor.
+        for _ in 0..<100 where controller.trace.deferrals.held < people.count {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let deferrals = controller.trace.deferrals
+        #expect(deferrals.held == people.count, "\(deferrals)")
+        let line = deferrals.heldLine()
+        #expect(line.hasPrefix("Held \(people.count) records until their parent arrived. Last: who walked or fed, "), "got \(line)")
 
         // The next change sends the walk, then who walked, and every row reaches iCloud.
         try await harness.database.writer.write { db in
             try db.execute(sql: "UPDATE household SET name = 'Lake House'")
         }
-        try await engine.syncChanges()
+        try await engine.sendChanges()
         #expect(try walkers(of: log.id, in: harness) == people.count)
         #expect(try harness.unsynced() == [])
     }
@@ -58,11 +62,12 @@ struct SyncDeferralsTests {
         defer { UserDefaults().removePersistentDomain(forName: suite) }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        calendar.locale = Locale(identifier: "en_US")
         let at = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 23, hour: 18, minute: 41)))
 
         var deferrals = SyncDeferrals(defaults: defaults)
-        #expect(deferrals.heldLine(calendar: calendar) == "None")
-        #expect(deferrals.resentLine(calendar: calendar) == "None")
+        #expect(deferrals.heldLine(calendar: calendar) == "none")
+        #expect(deferrals.resentLine(calendar: calendar) == "none")
         deferrals.note(recordType: "careLog", waitingForParent: true, at: at)
         deferrals.note(recordType: "journalEntryEater", waitingForParent: true, at: at)
         deferrals.note(recordType: "careLogPerson", waitingForParent: true, at: at)
@@ -71,10 +76,10 @@ struct SyncDeferralsTests {
 
         let reopened = SyncDeferrals(defaults: defaults)
         #expect(reopened == deferrals)
-        #expect(reopened.heldLine(calendar: calendar).replacingOccurrences(of: "\u{202F}", with: " ")
-            == "Held 3 records until their parent arrived. Last: who walked or fed, Nov 23, 6:41 PM.")
-        #expect(reopened.resentLine(calendar: calendar).replacingOccurrences(of: "\u{202F}", with: " ")
-            == "Sent again 1 record iCloud turned down. Last: a walk or meal, Nov 23, 6:41 PM.")
+        let held = reopened.heldLine(calendar: calendar).replacingOccurrences(of: "\u{202F}", with: " ")
+        #expect(held == "Held 3 records until their parent arrived. Last: who walked or fed, Nov 23 at 6:41 PM.", "got \(held)")
+        let resent = reopened.resentLine(calendar: calendar).replacingOccurrences(of: "\u{202F}", with: " ")
+        #expect(resent == "Sent again 1 record iCloud turned down. Last: a walk or meal, Nov 23 at 6:41 PM.", "got \(resent)")
         #expect(SyncDeferrals.words("somethingNew") == "a change")
     }
 

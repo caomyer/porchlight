@@ -10,6 +10,9 @@ struct SyncDeferrals: Equatable, Sendable {
         var at: Date
     }
 
+    /// What the lines say while nothing was kept, as the other details say it.
+    static let none = "none"
+
     var held = 0
     var lastHeld: Last?
     var resent = 0
@@ -42,15 +45,15 @@ struct SyncDeferrals: Equatable, Sendable {
         }
     }
 
-    /// "Held 3 records until their parent arrived. Last: who walked or fed, Nov 23, 6:41 PM."
+    /// "Held 3 records until their parent arrived. Last: who walked or fed, Nov 23 at 6:41 PM."
     func heldLine(calendar: Calendar = .current) -> String {
-        guard held > 0, let last = lastHeld else { return "None" }
+        guard held > 0, let last = lastHeld else { return Self.none }
         return "Held \(Self.records(held)) until their parent arrived. Last: \(Self.words(last.recordType)), \(Self.when(last.at, calendar: calendar))."
     }
 
-    /// "Sent again 1 record iCloud turned down. Last: a walk or meal, Nov 23, 6:41 PM."
+    /// "Sent again 1 record iCloud turned down. Last: a walk or meal, Nov 23 at 6:41 PM."
     func resentLine(calendar: Calendar = .current) -> String {
-        guard resent > 0, let last = lastResent else { return "None" }
+        guard resent > 0, let last = lastResent else { return Self.none }
         return "Sent again \(Self.records(resent)) iCloud turned down. Last: \(Self.words(last.recordType)), \(Self.when(last.at, calendar: calendar))."
     }
 
@@ -74,7 +77,7 @@ struct SyncDeferrals: Equatable, Sendable {
     private static func records(_ count: Int) -> String { count == 1 ? "1 record" : "\(count) records" }
 
     private static func when(_ date: Date, calendar: Calendar) -> String {
-        date.formatted(Date.FormatStyle(timeZone: calendar.timeZone).month(.abbreviated).day().hour().minute())
+        date.formatted(Date.FormatStyle(locale: calendar.locale ?? .current, calendar: calendar, timeZone: calendar.timeZone).month(.abbreviated).day().hour().minute())
     }
 
     private static func last(_ defaults: UserDefaults, _ key: String) -> Last? {

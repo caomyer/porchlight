@@ -58,6 +58,43 @@ final class SyncSettingsTests: XCTestCase {
         snapshot("73-sync-details")
     }
 
+    /// Records iCloud refused and this iPad kept say so in Sync details, in words read aloud,
+    /// and "none" while there were none (docs/design/sync-icloud.md, "A record sent before
+    /// its parent"). The counts are kept in the device's preferences, given here at launch.
+    func testHeldRecordsSayHowManyInWords() {
+        for kept in [true, false] {
+            let app = launch(["-sampleHousehold", "-startScreen", "settings"] + (kept ? Self.keptRecords : []))
+            let details = app.buttons["sync-details"]
+            XCTAssertTrue(details.waitForExistence(timeout: 20), "Settings has Sync details")
+            for _ in 0..<8 where !details.isHittable {
+                app.swipeUp()
+            }
+            details.tap()
+            let held = app.descendants(matching: .any)["sync-details-held"]
+            XCTAssertTrue(held.waitForExistence(timeout: 5), "The details open")
+            for _ in 0..<8 where !held.isHittable {
+                app.swipeUp()
+            }
+            let resent = app.descendants(matching: .any)["sync-details-resent"]
+            if kept {
+                XCTAssertTrue(held.label.contains("Held 3 records until their parent arrived. Last: who walked or fed, Nov 23 at"), "got \(held.label)")
+                XCTAssertTrue(resent.label.contains("Sent again 1 record iCloud turned down. Last: a walk or meal,"), "got \(resent.label)")
+                snapshot("74-sync-details-held")
+            } else {
+                XCTAssertTrue(held.label.hasSuffix("none"), "got \(held.label)")
+                XCTAssertTrue(resent.label.hasSuffix("none"), "got \(resent.label)")
+                snapshot("75-sync-details-held-none")
+            }
+            app.terminate()
+        }
+    }
+
+    /// Three held for a parent and one sent again, the last on Nov 23 at 6:41 PM Pacific.
+    static let keptRecords = [
+        "-sync.deferrals.held", "3", "-sync.deferrals.lastHeld", "(careLogPerson, 1795488060)",
+        "-sync.deferrals.resent", "1", "-sync.deferrals.lastResent", "(careLog, 1795488060)",
+    ]
+
     func testADifferentAccountAsksWhatToDo() {
         let app = launch(["-sampleHousehold", "-startScreen", "settings", "-debugSyncStatus", "needsDecision"])
         showSyncSection(app, title: "A different iCloud account signed in")
