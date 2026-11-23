@@ -1,0 +1,432 @@
+<title>Glow Proposal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Caveat:wght@600;700&display=swap">
+<style>/* Layout: a proposal page in the style of the family calendar proposal. What Glow is for, what is thin today, phone mocks in the app's dark look, a wall mock, what is reused, build order, decisions. */
+:root {
+  --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB;
+  --accent: #D9653B; --accent-soft: #F8DDD0; --good: #5B9F72; --good-soft: #E3EFE2; --warn: #B7791F; --warn-soft: #F6E7C8;
+  --blue: #4C7BB0; --coral: #DD7558; --ochre: #C2933A;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --good-soft: #263A2D; --warn-soft: #3D3020; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 1180px; margin: 0 auto; padding-block: 44px 90px; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.01em; font-size: clamp(32px, 5.4vw, 50px); line-height: 1.08; text-wrap: balance; }
+h2 { font: 600 27px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 20px/1.25 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 5px; }
+a { color: var(--accent); }
+.eyebrow { font: 800 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 18px; max-width: 72ch; }
+.note { font-size: 14.5px; color: var(--muted); max-width: 80ch; }
+code { font: 500 .9em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface2); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+.index { display: flex; flex-wrap: wrap; gap: 6px; }
+.index a { text-decoration: none; background: var(--surface2); color: var(--ink); border-radius: 999px; padding: 7px 12px; font: 800 13px/1 var(--body); }
+.index a:hover { background: var(--accent-soft); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border-radius: 18px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.tile b { font: 600 17px/1.3 var(--display); }
+.tile p, .tile li { font-size: 14.5px; color: var(--muted); }
+.tile.pick { box-shadow: inset 0 0 0 2px var(--good); }
+.rec { color: var(--good); font-weight: 800; font-size: 13px; }
+.not { color: var(--muted); font-weight: 800; font-size: 13px; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 920px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+th { font: 800 11.5px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 800; }
+tr.pick td:first-child { box-shadow: inset 4px 0 0 var(--good); }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.shots.wide { grid-template-columns: minmax(0, 1fr); }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; background: var(--surface); border-radius: 18px; padding: 12px; }
+figure img { width: 100%; height: auto; display: block; border-radius: 10px; }
+figcaption { font-size: 13.5px; line-height: 1.4; }
+figcaption b { display: block; font: 700 14px/1.3 var(--body); }
+figcaption span { color: var(--muted); }
+figure.pick { box-shadow: inset 0 0 0 2px var(--good); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .flow { grid-template-columns: minmax(0, 1fr); } }
+.step { background: var(--surface); border-radius: 18px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; border-top: 4px solid var(--line); }
+.step.s1 { border-top-color: var(--good); } .step.s2 { border-top-color: var(--ochre); } .step.s3 { border-top-color: var(--muted); }
+.step b { font: 600 18px/1.25 var(--display); }
+.step p, .step ul { font-size: 14px; color: var(--muted); }
+.step ul b { color: var(--ink); }
+.decisions { counter-reset: d; list-style: none; padding: 0; display: grid; gap: 10px; }
+.decisions li { background: var(--surface); border-radius: 16px; padding: 14px 16px 14px 56px; position: relative; font-size: 15px; }
+.decisions li::before { counter-increment: d; content: counter(d); position: absolute; left: 16px; top: 13px; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--surface); display: grid; place-items: center; font: 800 13px/1 var(--body); }
+.decisions li small { display: block; color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+
+/* Frames keep their own look */
+.board { display: flex; gap: 18px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; }
+.fr { flex: none; display: grid; gap: 10px; align-content: start; scroll-snap-align: start; margin: 0; background: none; padding: 0; }
+.fr .cap { font-size: 13.5px; line-height: 1.4; width: 286px; }
+.fr .cap b { display: block; font: 700 13.5px/1.3 var(--body); }
+.fr .cap span { color: var(--muted); }
+.sc { --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB; --accent: #D9653B; --accent-soft: #F8DDD0; --pol: #FFFDF8; color-scheme: light; }
+.sc.dark { --paper: #1E1A17; --surface: #2A2420; --surface2: #352E29; --ink: #F2EAE0; --muted: #A89A8C; --line: #3B332D; --accent: #E67A50; --accent-soft: #4A2E22; --pol: #EFE7DA; color-scheme: dark; }
+.ph { width: 397px; height: 834px; zoom: .72; background: #1d1a18; border-radius: 56px; padding: 11px; flex: none; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.sc { width: 375px; height: 812px; border-radius: 46px; background: var(--paper); color: var(--ink); overflow: hidden; position: relative; display: flex; flex-direction: column; font-family: var(--body); line-height: 1.3; }
+.notch { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; background: #1d1a18; border-radius: 20px; z-index: 9; }
+.status { height: 54px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 8px 34px 0; font: 700 15px/1 var(--body); }
+.status i { font-style: normal; letter-spacing: 1px; font-size: 11px; }
+.pb { flex: 1; overflow: hidden; padding: 4px 16px 16px; display: grid; gap: 12px; align-content: start; position: relative; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phead small { display: block; font: 700 12.5px/1.2 var(--body); color: var(--muted); }
+.phead b { font: 600 28px/1.15 var(--display); }
+.av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; color: #fff; font: 800 13px/1 var(--body); background: var(--blue); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface2); border-radius: 12px; padding: 3px; }
+.seg span { text-align: center; font: 700 13px/1 var(--body); padding: 8px 4px; border-radius: 9px; color: var(--muted); }
+.seg span.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.card { background: var(--surface); border-radius: 20px; padding: 12px 10px; display: grid; gap: 8px; box-shadow: 0 1px 2px rgba(60,40,20,.06); }
+.pager { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; }
+.pager .cv { width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; font: 800 16px/1 var(--body); color: var(--ink); justify-self: center; }
+.pager .cv.gone { visibility: hidden; }
+.pager .lbl { text-align: center; display: grid; gap: 2px; }
+.pager .lbl b { font: 600 17px/1.2 var(--display); }
+.pager .lbl a { font: 800 12px/1.2 var(--body); color: var(--accent); text-decoration: none; }
+.grid7 { display: grid; grid-template-columns: 34px repeat(7, 1fr); gap: 5px; align-items: center; font: 700 10.5px/1 var(--body); color: var(--muted); text-align: center; }
+.mini { aspect-ratio: 1; border-radius: 6px; display: grid; place-items: center; font-size: 15px; line-height: 1; position: relative; }
+.mini.empty { border: 1.5px dashed var(--line); }
+.mini i { position: absolute; right: -3px; bottom: -3px; background: var(--ink); color: var(--surface); font: 800 8px/1 var(--body); font-style: normal; padding: 2px 3px; border-radius: 6px; }
+.t1 { background: #F3D9BE; } .t2 { background: #DCEBD8; } .t3 { background: #F6E1A8; } .t4 { background: #E6E0F0; } .t5 { background: #F8D3C4; } .t6 { background: #D5E4EE; }
+.dch { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 4px 0; }
+.dch b { font: 600 17px/1.2 var(--display); }
+.dch span { font: 700 12px/1.2 var(--body); color: var(--muted); }
+.diary { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 8px 4px; }
+.diary + .diary { border-top: 1px solid var(--line); }
+.diary .art { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; font-size: 20px; }
+.diary b { font: 700 21px/1 var(--hand); }
+.diary small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); margin-top: 3px; }
+.empty-note { text-align: center; display: grid; gap: 6px; padding: 18px 12px; }
+.empty-note b { font: 600 18px/1.25 var(--display); }
+.empty-note span { font: 600 13.5px/1.4 var(--body); color: var(--muted); }
+.snapbtn { position: absolute; left: 16px; right: 16px; bottom: 96px; border-radius: 999px; background: var(--accent); color: #fff; font: 800 16px/1 var(--body); padding: 15px; text-align: center; z-index: 4; }
+.tabbar { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 10px 28px; background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar span { display: grid; justify-items: center; gap: 3px; font: 700 10.5px/1 var(--body); color: var(--muted); }
+.tabbar span.on { color: var(--accent); }
+.tabbar span i { font-style: normal; font-size: 20px; line-height: 1; filter: grayscale(1); opacity: .65; }
+.tabbar span.on i { filter: none; opacity: 1; }
+
+/* Glow proposal additions */
+.new { display: inline-block; flex: none; align-self: center; background: var(--good); color: #fff; font: 800 9.5px/1 var(--body); letter-spacing: .08em; padding: 3px 6px; border-radius: 6px; vertical-align: middle; text-transform: uppercase; }
+.tabbar { grid-template-columns: repeat(5, 1fr); }
+.sc .card { padding: 14px; }
+.sc .ct { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.sc .ct b { font: 600 18px/1.2 var(--display); }
+.sc .ct span { font: 700 12px/1.2 var(--body); color: var(--muted); }
+.hero { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+.lamp { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 28px; background: radial-gradient(circle, #F1D58A 0 34%, rgba(241,213,138,.28) 62%, transparent 72%); }
+.hero .num { font: 600 44px/1 var(--display); }
+.hero small { display: block; font: 600 13px/1.35 var(--body); color: var(--muted); margin-top: 4px; }
+.hero small b { color: var(--ink); font-weight: 800; }
+.up { color: #7FC495; font-weight: 800; }
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 74px; }
+.days > div { display: grid; gap: 4px; justify-items: center; align-content: end; height: 100%; font: 700 10.5px/1 var(--body); color: var(--muted); }
+.days .st { width: 100%; max-width: 22px; display: flex; flex-direction: column-reverse; border-radius: 6px; overflow: hidden; }
+.days .st i { display: block; } .days .st .a { background: var(--blue); } .days .st .b { background: var(--coral); }
+.days .none { width: 100%; max-width: 22px; height: 4px; border-radius: 3px; background: var(--line); }
+.days .today { color: var(--accent); }
+.bar { height: 8px; border-radius: 99px; background: var(--surface2); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 99px; background: var(--ochre); }
+.rw { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; font: 700 15px/1.25 var(--body); }
+.rw i { font-style: normal; font-size: 22px; text-align: center; }
+.rw small { display: block; font: 600 12px/1.3 var(--body); color: var(--muted); }
+.rw .n { font: 600 18px/1 var(--display); color: var(--ink); }
+.rw .go { color: var(--muted); font-weight: 800; margin-left: 4px; }
+.rw + .rw { border-top: 1px solid var(--line); padding-top: 8px; }
+.sc .av.c { background: var(--coral); }
+.dayh { font: 800 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.chips { display: flex; gap: 6px; }
+.chips span { font: 700 12.5px/1 var(--body); padding: 8px 12px; border-radius: 99px; background: var(--surface2); color: var(--muted); }
+.chips span.on { background: var(--ink); color: var(--paper); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stat { background: var(--surface2); border-radius: 14px; padding: 10px 12px; }
+.stat b { font: 600 24px/1 var(--display); display: block; }
+.stat span { font: 600 12px/1.3 var(--body); color: var(--muted); }
+
+/* Wall mock */
+.wallwrap { overflow-x: auto; padding-bottom: 6px; }
+.wall { --paper: #F5EFE4; --surface: #FFFCF6; --surface2: #F0E8DA; --ink: #2A2420; --muted: #867A6E; --line: #E6DCCB; --accent: #D9653B; color-scheme: light;
+  width: 1040px; background: #1d1a18; border-radius: 30px; padding: 12px; box-shadow: 0 24px 50px rgba(40,25,10,.16); }
+.wall .in { background: var(--paper); color: var(--ink); border-radius: 20px; padding: 18px; display: grid; gap: 12px; font-family: var(--body); line-height: 1.3;
+  grid-template-columns: 1.15fr 1fr 1fr; grid-template-areas: "top top top" "hero p1 p2" "hero rew lately"; }
+.wall .top { grid-area: top; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wall .top h4 { margin: 0; font: 600 26px/1.1 var(--display); }
+.wall .top h4 small { display: block; font: 700 12.5px/1.3 var(--body); color: var(--muted); }
+.wall .wp { display: flex; align-items: center; gap: 8px; font: 600 16px/1 var(--display); }
+.wall .wp span { width: 34px; height: 34px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; font: 800 15px/1 var(--body); }
+.wall .wp span.new { width: auto; height: auto; border-radius: 6px; background: var(--good); display: inline-block; font: 800 9.5px/1 var(--body); }
+.wall .chip { background: var(--surface2); border-radius: 99px; padding: 9px 14px; font: 800 13px/1 var(--body); }
+.wall .k { background: var(--surface); border-radius: 18px; padding: 14px; display: grid; gap: 8px; align-content: start; box-shadow: 0 1px 2px rgba(60,40,20,.06); min-width: 0; }
+.wall .k > b { font: 600 17px/1.2 var(--display); }
+.wall .night { grid-area: hero; background: linear-gradient(180deg, #2B2540, #4A3550 60%, #7A4F4A); color: #FBEFD9; border-radius: 18px; padding: 18px; display: grid; gap: 10px; align-content: end; min-height: 330px; position: relative; overflow: hidden; }
+.wall .night .lamp { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); width: 120px; height: 120px; font-size: 44px; }
+.wall .night .big { font: 600 30px/1.15 var(--display); }
+.wall .night small { font: 600 13.5px/1.4 var(--body); opacity: .85; }
+.wall .line { display: flex; justify-content: space-between; gap: 8px; font: 600 13px/1.35 var(--body); color: var(--muted); }
+.wall .line b { color: var(--ink); font-weight: 700; }
+.wall .days { height: 48px; }
+.wall .who { display: flex; align-items: center; gap: 8px; font: 700 15px/1 var(--body); }
+.wall .who .n { margin-left: auto; font: 600 26px/1 var(--display); }
+.wall .av { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font: 800 12px/1 var(--body); background: var(--blue); }
+.wall .av.c { background: var(--coral); }
+.wall .p1 { grid-area: p1; } .wall .p2 { grid-area: p2; } .wall .rew { grid-area: rew; } .wall .lately { grid-area: lately; }
+.cmp { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .cmp { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<div class="page">
+
+<section>
+  <span class="eyebrow">Proposal - Glow on the phone and the wall</span>
+  <h1>Glow should answer "what did we do for each other this week?"</h1>
+  <p class="lede">Today the phone's Glow is one number, an empty reward card and two bars. The wall already knows far more than the phone shows. This proposal gives both screens the same story, in each one's own shape, and adds the one thing neither has: a way to look back.</p>
+  <div class="index"><a href="#why">What Glow is for</a><a href="#today">What is thin today</a><a href="#phone">Phone</a><a href="#wall">Wall</a><a href="#build">Build order</a><a href="#decide">Decisions</a></div>
+</section>
+
+<section id="why">
+  <h2>What people come to Glow for</h2>
+  <div class="tiles">
+    <div class="tile"><b>1. To be seen</b><p>"I walked the dog five times this week." Stars are a thank-you. The screen should say what the stars were for, not only how many.</p></div>
+    <div class="tile"><b>2. To see the load</b><p>For two adults: who is carrying what, without a scoreboard. For kids: pride in their own week against their own last week.</p></div>
+    <div class="tile"><b>3. To look forward</b><p>What are we saving for, how close are we, and when will we get there at this pace.</p></div>
+    <div class="tile"><b>4. To look back</b><p>Last week, the week before, the rewards we already enjoyed. The same wish you raised for the paw trail.</p></div>
+  </div>
+  <p class="note">Rule kept from the first design: no winner, no ranking words, nothing that loops or pulses. People sit side by side, each compared with their own last week.</p>
+</section>
+
+<section id="today">
+  <h2>What is thin today</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Question</th><th>Phone today</th><th>Wall today</th><th>Proposed, both</th></tr>
+    <tr><td><b>How many stars this week?</b></td><td>Yes, mine only</td><td>Yes, household, with trend</td><td>Household total, my share, trend against this time last week</td></tr>
+    <tr><td><b>Which days?</b></td><td>No</td><td>Per person bars</td><td>One week strip, colored by person</td></tr>
+    <tr><td><b>What were they for?</b></td><td>No</td><td>Counts of chores and care, one favorite</td><td>A list by task: "Morning walks x5, +10"</td></tr>
+    <tr><td><b>What just happened?</b></td><td>No</td><td>Lately, last 12</td><td>Lately on both, grouped by day</td></tr>
+    <tr><td><b>One person's week</b></td><td>No</td><td>A card, not tappable</td><td>Tap a person: their week, their usual tasks, all time</td></tr>
+    <tr><td><b>How far to the reward?</b></td><td>X of Y</td><td>X of Y</td><td>X of Y plus "about 3 days at this pace"</td></tr>
+    <tr><td><b>Rewards we already had</b></td><td>No</td><td>Only inside Lately</td><td>A "Cashed in" list</td></tr>
+    <tr><td><b>Earlier weeks</b></td><td>No</td><td>No</td><td>The same week pager as the food diary and the paw trail</td></tr>
+    <tr><td><b>Cashing in</b></td><td>Asks, then celebrates</td><td>Spends at once, no celebration</td><td>Both ask, both celebrate</td></tr>
+    <tr><td><b>No reward yet</b></td><td>A card that sends you to settings</td><td>"New reward" chip</td><td>Three one-tap ideas, right there</td></tr>
+  </table></div>
+  <p class="note">Almost all of this is already computed for the wall (trend, per day, per source, the feed). The phone only needs to draw it. The new work is the week pager, the per-task list, the pace line and the person page.</p>
+</section>
+
+<section id="phone">
+  <h2>Phone</h2>
+  <p class="note">One page that scrolls, in the order of the four questions: this week, saving for, everyone, where the stars came from, lately. Green tags mark what is new.</p>
+  <div class="board">
+    <div class="fr">
+      <div class="ph"><div class="sc dark"><div class="notch"></div><div class="status"><span>9:41</span><i>●●●</i></div>
+        <div class="pb">
+          <div class="phead"><div><small>Nov 17 to 23</small><b>Glow</b></div><span class="av">J</span></div>
+          <div class="pager"><span class="cv">‹</span><div class="lbl"><b>This week</b></div><span class="cv gone">›</span></div>
+          <div class="card">
+            <div class="hero"><div class="lamp">💡</div><div><div class="num">14</div><small>stars this week · <b>6 from you</b><br><span class="up">↑ 3 more</span> than this time last week</small></div></div>
+            <div class="days">
+              <div><div class="st"><i class="a" style="height:10px"></i><i class="b" style="height:10px"></i></div>T</div>
+              <div><div class="st"><i class="b" style="height:20px"></i></div>W</div>
+              <div><div class="st"><i class="b" style="height:10px"></i><i class="a" style="height:5px"></i></div>T</div>
+              <div><div class="st"><i class="b" style="height:20px"></i></div>F</div>
+              <div><div class="st"><i class="a" style="height:15px"></i><i class="b" style="height:10px"></i></div>S</div>
+              <div><div class="st"><i class="b" style="height:10px"></i><i class="a" style="height:10px"></i></div>S</div>
+              <div class="today"><div class="none"></div>M</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>Saving for</b><span>family reward</span></div>
+            <div class="rw"><i>🍿</i><div>Movie night<small>about 3 days away at this pace</small></div><span class="n">14 <small style="display:inline">of 20</small></span></div>
+            <div class="bar"><i style="width:70%"></i></div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>Everyone</b><span>this week</span></div>
+            <div class="rw"><span class="av">J</span><div>You<small>🐾 2 walks · 🧹 2 chores · same as last week</small></div><span class="n">6<span class="go">›</span></span></div>
+            <div class="rw"><span class="av c">M</span><div>Mia<small>🐾 4 walks · up 3 on last week</small></div><span class="n">8<span class="go">›</span></span></div>
+          </div>
+        </div>
+        <div class="tabbar"><span><i>🏠</i>Today</span><span><i>🗓️</i>Calendar</span><span><i>🍴</i>Food</span><span><i>☰</i>Lists</span><span class="on"><i>✨</i>Glow</span></div>
+      </div></div>
+      <div class="cap"><b>1. The week at a glance <span class="new">new</span></b><span>Household total with your share and the trend. The strip shows which days, colored by person. Each person says what they did in words, and opens on tap.</span></div>
+    </div>
+
+    <div class="fr">
+      <div class="ph"><div class="sc dark"><div class="notch"></div><div class="status"><span>9:41</span><i>●●●</i></div>
+        <div class="pb">
+          <div class="card">
+            <div class="ct"><b>Where the stars came from</b><span>this week</span></div>
+            <div class="rw"><i>🦮</i><div>Biscuit's walks<small>6 times · Mia 4, you 2</small></div><span class="n">+12</span></div>
+            <div class="rw"><i>🗑️</i><div>Take out the trash<small>once · you</small></div><span class="n">+1</span></div>
+            <div class="rw"><i>🧺</i><div>Laundry<small>once · you</small></div><span class="n">+1</span></div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>Lately</b><span></span></div>
+            <div class="dayh">Yesterday</div>
+            <div class="rw"><span class="av">J</span><div>You walked Biscuit<small>Evening walk · 6:40 PM</small></div><span class="n">+2</span></div>
+            <div class="rw"><span class="av c">M</span><div>Mia walked Biscuit<small>Morning walk · 8:05 AM</small></div><span class="n">+2</span></div>
+            <div class="dayh">Saturday</div>
+            <div class="rw"><span class="av">J</span><div>You did the laundry<small>2:15 PM</small></div><span class="n">+1</span></div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>Cashed in</b><span>2 so far</span></div>
+            <div class="rw"><i>🍦</i><div>Ice cream run<small>Nov 9 · everyone · 15 stars</small></div><span></span></div>
+          </div>
+        </div>
+        <div class="tabbar"><span><i>🏠</i>Today</span><span><i>🗓️</i>Calendar</span><span><i>🍴</i>Food</span><span><i>☰</i>Lists</span><span class="on"><i>✨</i>Glow</span></div>
+      </div></div>
+      <div class="cap"><b>2. Scrolled: what, when, and what we enjoyed <span class="new">new</span></b><span>Stars by task, so the number has a reason. Lately by day. Rewards already cashed in stay as a small history.</span></div>
+    </div>
+
+    <div class="fr">
+      <div class="ph"><div class="sc dark"><div class="notch"></div><div class="status"><span>9:41</span><i>●●●</i></div>
+        <div class="pb">
+          <div class="phead"><div><small>‹ Glow</small><b>Mia</b></div><span class="av c">M</span></div>
+          <div class="pager"><span class="cv">‹</span><div class="lbl"><b>This week</b></div><span class="cv gone">›</span></div>
+          <div class="two">
+            <div class="stat"><b>8</b><span>stars this week<br>5 last week</span></div>
+            <div class="stat"><b>41</b><span>stars all time<br>since Oct 12</span></div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>Her week</b><span>stars each day</span></div>
+            <div class="days">
+              <div><div class="st"><i class="b" style="height:14px"></i></div>T</div>
+              <div><div class="st"><i class="b" style="height:28px"></i></div>W</div>
+              <div><div class="st"><i class="b" style="height:14px"></i></div>T</div>
+              <div><div class="st"><i class="b" style="height:28px"></i></div>F</div>
+              <div><div class="st"><i class="b" style="height:14px"></i></div>S</div>
+              <div><div class="st"><i class="b" style="height:14px"></i></div>S</div>
+              <div class="today"><div class="none"></div>M</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>What she did</b><span></span></div>
+            <div class="rw"><i>🦮</i><div>Biscuit's morning walk<small>4 times</small></div><span class="n">+8</span></div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>Her own treat</b><span></span></div>
+            <div class="rw"><i>💐</i><div>Fresh flowers<small>about 1 week away</small></div><span class="n">8 <small style="display:inline">of 12</small></span></div>
+            <div class="bar"><i style="width:66%"></i></div>
+          </div>
+        </div>
+        <div class="tabbar"><span><i>🏠</i>Today</span><span><i>🗓️</i>Calendar</span><span><i>🍴</i>Food</span><span><i>☰</i>Lists</span><span class="on"><i>✨</i>Glow</span></div>
+      </div></div>
+      <div class="cap"><b>3. One person <span class="new">new</span></b><span>Tap anyone, yourself included. Compared only with their own last week. Their own treat sits here.</span></div>
+    </div>
+
+    <div class="fr">
+      <div class="ph"><div class="sc dark"><div class="notch"></div><div class="status"><span>9:41</span><i>●●●</i></div>
+        <div class="pb">
+          <div class="phead"><div><small>Nov 3 to 9</small><b>Glow</b></div><span class="av">J</span></div>
+          <div class="pager"><span class="cv">‹</span><div class="lbl"><b>2 weeks ago</b><a>Back to this week</a></div><span class="cv">›</span></div>
+          <div class="card">
+            <div class="hero"><div class="lamp">💡</div><div><div class="num">17</div><small>stars that week · <b>9 from you</b></small></div></div>
+            <div class="days">
+              <div><div class="st"><i class="a" style="height:20px"></i></div>T</div>
+              <div><div class="st"><i class="b" style="height:10px"></i><i class="a" style="height:10px"></i></div>W</div>
+              <div><div class="st"><i class="b" style="height:20px"></i></div>T</div>
+              <div><div class="st"><i class="a" style="height:15px"></i></div>F</div>
+              <div><div class="st"><i class="a" style="height:20px"></i><i class="b" style="height:10px"></i></div>S</div>
+              <div><div class="st"><i class="b" style="height:20px"></i></div>S</div>
+              <div><div class="st"><i class="a" style="height:25px"></i></div>M</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>That week</b><span></span></div>
+            <div class="rw"><i>🍦</i><div>Ice cream run, cashed in<small>Sunday Nov 9 · everyone</small></div><span></span></div>
+          </div>
+          <div class="card">
+            <div class="ct"><b>No reward yet?</b><span>one tap</span></div>
+            <div class="chips"><span>🍿 Movie night · 20</span><span>🍜 Takeout pick · 15</span></div>
+            <div class="chips"><span>😴 Sleep in · 10</span><span>+ Your own</span></div>
+          </div>
+        </div>
+        <div class="tabbar"><span><i>🏠</i>Today</span><span><i>🗓️</i>Calendar</span><span><i>🍴</i>Food</span><span><i>☰</i>Lists</span><span class="on"><i>✨</i>Glow</span></div>
+      </div></div>
+      <div class="cap"><b>4. Looking back, and the empty state <span class="new">new</span></b><span>The pager from the food diary. An earlier week shows what was earned and enjoyed then; "saving for" stays about now. The last card is what replaces today's "Add a reward" card when nothing is being saved for (shown here only to save a frame).</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="wall">
+  <h2>Wall</h2>
+  <p class="note">The wall keeps its evening scene, the sparks and the cards. It gains the pager, the per-task lines, the pace, the tap on a person, and a proper family moment when a reward is cashed in.</p>
+  <div class="wallwrap"><div class="wall"><div class="in">
+    <div class="top">
+      <h4><small>everyone's stars, Nov 17 to 23</small>Glow</h4>
+      <div class="wp"><span>‹</span>This week<span style="visibility:hidden">›</span> <span class="new">new</span></div>
+      <span class="chip">+ New reward</span>
+    </div>
+    <div class="night">
+      <div class="lamp">💡</div>
+      <div class="big">14 stars lit the porch this week</div>
+      <small>3 more than this time last week. Thanks to Mia and James.</small>
+    </div>
+    <div class="k p1">
+      <div class="who"><span class="av">J</span>James<span class="n">6</span></div>
+      <div class="days">
+        <div><div class="st"><i class="a" style="height:12px"></i></div>T</div><div><div class="none"></div>W</div><div><div class="st"><i class="a" style="height:6px"></i></div>T</div><div><div class="none"></div>F</div><div><div class="st"><i class="a" style="height:18px"></i></div>S</div><div><div class="st"><i class="a" style="height:12px"></i></div>S</div><div class="today"><div class="none"></div>M</div>
+      </div>
+      <div class="line"><b>🦮 Walks x2 · 🗑️ Trash · 🧺 Laundry</b> <span class="new">new</span></div>
+      <div class="line"><span>Same as last week · 38 all time</span><span>tap for more ›</span></div>
+    </div>
+    <div class="k p2">
+      <div class="who"><span class="av c">M</span>Mia<span class="n">8</span></div>
+      <div class="days">
+        <div><div class="st"><i class="b" style="height:12px"></i></div>T</div><div><div class="st"><i class="b" style="height:24px"></i></div>W</div><div><div class="st"><i class="b" style="height:12px"></i></div>T</div><div><div class="st"><i class="b" style="height:24px"></i></div>F</div><div><div class="st"><i class="b" style="height:12px"></i></div>S</div><div><div class="st"><i class="b" style="height:12px"></i></div>S</div><div class="today"><div class="none"></div>M</div>
+      </div>
+      <div class="line"><b>🦮 Morning walks x4</b></div>
+      <div class="line"><span>Up 3 on last week · 41 all time</span><span>tap for more ›</span></div>
+    </div>
+    <div class="k rew">
+      <b>Saving for</b>
+      <div class="rw"><i>🍿</i><div>Movie night<small>about 3 days away at this pace <span class="new">new</span></small></div><span class="n">14 <small style="display:inline">of 20</small></span></div>
+      <div class="bar"><i style="width:70%"></i></div>
+      <div class="line"><span>Cashed in: 🍦 Ice cream run, Nov 9 <span class="new">new</span></span></div>
+    </div>
+    <div class="k lately">
+      <b>Lately</b>
+      <div class="line"><b>James walked Biscuit</b><span>Sun 6:40 PM · +2</span></div>
+      <div class="line"><b>Mia walked Biscuit</b><span>Sun 8:05 AM · +2</span></div>
+      <div class="line"><b>James did the laundry</b><span>Sat 2:15 PM · +1</span></div>
+    </div>
+  </div></div></div>
+  <div class="cmp">
+    <div class="tile"><b>Cashing in becomes a family moment</b><p>Today the wall spends the stars on one tap with no question and no celebration. Proposed: the wall asks once, naming who earned the round, then celebrates across the whole screen. When someone cashes in from a phone, the wall celebrates too the next time it is looked at.</p></div>
+    <div class="tile"><b>Same words on both</b><p>Every line (trend, pace, "x4", who did what) comes from one place in the code, so the phone and the wall can never disagree about a week.</p></div>
+  </div>
+</section>
+
+<section id="build">
+  <h2>Build order</h2>
+  <div class="flow">
+    <div class="step s1"><b>1. The phone catches up</b><ul><li>Household total, your share, trend</li><li>Week strip by person</li><li>Where the stars came from</li><li>Lately</li><li>Person page</li></ul><p>Mostly drawing what the wall already computes.</p></div>
+    <div class="step s2"><b>2. Looking back</b><ul><li>Week pager on phone and wall</li><li>Cashed-in history</li><li>The wall's per-task lines and tap on a person</li></ul><p>Needs star history loaded further back than today's three weeks. No change to what iCloud stores.</p></div>
+    <div class="step s3"><b>3. Rewards</b><ul><li>Pace line</li><li>One-tap reward ideas</li><li>The wall asks and celebrates, also for a cash-in made on a phone</li></ul></div>
+  </div>
+  <p class="note">Each step ships alone through TestFlight. Nothing here needs a new iCloud record type, so there is no Console step for you.</p>
+</section>
+
+<section id="decide">
+  <h2>Decisions for you</h2>
+  <ol class="decisions">
+    <li><b>Lately on the phone: yes?</b><small>The first phone design left the feed on the wall only. I now think the phone needs it: it is where "what just happened" is asked most. Recommended: yes.</small></li>
+    <li><b>People side by side, never ranked: keep?</b><small>Each person is compared with their own last week. No "most stars" wording, no leader. Recommended: keep. A household with kids may later want a gentle "streak" instead.</small></li>
+    <li><b>The pace line: "about 3 days away at this pace"?</b><small>It uses the last two weeks' average and says nothing when there is too little to go on. Recommended: yes.</small></li>
+    <li><b>One-tap reward ideas when nothing is being saved for?</b><small>Your own screen shows this state today. Three ideas plus "Your own", editable afterwards. Recommended: yes.</small></li>
+    <li><b>Should anything else earn stars?</b><small>Today only chores and pet or plant care do. Cooking a home-cooked meal is the obvious candidate. Recommended: not now; it can be added as a chore already.</small></li>
+  </ol>
+</section>
+
+</div>

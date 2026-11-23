@@ -476,6 +476,8 @@ struct GlowSummary: Equatable {
         var person: Person
         var weekStars: Int
         var lastWeekStars: Int
+        /// Their stars last week up to the same weekday, for a fair comparison mid-week.
+        var lastWeekSoFar: Int
         /// Stars per day of the week, in week order.
         var byDay: [Int]
         /// How many things they did this week, split by kind.
@@ -524,11 +526,13 @@ struct GlowSummary: Equatable {
         week: HomeWeek,
         today: DayKey,
         calendar: Calendar,
-        feedLimit: Int = 12
+        feedLimit: Int = 12,
+        feedWithinWeek: Bool = false
     ) {
         let lastWeek = HomeWeek(containing: week.first.adding(days: -1, calendar: calendar), calendar: calendar)
         let thisWeek = earnings.filter { week.contains($0.day) }
         let previous = earnings.filter { lastWeek.contains($0.day) }
+        let sameDayLastWeek = today.adding(days: -7, calendar: calendar)
         self.people = people.map { person in
             let id = person.id
             let mine = thisWeek.filter { $0.personId == id }
@@ -541,6 +545,7 @@ struct GlowSummary: Equatable {
                 person: person,
                 weekStars: mine.map(\.stars).reduce(0, +),
                 lastWeekStars: previous.filter { $0.personId == id }.map(\.stars).reduce(0, +),
+                lastWeekSoFar: previous.filter { $0.personId == id && $0.day <= sameDayLastWeek }.map(\.stars).reduce(0, +),
                 byDay: week.days.map { day in mine.filter { $0.day == day }.map(\.stars).reduce(0, +) },
                 choresDone: mine.filter { !$0.isCare }.count,
                 careGiven: mine.filter(\.isCare).count,
@@ -551,18 +556,18 @@ struct GlowSummary: Equatable {
         // The porch light counts each thing done once; people's cards credit every helper.
         weekStars = thisWeek.counted.map(\.stars).reduce(0, +)
         lastWeekStars = previous.counted.map(\.stars).reduce(0, +)
-        let sameDayLastWeek = today.adding(days: -7, calendar: calendar)
         lastWeekSoFar = previous.counted.filter { $0.day <= sameDayLastWeek }.map(\.stars).reduce(0, +)
         sparks = thisWeek.counted
 
         let titles = Dictionary(rewards.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let earned = earnings.map { earning in
+        // "Lately" is everything, newest first; an earlier week's page keeps to its week.
+        let earned = (feedWithinWeek ? thisWeek : earnings).map { earning in
             FeedItem(
                 id: earning.id, day: earning.day, at: earning.at, emoji: earning.emoji, personId: earning.personId,
                 text: earning.title, stars: earning.stars, isCashIn: false
             )
         }
-        let cashIns = redemptions.map { redemption in
+        let cashIns = redemptions.filter { !feedWithinWeek || week.contains($0.dayKey) }.map { redemption in
             let reward = titles[redemption.rewardId]
             return FeedItem(
                 id: "cash-\(redemption.id)", day: redemption.dayKey, at: redemption.redeemedAt, emoji: reward?.emoji ?? "🎉",
