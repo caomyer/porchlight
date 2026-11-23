@@ -41,7 +41,12 @@ struct CompanionReport {
     var mood: Double?
     var today: DayKey
     var now: Date
+    /// The week the page shows: seven days, this week's ending today.
     var weekDays: [DayKey]
+    /// Weeks before this one the page shows (`WeekPaging`); 0 is this week.
+    var weeksBack = 0
+    /// How far back the page goes: the week of the companion's arrival or first log.
+    var weeksBackLimit = 0
     /// Each routine's week, in the routines' order. The first is the primary routine's,
     /// which the wall's companion page shows and the phone's opens on.
     var weeks: [RoutineWeek]
@@ -74,19 +79,29 @@ struct CompanionReport {
         weeks.first { $0.id == routineId }
     }
 
-    static func make(snapshot: CompanionSnapshot, companionId: Companion.ID, now: Date) -> CompanionReport? {
+    /// `weeksBack`: an earlier week for the page (docs/design/companion-care.md, "Earlier
+    /// weeks"); everything about now (today's slots, the mood, the streak, what can be caught
+    /// up on) stays now's.
+    static func make(snapshot: CompanionSnapshot, companionId: Companion.ID, now: Date, weeksBack: Int = 0) -> CompanionReport? {
         guard let companion = snapshot.companions.first(where: { $0.id == companionId }) else { return nil }
         let calendar = snapshot.calendar
         let routines = snapshot.routines(of: companionId)
         let today = DayKey(now, calendar: calendar)
-        // The last 7 days ending today, so the page is never empty at the start of a week
-        // (matches the food diary's week).
-        let weekDays = (-6...0).map { today.adding(days: $0, calendar: calendar) }
+        // Back to the week of its arrival or its first log, whichever is earlier.
+        let firstLog = routines.compactMap { snapshot.entries(of: $0.id).first.map { DayKey($0.time, calendar: calendar) } }.min()
+        let limit = WeekPaging.weeksBackLimit(firstDay: [DayKey(companion.createdAt, calendar: calendar), firstLog].compactMap { $0 }.min(), today: today, calendar: calendar)
+        let shown = min(max(weeksBack, 0), limit)
+        // The 7 days ending today, so the page is never empty at the start of a week
+        // (matches the food diary's week), or as many weeks before as asked.
+        let weekDays = WeekPaging.week(endingOn: today, weeksBack: shown, calendar: calendar)
 
         let todays = routines.map { routine in
             routineToday(routine, entries: snapshot.entries(of: routine.id), today: today, now: now, calendar: calendar)
         }
+        // What can be caught up on is now's rule (`CareCatchUp.daysBack`); on an earlier
+        // week, only what of it falls in that week.
         let missed = CareCatchUp.missed(routines, entries: { snapshot.entries(of: $0.id) }, now: now, calendar: calendar, since: companion.createdAt)
+            .filter { shown == 0 || weekDays.contains($0.day) }
         let weeks = routines.map { routine in
             RoutineWeek.make(
                 routine, companion: companion, snapshot: snapshot, weekDays: weekDays,
@@ -107,6 +122,8 @@ struct CompanionReport {
             today: today,
             now: now,
             weekDays: weekDays,
+            weeksBack: shown,
+            weeksBackLimit: limit,
             weeks: weeks,
             missed: missed
         )
@@ -208,6 +225,19 @@ extension CompanionReport {
     /// "13 walks · 5h 50m outside · 4 squirrels pursued, 0 caught": the primary routine's
     /// week in a line, under the title of the wall's companion page and the phone's.
     var weekSummary: String { primaryWeek?.summary ?? "0 cares" }
+
+    /// The week shown, for the pagers: "Last week, Nov 4 to 10, 9 walks".
+    func weekSpoken(_ week: RoutineWeek?, calendar: Calendar) -> String {
+        let count = week.map { "\($0.stats.count) \($0.stats.count == 1 ? $0.noun : $0.noun + "s")" }
+        return ([WeekPaging.weekName(weeksBack: weeksBack), WeekPaging.range(weekDays, calendar: calendar)] + [count].compactMap { $0 }).joined(separator: ", ")
+    }
+
+    /// The page's line under its title: this week's summary, or which week it is and its.
+    func weekLine(calendar: Calendar) -> String {
+        guard weeksBack > 0 else { return weekSummary }
+        let summary = (primaryWeek?.stats.count ?? 0) == 0 ? "nothing logged" : weekSummary
+        return "\(WeekPaging.range(weekDays, calendar: calendar)) · \(summary)"
+    }
 
     /// "Toy poodle · 4 yrs": what the companion is, and how old, under its name.
     func aboutLine(calendar: Calendar) -> String {

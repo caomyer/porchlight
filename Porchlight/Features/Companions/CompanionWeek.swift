@@ -18,6 +18,8 @@ struct RoutineWeek: Identifiable {
     /// as Today's banner does, so a breakfast logged at 1:30 pm is breakfast, not dinner.
     var late: [MissedCare] = []
     var milestones: [Milestone]
+    /// This week's, ending today; false on an earlier week, where the streak is still today's.
+    var isThisWeek = true
 
     /// What the routine's care is called, for what its companion is.
     var words: CareWords
@@ -62,6 +64,7 @@ struct RoutineWeek: Identifiable {
             missed: missed,
             late: late,
             milestones: CompanionReport.milestones(routine: routine, words: words, entries: entries, snapshot: snapshot, now: now, calendar: calendar, since: added),
+            isThisWeek: weekDays.last == today,
             words: words
         )
     }
@@ -97,11 +100,14 @@ struct RoutineWeek: Identifiable {
     /// slots on time, and the business log (or the stars).
     func tiles(calendar: Calendar) -> [Tile] {
         let cadence = routine.isDaily ? "\(routine.slotsPerDay)×/day" : routine.cadenceText(calendar: calendar)
-        var tiles = [Tile(value: "\(streak)", unit: streak == 1 ? "day" : "days", label: "\(cadence) streak 🔥")]
+        // The streak is today's on any week: on an earlier one it says so, short enough
+        // for the wall's tile.
+        var tiles = [Tile(value: "\(streak)", unit: streak == 1 ? "day" : "days", label: isThisWeek ? "\(cadence) streak 🔥" : "streak today 🔥")]
+        let week = isThisWeek ? "this week" : "that week"
         if routine.tracks(.duration) {
             tiles.append(Tile(value: stats.averageMinutes.map(String.init) ?? "-", unit: "min", label: "avg \(noun)"))
         } else {
-            tiles.append(Tile(value: "\(stats.count)", unit: nil, label: "\(noun)s this week"))
+            tiles.append(Tile(value: "\(stats.count)", unit: nil, label: "\(noun)s \(week)"))
         }
         // Nothing owed yet (a companion added today) is no score at all, not a failing one.
         tiles.append(Tile(value: stats.slotsSoFar == 0 ? "-" : "\(stats.slotsOnTime)/\(stats.slotsSoFar)", unit: nil, label: "slots on time"))
@@ -109,7 +115,7 @@ struct RoutineWeek: Identifiable {
             let business = [routine.tracks(.pee) ? "💧\(stats.pee)" : nil, routine.tracks(.poo) ? "💩\(stats.poo)" : nil]
             tiles.append(Tile(value: business.compactMap { $0 }.joined(separator: " "), unit: nil, label: "business log"))
         } else {
-            tiles.append(Tile(value: "⭐\(stats.stars)", unit: nil, label: "stars this week"))
+            tiles.append(Tile(value: "⭐\(stats.stars)", unit: nil, label: "stars \(week)"))
         }
         return tiles
     }

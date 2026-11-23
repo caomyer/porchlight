@@ -248,14 +248,14 @@ final class CompanionStore: StoredFirstObservable {
     }
 
     /// Everything a companion's card and page show, as of `now` (cached per minute).
-    func report(for companionId: Companion.ID, now: Date = CompanionClock.now()) -> CompanionReport? {
+    func report(for companionId: Companion.ID, now: Date = CompanionClock.now(), weeksBack: Int = 0) -> CompanionReport? {
         // Read the snapshot even on a cache hit, so views that only ask for a report
         // still refresh when a log is added, fixed or removed.
         let snapshot = snapshot
         let minute = Int(now.timeIntervalSince1970 / 60)
-        let key = "\(companionId)-\(minute)"
+        let key = "\(companionId)-\(minute)-\(weeksBack)"
         if let cached = reportCache[key] { return cached }
-        guard let report = CompanionReport.make(snapshot: snapshot, companionId: companionId, now: now) else { return nil }
+        guard let report = CompanionReport.make(snapshot: snapshot, companionId: companionId, now: now, weeksBack: weeksBack) else { return nil }
         if reportCache.count > 64 { reportCache = [:] }
         reportCache[key] = report
         return report

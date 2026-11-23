@@ -104,6 +104,42 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         closeSheet(app)
     }
 
+    // MARK: Earlier weeks
+
+    /// The week pager Food's diary has: last week's trail and numbers, a dot still opening its
+    /// walk to fix, the streak said to be today's, and back to this week.
+    func testEarlierWeeks() {
+        let app = launch()
+        openWeek(app)
+        let back = app.buttons["week-back"]
+        reveal(back, in: app)
+        back.tap()
+        let name = app.descendants(matching: .any)["week-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5) && name.label.hasPrefix("Last week, "), name.label)
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "streak today")).firstMatch.exists, "the streak is today's, and says so")
+        snapshot("week-20-last-week")
+        let dot = self.dot(app, "Walk", day: 6, slot: 0)
+        dot.tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForExistence(timeout: 5), "last week's dot opens its walk to fix")
+        closeSheet(app)
+        let this = app.buttons["week-this"]
+        reveal(this, in: app)
+        this.tap()
+        XCTAssertTrue(name.label.hasPrefix("This week, "), name.label)
+    }
+
+    /// Last week at the largest text size in the night look: the pager and the page whole.
+    func testEarlierWeekLooks() {
+        XCUIDevice.shared.appearance = .dark
+        let app = launch(Self.largest)
+        openWeek(app)
+        let back = app.buttons["week-back"]
+        reveal(back, in: app)
+        back.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["week-name"].label.hasPrefix("Last week, "))
+        snapshot("week-21-last-week-largest-dark")
+    }
+
     // MARK: Every routine
 
     /// Meals have their own trail and diary: yesterday's skipped dinner shows in both, and

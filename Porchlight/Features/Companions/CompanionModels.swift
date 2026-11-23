@@ -202,6 +202,9 @@ struct CareWords: Equatable, Sendable {
         }
     }
 
+    /// What a log sheet's Save says while nobody is picked: "Pick who walked", "Pick who fed".
+    var pickWho: String { "Pick who \(trailVerb)" }
+
     /// "who walked", beside the paw trail: the kinds with a verb of their own, else "did it".
     var trailVerb: String {
         switch kind {

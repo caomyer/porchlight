@@ -45,6 +45,7 @@ final class LoggedEntryTests: XCTestCase {
         snapshot("52-new-walk-earlier")
         app.buttons["time-done"].tap()
         app.buttons["10 min"].tap()
+        app.buttons["James"].tap()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save walk'")).firstMatch.tap()
         // Saving celebrates, and the celebration goes by itself after a few seconds. Wait it
         // out: tapping its button races it, and on a busy simulator the button can be gone by
@@ -75,6 +76,31 @@ final class LoggedEntryTests: XCTestCase {
         let tile = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' · 45 min'")).firstMatch
         XCTAssertTrue(tile.waitForExistence(timeout: 5), "The Today card should show the fixed walk")
         snapshot("51-walk-fixed")
+    }
+
+    /// The wall can't know who is standing at it: with two people, a new walk credits nobody
+    /// until someone is picked, and Save says what it is waiting for.
+    func testNobodyIsCreditedUnasked() {
+        let app = XCUIApplication.porchlight()
+        app.launchArguments = ["-sampleHousehold", "-startScreen", "today", "-debugCompanionNow", Self.evening]
+        app.launch()
+        let log = button(app, containing: "I walked Yo-Yo")
+        XCTAssertTrue(log.waitForExistence(timeout: 30))
+        log.tap()
+        XCTAssertTrue(app.staticTexts["Who walked Yo-Yo?"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["James"].isSelected || app.buttons["Mia"].isSelected, "Nobody is picked for them")
+        let save = app.buttons["save-care"]
+        XCTAssertTrue(save.exists && !save.isEnabled, "Save waits for someone")
+        XCTAssertEqual(save.label, "Pick who walked", "and says so")
+        snapshot("55-nobody-picked")
+        app.buttons["Mia"].tap()
+        XCTAssertTrue(save.isEnabled)
+        XCTAssertEqual(save.label, "Save walk")
+        save.tap()
+        let done = app.buttons["Back to today"]
+        XCTAssertTrue(done.waitForExistence(timeout: 15), "Saving a walk celebrates")
+        XCTAssertTrue(done.waitForNonExistence(timeout: 15))
+        XCTAssertTrue(button(app, containing: "Mia walked Yo-Yo").waitForExistence(timeout: 10), "Mia's walk, as picked")
     }
 
     /// The pinned day (`UITestClock`) at 5:20 pm for `-debugCompanionNow`, so nothing here

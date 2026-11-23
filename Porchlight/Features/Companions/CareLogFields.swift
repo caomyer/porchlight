@@ -30,6 +30,12 @@ struct CareLogFields: Equatable {
         return (Self.durations + [savedDuration]).sorted()
     }
 
+    /// Who a new log on the wall starts with: the household's only person, or nobody, as the
+    /// wall can't know which of several is standing at it. Phones start with their own person.
+    static func wallDefault(_ people: [Person.ID]) -> [Person.ID] {
+        people.count == 1 ? people : []
+    }
+
     /// A new log by `people`: at the slot's usual time when catching up, else just now,
     /// lasting about as long as the routine's recent logs.
     static func new(people: [Person.ID], for day: CareLogDay, catchUpSlot: Int?) -> CareLogFields {

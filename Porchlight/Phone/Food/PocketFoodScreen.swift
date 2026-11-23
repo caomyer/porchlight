@@ -114,7 +114,7 @@ struct PocketFoodScreen: View {
                         case .diary:
                             PocketFoodWeek(
                                 days: days, today: today, fresh: fresh,
-                                pager: WeekPage(weeksBack: shown, limit: limit, meals: meals) { weeksBack = $0 },
+                                pager: WeekPage(weeksBack: shown, limit: limit, spoken: PocketFood.weekSpoken(days, weeksBack: shown, meals: meals, calendar: store.calendar)) { weeksBack = $0 },
                                 onOpen: open
                             ) { day, slot in
                                 snap = CaptureRequest(day: day, slot: slot)
@@ -261,7 +261,7 @@ private struct PocketFoodWeek: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            WeekPager(page: pager, days: days)
+            WeekPager(page: pager)
             grid
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Meals \(PocketFood.range(days, calendar: store.calendar))")
@@ -350,92 +350,6 @@ private struct PocketFoodWeek: View {
             .accessibilityIdentifier("plate-\(day.rawValue)-\(slot)")
         } else {
             Color.clear.aspectRatio(1, contentMode: .fit)
-        }
-    }
-}
-
-// MARK: - Other weeks
-
-/// Which week the diary shows, and how to show another.
-struct WeekPage {
-    let weeksBack: Int
-    /// The furthest back it goes: the week of the household's first meal.
-    let limit: Int
-    let meals: Int
-    let go: (Int) -> Void
-}
-
-/// The week's card's top row: "‹ Last week ›", with "Back to this week" when away from it.
-/// Back stops at the first meal's week; forward isn't there on this week, which ends today.
-private struct WeekPager: View {
-    let page: WeekPage
-    let days: [DayKey]
-
-    @Environment(FoodStore.self) private var store
-    @PhoneMetric(upTo: 1.4) private var chevron: CGFloat = 36
-
-    var body: some View {
-        HStack(spacing: 6) {
-            arrow("chevron.left", label: "Previous week", id: "week-back", shown: page.weeksBack < page.limit) {
-                page.go(page.weeksBack + 1)
-            }
-            VStack(spacing: 2) {
-                Text(PocketFood.weekName(weeksBack: page.weeksBack))
-                    .phoneFont(.display, 17, weight: 600, relativeTo: .headline)
-                    .foregroundStyle(Theme.ink)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel(PocketFood.weekSpoken(days, weeksBack: page.weeksBack, meals: page.meals, calendar: store.calendar))
-                    .accessibilityAddTraits(.isHeader)
-                    .accessibilityIdentifier("week-name")
-                    .accessibilityAdjustableAction { direction in
-                        switch direction {
-                        case .increment: if page.weeksBack > 0 { page.go(page.weeksBack - 1) }
-                        case .decrement: if page.weeksBack < page.limit { page.go(page.weeksBack + 1) }
-                        @unknown default: break
-                        }
-                    }
-                // Always laid out, so the week below doesn't move when stepping away from
-                // this week; on this week it is invisible and out of reach.
-                let away = page.weeksBack > 0
-                Button("Back to this week") { page.go(0) }
-                    .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
-                    .foregroundStyle(Theme.accent)
-                    .buttonStyle(.plain)
-                    .frame(minHeight: 28)
-                    .contentShape(Rectangle())
-                    .opacity(away ? 1 : 0)
-                    .disabled(!away)
-                    .accessibilityHidden(!away)
-                    .accessibilityIdentifier("week-this")
-            }
-            .frame(maxWidth: .infinity)
-            // Grown to the largest sizes, the words would crowd out the week they name.
-            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
-            arrow("chevron.right", label: "Next week", id: "week-forward", shown: page.weeksBack > 0) {
-                page.go(page.weeksBack - 1)
-            }
-        }
-    }
-
-    /// A round chevron, or the room for one so the name stays centered.
-    @ViewBuilder
-    private func arrow(_ symbol: String, label: String, id: String, shown: Bool, action: @escaping () -> Void) -> some View {
-        if shown {
-            Button(action: action) {
-                Image(systemName: symbol)
-                    .font(.system(size: chevron * 0.42, weight: .bold))
-                    .foregroundStyle(Theme.ink)
-                    .frame(width: chevron, height: chevron)
-                    .background(Theme.surface2, in: Circle())
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(label)
-            .accessibilityIdentifier(id)
-        } else {
-            Color.clear.frame(width: max(chevron, 44), height: 1).accessibilityHidden(true)
         }
     }
 }

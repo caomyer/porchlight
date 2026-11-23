@@ -42,6 +42,8 @@ final class CatchUpTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["For yesterday's dinner"].exists, "The sheet says which day and meal")
         XCTAssertTrue((app.buttons["exact-time"].value as? String)?.contains("PM") == true, "The time starts at dinner, not now")
         snapshot("91-catch-up-sheet")
+        // The wall picks nobody for two people: whoever fed her says so.
+        app.buttons["James"].tap()
         app.buttons["Save meal"].tap()
         XCTAssertTrue(missed.waitForNonExistence(timeout: 5), "The missed mark is filled in")
         XCTAssertTrue(button(app, beginningWith: "James fed Yo-Yo").exists, "and shows who fed her")
@@ -67,6 +69,7 @@ final class CatchUpTests: XCTestCase {
         snapshot("93-diary-missed")
         dinner.tap()
         XCTAssertTrue(app.staticTexts["For yesterday's dinner"].waitForExistence(timeout: 5))
+        app.buttons["Mia"].tap()
         app.buttons["Save meal"].tap()
         XCTAssertTrue(dinner.waitForNonExistence(timeout: 5), "Logged, so it leaves the diary")
 
@@ -75,8 +78,28 @@ final class CatchUpTests: XCTestCase {
         morning.tap()
         XCTAssertTrue(app.staticTexts["Who walked Yo-Yo?"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'For ' AND label ENDSWITH \"'s morning walk\"")).firstMatch.exists)
+        app.buttons["James"].tap()
         app.buttons["Save walk"].tap()
         XCTAssertTrue(morning.waitForNonExistence(timeout: 5), "The dot fills in")
         snapshot("94-trail-caught-up")
+    }
+
+    /// Yo-Yo's page a week back: that week's trail and numbers, a dot still opening its walk to
+    /// fix, the streak said to be today's, and forward again to this week.
+    func testEarlierWeeksOnYoYosPage() {
+        let app = launch(["-startScreen", "companion-1"])
+        let back = app.buttons["Previous week"]
+        XCTAssertTrue(back.waitForExistence(timeout: 40))
+        back.tap()
+        let name = app.descendants(matching: .any)["week-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5) && name.label.hasPrefix("Last week, "), name.label)
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "streak today")).firstMatch.exists)
+        snapshot("95-last-week")
+        let logged = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Morning walk, ' AND NOT (label ENDSWITH 'missed')")).firstMatch
+        logged.tap()
+        XCTAssertTrue(app.staticTexts["Edit walk"].waitForExistence(timeout: 5), "last week's dot opens its walk to fix")
+        app.buttons["Cancel"].tap()
+        app.buttons["Next week"].tap()
+        XCTAssertTrue(name.label.hasPrefix("This week, "), name.label)
     }
 }

@@ -127,7 +127,10 @@ private struct FullCareCard: View {
     }
 
     private func otherButton(_ action: PocketToday.CareAction) -> some View {
-        Button { handlers.log(card, action, alsoWent) } label: {
+        Button {
+            handlers.log(card, action, alsoWent)
+            alsoWent = []
+        } label: {
             HStack(spacing: 6) {
                 Text(action.routine.emoji)
                 Text(PocketToday.slotTitle(action.slot, of: action.routine) == action.routine.title

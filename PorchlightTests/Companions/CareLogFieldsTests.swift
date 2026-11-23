@@ -11,6 +11,17 @@ struct CareLogFieldsTests {
         CareLogDay(routine: routine, day: key, today: F.key(7), now: F.date(18, 0), calendar: F.calendar, history: history)
     }
 
+    @Test("The wall picks someone only when there is nobody else it could be, and Save says who it waits for")
+    func wallDefault() {
+        #expect(CareLogFields.wallDefault([.derived("a")]) == [.derived("a")])
+        #expect(CareLogFields.wallDefault([.derived("a"), .derived("b")]).isEmpty, "two people: nobody, until someone is tapped")
+        #expect(CareLogFields.wallDefault([]).isEmpty)
+        #expect(CareWords(kind: .walk, title: "Walk", species: .dog).pickWho == "Pick who walked")
+        #expect(CareWords(kind: .feed, title: "Feed", species: .cat).pickWho == "Pick who fed")
+        #expect(CareWords(kind: .water, title: "Water", species: .plant).pickWho == "Pick who watered")
+        #expect(CareWords(kind: .meds, title: "Meds", species: .dog).pickWho == "Pick who did it")
+    }
+
     @Test("A new log starts with who was given, just now, as long as recent walks")
     func newLog() {
         let history = [F.entry(1, day: 6, 7, minutes: 28), F.entry(2, day: 6, 18, minutes: 32)]

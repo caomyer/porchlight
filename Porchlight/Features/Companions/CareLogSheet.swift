@@ -255,11 +255,17 @@ private struct CareLogForm: View {
                 if editing != nil {
                     Button("Cancel", action: onClose).buttonStyle(SecondaryButtonStyle())
                 }
+                // Waiting for a person, it says so: "Pick who walked", not a silent gray Save.
                 Button(action: save) {
-                    Label(editing == nil ? "Save \(noun)" : CareLogWording.saveChanges, systemImage: "checkmark")
+                    if fields.people.isEmpty {
+                        Text(words.pickWho)
+                    } else {
+                        Label(editing == nil ? "Save \(noun)" : CareLogWording.saveChanges, systemImage: "checkmark")
+                    }
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(fields.people.isEmpty)
+                .accessibilityIdentifier("save-care")
             }
         }
     }
@@ -348,7 +354,9 @@ private struct CareLogForm: View {
             fields = CareLogFields(editing: editing, people: store.snapshot.knownPeople(of: editing))
             return
         }
-        fields = .new(people: model.people.first.map { [$0.id] } ?? [], for: logDay, catchUpSlot: catchUp?.slot)
+        // The wall can't know who is standing at it: it picks someone only when there is
+        // nobody else it could be (docs/design/companion-care.md, "Who is credited").
+        fields = .new(people: CareLogFields.wallDefault(model.people.map(\.id)), for: logDay, catchUpSlot: catchUp?.slot)
     }
 
     private func save() {

@@ -23,7 +23,7 @@ struct CompanionWeekTests {
 
     /// Yo-Yo, walked and fed for ten days but only logged today and yesterday, at 6:30 pm.
     /// Yesterday's dinner was skipped; tonight's is open.
-    private func week(atMinute minute: Int = 18 * 60 + 30) throws -> Week {
+    private func week(atMinute minute: Int = 18 * 60 + 30, weeksBack: Int = 0, earlier: Bool = false) throws -> Week {
         let db = try AppDatabase.inMemory()
         let household = try db.createHousehold(name: "Home", people: [
             PersonDraft(name: "James", color: .blue), PersonDraft(name: "Mia", color: .coral),
@@ -48,9 +48,15 @@ struct CompanionWeekTests {
         try db.logCare(routineId: walk.id, CareLogDraft(people: people, occurredAt: at(yesterday, 18, 0)), now: now)
         try db.logCare(routineId: feed.id, CareLogDraft(people: [people[0]], occurredAt: at(today, 7, 15)), now: now)
         try db.logCare(routineId: feed.id, CareLogDraft(people: [people[1]], occurredAt: at(yesterday, 7, 15)), now: now)
+        if earlier {
+            // Two walks last week, nine days ago: Mia's long one and James's.
+            let nine = today.adding(days: -9, calendar: calendar)
+            try db.logCare(routineId: walk.id, CareLogDraft(people: [people[1]], occurredAt: at(nine, 8, 0), durationMinutes: 40, poo: true), now: now)
+            try db.logCare(routineId: walk.id, CareLogDraft(people: [people[0]], occurredAt: at(nine, 18, 0), durationMinutes: 20), now: now)
+        }
 
         let snapshot = try db.writer.read(CompanionSnapshot.fetch)
-        let report = try #require(CompanionReport.make(snapshot: snapshot, companionId: id, now: now))
+        let report = try #require(CompanionReport.make(snapshot: snapshot, companionId: id, now: now, weeksBack: weeksBack))
         return Week(report: report, snapshot: snapshot, calendar: calendar, today: today, james: people[0], mia: people[1])
     }
 
@@ -128,6 +134,30 @@ struct CompanionWeekTests {
         #expect(meals[3].value == "⭐2")
         #expect(week.meals.summary == "2 meals · 2 stars earned")
         #expect(week.report.weekSummary == week.walks.summary)
+    }
+
+    @Test("An earlier week is that week's: its trail, numbers and diary; the streak and the catching up stay now's")
+    func earlierWeek() throws {
+        let now = try week(earlier: true)
+        #expect(now.report.weeksBack == 0 && now.report.weeksBackLimit == 1, "back to the week it arrived, eleven days ago")
+        let last = try week(weeksBack: 1, earlier: true)
+        let report = last.report
+        #expect(report.weekDays.first == last.today.adding(days: -13, calendar: last.calendar))
+        #expect(report.weekDays.last == last.today.adding(days: -7, calendar: last.calendar))
+        #expect(last.walks.stats.count == 2, "that week's two walks")
+        #expect(last.walks.diary.count == 2)
+        #expect(last.walks.streak == now.walks.streak, "the streak is today's")
+        let tiles = last.walks.tiles(calendar: last.calendar)
+        #expect(tiles.map(\.label) == ["streak today 🔥", "avg walk", "slots on time", "business log"])
+        #expect(tiles[1].value == "30" && tiles[3].value == "💧0 💩1")
+        #expect(last.meals.tiles(calendar: last.calendar)[1].label == "meals that week")
+        // Catching up is now's rule (the last six days): nothing that week can be.
+        #expect(report.missed.isEmpty && last.walks.missed.isEmpty)
+        #expect(last.walks.late.isEmpty)
+        // Asking further back than it goes stays at its first week.
+        #expect(try week(weeksBack: 5, earlier: true).report.weeksBack == 1)
+        #expect(try week(weeksBack: 3).report.weeksBack == 1, "its arrival's week, with nothing logged before this one")
+        #expect(report.weekSpoken(last.walks, calendar: last.calendar).hasPrefix("Last week, "))
     }
 
     @Test("The podium stands second, first, third, and crowns only a clear leader")

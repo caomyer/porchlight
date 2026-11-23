@@ -8,11 +8,14 @@ struct CompanionScreen: View {
 
     @Environment(CompanionStore.self) private var store
     @State private var request: CareLogRequest?
+    /// Weeks before this one the page shows; back to this week when the day turns.
+    @State private var weeksBack = 0
 
     var body: some View {
         TimelineView(.everyMinute) { _ in
-            if let report = store.report(for: companionId, now: CompanionClock.now()) {
+            if let report = store.report(for: companionId, now: CompanionClock.now(), weeksBack: weeksBack) {
                 content(report)
+                    .onChange(of: report.today) { weeksBack = 0 }
             } else {
                 EmptyState(symbol: "pawprint", title: "Companion not found", message: "It may have been removed in Settings.")
                     .frame(maxHeight: .infinity)
@@ -52,11 +55,30 @@ struct CompanionScreen: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .layoutPriority(1)
-            Text(report.weekSummary)
+            Text(report.weekLine(calendar: store.snapshot.calendar))
                 .font(.body(15))
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
             Spacer(minLength: 12)
+            // Food's week steps, as its header has them: back to the week it arrived.
+            if report.weeksBackLimit > 0 {
+                HStack(spacing: 6) {
+                    if report.weeksBack < report.weeksBackLimit {
+                        PagerButton(symbol: "chevron.left", label: "Previous week") { weeksBack = report.weeksBack + 1 }
+                    }
+                    Text(WeekPaging.weekName(weeksBack: report.weeksBack))
+                        .font(.body(14, weight: 700))
+                        .foregroundStyle(report.weeksBack == 0 ? Theme.muted : Theme.ink)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .accessibilityLabel(report.weekSpoken(report.primaryWeek, calendar: store.snapshot.calendar))
+                        .accessibilityIdentifier("week-name")
+                    if report.weeksBack > 0 {
+                        PagerButton(symbol: "chevron.right", label: "Next week") { weeksBack = report.weeksBack - 1 }
+                    }
+                }
+                .alignmentGuide(.lastTextBaseline) { $0[VerticalAlignment.center] + 6 }
+            }
             if let routine = report.primaryRoutine {
                 Button {
                     CompanionCover.instantly {

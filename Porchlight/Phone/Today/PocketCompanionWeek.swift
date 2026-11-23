@@ -19,10 +19,12 @@ struct PocketCompanionWeek: View {
     @State private var careSheet: PocketCareSheet.Request?
     /// The routine whose week is shown: the primary one until another is picked.
     @State private var routineId: CareRoutine.ID?
+    /// Weeks before this one the page shows; back to this week when the day turns.
+    @State private var weeksBack = 0
 
     var body: some View {
         TimelineView(.everyMinute) { _ in
-            if let report = store.report(for: companionId, now: CompanionClock.now()) {
+            if let report = store.report(for: companionId, now: CompanionClock.now(), weeksBack: weeksBack) {
                 let week = report.week(of: routineId) ?? report.primaryWeek
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
@@ -30,6 +32,13 @@ struct PocketCompanionWeek: View {
                         if let week {
                             if report.weeks.count > 1 {
                                 RoutineTabs(weeks: report.weeks, selected: week.id) { routineId = $0 }
+                            }
+                            // The same pager as Food's diary: back to the week it arrived.
+                            if report.weeksBackLimit > 0 {
+                                WeekPager(page: WeekPage(
+                                    weeksBack: report.weeksBack, limit: report.weeksBackLimit,
+                                    spoken: report.weekSpoken(week, calendar: store.snapshot.calendar)
+                                ) { weeksBack = $0 })
                             }
                             numbers(week, report: report)
                             trail(week, report: report)
@@ -47,6 +56,7 @@ struct PocketCompanionWeek: View {
                     .padding(.top, 4)
                     .padding(.bottom, 16)
                 }
+                .onChange(of: report.today) { weeksBack = 0 }
             } else {
                 Text("This companion was removed.")
                     .phoneFont(.body, 15, weight: 600)
@@ -94,7 +104,8 @@ struct PocketCompanionWeek: View {
                     Text(report.aboutLine(calendar: store.snapshot.calendar))
                         .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
                         .foregroundStyle(Theme.muted)
-                    Text(report.weekStats.count == 0 ? "The first week together" : report.weekSummary)
+                    Text(report.weeksBack > 0 ? report.weekLine(calendar: store.snapshot.calendar)
+                         : report.weekStats.count == 0 ? "The first week together" : report.weekSummary)
                         .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
                         .foregroundStyle(Theme.muted)
                 }

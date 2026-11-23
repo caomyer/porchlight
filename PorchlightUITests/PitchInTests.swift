@@ -80,7 +80,9 @@ final class PitchInTests: XCTestCase {
         let feed = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Feed Yo-Yo' AND value == 'Not done'")).firstMatch
         XCTAssertTrue(feed.waitForExistence(timeout: 5), "Tonight's dinner is still to do")
         feed.tap()
-        XCTAssertTrue(app.buttons["Save meal"].waitForExistence(timeout: 5), "Care is logged with the companion's own sheet")
+        let save = app.buttons["save-care"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5), "Care is logged with the companion's own sheet")
+        XCTAssertEqual(save.label, "Pick who fed", "and the wall waits to be told who")
         snapshot("62-care-from-board")
     }
 
