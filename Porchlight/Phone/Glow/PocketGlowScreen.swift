@@ -9,6 +9,7 @@ struct PocketGlowScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var home
     @Environment(\.me) private var me
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var path: [GlowRoute] = []
     /// How many weeks before this one the page shows; a person's page follows it.
     @State private var weeksBack: Int
@@ -175,22 +176,32 @@ struct PocketGlowScreen: View {
             ForEach(Array(week.summary.people.enumerated()), id: \.element.id) { index, glow in
                 if index > 0 { GlowDivider() }
                 let name = glow.id == me?.id ? "You" : glow.person.name
-                let line = GlowWords.personLine(glow, isThisWeek: week.isThisWeek)
+                let line = GlowWords.personLine(glow, isThisWeek: week.isThisWeek, emoji: false)
+                let trend = GlowWords.ownTrend(stars: glow.weekStars, before: glow.lastWeekSoFar, isThisWeek: week.isThisWeek)
                 Button { path.append(.person(glow.id)) } label: {
                     HStack(spacing: 10) {
                         PersonAvatar(glow.person)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(name).phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
-                            Text(line)
-                                .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                                .foregroundStyle(Theme.muted)
-                                .multilineTextAlignment(.leading)
+                            // What they did, then their own trend on its own line: never one
+                            // sentence broken mid-phrase.
+                            Group {
+                                Text(GlowWords.didLine(glow, isThisWeek: week.isThisWeek, emoji: false))
+                                if let trend { Text(trend) }
+                                // At the largest sizes the count joins the words, which need the width.
+                                if typeSize.isAccessibilitySize { Text(StarWords.count(glow.weekStars)).foregroundStyle(Theme.ink) }
+                            }
+                            .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                            .foregroundStyle(Theme.muted)
+                            .multilineTextAlignment(.leading)
                         }
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("\(glow.weekStars)")
-                            .phoneFont(.display, 20, weight: 600, relativeTo: .title3)
-                            .monospacedDigit()
+                        if !typeSize.isAccessibilitySize {
+                            Text("\(glow.weekStars)")
+                                .phoneFont(.display, 20, weight: 600, relativeTo: .title3)
+                                .monospacedDigit()
+                        }
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(Theme.muted)
@@ -365,6 +376,8 @@ struct GlowLatelyRow: View {
     let person: Person?
     let time: String?
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         HStack(spacing: 10) {
             if item.personId == nil {
@@ -374,13 +387,16 @@ struct GlowLatelyRow: View {
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.text).phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
-                Text([who, time].compactMap { $0 }.joined(separator: " · "))
+                // At the largest sizes the stars join this line, and the words keep the width.
+                Text([who, time, typeSize.isAccessibilitySize ? item.stars.map(StarWords.earned) : nil].compactMap { $0 }.joined(separator: " · "))
                     .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
                     .foregroundStyle(Theme.muted)
             }
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            if let stars = item.stars {
+            if typeSize.isAccessibilitySize {
+                EmptyView()
+            } else if let stars = item.stars {
                 GlowStars(stars: stars)
             } else {
                 Text("🎉").phoneFont(.body, 18).accessibilityHidden(true)

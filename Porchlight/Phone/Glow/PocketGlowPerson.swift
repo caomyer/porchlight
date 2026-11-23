@@ -38,6 +38,7 @@ struct PocketGlowPerson: View {
             .scrollBounceBehavior(.basedOnSize)
             .background(Theme.background)
             .navigationTitle(isMe ? "You" : glow.person.name)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1) } }
         } else {
             // Someone who no longer lives here: back to everyone.
@@ -46,6 +47,7 @@ struct PocketGlowPerson: View {
     }
 
     private func numbers(_ glow: GlowSummary.PersonGlow, week: GlowReading) -> some View {
+        // Two tiles of one height, whichever says more.
         AdaptiveRow(spacing: 8, alignment: .top) {
             GlowNumber(
                 number: glow.weekStars,
@@ -56,6 +58,7 @@ struct PocketGlowPerson: View {
             GlowNumber(number: glow.lifetimeStars, title: "\(StarWords.noun(glow.lifetimeStars)) all time", detail: nil)
                 .accessibilityIdentifier("glow-person-all-time")
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func days(_ glow: GlowSummary.PersonGlow, week: GlowReading, whose: String) -> some View {
@@ -127,7 +130,7 @@ struct GlowNumber: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
     }

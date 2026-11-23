@@ -105,12 +105,14 @@ struct GlowStoryTests {
                 choresDone: chores, careGiven: care, lifetimeStars: 0, favorite: nil
             )
         }
-        #expect(GlowWords.personLine(glow(week: 6, before: 6, chores: 2, care: 2), isThisWeek: true) == "🐾 2 times caring · 🧹 2 chores · same as last week")
-        #expect(GlowWords.personLine(glow(week: 8, before: 5, chores: 0, care: 4), isThisWeek: true) == "🐾 4 times caring · up 3 on last week")
-        #expect(GlowWords.personLine(glow(week: 1, before: 5, chores: 1, care: 0), isThisWeek: true) == "🧹 1 chore · 5 by now last week")
+        #expect(GlowWords.personLine(glow(week: 6, before: 6, chores: 2, care: 2), isThisWeek: true) == "🐾 2 times caring · 🧹 2 chores · Same as last week")
+        #expect(GlowWords.personLine(glow(week: 8, before: 5, chores: 0, care: 4), isThisWeek: true) == "🐾 4 times caring · Up 3 on last week")
+        #expect(GlowWords.personLine(glow(week: 1, before: 5, chores: 1, care: 0), isThisWeek: true) == "🧹 1 chore · This time last week: 5")
         #expect(GlowWords.personLine(glow(week: 0, before: 0, chores: 0, care: 0), isThisWeek: true) == "Nothing yet this week")
         #expect(GlowWords.personLine(glow(week: 0, before: 0, chores: 0, care: 0), isThisWeek: false) == "Nothing that week")
-        #expect(GlowWords.personLine(glow(week: 2, before: 4, chores: 0, care: 1), isThisWeek: false) == "🐾 1 time caring · 4 the week before")
+        #expect(GlowWords.personLine(glow(week: 2, before: 4, chores: 0, care: 1), isThisWeek: false) == "🐾 1 time caring · The week before: 4")
+        #expect(GlowWords.personLine(glow(week: 6, before: 6, chores: 2, care: 2), isThisWeek: true, emoji: false) == "2 times caring · 2 chores · Same as last week")
+        #expect(GlowWords.didLine(glow(week: 6, before: 6, chores: 2, care: 2), isThisWeek: true, emoji: false) == "2 times caring · 2 chores")
         for line in [GlowWords.personLine(glow(week: 8, before: 5, chores: 0, care: 4), isThisWeek: true), GlowWords.trend(stars: 4, before: 11, isThisWeek: true) ?? ""] {
             for word in ["most", "best", "winner", "leader", "behind", "ahead", "beat"] {
                 #expect(!line.localizedCaseInsensitiveContains(word), "no ranking word in: \(line)")

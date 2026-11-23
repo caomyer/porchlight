@@ -95,18 +95,21 @@ struct GlowTaskRow: View {
     let task: GlowTask
     let detail: String
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             Text(task.emoji).phoneFont(.body, 22).frame(minWidth: 28).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(task.title).phoneFont(.body, 14.5, weight: 700, relativeTo: .subheadline)
-                Text(detail)
+                // At the largest sizes the stars join this line, and the words keep the width.
+                Text(typeSize.isAccessibilitySize ? "\(detail) · \(StarWords.earned(task.stars))" : detail)
                     .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
                     .foregroundStyle(Theme.muted)
             }
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            GlowStars(stars: task.stars)
+            if !typeSize.isAccessibilitySize { GlowStars(stars: task.stars) }
         }
         .frame(minHeight: 40)
         .accessibilityElement(children: .ignore)

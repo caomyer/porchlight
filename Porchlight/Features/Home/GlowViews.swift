@@ -294,8 +294,7 @@ private struct PersonGlowCard: View {
             DayBars(values: glow.byDay, days: days, today: today, color: color, calendar: store.calendar)
                 .frame(minHeight: 86, maxHeight: 150)
             VStack(alignment: .leading, spacing: 7) {
-                let did = GlowWords.did(chores: glow.choresDone, care: glow.careGiven)
-                Text(did.isEmpty ? (isThisWeek ? "Nothing yet this week" : "Nothing that week") : did.joined(separator: " · "))
+                Text(GlowWords.didLine(glow, isThisWeek: isThisWeek))
                     .font(.body(14, weight: 600))
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
@@ -333,7 +332,7 @@ private struct PersonGlowCard: View {
     private var footer: String {
         let allTime = "\(StarWords.count(glow.lifetimeStars)) all time"
         guard let trend = GlowWords.ownTrend(stars: glow.weekStars, before: glow.lastWeekSoFar, isThisWeek: isThisWeek) else { return allTime }
-        return trend.prefix(1).uppercased() + trend.dropFirst() + " · " + allTime
+        return trend + " · " + allTime
     }
 }
 

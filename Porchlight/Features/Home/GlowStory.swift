@@ -234,29 +234,37 @@ enum GlowWords {
         return "The week before: \(before)"
     }
 
-    /// One person against their own week before, short enough for a row: "up 3 on last week".
+    /// One person against their own week before, short enough for a row: "Up 3 on last
+    /// week". A slower week is only told the number it follows.
     static func ownTrend(stars: Int, before: Int, isThisWeek: Bool) -> String? {
         guard before > 0 else { return nil }
         let other = isThisWeek ? "last week" : "the week before"
         let change = stars - before
-        if change > 0 { return "up \(change) on \(other)" }
-        if change == 0 { return "same as \(other)" }
-        return "\(before) \(isThisWeek ? "by now last week" : "the week before")"
+        if change > 0 { return "Up \(change) on \(other)" }
+        if change == 0 { return "Same as \(other)" }
+        return isThisWeek ? "This time last week: \(before)" : "The week before: \(before)"
     }
 
-    /// "🧹 2 chores", "🐾 4 times caring": what one person did, by kind.
-    static func did(chores: Int, care: Int) -> [String] {
+    /// "4 times caring", "2 chores": what one person did, by kind. The wall's light cards
+    /// lead each with its emoji; the phone, dark half the time, leaves the dark paw print out.
+    static func did(chores: Int, care: Int, emoji: Bool = true) -> [String] {
         var parts: [String] = []
-        if care > 0 { parts.append("🐾 \(care) \(care == 1 ? "time caring" : "times caring")") }
-        if chores > 0 { parts.append("🧹 \(chores) \(chores == 1 ? "chore" : "chores")") }
+        if care > 0 { parts.append((emoji ? "🐾 " : "") + "\(care) \(care == 1 ? "time caring" : "times caring")") }
+        if chores > 0 { parts.append((emoji ? "🧹 " : "") + "\(chores) \(chores == 1 ? "chore" : "chores")") }
         return parts
     }
 
-    /// A person's row under their name: what they did, then their own trend.
-    static func personLine(_ glow: GlowSummary.PersonGlow, isThisWeek: Bool) -> String {
-        var parts = did(chores: glow.choresDone, care: glow.careGiven)
-        if let trend = ownTrend(stars: glow.weekStars, before: glow.lastWeekSoFar, isThisWeek: isThisWeek) { parts.append(trend) }
+    /// What one person did, in one line: "9 times caring · 5 chores", or that there is nothing.
+    static func didLine(_ glow: GlowSummary.PersonGlow, isThisWeek: Bool, emoji: Bool = true) -> String {
+        let parts = did(chores: glow.choresDone, care: glow.careGiven, emoji: emoji)
         return parts.isEmpty ? (isThisWeek ? "Nothing yet this week" : "Nothing that week") : parts.joined(separator: " · ")
+    }
+
+    /// A person's row said whole: what they did, then their own trend.
+    static func personLine(_ glow: GlowSummary.PersonGlow, isThisWeek: Bool, emoji: Bool = true) -> String {
+        let did = didLine(glow, isThisWeek: isThisWeek, emoji: emoji)
+        guard let trend = ownTrend(stars: glow.weekStars, before: glow.lastWeekSoFar, isThisWeek: isThisWeek) else { return did }
+        return "\(did) · \(trend)"
     }
 
     /// "once", "twice", "6 times".
