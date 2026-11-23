@@ -12,6 +12,13 @@ enum PocketToday {
         var slot: CareSlot
     }
 
+    /// Who besides this phone's person a log button credits: the card's "Also went" row
+    /// belongs to the lead routine it is labelled for, so only the lead's button takes it;
+    /// another routine's button credits the phone's person alone (docs/design/companion-care.md).
+    static func alsoWent(for action: CareAction, lead: CareAction?, picked: [Person.ID]) -> [Person.ID] {
+        action.routine.id == lead?.routine.id ? picked : []
+    }
+
     /// How much a companion needs someone right now; cards are ordered by it.
     enum Standing: Int, Comparable {
         /// A window is open now and waiting.

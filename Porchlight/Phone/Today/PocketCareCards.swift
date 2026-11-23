@@ -64,7 +64,7 @@ private struct FullCareCard: View {
             }
             if let lead = card.lead {
                 Button {
-                    handlers.log(card, lead, alsoWent)
+                    handlers.log(card, lead, PocketToday.alsoWent(for: lead, lead: card.lead, picked: alsoWent))
                     alsoWent = []
                 } label: {
                     Text("\(lead.routine.emoji) \(CareWords(lead.routine, species: report.companion.species).buttonTitle(name: report.name))")
@@ -127,10 +127,8 @@ private struct FullCareCard: View {
     }
 
     private func otherButton(_ action: PocketToday.CareAction) -> some View {
-        Button {
-            handlers.log(card, action, alsoWent)
-            alsoWent = []
-        } label: {
+        // The phone's person alone, leaving "Also went" for the lead it is labelled for.
+        Button { handlers.log(card, action, PocketToday.alsoWent(for: action, lead: card.lead, picked: alsoWent)) } label: {
             HStack(spacing: 6) {
                 Text(action.routine.emoji)
                 Text(PocketToday.slotTitle(action.slot, of: action.routine) == action.routine.title

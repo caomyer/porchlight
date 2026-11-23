@@ -55,6 +55,17 @@ struct PocketTodayTests {
 
     // MARK: One tap
 
+    @Test("Also went belongs to the lead routine: another routine's button credits the phone's person alone")
+    func alsoWent() throws {
+        let walk = try walkToday([], at: F.date(18, 5))
+        let lead = PocketToday.CareAction(routine: F.walk, slot: try #require(walk.slots.last))
+        let feedSlot = try #require(reports(snapshot([]), at: F.date(18, 5)).first?.others.first?.slots.last)
+        let other = PocketToday.CareAction(routine: Self.feed, slot: feedSlot)
+        #expect(PocketToday.alsoWent(for: lead, lead: lead, picked: [F.mia]) == [F.mia], "the walk takes who was picked for it")
+        #expect(PocketToday.alsoWent(for: other, lead: lead, picked: [F.mia]).isEmpty, "dinner doesn't")
+        #expect(PocketToday.alsoWent(for: other, lead: nil, picked: [F.mia]).isEmpty)
+    }
+
     @Test("One tap logs the slot whose window is open now")
     func openWindow() throws {
         let morning = F.entry(1, 7, 10, by: [F.mia])

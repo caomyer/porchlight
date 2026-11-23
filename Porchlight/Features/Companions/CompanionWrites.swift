@@ -424,8 +424,16 @@ extension AppDatabase {
             log.occurredAt = draft.occurredAt
             log.apply(draft, note: note, routine: routine)
             try log.update(db)
-            try CareLogPerson.filter(Column("careLogId") == id).deleteAll(db)
-            try Self.replacePeople(of: id, with: draft.people, in: db)
+            // Only who changed: a person still on it keeps their row untouched, so a fixed
+            // time sends no person rows at all, and a row is never deleted and inserted
+            // again under the same id in one write (docs/design/companion-care.md).
+            let wanted = Set(draft.people)
+            let current = try CareLogPerson.filter(Column("careLogId") == id).fetchAll(db)
+            for row in current where !wanted.contains(row.personId) {
+                _ = try row.delete(db)
+            }
+            let kept = Set(current.map(\.personId))
+            try Self.replacePeople(of: id, with: draft.people.filter { !kept.contains($0) }, in: db)
             return log
         }
     }

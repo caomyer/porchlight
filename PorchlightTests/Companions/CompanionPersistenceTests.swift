@@ -415,6 +415,34 @@ struct CompanionPersistenceTests {
         #expect(routines[1].anchorDay == "2026-01-03", "A daily routine starts on its first log")
     }
 
+    @Test("Fixing a log's time leaves its people's rows untouched; fixing who changes only who changed")
+    func fixingKeepsPeopleRows() throws {
+        let db = try AppDatabase.inMemory()
+        let household = try db.createHousehold(name: "Home", people: [PersonDraft(name: "Mia", color: .coral), PersonDraft(name: "Sam", color: .blue)])
+        let people = try db.snapshot().people.map(\.id)
+        var draft = CompanionDraft.new(species: .dog)
+        draft.name = "Yo-Yo"
+        let now = Date(timeIntervalSince1970: 1_795_017_600)
+        let companion = try db.saveCompanion(draft, householdId: household.id, now: now)
+        let walk = try #require(try db.writer.read(CompanionSnapshot.fetch).routines(of: companion).first)
+        let log = try db.logCare(routineId: walk.id, CareLogDraft(people: people, occurredAt: now), now: now)
+        // Each person row with its rowid: a row deleted and inserted again under the same id
+        // gets a new one, which iCloud would get as a delete and a save of the same record.
+        let rows = { try db.writer.read { try String.fetchAll($0, sql: "SELECT id || ' ' || rowid FROM careLogPerson ORDER BY id") } }
+        let before = try rows()
+        #expect(before.count == 2)
+
+        _ = try db.updateCareLog(id: log.id, CareLogDraft(people: people, occurredAt: now.addingTimeInterval(-600)), now: now)
+        #expect(try rows() == before, "a new time: the same rows, untouched")
+
+        _ = try db.updateCareLog(id: log.id, CareLogDraft(people: [people[0]], occurredAt: now.addingTimeInterval(-600)), now: now)
+        let after = try rows()
+        #expect(after.count == 1 && before.contains(after[0]), "one taken off; the one kept is untouched")
+
+        _ = try db.updateCareLog(id: log.id, CareLogDraft(people: people, occurredAt: now.addingTimeInterval(-600)), now: now)
+        let back = try rows()
+        #expect(back.count == 2 && back.contains(after[0]), "one put back, the other still untouched")
+    }
 }
 
 private extension Calendar {

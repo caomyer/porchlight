@@ -13,7 +13,8 @@ A log names the people who did it, and nothing guesses for them where it can't k
   The sheet's title already asks the question ("Who walked Yo-Yo?").
 - The same holds wherever the wall opens the log sheet: Today's card, a companion's page, catching up on a missed slot, and Pitch in's care tasks.
 - Fixing a log keeps its own people.
-- On a phone's Today card, "Also went" is cleared after any log button is used, the big one or a smaller one beside it, so the next log doesn't carry the last one's company.
+- On a phone's Today card, "Also went" belongs to the lead routine it is labelled for: the big button credits the phone's person and whoever is picked there, then clears the picks; a smaller button for another routine credits the phone's person alone and leaves the picks for the lead.
+- Fixing who did it changes only the people who changed: a person still on the log keeps their row untouched, so fixing a log's time sends the log alone.
 
 ## Earlier weeks
 
