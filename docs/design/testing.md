@@ -811,7 +811,7 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testAWidgetLinkOpensLists | 48 | `porchlight://lists` and `://today` | Merge into testListsAndDinners (open the link instead of tapping the tab) | 30 | done |
 | testListsAndDinners | 52 | Add, check, dinners' needs, counts | Keep; the counts and aisles are also `PocketTabsTests` | | |
 | testGlowAndCashingIn | 28 | Cash in asks once, celebrates, starts again | Keep | | |
-| testGlowWeekPersonAndLookingBack | | The week's total and tasks, a person's own week through real navigation, the pager back a week and home again | Keep; the page, the person's page, an earlier week and the reward ideas in their looks are `PocketGlowScreenTests`, the rules `GlowStoryTests` | | |
+| testGlowWeekPersonAndLookingBack | | The week's total and tasks, the pager back a week and home again, a person's own week through real navigation | Keep; the page, the person's page, an earlier week and the reward ideas in their looks are `PocketGlowScreenTests`, the rules `GlowStoryTests` | | |
 | testNextSevenDays | 40 | Row opens the page, grouped by day | Merged into `testLooks`, which reaches the page from Today and keeps "grouped by day"; grouping is `PocketTabsTests` | 25 | done |
 | testChoosingCalendars | 33 | Why before asking; sharing choices | Keep (permission) | | |
 | testCalendarsFromYou | 45 | Calendars row in You opens the page | Merge into `PhoneTests.testYouSheet` (same launch); it settled the row before revealing it, now the other way round | 30 | done |

@@ -148,7 +148,7 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         XCTAssertFalse(app.buttons["Cash in Fancy coffee run"].exists, "It starts saving again")
     }
 
-    /// The week's story, one person's own week, and looking back a week and home again.
+    /// The week's story, looking back a week and home again, and one person's own week.
     func testGlowWeekPersonAndLookingBack() {
         let app = launch()
         app.tabBars.buttons["Glow"].tap()
@@ -156,30 +156,27 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(total.waitForExistence(timeout: 5), "The week's stars and my share")
         XCTAssertTrue(element(app, beginningWith: "Where the stars came from").exists, "What the stars were for")
         snapshot("m3-43-glow-week")
+
+        // The pager sits at the top of the page: step back before scrolling away from it.
+        let back = app.buttons["week-back"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        back.tap()
+        let name = app.descendants(matching: .any)["week-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5) && name.label.hasPrefix("Last week, "), name.label)
+        XCTAssertTrue(element(app, beginningWith: "That week").exists, "What happened that week")
+        snapshot("m3-44-glow-last-week")
+        app.buttons["week-this"].tap()
+        XCTAssertTrue(name.label.hasPrefix("This week, "), name.label)
+
         let lately = element(app, beginningWith: "Lately")
         reveal(lately, in: app)
-        snapshot("m3-44-glow-lately")
-
+        snapshot("m3-45-glow-lately")
         let mia = app.descendants(matching: .any)["glow-person-Mia"]
         reveal(mia, in: app)
         mia.tap()
         XCTAssertTrue(element(app, beginningWith: "What Mia did").waitForExistence(timeout: 5), "Mia's own week")
         XCTAssertTrue(element(app, beginningWith: "Mia's week").exists)
-        snapshot("m3-45-glow-person")
-        app.navigationBars.buttons.firstMatch.tap()
-
-        let back = app.buttons["week-back"]
-        XCTAssertTrue(back.waitForExistence(timeout: 5))
-        reveal(back, in: app)
-        back.tap()
-        let name = app.descendants(matching: .any)["week-name"]
-        XCTAssertTrue(name.waitForExistence(timeout: 5) && name.label.hasPrefix("Last week, "), name.label)
-        XCTAssertTrue(element(app, beginningWith: "That week").exists, "What happened that week")
-        snapshot("m3-46-glow-last-week")
-        let this = app.buttons["week-this"]
-        reveal(this, in: app)
-        this.tap()
-        XCTAssertTrue(name.label.hasPrefix("This week, "), name.label)
+        snapshot("m3-46-glow-person")
     }
 
     // MARK: Calendars
