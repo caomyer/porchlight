@@ -829,6 +829,8 @@ Unfrozen on November 21, when the dish editor landed.
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
+| testEarlierWeeks | | The week pager back a week: its name, the streak said to be today's, a dot opening its walk to fix, back to this week | Keep; that week's numbers and the catch-up rule are `CompanionWeekTests.earlierWeek` | | |
+| testEarlierWeekLooks | | Last week at the largest size in the night look | Keep (looks) | | |
 | testTappingThePawTrail | 74 | A logged, a missed and an open dot each open the right sheet | Keep; the dots' labels are `CompanionWeekTests` | | |
 | testAMealInTheDiaryAndTheTrail | 72 | A dinner logged from the trail shows in trail and diary | Keep | | |
 | testWater | 30 | Water has its week | Down: "Log a refill" and "Water diary" are `CompanionWeekTests`; keep as a tab tap inside testAMealInTheDiaryAndTheTrail | 20 | |
@@ -1059,6 +1061,7 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testCatchingUpFromYoYosWeek | 72 | Diary and trail catch up | Keep | | |
+| testEarlierWeeksOnYoYosPage | | Yo-Yo's page a week back: its name, the streak today, a dot opening its walk to fix, forward again | Keep; the rules are `CompanionWeekTests.earlierWeek` | | |
 | testLoggingYesterdaysDinnerFromTheCalendar | 30 | Missed mark opens the sheet for that slot | Keep | | |
 | testMissedCareInTheWeek | 22 | Missed slots are marked | Keep: the rule is `CareCatchUpTests`, but only this test shows the week grid drawing the marks | 22 |  |
 

@@ -16,7 +16,7 @@ UnitTests 400
 PhoneFoodTests 859
 PhoneTabsTests 530
 PhoneSetupTests 348
-PhoneWeekTests 309
+PhoneWeekTests 400
 PhoneDishEditorTests 324
 PhoneHouseholdTests 375
 PhoneRemindersTests 148
@@ -36,11 +36,11 @@ SyncSettingsTests 160
 TimeFieldTests 141
 WallDishEditorTests 142
 WallTourTests 119
-LoggedEntryTests 90
+LoggedEntryTests 120
 PitchInTests 99
 WallRecipesTests 117
 WallSharedCalendarTests 120
-CatchUpTests 91
+CatchUpTests 125
 CompanionEditorTests 115
 DayAtAGlanceTests 75
 ScrollingTests 66
