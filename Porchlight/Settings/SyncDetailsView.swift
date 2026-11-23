@@ -68,6 +68,11 @@ private struct SyncDetailsBody: View {
             row("Low Power Mode", trace.lowPowerMode ? "on" : "off")
             row("Not yet in iCloud", counts.map { "\($0.unconfirmed) rows" } ?? "…")
             row("Queued while paused", counts.map { "\($0.queued) changes" } ?? "…")
+            // What iCloud refused and this device kept: read aloud, it is the evidence.
+            sentence("Held for a parent", trace.deferrals.heldLine(calendar: calendarStore.calendar))
+                .accessibilityIdentifier("sync-details-held")
+            sentence("Turned down, sent again", trace.deferrals.resentLine(calendar: calendarStore.calendar))
+                .accessibilityIdentifier("sync-details-resent")
             // Not sync, but the one other thing this device fetches from Apple on its own.
             row("Handwriting fonts", HandCompanionFonts.shared.summary)
                 .accessibilityIdentifier("sync-details-hand-fonts")
@@ -118,6 +123,26 @@ private struct SyncDetailsBody: View {
         }
         .font(.body(compact ? 12 : 14, weight: 600))
         .accessibilityElement(children: .combine)
+    }
+
+    /// A finding said as a sentence, to be read aloud: its title above, the sentence under
+    /// it across the whole width; "none" stays on one line like the rest.
+    @ViewBuilder
+    private func sentence(_ title: String, _ value: String) -> some View {
+        if value == SyncDeferrals.none {
+            row(title, value)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .foregroundStyle(Theme.muted)
+                Text(value)
+                    .foregroundStyle(Theme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .font(.body(compact ? 12 : 14, weight: 600))
+            .accessibilityElement(children: .combine)
+        }
     }
 
     private func time(_ date: Date) -> String {

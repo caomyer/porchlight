@@ -24,6 +24,34 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
         return String(format: "%04d-%02d-%02dT17:20", parts.year!, parts.month!, parts.day!)
     }
 
+    /// The phone's Sync details says what iCloud refused and the phone kept, in words, and
+    /// "none" while there was nothing (`SyncSettingsTests.testHeldRecordsSayHowManyInWords`
+    /// on the wall).
+    func testHeldRecordsInSyncDetails() {
+        for kept in [true, false] {
+            let app = XCUIApplication.porchlight()
+            app.launchArguments = ["-sampleHousehold", "-debugCompanionNow", Self.evening, "-me", "James"] + (kept ? SyncSettingsTests.keptRecords : [])
+            app.launch()
+            XCTAssertTrue(app.buttons["you"].waitForExistence(timeout: 60))
+            app.buttons["you"].tap()
+            let details = app.buttons["sync-details"]
+            XCTAssertTrue(details.waitForExistence(timeout: 5))
+            reveal(details, in: app)
+            details.tap()
+            let held = app.descendants(matching: .any)["sync-details-held"]
+            XCTAssertTrue(held.waitForExistence(timeout: 5), "The details open")
+            reveal(held, in: app)
+            if kept {
+                XCTAssertTrue(held.label.range(of: SyncSettingsTests.heldWords, options: .regularExpression) != nil, "got \(held.label)")
+                snapshot("sync-details-held")
+            } else {
+                XCTAssertTrue(held.label.hasSuffix("none"), "got \(held.label)")
+                snapshot("sync-details-held-none")
+            }
+            app.terminate()
+        }
+    }
+
     /// Opens the Notifications page with the given pretend permission.
     private func openNotifications(_ access: String, _ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication.porchlight()

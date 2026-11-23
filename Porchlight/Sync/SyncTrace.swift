@@ -51,11 +51,24 @@ final class SyncTrace: StoredFirstObservable {
     @ObservationIgnored @StoredFirst var failuresInRow = 0
     @ObservationIgnored @StoredFirst var lastError: String? = nil
     @ObservationIgnored @StoredFirst var nextCheckAt: Date? = nil
+    /// Records iCloud refused that this device kept and sent again, since it was set up:
+    /// kept across launches, so a person can read them to us days later.
+    @ObservationIgnored @StoredFirst var deferrals = SyncDeferrals()
 
     @ObservationIgnored let log: SyncLog
+    @ObservationIgnored let defaults: UserDefaults
 
-    init(log: SyncLog = .shared) {
+    init(log: SyncLog = .shared, defaults: UserDefaults = .standard) {
         self.log = log
+        self.defaults = defaults
+        deferrals = SyncDeferrals(defaults: defaults)
+    }
+
+    /// A record iCloud refused, kept here and queued to be sent again.
+    func noteDeferred(recordType: String, waitingForParent: Bool, at date: Date = .now) {
+        deferrals.note(recordType: recordType, waitingForParent: waitingForParent, at: date)
+        deferrals.save(to: defaults)
+        note("deferred \(recordType): \(waitingForParent ? "waiting for its parent" : "refused by iCloud"), sent again later")
     }
 
     /// Notes a line in the log; the screen shows the fields above.

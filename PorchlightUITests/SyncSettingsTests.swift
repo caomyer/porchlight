@@ -58,6 +58,49 @@ final class SyncSettingsTests: XCTestCase {
         snapshot("73-sync-details")
     }
 
+    /// Records iCloud refused and this iPad kept say so in Sync details, in words read aloud,
+    /// and "none" while there were none (docs/design/sync-icloud.md, "A record sent before
+    /// its parent"). The counts are kept in the device's preferences, given here at launch.
+    func testHeldRecordsSayHowManyInWords() {
+        for kept in [true, false] {
+            let app = launch(["-sampleHousehold", "-startScreen", "settings"] + (kept ? Self.keptRecords : []))
+            let details = app.buttons["sync-details"]
+            XCTAssertTrue(details.waitForExistence(timeout: 20), "Settings has Sync details")
+            for _ in 0..<8 where !details.isHittable {
+                app.swipeUp()
+            }
+            details.tap()
+            let held = app.descendants(matching: .any)["sync-details-held"]
+            XCTAssertTrue(held.waitForExistence(timeout: 5), "The details open")
+            for _ in 0..<8 where !held.isHittable {
+                app.swipeUp()
+            }
+            let resent = app.descendants(matching: .any)["sync-details-resent"]
+            if kept {
+                XCTAssertTrue(held.label.range(of: SyncSettingsTests.heldWords, options: .regularExpression) != nil, "got \(held.label)")
+                XCTAssertTrue(resent.label.contains("Sent again 1 record iCloud turned down. Last: a walk or meal,"), "got \(resent.label)")
+                snapshot("74-sync-details-held")
+            } else {
+                XCTAssertTrue(held.label.hasSuffix("none"), "got \(held.label)")
+                XCTAssertTrue(resent.label.hasSuffix("none"), "got \(resent.label)")
+                snapshot("75-sync-details-held-none")
+            }
+            app.terminate()
+        }
+    }
+
+    /// The held line in words, then when: the day and time follow the household's time zone,
+    /// which is the runner's, so only their shape is checked here (`SyncDeferralsTests`
+    /// pins them).
+    static let heldWords = #"^Held for a parent, Held 3 records until their parent arrived\. Last: who walked or fed, [A-Z][a-z]{2} \d{1,2} at \d{1,2}:\d{2}\W?[AP]M\.$"#
+
+    /// Three held for a parent and one sent again, the last at one moment on Nov 23 or 24,
+    /// wherever the runner is.
+    static let keptRecords = [
+        "-sync.deferrals.held", "3", "-sync.deferrals.lastHeld", "(careLogPerson, 1795488060)",
+        "-sync.deferrals.resent", "1", "-sync.deferrals.lastResent", "(careLog, 1795488060)",
+    ]
+
     func testADifferentAccountAsksWhatToDo() {
         let app = launch(["-sampleHousehold", "-startScreen", "settings", "-debugSyncStatus", "needsDecision"])
         showSyncSection(app, title: "A different iCloud account signed in")

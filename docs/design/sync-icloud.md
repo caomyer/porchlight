@@ -165,6 +165,39 @@ While there are any, the status is `notAccepted`: Settings says "iCloud isn't ta
 Every ten minutes, and at every launch, it queues them again (touching their metadata, as SQLiteData does after signing in) and sends.
 Once the schema is deployed the next offer goes through, the count drops to zero, and the status is up to date, with nothing lost and nothing to do.
 
+### A record sent before its parent
+
+A walk logged on the phone showed nobody as the walker: the walk arrived, who walked never did.
+The walk and who walked are written in one transaction, and SQLiteData sends parents first, so in the ordinary case iCloud gets both together.
+When iCloud refuses a child because its parent isn't there (`referenceViolation`), SQLiteData 1.13.0 deletes the child on this device if its only parent link cascades.
+That is true of who walked or fed (`careLogPerson`), who ate (`journalEntryEater`) and a chore done (`choreCompletion`).
+It did that even when the parent was here and had simply never reached iCloud, so a lost or delayed save of the walk took its walkers with it, on this device and so on every other one.
+
+Ruled out: the local write (the walk and its walkers are written in one transaction, and the people are checked to be residents), a stale "me" on the phone, the order things are sent in, and a retry loop.
+
+What triggers the first refusal is not yet seen on a real device.
+Two candidates:
+
+- The walk's own save was refused with `serverRejectedRequest`, which SQLiteData answers by clearing the server record and never sending the save again, so the walk never reached iCloud and a later send of its walkers was refused.
+- The walk and its walkers went in different requests and the walkers reached iCloud first, while the walk's save waited or failed for a moment.
+
+The stand-in for iCloud the tests use accepts a child whenever its parent is in the same request, so neither can be shown without real iCloud.
+The Sync details count below is how we will learn which it is, and this stays listed as not seen until a device shows one.
+
+Our fork (`project.yml`) keeps the child when its parent has never been confirmed by iCloud, and queues both again, parent first.
+They wait in SQLiteData's own queue table and go with the next change on this device or the next launch, never at once, so a parent iCloud keeps refusing cannot make a loop; the child stays here in every case.
+A parent iCloud once had, and no longer has, still takes its children with it, as it always did: that is a delete from another device (the fork's `moveReminderToList_RemoteDeletesList` and `deleteList_RemoteAddsReminderToList` still pass unchanged).
+A save refused with `serverRejectedRequest` is queued again the same way while its row is here, where 1.13.0 dropped it for good; it too waits for the next change or launch, and `SyncUnsent` already offers rows iCloud never took every ten minutes.
+Other refusals SQLiteData never queues again (`invalidArguments`, `assetFileNotFound`, `limitExceeded`, `constraintViolation`, and the like) are left as they are: sent again unchanged they would fail every time.
+The ones that pass with time (network, throttling, a busy server) the system's sync engine already retries on its own schedule.
+Nothing about the CloudKit schema changes: no record type and no field.
+
+Each time a record is kept and queued again, the engine tells the app (`onDeferredRecord`), and Sync details counts it, kept across launches, with the last one in words and never a table's name: "Held 3 records until their parent arrived. Last: who walked or fed, Nov 23 at 6:41 PM." and "Sent again 1 record iCloud turned down. Last: a walk or meal, Nov 23 at 6:41 PM." (`SyncDeferrals`).
+A walk that already lost its walker still shows "Who? Tap to say", and saying who adds them again.
+`SyncDeferralsTests` logs a walk while paused, queues only who walked, and checks it stays, the line counts it, and both reach iCloud with the next change; the fork's `ReferenceViolationTests.childOfUnsavedParent_IsKeptAndSentAgain` checks the engine, and fails without the patch.
+
+When it is seen, capture before tapping anything: the time of the walk, which device logged it, Sync details on that device (these two lines, the last error and its CloudKit code, rows not yet in iCloud), the sync log from that device around that time, and whether the walk itself shows on the other devices.
+
 ## Photos
 
 Photo files become rows, so they can sync as iCloud assets.
@@ -284,6 +317,7 @@ Under the switch, on the wall's iCloud Sync section and on the phone's sync row,
 - the last check: when, how it ended, and what started it (launch, came to front, timer, network back, sync turned on, push, check now); checks so far and failures in a row; the last error as its CloudKit code; when the next check is due;
 - pushes received and the last one's time, whether a push token arrived (its length, never the token) or registration failed with which error, whether the app is registered for remote notifications, Background App Refresh, Low Power Mode;
 - rows iCloud has no record of yet, and changes queued while the engine was stopped;
+- records iCloud refused that this device kept and sent again: held until their parent arrived, and turned down then sent again, each with how many and the last one, in words ("A record sent before its parent");
 - "Check now", which runs one check at once.
 
 It reads its own observable object (`SyncTrace`), so nothing else redraws when a check ends.

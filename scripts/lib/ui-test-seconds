@@ -19,7 +19,7 @@ PhoneSetupTests 348
 PhoneWeekTests 400
 PhoneDishEditorTests 324
 PhoneHouseholdTests 375
-PhoneRemindersTests 148
+PhoneRemindersTests 190
 PhoneTests 215
 PhoneDishesTests 242
 PhoneCatchUpTests 111
@@ -32,7 +32,7 @@ FoodMealsTests 294
 HouseholdTests 272
 MealPhotosTests 138
 PhotoFrameTests 154
-SyncSettingsTests 160
+SyncSettingsTests 200
 TimeFieldTests 141
 WallDishEditorTests 142
 WallTourTests 119

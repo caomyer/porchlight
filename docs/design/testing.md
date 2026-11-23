@@ -879,6 +879,7 @@ Unfrozen on November 21, when the dish editor landed.
 
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
+| testHeldRecordsInSyncDetails | | Two launches: the phone's Sync details with records kept, in words, then "none" | Keep (looks); the counting and the words are `SyncDeferralsTests` | | |
 | testSaysWhyBeforeAsking | 58 | Why, then allow, then the choices | Keep | | |
 | testTurnedOff | 52 | Denied: one way to fix | Keep (failure path) | | |
 | testChoosingReminders | 54 | A slot's choice and the chores switch | Merge into testSaysWhyBeforeAsking, which ends on the same page | 45 | |
@@ -1006,6 +1007,7 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | Test | s | Asserts | Verdict | Saves | Status |
 |---|---|---|---|---|---|
 | testChecksTickOnAnUntouchedWall | 49 | Three polls on a wall nobody touches | Keep: real timers in the real app | | |
+| testHeldRecordsSayHowManyInWords | | Two launches: records iCloud refused and the iPad kept, said in words with the last one, then "none" | Keep (looks); the counting and the words are `SyncDeferralsTests` | | |
 | testADifferentAccountAsksWhatToDo | 38 | Choice; dot comes and goes | Keep | | |
 | testAFullICloudPausesSync | 44 | Paused, dot, nothing on Today | Keep (smoke) | | |
 | testEachMissingICloudSaysWhy | 95 | Three launches, one per account state, each line whole | Down for the words and the dot's rule (`SyncWordingTests`); keep one launch as testAMissingICloudSaysWhy | 63 | done, 37 s measured |
