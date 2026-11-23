@@ -114,6 +114,11 @@ struct PocketWritesTests {
         #expect(snapshot.knownPeople(of: unknown).isEmpty)
         #expect(!snapshot.namesNobody(CareEntry(log: entry.log, people: [mia])))
         #expect(throws: CareValidationError.noWalkers) { try db.updateCareLog(id: log.id, draft([], at: entry.time), now: now) }
+        // Saying who heals it: the walker is back, and it names someone again.
+        _ = try db.updateCareLog(id: log.id, draft([james], at: entry.time), now: now)
+        let healed = try #require(try db.writer.read(CompanionSnapshot.fetch).entries.first { $0.id == log.id })
+        #expect(healed.people == [james])
+        #expect(!snapshot.namesNobody(healed))
     }
 
     @Test("Logging an open slot adds the log, credited to who was given")

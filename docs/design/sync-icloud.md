@@ -165,6 +165,33 @@ While there are any, the status is `notAccepted`: Settings says "iCloud isn't ta
 Every ten minutes, and at every launch, it queues them again (touching their metadata, as SQLiteData does after signing in) and sends.
 Once the schema is deployed the next offer goes through, the count drops to zero, and the status is up to date, with nothing lost and nothing to do.
 
+### Known and not yet explained: a walk without its walker
+
+A walk logged on the phone showed nobody as the walker: the walk arrived, who walked never did.
+This is parked until it is seen again on a device; the fix below waits on branch `care/missing-walker`, unmerged.
+
+Confirmed, in SQLiteData 1.13.0: when iCloud refuses a child because its parent isn't there (`referenceViolation`), the engine deletes the child on this device if its only parent link cascades.
+That is true of who walked or fed (`careLogPerson`), who ate (`journalEntryEater`) and a chore done (`choreCompletion`).
+It does this even when the parent is still here and simply never reached iCloud, so the walkers go from this device and so from every other one.
+
+Ruled out: the local write (the walk and its walkers are written in one transaction, and the people are checked to be residents), a stale "me" on the phone, the order things are sent in (parents first, sorted by the engine), and a retry loop.
+
+Two candidate triggers, neither seen yet:
+
+- The walk's own save was refused with a code SQLiteData never queues again (`serverRejectedRequest`, which only clears the server record), so the walk never reached iCloud, and a later send of its walkers was refused and deleted them.
+- The walk and its walkers went in different requests, and the walkers reached iCloud before the walk (the walk's save failed for a moment or was still waiting), so they were refused and deleted while the walk was sent later.
+
+The stand-in for iCloud the tests use accepts a child whenever its parent is in the same request, so neither can be shown without real iCloud.
+
+The planned fix, in the fork (commit `ba1f32c` on `porchlight/update-order`, not pinned): keep the child when its parent was never confirmed by iCloud, and queue both again, parent first, in SQLiteData's own queue table, so they go with the next change or launch and never in a tight loop.
+A parent iCloud once had and no longer has still takes its children with it.
+A save refused with `serverRejectedRequest` is queued again the same way while its row is here.
+Codes that would fail every time if sent unchanged (`invalidArguments`, `assetFileNotFound`, `limitExceeded`, `constraintViolation`) stay as they are; the ones that pass with time the system's engine retries itself.
+The app side counts each kept record for Sync details, in words: "Held 3 records until their parent arrived. Last: who walked or fed, Nov 23, 6:41 PM."
+A walk that already lost its walker shows "Who? Tap to say", and saying who adds them again.
+
+What to capture from the device next time, before tapping anything: the time of the walk, which device logged it, Sync details on that device (the last error and its CloudKit code, rows not yet in iCloud, changes queued), the sync log from that device around that time, and whether the walk itself shows on the other devices.
+
 ## Photos
 
 Photo files become rows, so they can sync as iCloud assets.

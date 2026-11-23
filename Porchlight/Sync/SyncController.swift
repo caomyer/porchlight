@@ -117,7 +117,7 @@ final class SyncController: StoredFirstObservable {
     @ObservationIgnored @StoredFirst private var checkedRecently = false
     @ObservationIgnored private var freshnessTask: Task<Void, Never>?
     /// What sync is doing, for "Sync details" and the sync log.
-    @ObservationIgnored let trace = SyncTrace()
+    @ObservationIgnored let trace: SyncTrace
     @ObservationIgnored private let role: @MainActor () -> DeviceRole
     /// Whether it follows the app coming to the front and leaving it; tests drive that
     /// themselves (`appActivityChanged`), since the test host is always in front.
@@ -139,6 +139,7 @@ final class SyncController: StoredFirstObservable {
         removeFiles: @escaping () -> Void
     ) {
         self.preferences = preferences
+        trace = SyncTrace(defaults: preferences.defaults)
         self.removeFiles = removeFiles
         self.timing = timing
         self.role = role
@@ -179,6 +180,10 @@ final class SyncController: StoredFirstObservable {
         userName = preferences.accountName
         events.controller = self
         trace.role = role()
+        // A record iCloud refused and this device kept, for Sync details.
+        engine?.onDeferredRecord { [trace] record in
+            Task { @MainActor in trace.noteDeferred(recordType: record.recordType, waitingForParent: record.reason == .waitingForParent) }
+        }
         #if DEBUG
         if let debugStatus {
             show(debugStatus)
