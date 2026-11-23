@@ -69,6 +69,13 @@ final class HomeStore: StoredFirstObservable {
         RewardProgress.earned(for: reward, earnings: snapshot.earnings, redemptions: snapshot.redemptions)
     }
 
+    /// "about 3 days away at this pace" for a reward still being saved for, when the last
+    /// two weeks give enough to go on (`RewardPace`).
+    func pace(of status: ChoreBoard.RewardStatus) -> String? {
+        RewardPace.daysAway(status.reward, earned: status.earned, earnings: snapshot.earnings, today: today, calendar: calendar)
+            .map(RewardPace.words)
+    }
+
     /// The day to open a chore on from outside the board: today if it was done or is due
     /// today, a one-off's done day, or else the latest day this week it was due.
     func dayToOpen(_ chore: Chore) -> DayKey {

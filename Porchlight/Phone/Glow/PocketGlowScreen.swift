@@ -150,7 +150,7 @@ struct PocketGlowScreen: View {
                     meta: !week.isThisWeek ? "now" : statuses.count == 1 ? (statuses[0].reward.isShared ? "family reward" : "your treat") : "\(statuses.count) rewards"
                 )
                 ForEach(statuses) { status in
-                    GlowRewardRow(status: status) { confirming = status }
+                    GlowRewardRow(status: status, pace: home.pace(of: status)) { confirming = status }
                 }
             }
             .phoneCard()
@@ -163,13 +163,7 @@ struct PocketGlowScreen: View {
                 page: .chores
             )
         } else if home.snapshot.rewards.allSatisfy(\.archived) {
-            PocketSetUpCard(
-                emoji: "🎁",
-                title: "Something to save for",
-                detail: "A reward, for one person or everyone together, that chores' stars count toward.",
-                action: "Add a reward",
-                page: .rewards
-            )
+            GlowRewardIdeas()
         }
     }
 

@@ -121,13 +121,59 @@ struct PocketGlowScreenTests {
         #expect(!page.elements.contains { $0.isButton && $0.label == "Next week" }, "nothing after this week:\n\(page.listing)")
         #expect(page.elements.contains { $0.label.hasPrefix("Cashed in") }, "what was cashed in:\n\(page.listing)")
         #expect(page.elements.contains { $0.label.hasPrefix("Ice cream trip") }, "the treat already enjoyed:\n\(page.listing)")
-        // The samples go back four weeks; the pager goes no further than the first star.
+        // The samples go back about five weeks; the pager goes no further than the first star.
         let first = try #require(house.home.snapshot.firstStarDay)
         let limit = GlowWeeks.limit(firstDay: first, today: house.home.today, calendar: house.home.calendar)
-        #expect(limit >= 3 && limit <= 5, "back to the first star: \(limit) weeks from \(first)")
+        #expect(limit >= 3 && limit <= 6, "back to the first star: \(limit) weeks from \(first)")
         let furthest = try await glow(house, look: .light, shot: "glow-first-week", weeksBack: 40)
         #expect(!furthest.elements.contains { $0.isButton && $0.label == "Previous week" }, "the first week is the last step back:\n\(furthest.listing)")
         #expect(furthest.elements.contains { $0.label.hasPrefix("\(limit) weeks ago, ") }, "asked for further, it shows the first week:\n\(furthest.listing)")
+    }
+
+    @Test(
+        "With chores and nothing to save for, Glow offers three rewards in one tap and your own",
+        arguments: ["light", "largest-dark"]
+    )
+    func rewardIdeas(lookName: String) async throws {
+        let look = HostedScreen.Look.named(lookName)
+        let house = try house(samples: false)
+        let page = try await glow(house, look: look, shot: "glow-no-reward")
+        #expect(page.offSides.isEmpty, "nothing runs off either side (\(look)): \(page.offSides.map { "\($0.label.prefix(30)) \($0.frame.integral)" })")
+        #expect(page.elements.contains { $0.label.hasPrefix("Something to save for") }, "what the card is for:\n\(page.listing)")
+        let ideas = page.elements.filter { $0.isButton && $0.label.hasPrefix("Save for ") }
+        #expect(ideas.map(\.label) == ["Save for Movie night, 20 stars", "Save for Takeout pick, 15 stars", "Save for Ice cream run, 10 stars"], "three ideas:\n\(page.listing)")
+        #expect(ideas.allSatisfy { $0.frame.height >= 44 }, "each a full touch target: \(ideas.map(\.frame))")
+        #expect(page.elements.contains { $0.isButton && $0.label == "Your own reward" }, "or your own:\n\(page.listing)")
+        // One tap, and the household is saving for it.
+        let picked = try await HostedScreen.host(
+            PocketGlowScreen().environment(house.model).environment(house.home).environment(\.me, house.me), look: look, activating: "Save for Takeout pick"
+        )
+        #expect(picked.elements.contains { $0.label.hasPrefix("Saving for") }, "the saving card:\n\(picked.listing)")
+        #expect(picked.elements.contains { $0.label.contains("Takeout pick") }, "the reward picked:\n\(picked.listing)")
+        #expect(!picked.elements.contains { $0.label.hasPrefix("Something to save for") }, "the ideas step aside:\n\(picked.listing)")
+        let saved = try #require(house.home.snapshot.rewards.first)
+        #expect(saved.title == "Takeout pick" && saved.targetStars == 15 && saved.ownerId == nil && !saved.archived)
+    }
+
+    @Test("A reward still being saved for says how far it is at the household's pace, once there is enough to go on")
+    func pace() async throws {
+        let house = try house(samples: false)
+        let calendar = house.home.calendar
+        let today = house.home.today
+        let chore = try #require(house.home.snapshot.chores.first)
+        _ = try house.db.saveReward(RewardDraft(title: "Movie night", emoji: "🍿", targetStars: 20, ownerId: nil), householdId: chore.householdId, today: today.adding(days: -20, calendar: calendar))
+        // Two days with a star: too little to go on.
+        for back in [1, 3] {
+            try house.db.toggleChore(id: chore.id, day: today.adding(days: -back, calendar: calendar), personId: house.me.id, now: today.adding(days: -back, calendar: calendar).startDate(in: calendar))
+        }
+        var page = try await glow(house, look: .light, shot: "glow-no-pace")
+        #expect(!page.elements.contains { $0.label.contains("at this pace") }, "silent with too little to go on:\n\(page.listing)")
+        // Seven days with a star in the last two weeks: 7 of 20 earned, half a star a day.
+        for back in [5, 7, 9, 11, 13] {
+            try house.db.toggleChore(id: chore.id, day: today.adding(days: -back, calendar: calendar), personId: house.me.id, now: today.adding(days: -back, calendar: calendar).startDate(in: calendar))
+        }
+        page = try await glow(house, look: .light, shot: "glow-pace")
+        #expect(page.elements.contains { $0.label.contains("about 4 weeks away at this pace") }, "13 stars to go at half a star a day:\n\(page.listing)")
     }
 
     @Test("Stars from before the usual window are read when an earlier week is asked for")

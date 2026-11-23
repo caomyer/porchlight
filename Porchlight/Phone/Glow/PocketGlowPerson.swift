@@ -97,7 +97,7 @@ struct PocketGlowPerson: View {
             VStack(alignment: .leading, spacing: 10) {
                 PhoneCardHeader(title: statuses.count == 1 ? "\(whose) own treat" : "\(whose) own treats", meta: isThisWeek ? nil : "now")
                 ForEach(statuses) { status in
-                    GlowRewardRow(status: status, canCashIn: person.id == me?.id || me == nil) { onCashIn(status) }
+                    GlowRewardRow(status: status, pace: home.pace(of: status), canCashIn: person.id == me?.id || me == nil) { onCashIn(status) }
                 }
             }
             .phoneCard()

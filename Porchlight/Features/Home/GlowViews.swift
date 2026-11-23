@@ -393,25 +393,31 @@ private struct RewardsCard: View {
                 }
             }
             if rewards.isEmpty {
-                Button(action: onNew) {
-                    Text("Add a treat to earn stars toward: an ice cream trip, a movie night, a day out together.")
-                        .font(.body(14, weight: 600))
-                        .foregroundStyle(Theme.muted)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                                .strokeBorder(Theme.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                // Nothing to save for yet: three to start with in one tap, or your own.
+                Text("Pick a treat to earn stars toward. You can change it any time.")
+                    .font(.body(14, weight: 600))
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                FlowLayout(spacing: 8) {
+                    ForEach(RewardIdeas.all, id: \.title) { idea in
+                        Button { store.saveReward(idea) } label: {
+                            ideaChip("\(idea.emoji ?? "🎁") \(idea.title) · \(idea.targetStars)")
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Save for \(idea.title), \(StarWords.count(idea.targetStars))")
+                        .accessibilityIdentifier("reward-idea-\(idea.title)")
+                    }
+                    Button(action: onNew) { ideaChip("+ Your own") }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Your own reward")
                 }
-                .buttonStyle(.plain)
             }
             ForEach(rewards) { reward in
                 HStack(alignment: .center, spacing: 10) {
                     OwnerAvatar(owner: reward.owner, size: 30)
                     RewardCard(
                         status: ChoreBoard.RewardStatus(reward: reward, earned: store.earned(toward: reward)),
+                        showsPace: true,
                         onEdit: { onEdit(reward) }
                     )
                 }
@@ -425,6 +431,16 @@ private struct RewardsCard: View {
 }
 
 extension RewardsCard {
+    fileprivate func ideaChip(_ text: String) -> some View {
+        Text(text)
+            .font(.body(14, weight: 700))
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 40)
+            .background(Theme.surface2, in: Capsule())
+            .contentShape(Capsule())
+    }
+
     /// The rewards already enjoyed: the last few, or an earlier week's own.
     @ViewBuilder
     fileprivate var cashedIn: some View {
@@ -628,7 +644,7 @@ struct GlowPersonSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(treats.count == 1 ? "\(glow.person.name.possessive) own treat" : "\(glow.person.name.possessive) own treats").font(.display(19))
                         ForEach(treats) { reward in
-                            RewardCard(status: ChoreBoard.RewardStatus(reward: reward, earned: store.earned(toward: reward)), onEdit: nil)
+                            RewardCard(status: ChoreBoard.RewardStatus(reward: reward, earned: store.earned(toward: reward)), showsPace: true, onEdit: nil)
                         }
                     }
                 }

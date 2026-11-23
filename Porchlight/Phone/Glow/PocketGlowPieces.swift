@@ -173,6 +173,67 @@ struct GlowRewardRow: View {
     }
 }
 
+/// Nothing to save for yet: three rewards to start with in one tap, or your own. A picked
+/// idea is an ordinary shared reward, to rename, reprice or give to one person afterwards.
+struct GlowRewardIdeas: View {
+    @Environment(HomeStore.self) private var home
+    @Environment(\.openYou) private var openYou
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        // Chips side by side; at the largest text sizes a column, each as wide as the card,
+        // so a long name wraps instead of running off the side.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(FlowLayout(spacing: 8, lineSpacing: 8))
+        VStack(alignment: .leading, spacing: 10) {
+            AdaptiveRow(spacing: 12, alignment: .top) {
+                Text("🎁").phoneFont(.body, 26).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Something to save for").phoneFont(.display, 18, weight: 600, relativeTo: .headline)
+                    Text("A reward that chores' stars count toward. Pick one to start; you can change it any time.")
+                        .phoneFont(.body, 13.5, weight: 500, relativeTo: .subheadline)
+                        .foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            layout {
+                ForEach(RewardIdeas.all, id: \.title) { idea in
+                    Button { home.saveReward(idea) } label: {
+                        chip("\(idea.emoji ?? "🎁") \(idea.title) · \(idea.targetStars)")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Save for \(idea.title), \(StarWords.count(idea.targetStars))")
+                    .accessibilityIdentifier("reward-idea-\(idea.title)")
+                }
+                Button { openYou?(.rewards) } label: { chip("+ Your own") }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Your own reward")
+                    .accessibilityIdentifier("set-up-rewards")
+            }
+            if let error = home.lastError {
+                Text(error)
+                    .phoneFont(.body, 13, weight: 600, relativeTo: .footnote)
+                    .foregroundStyle(Theme.accent)
+            }
+        }
+        .phoneCard()
+    }
+
+    private func chip(_ text: String) -> some View {
+        Text(text)
+            .phoneFont(.body, 13.5, weight: 700, relativeTo: .subheadline)
+            .foregroundStyle(Theme.ink)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
+            .padding(.horizontal, 14)
+            .padding(.vertical, typeSize.isAccessibilitySize ? 10 : 0)
+            .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, minHeight: 44, alignment: .leading)
+            .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+}
+
 // MARK: - Cashing in
 
 /// A cash-in this phone just made.

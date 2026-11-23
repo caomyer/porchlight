@@ -365,7 +365,10 @@ struct ProgressBar: View {
 /// A reward at the foot of a column; tap to edit it, "Cash in" once it's reached.
 struct RewardCard: View {
     @Environment(HomeStore.self) private var store
+    @Environment(\.askCashIn) private var askCashIn
     let status: ChoreBoard.RewardStatus
+    /// Also says how far it is at the household's pace (Glow); the board's column feet stay short.
+    var showsPace = false
     /// Opens the reward to edit; nil for a card that only shows it.
     let onEdit: (() -> Void)?
 
@@ -381,7 +384,12 @@ struct RewardCard: View {
             .overlay(alignment: .bottomTrailing) {
                 if status.isReached {
                     Button {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { _ = store.cashIn(status.reward) }
+                        // The wall asks first, naming who earned it, then celebrates.
+                        if let askCashIn {
+                            askCashIn(status)
+                        } else {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { _ = store.cashIn(status.reward) }
+                        }
                     } label: {
                         Text("Cash in 🎉")
                             .font(.body(12.5, weight: 800))
@@ -421,6 +429,14 @@ struct RewardCard: View {
                 Spacer(minLength: 4)
             }
             .frame(minHeight: status.isReached ? 28 : nil)
+            if showsPace, let pace = store.pace(of: status) {
+                Text(pace)
+                    .font(.body(12.5, weight: 600))
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
+                    .padding(.top, 2)
+                    .accessibilityIdentifier("pace-\(status.reward.title)")
+            }
         }
         .padding(12)
         .padding(.bottom, status.isReached ? -4 : 0)

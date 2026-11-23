@@ -123,6 +123,9 @@ struct WallView: View {
         }
         // Rows from people's phones glow once on Today, with one short toast.
         .showsArrivals(resting: showAmbient)
+        // Cashing in asks, then the whole wall celebrates; a cash-in made on a phone is
+        // celebrated here the next time the wall is awake.
+        .celebratesCashIns(resting: showAmbient)
         // Any touch counts as activity, observed outside SwiftUI gestures so scrolling is untouched.
         .onAnyTouch {
             lastInteraction = .now
