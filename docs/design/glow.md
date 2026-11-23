@@ -40,6 +40,10 @@ Star counts always go through `StarWords`.
 - **Lately is on the phone too.**
   The first phone design left the feed on the wall; the phone is where "what just happened" is asked most, so it has it now, told by day.
   The porch sparks stay on the wall.
+- **Words stay whole.**
+  On the phone a person's row says what they did and their own trend on separate lines.
+  At the accessibility text sizes the stars join the words in a row instead of standing beside them, and the reward ideas become a column, so no word breaks mid-way.
+  The phone leaves the paw print emoji out of a person's row, because it is dark on dark paper; the wall, always light, keeps it.
 - **Calm motion.**
   The lamp never pulses, confetti falls once and stays, nothing loops.
 
@@ -76,5 +80,6 @@ On an earlier week the total, the strip, each person, the tasks and what happene
 ## Tests
 
 - Unit: `GlowStoryTests` (tasks, words, weeks, an earlier week, Lately, cashed in, pace, ideas, cash-in news), `HomeLogicTests.glow`.
-- Hosted screens: `PocketGlowScreenTests` (the page and a person's page in four looks, an earlier week, no reward yet), `PocketTabsScreenTests` (Glow fits).
-- Journeys: `PhoneGlowTests` (a person's page, an earlier week, a reward idea), `PhoneTabsTests.testGlowAndCashingIn`, `PitchInTests.testCashingInOnGlow` (the wall asks, celebrates, and pages back).
+- Hosted screens: `PocketGlowScreenTests` (the page and a person's page in four looks, an earlier week, the pager's reach, reading further back, the reward ideas and picking one, the pace line), `PocketTabsScreenTests` (Glow fits).
+- Journeys: `PhoneTabsTests.testGlowWeekPersonAndLookingBack` (the week, a week back and home again, a person's page), `PhoneTabsTests.testGlowAndCashingIn`, `PitchInTests.testCashingInOnGlow` (the wall asks, celebrates, steps back a week and opens a person).
+- Not tested end to end: the wall celebrating a cash-in made on another device, which needs a second device; its rule is `GlowStoryTests.cashInNews`.

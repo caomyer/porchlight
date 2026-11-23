@@ -80,7 +80,10 @@ struct PocketGlowScreenTests {
         let house = try house()
         let weeksBack = 0
         let page = try await HostedScreen.host(
-            NavigationStack { PocketGlowPerson(personId: house.other.id, weeksBack: .constant(weeksBack)) { _ in } }
+            // Bare, as every hosted page is: the navigation bar it is pushed under is the
+            // journey's to check (`PhoneTabsTests.testGlowWeekPersonAndLookingBack`), and on
+            // iOS 27 a hosted bar reports pieces beyond the window's sides.
+            PocketGlowPerson(personId: house.other.id, weeksBack: .constant(weeksBack)) { _ in }
                 .environment(house.model).environment(house.home).environment(\.me, house.me),
             look: look
         )
