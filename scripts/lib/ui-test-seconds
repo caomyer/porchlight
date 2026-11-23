@@ -14,7 +14,7 @@
 # where each test prints its seconds (docs/design/testing.md, "Budgets").
 UnitTests 400
 PhoneFoodTests 859
-PhoneTabsTests 530
+PhoneTabsTests 590
 PhoneSetupTests 348
 PhoneWeekTests 400
 PhoneDishEditorTests 324
@@ -37,7 +37,7 @@ TimeFieldTests 141
 WallDishEditorTests 142
 WallTourTests 119
 LoggedEntryTests 120
-PitchInTests 99
+PitchInTests 125
 WallRecipesTests 117
 WallSharedCalendarTests 120
 CatchUpTests 125

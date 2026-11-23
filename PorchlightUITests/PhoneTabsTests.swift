@@ -137,7 +137,8 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         reveal(cashIn, in: app)
         cashIn.tap()
         XCTAssertTrue(app.staticTexts["Cash in Fancy coffee run?"].waitForExistence(timeout: 5), "It asks once")
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'stars from you'")).firstMatch.exists, "It names who earned it")
+        // "20 stars from you.", or "... and you earned 21 ..." when the round ran past the price.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'stars from you.' OR label CONTAINS 'and you earned'")).firstMatch.exists, "It names who earned it")
         snapshot("m3-41-cash-in")
         app.buttons["confirm-cash-in"].waitToSettle()
         app.buttons["confirm-cash-in"].tap()
@@ -145,6 +146,40 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         snapshot("m3-42-celebration")
         app.buttons["celebration-done"].tap()
         XCTAssertFalse(app.buttons["Cash in Fancy coffee run"].exists, "It starts saving again")
+    }
+
+    /// The week's story, one person's own week, and looking back a week and home again.
+    func testGlowWeekPersonAndLookingBack() {
+        let app = launch()
+        app.tabBars.buttons["Glow"].tap()
+        let total = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "this week · ")).firstMatch
+        XCTAssertTrue(total.waitForExistence(timeout: 5), "The week's stars and my share")
+        XCTAssertTrue(element(app, beginningWith: "Where the stars came from").exists, "What the stars were for")
+        snapshot("m3-43-glow-week")
+        let lately = element(app, beginningWith: "Lately")
+        reveal(lately, in: app)
+        snapshot("m3-44-glow-lately")
+
+        let mia = app.descendants(matching: .any)["glow-person-Mia"]
+        reveal(mia, in: app)
+        mia.tap()
+        XCTAssertTrue(element(app, beginningWith: "What Mia did").waitForExistence(timeout: 5), "Mia's own week")
+        XCTAssertTrue(element(app, beginningWith: "Mia's week").exists)
+        snapshot("m3-45-glow-person")
+        app.navigationBars.buttons.firstMatch.tap()
+
+        let back = app.buttons["week-back"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        reveal(back, in: app)
+        back.tap()
+        let name = app.descendants(matching: .any)["week-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5) && name.label.hasPrefix("Last week, "), name.label)
+        XCTAssertTrue(element(app, beginningWith: "That week").exists, "What happened that week")
+        snapshot("m3-46-glow-last-week")
+        let this = app.buttons["week-this"]
+        reveal(this, in: app)
+        this.tap()
+        XCTAssertTrue(name.label.hasPrefix("This week, "), name.label)
     }
 
     // MARK: Calendars

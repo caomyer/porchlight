@@ -86,17 +86,45 @@ final class PitchInTests: XCTestCase {
         snapshot("62-care-from-board")
     }
 
-    /// A reached reward is cashed in on Glow and shows up in "Lately".
+    /// A reached reward is cashed in on Glow: the wall asks first, naming who earned it,
+    /// celebrates across the whole screen, and the cash-in shows up in "Lately". Then the
+    /// week steps back, and a person's card opens to their own week.
     func testCashingInOnGlow() {
         let app = launch(["-startScreen", "glow"])
-        XCTAssertTrue(text(app, containing: "lit the porch").waitForExistence(timeout: 40), "Glow tells the week's story")
+        XCTAssertTrue(text(app, containing: "lit the porch this week").waitForExistence(timeout: 40), "Glow tells the week's story")
+        let james = app.descendants(matching: .any)["glow-person-James"]
+        XCTAssertTrue(james.exists && james.label.contains("chore"), "Each person's card says what they did: \(james.label)")
         snapshot("63-glow")
         let cashIn = app.buttons["Cash in Fancy coffee run"]
         XCTAssertTrue(cashIn.waitForExistence(timeout: 5), "A reached reward can be cashed in")
         cashIn.tap()
+        XCTAssertTrue(app.staticTexts["Cash in Fancy coffee run?"].waitForExistence(timeout: 5), "The wall asks first")
+        let message = app.staticTexts["cash-in-message"]
+        XCTAssertTrue(message.label.contains("James"), "and names who earned it: \(message.label)")
+        XCTAssertFalse(app.staticTexts["Cashed in Fancy coffee run"].exists, "Nothing is spent until it is confirmed")
+        snapshot("63-glow-cash-in-ask")
+        app.buttons["confirm-cash-in"].tap()
+        XCTAssertTrue(app.staticTexts["Fancy coffee run!"].waitForExistence(timeout: 5), "Then the whole wall celebrates")
+        snapshot("64-glow-celebration")
+        app.buttons["celebration-done"].tap()
         XCTAssertTrue(app.staticTexts["Cashed in Fancy coffee run"].waitForExistence(timeout: 5), "Lately shows the cash-in")
         XCTAssertFalse(app.buttons["Cash in Fancy coffee run"].exists, "The reward starts a new round")
+        XCTAssertTrue(app.descendants(matching: .any)["glow-cashed-in"].exists, "and it stays in what was cashed in")
         snapshot("64-glow-cashed-in")
+
+        // Looking back: last week's own stars, and saving still about now.
+        app.buttons["week-back"].tap()
+        let week = app.descendants(matching: .any)["week-name"]
+        XCTAssertTrue(week.label.hasPrefix("Last week, "), week.label)
+        XCTAssertTrue(text(app, containing: "that week").waitForExistence(timeout: 5), "The porch tells that week")
+        XCTAssertTrue(app.staticTexts["That week"].exists, "and what happened then")
+        snapshot("65-glow-last-week")
+
+        // A person's card opens to their own week.
+        app.descendants(matching: .any)["glow-person-Mia"].tap()
+        XCTAssertTrue(app.staticTexts["Mia's week"].waitForExistence(timeout: 5), "Mia's own week")
+        XCTAssertTrue(app.staticTexts["What Mia did"].exists)
+        snapshot("66-glow-person")
     }
 
     /// A new chore picks how it repeats and when it starts, and the picker reads it back.

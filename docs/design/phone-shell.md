@@ -249,7 +249,9 @@ Dinners are the wall's meal plan for the week; a dinner opens the wall's `MealEd
 
 ## Glow (B7)
 
-The Glow tab shows my stars this week and all time under the porch light, what I'm saving for (shared goals first, then my own treats), and everyone's week as bars, all from the wall's `GlowSummary` and `RewardProgress`.
+The Glow tab tells the week (`docs/design/glow.md`): the household's stars with my share and the trend under the porch light, a strip of the week's days in each person's color, what I'm saving for (shared goals first, then my own treats) with how far it is at this pace, everyone side by side, what the stars were for by task, "Lately" by day, and what was cashed in.
+A person's row opens their own week, and the week's pager looks back as far as the first star.
+It all comes from the wall's `GlowSummary` and `RewardProgress` and from `GlowStory`, which the wall's Glow reads too.
 A reached reward has "Cash in 🎉"; the sheet names everyone who earned this round (`PocketGlowLogic.earners`) before anything is spent.
 Cashing in uses the wall's `cashInReward` with its derived id (one cash-in per round, whichever device does it), and `HomeStore.cashIn` now returns the cash-in so the phone knows it happened.
 The phone that cashed in shows the celebration: the reward, who earned it and confetti that falls once and stays; it waits for Done and nothing loops.
@@ -393,8 +395,8 @@ Where the atlas was silent, or didn't fit the code:
 - **One chore editor.** The wall's `ChoreEditor` adapts to a compact width instead of a second phone editor; its fonts are the wall's fixed sizes, so it doesn't grow with Dynamic Type yet.
 - **A dinner's needs are typed.** Dinners have no ingredients in the data, so "Needs: tortillas, limes" is something you type for a dinner; each item goes on the groceries in its aisle, credited to you.
 - **List rows check with a plain box.** Like the wall's list rows, not the accent box chores use.
-- **Glow without Lately.** The phone shows my week, saving for and everyone; the feed and the porch sparks stay on the wall.
-- **Cash-in words.** The sheet names the reward's price and who earned it; it doesn't promise that the shared screen celebrates, since the wall-side celebration for a cash-in from another device is a later task.
+- **Glow with Lately.** The first build kept the feed on the wall; since November 23, 2026 the phone has it too, told by day, because the phone is where "what just happened" is asked most. The porch sparks stay on the wall.
+- **Cash-in words.** The sheet names the reward's price and who earned it. Since November 23, 2026 the wall asks the same way, celebrates, and also celebrates a cash-in made on a phone the next time it is awake (`docs/design/glow.md`); the sheet still promises nothing about another screen.
 - **What a cash-in spends.** The wall's cash-in records every star of the round, and the round can earn more than the price (21 for a reward of 20, the bar showing "20 of 20"). The phone keeps that rule and says it plainly: the celebration shows the price ("20 stars from you"), and the sheet says when the extra goes with it ("It costs 20 stars, and you earned 21, so the 1 extra star goes with it. Then it starts again from zero.").
 - **The celebration covers the page.** It is opaque paper in both looks, so nothing of Glow is legible behind the title; the tab bar stays.
 - **Toasts wait for sheets.** A toast from a sheet (the care sheet, catch-up, a dinner's needs) is held until the sheet has finished closing (`ToastCenter.showAfterSheet`, flushed by the sheet's `onDismiss`), and the cash-in celebration waits the same way; shown at once, they sat behind the closing sheet and could be gone before anyone saw them.
@@ -432,7 +434,7 @@ Where the atlas was silent, or didn't fit the code:
 - **Leaving needs to be online.** Leaving is a change to the share in iCloud; offline, the sheet says to try again rather than hiding the household and leaving the share in place.
 - **No "Keep originals on this iPhone".** `e4storage` offers it, but there is no original to keep: the stored 2048 px photo is the photo (docs/design/sync-icloud.md), and saving originals to Photos at capture time isn't built. The owner's "shrink older photos" (D2) isn't built either.
 - **"Everything else" is measured, not estimated.** It is the database's pages in use less the photos and pages counted, on this phone, so it includes indexes and any other household this phone holds.
-- **Empty tabs offer setup.** Right after A2, Today says there's nothing to do yet and opens Household; Glow says stars come from chores and opens Chores (or Rewards once there are chores); Food's empty diary and Lists' default lists already read as intended.
+- **Empty tabs offer setup.** Right after A2, Today says there's nothing to do yet and opens Household; Glow says stars come from chores and opens Chores (once there are chores and nothing to save for, it offers three rewards in one tap, or your own); Food's empty diary and Lists' default lists already read as intended.
 - **"Just me" is stored, not yet enforced.** Nothing leaves the phone today, so it can't change what others see; the choice is kept so it's right when calendar mappings sync.
 
 ## Fixed on the wall along the way

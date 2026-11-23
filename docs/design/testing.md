@@ -811,6 +811,7 @@ The status column says what has happened: "done" (migrated on `tests/pyramid`, t
 | testAWidgetLinkOpensLists | 48 | `porchlight://lists` and `://today` | Merge into testListsAndDinners (open the link instead of tapping the tab) | 30 | done |
 | testListsAndDinners | 52 | Add, check, dinners' needs, counts | Keep; the counts and aisles are also `PocketTabsTests` | | |
 | testGlowAndCashingIn | 28 | Cash in asks once, celebrates, starts again | Keep | | |
+| testGlowWeekPersonAndLookingBack | | The week's total and tasks, a person's own week through real navigation, the pager back a week and home again | Keep; the page, the person's page, an earlier week and the reward ideas in their looks are `PocketGlowScreenTests`, the rules `GlowStoryTests` | | |
 | testNextSevenDays | 40 | Row opens the page, grouped by day | Merged into `testLooks`, which reaches the page from Today and keeps "grouped by day"; grouping is `PocketTabsTests` | 25 | done |
 | testChoosingCalendars | 33 | Why before asking; sharing choices | Keep (permission) | | |
 | testCalendarsFromYou | 45 | Calendars row in You opens the page | Merge into `PhoneTests.testYouSheet` (same launch); it settled the row before revealing it, now the other way round | 30 | done |
@@ -1053,7 +1054,7 @@ Their looks are hosted (`PocketRecipesScreenTests`), so none of them takes a loo
 | testFixingWhoDidAChore | 23 | Change who; board updates | Keep (smoke) | | |
 | testCheckingOffASharedChore | 23 | Asks who; done by | Keep | | |
 | testLoggingCareFromTheBoard | 26 | Done care opens its log to fix; care to do opens its own sheet | Keep; pinned to 5:20 pm, so it checks both on every run where it used to check whichever the time of day offered | | done |
-| testCashingInOnGlow | 30 | Cash in; new round | Keep | | |
+| testCashingInOnGlow | 30 | The wall asks before cashing in and names who earned it, celebrates across the screen, Lately and "cashed in" show it; then the week steps back and a person's card opens to their week | Keep: the only test of the wall's Glow, which is not hosted; grown on November 23, 2026, measure it | | |
 | testNewChoreWithAStartDay | 26 | Picker reads back; chore on the board | Keep; the summaries are `RecurrenceTests` | | |
 
 #### CatchUpTests (124 s)
