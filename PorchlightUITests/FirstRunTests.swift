@@ -82,9 +82,17 @@ final class FirstRunTests: XCTestCase {
         let calendarName = String(owner.label.components(separatedBy: " belongs to ").first ?? "")
         snapshot("32-calendars-listed")
 
-        owner.tap()
+        // Right after access is granted the app is still reading the calendars in, and a
+        // redraw then can close the menu as it opens: on a hosted Mac the menu once never
+        // showed after one tap, with XCTest giving up waiting for the app to go idle. So the
+        // row first comes to rest, and the menu is opened again if a redraw closed it.
         let mia = app.buttons["Mia"]
-        XCTAssertTrue(mia.waitForExistence(timeout: 5), "The owner menu should list the household's people")
+        for _ in 0..<3 where !mia.exists {
+            owner.waitToSettle()
+            owner.tap()
+            _ = mia.waitForExistence(timeout: 5)
+        }
+        XCTAssertTrue(mia.exists, "The owner menu should list the household's people")
         mia.tap()
         let assigned = app.buttons["\(calendarName) belongs to Mia"]
         XCTAssertTrue(assigned.waitForExistence(timeout: 5), "\(calendarName) should now belong to Mia")

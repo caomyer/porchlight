@@ -69,9 +69,9 @@ private struct SyncDetailsBody: View {
             row("Not yet in iCloud", counts.map { "\($0.unconfirmed) rows" } ?? "…")
             row("Queued while paused", counts.map { "\($0.queued) changes" } ?? "…")
             // What iCloud refused and this device kept: read aloud, it is the evidence.
-            sentence("Held for a parent", trace.deferrals.heldLine())
+            sentence("Held for a parent", trace.deferrals.heldLine(calendar: calendarStore.calendar))
                 .accessibilityIdentifier("sync-details-held")
-            sentence("Turned down, sent again", trace.deferrals.resentLine())
+            sentence("Turned down, sent again", trace.deferrals.resentLine(calendar: calendarStore.calendar))
                 .accessibilityIdentifier("sync-details-resent")
             // Not sync, but the one other thing this device fetches from Apple on its own.
             row("Handwriting fonts", HandCompanionFonts.shared.summary)

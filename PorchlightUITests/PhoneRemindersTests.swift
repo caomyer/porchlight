@@ -42,7 +42,7 @@ final class PhoneRemindersTests: XCTestCase, PhoneTestHelpers {
             XCTAssertTrue(held.waitForExistence(timeout: 5), "The details open")
             reveal(held, in: app)
             if kept {
-                XCTAssertTrue(held.label.contains("Held 3 records until their parent arrived. Last: who walked or fed, Nov 23 at"), "got \(held.label)")
+                XCTAssertTrue(held.label.range(of: SyncSettingsTests.heldWords, options: .regularExpression) != nil, "got \(held.label)")
                 snapshot("sync-details-held")
             } else {
                 XCTAssertTrue(held.label.hasSuffix("none"), "got \(held.label)")

@@ -77,7 +77,7 @@ final class SyncSettingsTests: XCTestCase {
             }
             let resent = app.descendants(matching: .any)["sync-details-resent"]
             if kept {
-                XCTAssertTrue(held.label.contains("Held 3 records until their parent arrived. Last: who walked or fed, Nov 23 at"), "got \(held.label)")
+                XCTAssertTrue(held.label.range(of: SyncSettingsTests.heldWords, options: .regularExpression) != nil, "got \(held.label)")
                 XCTAssertTrue(resent.label.contains("Sent again 1 record iCloud turned down. Last: a walk or meal,"), "got \(resent.label)")
                 snapshot("74-sync-details-held")
             } else {
@@ -89,7 +89,13 @@ final class SyncSettingsTests: XCTestCase {
         }
     }
 
-    /// Three held for a parent and one sent again, the last on Nov 23 at 6:41 PM Pacific.
+    /// The held line in words, then when: the day and time follow the household's time zone,
+    /// which is the runner's, so only their shape is checked here (`SyncDeferralsTests`
+    /// pins them).
+    static let heldWords = #"^Held for a parent, Held 3 records until their parent arrived\. Last: who walked or fed, [A-Z][a-z]{2} \d{1,2} at \d{1,2}:\d{2}\W?[AP]M\.$"#
+
+    /// Three held for a parent and one sent again, the last at one moment on Nov 23 or 24,
+    /// wherever the runner is.
     static let keptRecords = [
         "-sync.deferrals.held", "3", "-sync.deferrals.lastHeld", "(careLogPerson, 1795488060)",
         "-sync.deferrals.resent", "1", "-sync.deferrals.lastResent", "(careLog, 1795488060)",
