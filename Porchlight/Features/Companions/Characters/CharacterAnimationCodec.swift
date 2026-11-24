@@ -8,7 +8,8 @@ import ImageIO
 /// The relay sends a GIF: nine frames, 512 pixels square, on clear. The app keeps it as
 /// `CharacterImage` defines an animation: one PNG strip of square frames side by side, each
 /// `CharacterImage.frameSide` pixels, scaled down without smoothing so the pixel art stays
-/// crisp. A strip is one picture to store, sync and decode, and a frame is drawn by sliding
+/// crisp. The PNG is a palette one whenever that loses nothing (`PalettePNG`); any PNG reads
+/// back the same way, so a strip stored either way plays. A strip is one picture to store, sync and decode, and a frame is drawn by sliding
 /// the strip, with nothing decoded while it plays.
 ///
 /// Whatever comes back that isn't an animation (a still, a refusal page, bytes cut short)
@@ -66,7 +67,9 @@ enum CharacterAnimationCodec {
         for (index, frame) in kept.enumerated() {
             context.draw(frame, in: fitted(width: frame.width, height: frame.height, into: frameSide).offsetBy(dx: CGFloat(index * frameSide), dy: 0))
         }
-        guard let image = context.makeImage(), let png = png(image) else { return nil }
+        // A palette PNG when the frames have no more colours than a palette holds, which a GIF's
+        // frames do: the same pixels at about a third of the bytes. Otherwise full colour.
+        guard let image = context.makeImage(), let png = PalettePNG.data(image) ?? png(image) else { return nil }
         return Strip(image: png, frameCount: kept.count)
     }
 

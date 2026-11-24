@@ -138,8 +138,17 @@ A strip is one picture to store, sync and decode, and a frame is drawn by slidin
 - Bytes that are not an animation (a still, an error page, a GIF of one frame or cut short) make no strip, and the mood's still stands on its own.
 - The GIF's own frame delays are dropped: every frame shows for 0.12 seconds, so a play of nine frames is about a second, and nothing more needs storing.
 
-Measured on the relay's real drawings, a strip is 0.54 to 0.67 MB, so four moods' animations are about 2.4 MB a pet, beside four stills.
-A palette PNG would be about a third of that; it is not built, because ImageIO does not write one.
+The strip is a palette PNG (`PalettePNG`): each pixel one byte, an index into at most 256 colours, each with its clearness.
+A GIF is itself a palette picture, so a strip cut from its frames has no more colours than a palette holds, and the palette PNG is the same picture pixel for pixel at about a third of the bytes of a full-colour one.
+ImageIO reads a palette PNG like any other but does not write one, so `PalettePNG` writes it with zlib.
+It never changes a colour: a strip with more than 256 colours is stored as a full-colour PNG instead, with nothing lost.
+Any PNG reads back the same way, so a strip stored either way plays.
+
+Measured on nine of the relay's real drawings (four moods of one dog and the evaluation's five animals), every strip had 210 to 255 colours and came back with no pixel changed.
+A strip is 0.10 to 0.22 MB as a palette PNG, where the full-colour one was 0.27 to 0.67 MB.
+Four moods' animations of one pet measured 0.79 MB together, where they were 2.39 MB.
+
+The pictures travel to iCloud as assets, not record fields (`image` is an `ASSET` in `Config/cloudkit-schema.ckdb`), so a record's one megabyte limit does not apply to them at either size.
 
 It plays by `CharacterPlayback`, a pure schedule: once when the face appears, then it rests on its still, then once more about every minute while it is on screen.
 It never loops.

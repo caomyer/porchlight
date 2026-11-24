@@ -156,6 +156,93 @@ struct CharacterAnimationTests {
         #expect(total < 4 * (CharacterImage.frameSide * CharacterImage.frameSide * 4 * 9 + CharacterImage.stillSide * CharacterImage.stillSide * 4))
     }
 
+    // MARK: The palette PNG
+
+    /// A picture `width` by `height` made by `colour(x, y)`: red, green, blue and alpha.
+    private static func picture(width: Int, height: Int, _ colour: (Int, Int) -> (UInt8, UInt8, UInt8, UInt8)) throws -> CGImage {
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let (red, green, blue, alpha) = colour(x, y)
+                // Stored multiplied by its clearness, as a bitmap context holds it.
+                let at = (y * width + x) * 4
+                bytes[at] = UInt8(Int(red) * Int(alpha) / 255)
+                bytes[at + 1] = UInt8(Int(green) * Int(alpha) / 255)
+                bytes[at + 2] = UInt8(Int(blue) * Int(alpha) / 255)
+                bytes[at + 3] = alpha
+            }
+        }
+        let provider = try #require(CGDataProvider(data: Data(bytes) as CFData))
+        return try #require(CGImage(
+            width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
+        ))
+    }
+
+    @Test("A strip is stored as a palette PNG that reads back pixel for pixel, clear where it was clear")
+    func paletteStrip() throws {
+        let gif = try #require(CharacterPlaceholders.animation(species: .dog, variant: 2, mood: .waiting))
+        let frames = try #require(CharacterAnimationCodec.frames(ofGIF: gif))
+        let strip = try #require(CharacterAnimationCodec.strip(of: frames))
+        // Colour type 3 in the header: a palette.
+        #expect(strip.image[25] == 3 && strip.image[24] == 8, "eight bits a pixel, by palette")
+        let read = try #require(UIImage(data: strip.image)?.cgImage)
+        #expect(read.width == CharacterImage.frameSide * frames.count && read.height == CharacterImage.frameSide)
+        // Against the frames themselves, scaled as the codec scales them.
+        let stored = CharacterAnimationCodec.frames(ofStrip: read, count: frames.count)
+        for (index, frame) in frames.enumerated() {
+            for (x, y) in [(15, 22), (10, 12), (1, 1), (30, 30), (16, 20)] {
+                let was = Self.pixel(frame, x: x * 16 + 8, y: y * 16 + 8)
+                let now = Self.pixel(stored[index], x: x * 8 + 4, y: y * 8 + 4)
+                #expect(zip(was, now).allSatisfy { abs(Int($0) - Int($1)) <= 2 }, "frame \(index) at block (\(x), \(y)): \(was) became \(now)")
+            }
+        }
+    }
+
+    @Test("A palette PNG keeps every colour and every clearness it was given, exactly")
+    func paletteExact() throws {
+        // A hundred colours, each opaque and half clear, and a clear corner: about 200 in all.
+        let image = try Self.picture(width: 40, height: 20) { x, y in
+            if x < 4 && y < 4 { return (0, 0, 0, 0) }
+            let step = UInt8((x + y * 40) % 100)
+            return (step, 255 - step, UInt8((Int(step) * 7) % 256), y > 14 ? 128 : 255)
+        }
+        let before = try #require(PalettePNG.pixels(of: image))
+        #expect(try #require(PalettePNG.colourCount(image)) <= 256)
+        let data = try #require(PalettePNG.data(image))
+        let read = try #require(UIImage(data: data)?.cgImage)
+        #expect(read.width == 40 && read.height == 20)
+        let after = try #require(PalettePNG.pixels(of: read))
+        #expect(after.count == before.count)
+        var worst = 0
+        for (was, now) in zip(before, after) {
+            worst = max(worst, abs(Int(was.red) - Int(now.red)), abs(Int(was.green) - Int(now.green)), abs(Int(was.blue) - Int(now.blue)), abs(Int(was.alpha) - Int(now.alpha)))
+        }
+        // Half-clear colours come back through a multiply and a divide: within a step or two.
+        #expect(worst <= 2, "worst channel off by \(worst)")
+        #expect(after[0] == .clear && after[5 * 40 + 20].alpha == 255 && after[17 * 40 + 20].alpha == 128)
+        // The same picture always makes the same bytes: nothing is rewritten, so nothing re-syncs.
+        #expect(PalettePNG.data(image) == data)
+    }
+
+    @Test("A picture with more colours than a palette holds is not reduced: it stays full colour")
+    func tooManyColours() throws {
+        let rich = try Self.picture(width: 64, height: 64) { x, y in (UInt8(x * 4), UInt8(y * 4), UInt8((x + y) * 2), 255) }
+        #expect(try #require(PalettePNG.colourCount(rich)) > 256)
+        #expect(PalettePNG.data(rich) == nil)
+        // Two such frames still make a strip, a full-colour one, with nothing lost.
+        let strip = try #require(CharacterAnimationCodec.strip(of: [rich, rich], frameSide: 64))
+        #expect(strip.frameCount == 2 && strip.image[25] == 6, "colour type 6: full colour with alpha")
+        let read = try #require(UIImage(data: strip.image)?.cgImage)
+        for x in [10, 64 + 10] {
+            let pixel = Self.pixel(read, x: x, y: 20)
+            #expect(zip(pixel, [40, 80, 60, 255]).allSatisfy { abs(Int($0) - $1) <= 3 }, "both frames keep their colours: \(pixel)")
+        }
+        #expect(PalettePNG.encode(width: 2, height: 2, palette: [], indices: [0, 0, 0, 0]) == nil)
+        #expect(PalettePNG.encode(width: 2, height: 2, palette: [.clear], indices: [0]) == nil, "pixels that don't fill the picture")
+    }
+
     // MARK: When it plays
 
     @Test("A play shows each frame in turn for its moment, then nothing: the still")
