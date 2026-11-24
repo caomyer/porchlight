@@ -34,6 +34,11 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 # then finds simctl only on the PATH.
 export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 source scripts/lib/simulators.sh
+# PosterBoard stays off on a development Mac too, as on the hosted Macs: on iOS 27 it keeps
+# its rendered wallpapers in the simulator and adds to them at every boot, and one iPad
+# simulator here had 31 GB of them (PRBPosterExtensionDataStore) after a month of runs. The
+# wallpaper is black and nothing else differs. PORCHLIGHT_SIM_DISABLED_DAEMONS=none starts it.
+export PORCHLIGHT_SIM_DISABLED_DAEMONS="${PORCHLIGHT_SIM_DISABLED_DAEMONS:-com.apple.PosterBoard}"
 source scripts/lib/stage.sh
 source scripts/lib/runner-start.sh
 

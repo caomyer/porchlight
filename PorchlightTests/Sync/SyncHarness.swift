@@ -28,7 +28,7 @@ final class SyncHarness {
     private(set) var removedFiles = 0
 
     init() throws {
-        folder = FileManager.default.temporaryDirectory.appendingPathComponent(suiteName, isDirectory: true)
+        folder = TestFolders.make(suiteName)
         database = try AppDatabase.openOnDisk(folder: folder)
         defaults = UserDefaults(suiteName: suiteName)!
     }
@@ -185,6 +185,28 @@ final class SyncHarness {
         try database.writer.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM sqlitedata_icloud_metadata") ?? 0
         }
+    }
+}
+
+/// Folders the tests make in the host app's temporary directory, each holding a database on
+/// disk. A harness can't remove its own (the sync engine keeps its metadata open until the
+/// test process ends), so the first folder made in a run removes every one an earlier run
+/// left: 4,573 of them, 12 GB, had built up in one simulator by November 24, 2026.
+enum TestFolders {
+    static let prefixes = ["sync-tests-", "older-build-", "drafts-", "journey-"]
+
+    private static let swept: Void = {
+        let tmp = FileManager.default.temporaryDirectory
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: tmp.path)) ?? []
+        for name in names where prefixes.contains(where: name.hasPrefix) {
+            try? FileManager.default.removeItem(at: tmp.appendingPathComponent(name))
+        }
+    }()
+
+    /// A new folder named `name` in the temporary directory, after this run's sweep.
+    static func make(_ name: String) -> URL {
+        _ = swept
+        return FileManager.default.temporaryDirectory.appendingPathComponent(name, isDirectory: true)
     }
 }
 

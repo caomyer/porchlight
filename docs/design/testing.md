@@ -517,7 +517,9 @@ WebKit's own test harness does this for its simulators ([`simulated_device.py`](
 Over both runs, of the 18 boots that started PosterBoard, 10 fell to 24% free or lower, 11 swapped and one was cancelled; of the 6 that did not start it, none fell below 52% and none swapped.
 Leaving out the widget daemons alone changed nothing, and the app has widgets, so they stay.
 Without PosterBoard the simulator's wallpaper is black and everything else is as before: the home screen, its widgets, Settings.
-So the hosted Macs do not start it, and a development Mac, which has the memory, is unchanged.
+So the hosted Macs do not start it.
+A development Mac doesn't either, since November 24, 2026 (`scripts/test.sh`): it has the memory, but on iOS 27 PosterBoard keeps its rendered wallpapers in the simulator and adds to them at every boot, and one checkout's iPad simulator held 31 GB of them (`PRBPosterExtensionDataStore`) and its iPhone 6.5 GB. `PORCHLIGHT_SIM_DISABLED_DAEMONS=none` starts it for a run that wants the wallpaper.
+The same day, the unit tests' databases on disk turned out to stay behind in the test host's temporary folder, 4,573 of them and 12 GB in one simulator: a harness can't remove its own while the sync engine holds its metadata open, so the first one made in a run now removes every one an earlier run left (`TestFolders` in `PorchlightTests/Sync/SyncHarness.swift`).
 
 **The limits of this.**
 Six boots is a small number; the memory was sampled every 15 seconds, and on a starved Mac a sample has taken minutes to arrive, so a trough can fall between two of them; the three boots "as it was" in the second run had ended their three minutes before any deep trough, which the first run shows can come later.

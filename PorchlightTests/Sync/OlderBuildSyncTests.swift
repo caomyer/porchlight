@@ -264,8 +264,7 @@ private final class Phone {
     init(_ cloud: Cloud, build: Build, folder: URL? = nil, install: String = UUID().uuidString) async throws {
         self.cloud = cloud
         self.build = build
-        self.folder = folder ?? FileManager.default.temporaryDirectory
-            .appendingPathComponent("older-build-\(UUID().uuidString)", isDirectory: true)
+        self.folder = folder ?? TestFolders.make("older-build-\(UUID().uuidString)")
         let installFile = self.folder.appendingPathComponent("install")
         try FileManager.default.createDirectory(at: self.folder, withIntermediateDirectories: true)
         let install = (try? String(contentsOf: installFile, encoding: .utf8)) ?? install
