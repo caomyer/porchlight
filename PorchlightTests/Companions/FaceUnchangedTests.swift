@@ -59,12 +59,31 @@ struct FaceUnchangedTests {
         }
     }
 
-    private func pixels(_ view: some View, images: PhotoImages, scheme: ColorScheme) throws -> Data {
+    private func render(_ view: some View, images: PhotoImages, scheme: ColorScheme) throws -> Data {
         let renderer = ImageRenderer(content: view.environment(images).environment(\.colorScheme, scheme))
         renderer.scale = 2
         let image = try #require(renderer.uiImage?.cgImage)
-        let data = try #require(image.dataProvider?.data as Data?)
-        return data
+        return try #require(image.dataProvider?.data as Data?)
+    }
+
+    /// A face's pixels once its drawing has settled: rendered until two renders in a row
+    /// agree. On a hosted runner the first render of a face in the process can differ from
+    /// every one after it (the missing photo's placeholder at 28 points, in runs 45347603046,
+    /// 45352447810 and 45355876207, never on a development Mac), and a reference taken from
+    /// that cold first render fails a comparison that is in fact equal. Settling both sides
+    /// keeps the comparison exact; a drawing that never settles fails on its own.
+    private func pixels(_ view: some View, images: PhotoImages, scheme: ColorScheme, photo: PhotoRequest) async throws -> Data {
+        var last: Data?
+        for _ in 0..<6 {
+            // The decoded photo kept in the cache, as on a screen that has shown it: NSCache may
+            // let it go at any time, and the runner's memory is tight.
+            _ = await images.image(photo)
+            let data = try render(view, images: images, scheme: scheme)
+            if data == last { return data }
+            last = data
+        }
+        Issue.record("The face's drawing never settled in six renders")
+        return try #require(last)
     }
 
     @Test("Every kind of face draws the same pixels as the release before characters, with no face chosen or one chosen with nothing to show")
@@ -73,7 +92,8 @@ struct FaceUnchangedTests {
         let images = PhotoImages(database: db)
         let photo = PhotoSource.unsaved(CharacterPlaceholders.photo())
         // The photo decoded first, so both draw it in their first frame, as a cached photo is.
-        _ = await images.image(PhotoRequest(photo))
+        let request = PhotoRequest(photo)
+        _ = await images.image(request)
         let kinds: [(String, CompanionLook, FaceExpression)] = [
             ("photo", CompanionLook(species: .dog, coat: .honey, photo: photo), .happy),
             ("dog", CompanionLook(species: .dog, coat: .honey), .happy),
@@ -92,9 +112,9 @@ struct FaceUnchangedTests {
             characterNotHere.character = CharacterLook(face: .character)
             for scheme in [ColorScheme.light, .dark] {
                 for size in [28.0, 66, 184] {
-                    let expected = try pixels(ReleaseFace(look: release, expression: expression, size: size), images: images, scheme: scheme)
+                    let expected = try await pixels(ReleaseFace(look: release, expression: expression, size: size), images: images, scheme: scheme, photo: request)
                     for (variant, look) in [("no face chosen", nothingChosen), ("photo chosen", photoChosen), ("character not here yet", characterNotHere)] {
-                        let drawn = try pixels(CompanionFace(look: look, expression: expression, size: size), images: images, scheme: scheme)
+                        let drawn = try await pixels(CompanionFace(look: look, expression: expression, size: size), images: images, scheme: scheme, photo: request)
                         #expect(drawn == expected, "\(name), \(variant), \(scheme), \(size) points")
                     }
                 }
