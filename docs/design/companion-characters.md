@@ -63,7 +63,7 @@ In James's first live test the character sat on a tan disc, which made a clear, 
 A character or a sticker standing on the card casts a soft ground shadow, so it stands rather than floats (`StageFace`, the one face both the wall's hero and the phone's page draw).
 
 On the phone a companion's page opens on center stage, as the wall's hero does: the face at 168 points on every phone, then the week's name, what the pet is and the week so far, the mood and the way to change the face, all centred.
-Under the name, one line of what the pet is and the week so far, never cut off: a size smaller if it must, then the week alone, then wrapped.
+Under the name, one line of who the pet is and the week so far, in few words ("Toy poodle · 4 yrs · 12 walks · 5h 50m out · 24 stars"), the same on past weeks with their dates: a size smaller if it must, and wrapped rather than cut or shortened by dropping anything.
 The mood's track has no names at its ends on the phone, as the mock drew it; the mood under it says where the marker is, and VoiceOver still reads the ends.
 The face does not shrink on short screens, so "Log a walk" moved down by about 100 points.
 It is on the first screen of the largest phone; on an iPhone 15 (393 by 852 points) it ends about 32 points below the tab bar's top, and on the smallest phone (375 by 667) it is a scroll away, as it already was before.
@@ -223,7 +223,8 @@ The pictures travel to iCloud as assets, not record fields (`image` is an `ASSET
 It plays by `CharacterPlayback`, a pure schedule, in turns of two plays back to back, about two seconds: a turn when the face appears, then it rests, then a turn about every ten seconds while it is on screen, and a turn whenever the face is tapped.
 A turn begins only once the strip is decoded and ready to show.
 In James's first live test (build 20261124.085813) he saw no movement at all: the one play began as the face appeared, while the strip's bytes were still being read, so it passed on the still, and the next play was a minute away.
-On the wall's hero, whose face also bobs on a tap, one tap does both.
+A character that animates never bobs, on the wall's hero or anywhere, on a tap or on the minute: its animation is its life, and nothing is added to it (`CompanionFace.bobs`).
+A photo, a sticker or a drawn face bobs on the wall's hero as before.
 It never loops.
 Under Reduce Motion it never moves.
 It plays only while the app is in front, and its task ends when the face leaves the screen.

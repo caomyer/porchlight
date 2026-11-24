@@ -134,6 +134,13 @@ struct CompanionWeekTests {
         #expect(meals[3].value == "⭐2")
         #expect(week.meals.summary == "2 meals · 2 stars earned")
         #expect(week.report.weekSummary == week.walks.summary)
+        // The phone page's line: the same facts in fewer words, after who the pet is.
+        #expect(week.meals.shortSummary == "2 meals · 2 stars")
+        #expect(week.walks.shortSummary.hasPrefix(week.walks.summary.components(separatedBy: " · ")[0]))
+        #expect(!week.walks.shortSummary.contains("outside") && !week.walks.shortSummary.contains("earned"))
+        let line = week.report.aboutAndWeekLine(calendar: week.calendar).replacingOccurrences(of: "\u{00A0}", with: " ")
+        #expect(week.report.aboutAndWeekLine(calendar: week.calendar).contains("\u{00A0}"), "a fact is never broken over two lines")
+        #expect(line == week.report.aboutLine(calendar: week.calendar) + " · " + week.walks.shortSummary, "who the pet is, never dropped: \(line)")
     }
 
     @Test("An earlier week is that week's: its trail, numbers and diary; the streak and the catching up stay now's")

@@ -229,6 +229,25 @@ extension CompanionReport {
     /// week in a line, under the title of the wall's companion page and the phone's.
     var weekSummary: String { primaryWeek?.summary ?? "0 cares" }
 
+    /// The page's line under its name on the phone: who the pet is and the week, in few words.
+    /// "Toy poodle · 4 yrs · 12 walks · 5h 50m out · 24 stars"; a past week says which it is,
+    /// "Toy poodle · 4 yrs · Nov 5 to 11 · 14 walks · 7h 0m out · 2 squirrels chased".
+    func aboutAndWeekLine(calendar: Calendar) -> String {
+        let summary = primaryWeek?.shortSummary ?? "0 cares"
+        let week: String
+        if weeksBack > 0 {
+            week = "\(WeekPaging.range(weekDays, calendar: calendar)) · \((primaryWeek?.stats.count ?? 0) == 0 ? "nothing logged" : summary)"
+        } else {
+            week = weekStats.count == 0 ? "The first week together" : summary
+        }
+        // Wrapped, it breaks between facts, never inside one ("2 squirrels chased" stays
+        // whole); only the breed, first, may break inside, since it may be long.
+        let parts = (aboutLine(calendar: calendar) + " · " + week).components(separatedBy: " · ")
+        return parts.enumerated()
+            .map { $0.offset == 0 ? $0.element : $0.element.replacingOccurrences(of: " ", with: "\u{00A0}") }
+            .joined(separator: " · ")
+    }
+
     /// The week shown, for the pagers: "Last week, Nov 4 to 10, 9 walks".
     func weekSpoken(_ week: RoutineWeek?, calendar: Calendar) -> String {
         let count = week.map { "\($0.stats.count) \($0.stats.count == 1 ? $0.noun : $0.noun + "s")" }

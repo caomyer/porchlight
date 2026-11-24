@@ -128,6 +128,25 @@ struct CharacterPresenceScreenTests {
         }
     }
 
+    @Test("On the wall's hero a character that animates never bobs; a photo, a sticker and a drawn face bob as before")
+    func bobRule() throws {
+        for face in Self.faces {
+            let home = try home(face)
+            let report = try #require(home.store.report(for: home.companionId, now: CompanionClock.now()))
+            for mood in CharacterMood.allCases {
+                #expect(CompanionFace.bobs(true, look: report.look, mood: mood) == (face != "character"), "\(face) in \(mood)")
+                #expect(!CompanionFace.bobs(false, look: report.look, mood: mood), "never unasked")
+            }
+        }
+        // A character whose mood has no frames is a still, and bobs as one.
+        let (_, _, _, db) = try pictures(side: 512)
+        let store = CompanionStore(database: db)
+        let companion = try #require(store.companions.first)
+        let look = try #require(store.report(for: companion.id, now: CompanionClock.now())).look
+        #expect(!CompanionFace.bobs(true, look: look, mood: .zoomies), "zoomies has frames")
+        #expect(CompanionFace.bobs(true, look: look, mood: .fine), "fine has only a still")
+    }
+
     // MARK: One picture at rest and in motion
 
     private func pixels(_ view: some View, images: PhotoImages, scale: CGFloat = 3) throws -> Data {

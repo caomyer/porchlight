@@ -72,17 +72,24 @@ struct RoutineWeek: Identifiable {
     // MARK: The week in a line
 
     /// "13 walks · 5h 50m outside · 4 squirrels pursued, 0 caught".
-    var summary: String {
+    var summary: String { summary(short: false) }
+
+    /// The same facts in fewer words, for a line that also says who the pet is:
+    /// "12 walks · 5h 50m out · 24 stars", "2 squirrels chased".
+    var shortSummary: String { summary(short: true) }
+
+    private func summary(short: Bool) -> String {
         var parts = ["\(stats.count) \(stats.count == 1 ? noun : noun + "s")"]
         if stats.totalMinutes > 0 {
             let time = stats.totalMinutes >= 60 ? "\(stats.totalMinutes / 60)h \(stats.totalMinutes % 60)m" : "\(stats.totalMinutes) min"
-            parts.append(routine.kind == .walk ? "\(time) outside" : time)
+            parts.append(routine.kind == .walk ? "\(time) \(short ? "out" : "outside")" : time)
         }
         let squirrels = diary.filter { $0.entry.log.vibe == .squirrel }.count
         if squirrels > 0 {
-            parts.append("\(squirrels) \(squirrels == 1 ? "squirrel" : "squirrels") pursued, 0 caught")
+            let chased = "\(squirrels) \(squirrels == 1 ? "squirrel" : "squirrels")"
+            parts.append(short ? "\(chased) chased" : "\(chased) pursued, 0 caught")
         } else if stats.stars > 0 {
-            parts.append("\(stats.stars) stars earned")
+            parts.append(short ? "\(stats.stars) stars" : "\(stats.stars) stars earned")
         }
         return parts.joined(separator: " · ")
     }

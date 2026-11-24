@@ -146,21 +146,15 @@ struct PocketCompanionWeek: View {
         .phoneCard(tint: report.look.tint)
     }
 
-    /// "Toy poodle · 4 yrs · 12 walks · 5h 50m outside": one line, whole words only. If it is
-    /// too long for the phone, its letters a size smaller; then the week alone ("Nov 5 to 11 ·
-    /// 14 walks"); then, and at accessibility sizes, the whole of it over as many lines as it
-    /// takes. Never cut off.
+    /// Who the pet is and the week so far (`CompanionReport.aboutAndWeekLine`), every fact
+    /// kept: one line, its letters a size smaller if it must; if a long breed or a past week's
+    /// dates still don't fit, and at accessibility sizes, over as many lines as it takes.
     private func aboutAndWeek(_ report: CompanionReport) -> some View {
-        let calendar = store.snapshot.calendar
-        let week = report.weeksBack > 0
-            ? report.weekLine(calendar: calendar)
-            : report.weekStats.count == 0 ? "The first week together" : report.weekSummary
-        let whole = report.aboutLine(calendar: calendar) + " · " + week
+        let whole = report.aboutAndWeekLine(calendar: store.snapshot.calendar)
         return ViewThatFits(in: .horizontal) {
             if !typeSize.isAccessibilitySize {
                 line(whole, size: 12.5).fixedSize()
                 line(whole, size: 11.5).fixedSize()
-                line(week, size: 12.5).fixedSize()
             }
             line(whole, size: 12.5).fixedSize(horizontal: false, vertical: true)
         }

@@ -44,7 +44,7 @@ struct CompanionFace: View {
     var look: CompanionLook
     var expression: FaceExpression = .happy
     var size: CGFloat
-    /// Gently bob, like the hero face on the companion page.
+    /// Gently bob, like the hero face on the companion page, unless it animates (`bobs(_:look:mood:)`).
     var bobs = false
     /// The character's mood (`CharacterMoodRule.mood(for:now:)`); nil reads it from `expression`.
     var mood: CharacterMood?
@@ -68,8 +68,16 @@ struct CompanionFace: View {
                 photoOrDrawn
             }
         }
-        .modifier(Bob(isOn: bobs, size: size))
+        .modifier(Bob(isOn: Self.bobs(bobs, look: look, mood: characterMood), size: size))
         .accessibilityHidden(true)
+    }
+
+    /// Whether a face asked to bob does: a photo, a sticker or a drawn face bobs as it always
+    /// has; a character that animates in its mood never does, on a tap or on the minute, since
+    /// its animation is its life and nothing is added to it. A character with no frames for
+    /// the mood bobs, as a still would.
+    static func bobs(_ requested: Bool, look: CompanionLook, mood: CharacterMood) -> Bool {
+        requested && !look.animates(in: mood)
     }
 
     @ViewBuilder
