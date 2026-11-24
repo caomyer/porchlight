@@ -9,6 +9,9 @@ struct PhoneSheet<Content: View, Footer: View>: View {
     let title: String
     @ViewBuilder var content: () -> Content
     @ViewBuilder var footer: () -> Footer
+    /// Full height from the start, for a sheet whose steps change height (the character
+    /// journey): fitted to each step, it would leave the page behind cut at a different line.
+    var fullHeight = false
 
     @State private var height: CGFloat = 320
     /// Grows to full height while the keyboard is up, so it never covers the button.
@@ -45,11 +48,11 @@ struct PhoneSheet<Content: View, Footer: View>: View {
         // A dish field in the sheet (Edit meal) stays over the keyboard as it suggests.
         .keepsDishFieldInView(proxy)
         }
-        .presentationDetents([.height(height), .large], selection: $detent)
-        .onAppear { detent = .height(height) }
-        .onChange(of: height) { _, new in if detent != .large { detent = .height(new) } }
+        .presentationDetents(fullHeight ? [.large] : [.height(height), .large], selection: $detent)
+        .onAppear { detent = fullHeight ? .large : .height(height) }
+        .onChange(of: height) { _, new in if detent != .large, !fullHeight { detent = .height(new) } }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in detent = .large }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in detent = .height(height) }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in if !fullHeight { detent = .height(height) } }
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(26)
         .presentationBackground(Theme.surface)

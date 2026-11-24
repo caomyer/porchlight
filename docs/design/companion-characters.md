@@ -87,6 +87,11 @@ Four steps, from the offer card, the face sheet's "Draw Yo-Yo", or the editor's 
 3. "Drawing Yo-Yo", honest about the wait ("It takes about half a minute, sometimes more"), then "Which one is most Yo-Yo?": three tries, "This one", and "None of these: try again (2 left)" while rounds are left.
 4. "Meet Yo-Yo": the four moods, each arriving as it is drawn to match the try picked (doing fine is the try itself); tapping a mood redraws just that one. "Done" saves the character in one transaction and shows it for the whole household.
 
+What the consent shows is, byte for byte, what is sent: the tries, every mood and every animation get the cut-out the sheet showed and nothing else (`CharacterDrawingTests.shownIsSent`).
+When no cut-out can be made (no subject, a device that can't lift one, an unreadable photo), the journey stops there with the sticker's words and offers another photo; nothing is sent, neither a crop nor the whole photo (`noCutoutSendsNothing`).
+Sending the whole photo instead was considered and left out: "only the cut-out leaves this phone" stays true without a second kind of consent, and another photo is the better way on.
+On a phone the face sheet opens at full height, since the journey's steps differ in height and a sheet fitted to each would leave the page behind cut at a different line each time.
+
 An animation that fails (the model's animated output is a preview feature) never holds a mood back: the still stands, "Done" doesn't wait for animations, and an animation can be made another time.
 A mood whose still fails says "Couldn't draw this one. Tap to try again."; "Done" waits for every mood's still, and a redraw that fails keeps the still it had.
 

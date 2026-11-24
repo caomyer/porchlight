@@ -264,7 +264,7 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
     /// nothing. The cut-out is a drawn stand-in (`-debugStickerSubject`) and the photo is drawn
     /// in code (`-samplePhoto`).
     func testMakingThePhotoStickerAndSwitchingFaces() {
-        let app = launch(["-samplePhoto", "YES", "-debugStickerSubject", "middle"])
+        let app = launch(["-samplePhoto", "YES", "-debugStickerSubject", "dog"])
         openWeek(app)
         XCTAssertFalse(app.buttons["character-offer"].exists, "no offer while this build can't draw")
         let change = app.buttons["change-face"]
@@ -303,7 +303,7 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
     /// on the page, the consent with the photo and its cut-out side by side, three tries,
     /// the four moods, and the character shown and chosen once done.
     func testDrawingACharacter() {
-        let app = launch(["-samplePhoto", "YES", "-debugStickerSubject", "middle", "-debugCharacterService", "draws"])
+        let app = launch(["-samplePhoto", "YES", "-debugStickerSubject", "dog", "-debugCharacterService", "draws"])
         openWeek(app)
         let offer = app.buttons["character-offer"]
         XCTAssertTrue(offer.waitForExistence(timeout: 5), "The page offers a character for a dog with a photo")

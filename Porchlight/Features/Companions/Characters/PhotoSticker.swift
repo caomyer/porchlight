@@ -262,8 +262,9 @@ struct SubjectFinder: Sendable {
     }
 
     #if DEBUG
-    /// A stand-in subject for UI tests: "middle" (a round subject in the middle), "edge" (one
-    /// running off the bottom), "two" (two subjects), "none" or "slow" (never answers).
+    /// A stand-in subject for UI tests: "dog" (the sample photo's dog, cut to its outline),
+    /// "middle" (a round subject in the middle), "edge" (one running off the bottom), "two"
+    /// (two subjects), "none", "unavailable", or "slow" (never answers).
     static func drawn(_ shape: String) -> SubjectFinder {
         SubjectFinder { image in
             if shape == "slow" { try await Task.sleep(for: .seconds(3600)) }
@@ -312,6 +313,18 @@ extension MaskGrid {
         }
         switch shape {
         case "middle": disc(0.5, 0.5, 0.3)
+        case "dog":
+            // The placeholder dog of the sample photo (`CharacterPlaceholders.photo`), cut to its
+            // own outline, as subject lifting would.
+            for y in 0..<height {
+                for x in 0..<width {
+                    let px = (Double(x) + 0.5) / Double(width), py = (Double(y) + 0.5) / Double(height)
+                    if CharacterPlaceholders.dogOutline.contains(where: { rect in
+                        let dx = (px - rect.midX) / (rect.width / 2), dy = (py - rect.midY) / (rect.height / 2)
+                        return dx * dx + dy * dy <= 1
+                    }) { values[y * width + x] = 1 }
+                }
+            }
         case "edge": disc(0.5, 0.95, 0.3)
         case "two": disc(0.3, 0.5, 0.2); disc(0.72, 0.5, 0.16)
         case "none": break

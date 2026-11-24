@@ -43,6 +43,36 @@ struct CharacterDrawingTests {
         #expect(fake.calls.isEmpty, "nothing has left the device")
     }
 
+    @Test("What the consent shows is, byte for byte, what is sent: the tries, every mood and every animation get that cut-out and nothing else")
+    func shownIsSent() async throws {
+        let fake = FakeCharacterService()
+        let drawing = drawing(fake)
+        await drawing.cut()
+        guard case let .consent(shown) = drawing.step else { Issue.record("Expected the consent"); return }
+        await drawing.drawTries()
+        drawing.pick()
+        try await settle(drawing)
+        let sent = fake.calls.filter { $0.step != "allowance" }
+        #expect(sent.count == 1 + 3 + 4, "the tries, three moods and four animations")
+        #expect(sent.allSatisfy { $0.cutout == shown.cutout }, "each with the cut-out the consent showed")
+    }
+
+    @Test("A photo with no subject, or a device that can't cut one out, stops before anything is sent: no crop, no whole photo")
+    func noCutoutSendsNothing() async {
+        for failure in [PhotoSticker.Failure.noSubject, .unavailable, .unreadable] {
+            let fake = FakeCharacterService()
+            let drawing = CharacterDrawing(
+                householdId: householdId, companionId: companionId, species: .dog, photo: Data("photo".utf8),
+                service: fake, drafts: drafts, defaults: defaults, cutOut: { _ in throw failure }
+            )
+            await drawing.cut()
+            #expect(drawing.step == .cutFailed(failure))
+            await drawing.drawTries()
+            #expect(drawing.step == .cutFailed(failure), "Draw can't be reached without a cut-out")
+            #expect(fake.calls.isEmpty, "nothing left the device")
+        }
+    }
+
     @Test("No photo asks for one first")
     func needsPhoto() async {
         let drawing = drawing(FakeCharacterService(), photo: nil)

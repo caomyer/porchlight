@@ -36,28 +36,18 @@ enum CharacterPlaceholders {
         return image.jpegData(compressionQuality: 0.85) ?? Data()
     }
 
+    /// The dog in `photo()`, as ellipses in a unit square: its body, ears and head.
+    static let dogOutline: [CGRect] = [
+        CGRect(x: 190, y: 300, width: 220, height: 230), CGRect(x: 168, y: 160, width: 70, height: 140),
+        CGRect(x: 362, y: 160, width: 70, height: 140), CGRect(x: 205, y: 120, width: 190, height: 190),
+    ].map { CGRect(x: $0.minX / 600, y: $0.minY / 600, width: $0.width / 600, height: $0.height / 600) }
+
     /// The sticker of `photo()`, cut by a drawn mask around the dog rather than by Vision,
     /// so it is the same on any device and in the simulator.
     static func sticker() -> Data? {
         guard let photo = PhotoSticker.image(from: photo()) else { return nil }
-        let size = 150
-        var values = [Float](repeating: 0, count: size * size)
-        // The dog's outline on the 600 square, at a quarter of the size.
-        let parts: [CGRect] = [
-            CGRect(x: 190, y: 300, width: 220, height: 230), CGRect(x: 168, y: 160, width: 70, height: 140),
-            CGRect(x: 362, y: 160, width: 70, height: 140), CGRect(x: 205, y: 120, width: 190, height: 190),
-        ]
-        for y in 0..<size {
-            for x in 0..<size {
-                let point = CGPoint(x: (CGFloat(x) + 0.5) * 4, y: (CGFloat(y) + 0.5) * 4)
-                if parts.contains(where: { rect in
-                    let dx = (point.x - rect.midX) / (rect.width / 2), dy = (point.y - rect.midY) / (rect.height / 2)
-                    return dx * dx + dy * dy <= 1
-                }) { values[y * size + x] = 1 }
-            }
-        }
-        let grid = MaskGrid(width: size, height: size, values: values)
-        guard let mask = grid.image(), let box = grid.bounds(),
+        guard let grid = MaskGrid.drawn("dog", width: 150, height: 150),
+              let mask = grid.image(), let box = grid.bounds(),
               let result = try? PhotoSticker.render(photo: photo, subject: Subject(mask: mask, bounds: box, others: 0, touchesEdge: false))
         else { return nil }
         return result.sticker
@@ -84,7 +74,7 @@ enum CharacterPlaceholders {
             for y in max(0, y0)...min(grid - 1, y1) { for x in max(0, x0)...min(grid - 1, x1) { cells[y][x] = colour } }
         }
         let ink: (UInt8, UInt8, UInt8) = (40, 30, 24), white: (UInt8, UInt8, UInt8) = (255, 255, 255)
-        let lift = mood == .zoomies ? (frame % 3 == 1 ? -2 : 0) : (frame % 4 == 2 ? -1 : 0)
+        let lift = mood == .zoomies ? (frame % 3 == 1 ? -4 : -2) : (frame % 4 == 2 ? -1 : 0)
         let lying = mood == .asleep
         // Body and head, sitting up, or lying down asleep.
         if lying {
@@ -119,7 +109,10 @@ enum CharacterPlaceholders {
         // What the mood holds: a leash waiting, motion lines with the zoomies.
         if mood == .waiting { fill(16, 18 + lift, 17, 26 + lift, (200, 60, 60)) }
         if mood == .zoomies {
-            for (row, length) in [(19, 4), (22, 6), (25, 3)] { fill(2, row, 2 + length - (frame % 2), row, (180, 180, 190)) }
+            // Mid-leap: front paws out, back legs stretched. No motion lines: the drawn
+            // characters have none.
+            fill(6, 20 + lift, 9, 22 + lift, coat)
+            fill(22, 25 + lift, 26, 27 + lift, coat)
         }
         _ = white
         let side = grid * block

@@ -98,6 +98,19 @@ struct PhotoStickerTests {
         #expect(try Self.pixel(result.cutout, 1, 1).a == 0, "clear outside the round subject")
     }
 
+    @Test("The UI tests' stand-in cuts the sample photo's dog to its own outline: no sky or grass in the cut-out")
+    func standInDog() async throws {
+        let result = try await PhotoSticker.make(from: CharacterPlaceholders.photo(), finder: Self.finder("dog"))
+        let cutout = try #require(UIImage(data: result.cutout)?.cgImage)
+        // The cut-out is the dog's box: its corners, and the sky beside the top of its round
+        // head, are clear; the middle of the head is the dog.
+        for (x, y) in [(2, 2), (cutout.width - 3, 2), (2, cutout.height - 3), (cutout.width * 15 / 100, cutout.height * 5 / 100)] {
+            #expect(try Self.pixel(result.cutout, x, y).a == 0, "clear at \(x), \(y) of \(cutout.width) by \(cutout.height)")
+        }
+        let head = try Self.pixel(result.cutout, cutout.width / 2, cutout.height / 4)
+        #expect(head.a == 255 && head.r > head.b, "the dog's coat: \(head)")
+    }
+
     @Test("Several subjects and a subject cut by the frame are made, with a note each")
     func notes() async throws {
         #expect(try await PhotoSticker.make(from: Self.photo(), finder: Self.finder("two")).notes == [.severalSubjects])

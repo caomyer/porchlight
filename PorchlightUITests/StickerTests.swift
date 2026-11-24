@@ -27,7 +27,7 @@ final class StickerTests: XCTestCase {
     }
 
     func testMakingThePhotoStickerAndChoosingFaces() {
-        let app = launch(["-debugStickerSubject", "middle"])
+        let app = launch(["-debugStickerSubject", "dog"])
         let change = app.buttons["change-face"]
         XCTAssertTrue(change.waitForExistence(timeout: 40), "The hero links to the face")
         XCTAssertEqual(change.label, "Change Yo-Yo's character or photo")
@@ -57,6 +57,40 @@ final class StickerTests: XCTestCase {
         photo.tap()
         XCTAssertTrue(photo.isSelected)
         XCTAssertTrue(app.buttons["face-sticker"].exists, "the sticker stays, to choose again")
+    }
+
+    /// Drawing a character on the wall, on the stand-in relay: the same four steps as on a
+    /// phone, from the face sheet, and the character shown in the hero once done.
+    func testDrawingACharacterOnTheWall() {
+        let app = launch(["-debugStickerSubject", "dog", "-debugCharacterService", "draws"])
+        let change = app.buttons["change-face"]
+        XCTAssertTrue(change.waitForExistence(timeout: 40))
+        change.tap()
+        let draw = app.buttons["draw-character"]
+        XCTAssertTrue(draw.waitForExistence(timeout: 5), "The face sheet offers to draw Yo-Yo")
+        XCTAssertEqual(draw.label, "Draw Yo-Yo")
+        draw.tap()
+        let send = app.buttons["character-draw"]
+        XCTAssertTrue(send.waitForExistence(timeout: 15), "The consent, once Yo-Yo is cut out")
+        let consent = "Only the cut-out of Yo-Yo goes to OpenAI to be drawn. The rest of the photo stays on this iPad. OpenAI doesn't train on it and deletes it within 30 days."
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", consent)).firstMatch.exists)
+        snapshot("character-10-wall-consent")
+        send.tap()
+        let pick = app.buttons["character-pick"]
+        XCTAssertTrue(pick.waitForExistence(timeout: 15), "Three tries")
+        snapshot("character-11-wall-pick")
+        pick.tap()
+        let done = app.buttons["character-done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        wait(for: [expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: done)], timeout: 20)
+        snapshot("character-12-wall-meet")
+        done.tap()
+        let character = app.buttons["face-character"]
+        XCTAssertTrue(character.waitForExistence(timeout: 5), "Back on the faces")
+        XCTAssertTrue(character.isSelected, "the character shows")
+        app.buttons["face-done"].tap()
+        XCTAssertTrue(character.waitForNonExistence(timeout: 5))
+        snapshot("character-13-wall-hero")
     }
 
     func testNoSubjectSaysWhyAndKeepsThePhoto() {

@@ -143,6 +143,8 @@ final class FakeCharacterService: CharacterService, @unchecked Sendable {
     struct Call: Equatable, Sendable {
         var step: String
         var mood: CharacterMood?
+        /// The cut-out sent with it: what left the device.
+        var cutout: Data?
     }
 
     private let lock = NSLock()
@@ -163,9 +165,9 @@ final class FakeCharacterService: CharacterService, @unchecked Sendable {
 
     func set(_ script: Script) { lock.withLock { self.script = script } }
 
-    private func begin(_ step: String, mood: CharacterMood? = nil) async throws {
+    private func begin(_ step: String, mood: CharacterMood? = nil, cutout: Data? = nil) async throws {
         let script = lock.withLock { () -> Script in
-            recorded.append(Call(step: step, mood: mood))
+            recorded.append(Call(step: step, mood: mood, cutout: cutout))
             return self.script
         }
         if delay > .zero { try await Task.sleep(for: delay) }
@@ -186,7 +188,7 @@ final class FakeCharacterService: CharacterService, @unchecked Sendable {
     }
 
     func tries(_ subject: CharacterSubject) async throws -> CharacterTries {
-        try await begin("tries")
+        try await begin("tries", cutout: subject.cutout)
         let round = lock.withLock { () -> Int? in
             let used = rounds[subject.companionId] ?? 0
             guard used < 3 else { return nil }
@@ -199,7 +201,7 @@ final class FakeCharacterService: CharacterService, @unchecked Sendable {
     }
 
     func mood(_ mood: CharacterMood, of subject: CharacterSubject, reference: Data) async throws -> Data {
-        try await begin("mood", mood: mood)
+        try await begin("mood", mood: mood, cutout: subject.cutout)
         guard let image = CharacterPlaceholders.sprite(species: subject.species, variant: Self.variant(of: reference), mood: mood) else {
             throw CharacterServiceError.unavailable
         }
@@ -207,7 +209,7 @@ final class FakeCharacterService: CharacterService, @unchecked Sendable {
     }
 
     func animation(_ mood: CharacterMood, of subject: CharacterSubject, reference: Data) async throws -> CharacterAnimation {
-        try await begin("animation", mood: mood)
+        try await begin("animation", mood: mood, cutout: subject.cutout)
         guard let gif = CharacterPlaceholders.animation(species: subject.species, variant: Self.variant(of: reference), mood: mood) else {
             throw CharacterServiceError.unavailable
         }

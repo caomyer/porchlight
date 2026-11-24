@@ -449,14 +449,17 @@ private struct FaceSheetHost: ViewModifier {
     func body(content: Content) -> some View {
         if sizeClass == .compact {
             content.sheet(item: $request) { request in
-                PhoneSheet(title: title(request)) {
-                    FaceSheetContent(companionId: request.companionId, name: name(request.companionId), personId: personId, start: request.start,
-                                     roundsLeft: CharacterOffer.roundsLeft(request.companionId), photo: request.photo) {
-                        self.request = nil
-                    }
-                } footer: {
-                    EmptyView()
-                }
+                PhoneSheet(
+                    title: title(request),
+                    content: {
+                        FaceSheetContent(companionId: request.companionId, name: name(request.companionId), personId: personId, start: request.start,
+                                         roundsLeft: CharacterOffer.roundsLeft(request.companionId), photo: request.photo) {
+                            self.request = nil
+                        }
+                    },
+                    footer: { EmptyView() },
+                    fullHeight: true
+                )
                 .presentationBackground(Theme.surface)
             }
         } else {
