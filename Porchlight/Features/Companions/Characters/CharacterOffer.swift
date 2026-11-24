@@ -42,6 +42,16 @@ enum CharacterOffer {
         defaults.set(true, forKey: key(companionId))
     }
 
+    /// The rounds of tries the relay last said were left for a companion, on this device: the
+    /// offer reads it instead of asking the relay, which is never called before Draw.
+    static func roundsLeft(_ companionId: Companion.ID, defaults: UserDefaults = .standard) -> Int? {
+        defaults.object(forKey: "characterRounds.\(companionId)") as? Int
+    }
+
+    static func remember(roundsLeft: Int, for companionId: Companion.ID, defaults: UserDefaults = .standard) {
+        defaults.set(roundsLeft, forKey: "characterRounds.\(companionId)")
+    }
+
     static func title(_ name: String) -> String { "Give \(name) a character" }
 
     static func pitch(_ name: String) -> String {

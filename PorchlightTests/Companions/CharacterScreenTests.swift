@@ -120,6 +120,73 @@ struct CharacterScreenTests {
         }
     }
 
+    @Test(
+        "The character journey, each step: consent, drawing, picking, meeting the moods, a failure, and a drawing left mid-way",
+        arguments: ["light", "dark", "largest"]
+    )
+    func journey(lookName: String) async throws {
+        let look = HostedScreen.Look.named(lookName)
+        let folder = TestFolders.make("journey-\(UUID().uuidString)")
+        let drafts = CharacterDraftStore(folder: folder)
+        let cutout = try #require(CharacterPlaceholders.sticker())
+        let cut = PhotoSticker.Result(sticker: cutout, cutout: cutout, notes: [])
+        for step in ["consent", "drawing", "picking", "meeting", "failed", "resume"] {
+            let home = try household(sticker: false)
+            let householdId = try #require(home.store.snapshot.household?.id)
+            let fake = FakeCharacterService(script: step == "failed" ? .refused : .draws, delay: step == "drawing" ? .seconds(60) : .zero)
+            func model() -> CharacterDrawing {
+                CharacterDrawing(
+                    householdId: householdId, companionId: home.companionId, species: .dog, photo: CharacterPlaceholders.photo(),
+                    service: fake, drafts: drafts, cutOut: { _ in cut }, strip: { _ in nil }
+                )
+            }
+            var drawing = model()
+            await drawing.cut()
+            switch step {
+            case "drawing": Task { await drawing.drawTries() }; try await Task.sleep(for: .milliseconds(50))
+            case "picking": await drawing.drawTries(); drawing.selection = 1
+            case "meeting":
+                await drawing.drawTries()
+                drawing.pick()
+                for _ in 0..<100 where !drawing.canFinish { try await Task.sleep(for: .milliseconds(10)) }
+            case "failed": await drawing.drawTries()
+            case "resume":
+                await drawing.drawTries()
+                drawing.leave()
+                drawing = model()
+            default: break
+            }
+            let screen = PhoneSheet(title: FaceWords.title("Yo-Yo")) {
+                CharacterJourneyContent(
+                    companionId: home.companionId, name: "Yo-Yo", personId: home.me.id, service: fake, drafts: drafts, prepared: drawing
+                ) {} close: {}
+            } footer: {
+                EmptyView()
+            }
+            .background(Theme.surface)
+            .environment(home.store).environment(PhotoImages(database: home.db))
+            let hosted = try await HostedScreen.host(screen, look: look)
+            let name = "character-\(step)-\(look.name)"
+            try hosted.saveShot(name)
+            whole(hosted, name, least: 3)
+            let texts = hosted.elements.map(\.label)
+            switch step {
+            case "consent":
+                #expect(texts.contains(CharacterWords.consent("Yo-Yo", device: "phone")), "\(hosted.listing)")
+                #expect(texts.contains(CharacterWords.draw("Yo-Yo")) && texts.contains(CharacterWords.keepSticker(device: "phone")))
+            case "drawing": #expect(texts.contains(CharacterWords.drawing("Yo-Yo")), "\(hosted.listing)")
+            case "picking": #expect(texts.contains(CharacterWords.thisOne) && texts.contains(CharacterWords.tryAgain(roundsLeft: 2)), "\(hosted.listing)")
+            case "meeting":
+                #expect(texts.contains(CharacterWords.meetTitle("Yo-Yo")), "\(hosted.listing)")
+                #expect(CharacterMood.allCases.allSatisfy { mood in texts.contains { $0.hasPrefix(mood.label) } })
+            case "failed": #expect(texts.contains { $0.hasPrefix("OpenAI wouldn't draw this photo.") }, "\(hosted.listing)")
+            default: #expect(texts.contains(CharacterWords.finish) && texts.contains(CharacterWords.throwAway), "\(hosted.listing)")
+            }
+            drawing.leave()
+        }
+        try? FileManager.default.removeItem(at: folder)
+    }
+
     @Test("The sheet: cutting, the sticker beside its photo with its notes, and a photo with no subject", arguments: ["light", "dark", "largest"])
     func sheet(lookName: String) async throws {
         let look = HostedScreen.Look.named(lookName)

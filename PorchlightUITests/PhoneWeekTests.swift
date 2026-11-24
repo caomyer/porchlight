@@ -299,6 +299,48 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         snapshot("face-04-page")
     }
 
+    /// Drawing a character on the stand-in relay (`-debugCharacterService draws`): the offer
+    /// on the page, the consent with the photo and its cut-out side by side, three tries,
+    /// the four moods, and the character shown and chosen once done.
+    func testDrawingACharacter() {
+        let app = launch(["-samplePhoto", "YES", "-debugStickerSubject", "middle", "-debugCharacterService", "draws"])
+        openWeek(app)
+        let offer = app.buttons["character-offer"]
+        XCTAssertTrue(offer.waitForExistence(timeout: 5), "The page offers a character for a dog with a photo")
+        XCTAssertEqual(offer.label, "Draw Yo-Yo")
+        snapshot("character-01-offer")
+        offer.tap()
+        let draw = app.buttons["character-draw"]
+        XCTAssertTrue(draw.waitForExistence(timeout: 15), "The consent comes once Yo-Yo is cut out")
+        XCTAssertTrue(app.images["character-cutout"].exists, "with the cut-out beside the photo")
+        // Longer than an identifier query takes, so matched by its label.
+        let consent = "Only the cut-out of Yo-Yo goes to OpenAI to be drawn. The rest of the photo stays on this phone. OpenAI doesn't train on it and deletes it within 30 days."
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", consent)).firstMatch.exists, "it says what is sent, and to whom")
+        snapshot("character-02-consent")
+        draw.tap()
+        let pick = app.buttons["character-pick"]
+        XCTAssertTrue(pick.waitForExistence(timeout: 15), "Three tries to pick from")
+        XCTAssertEqual(app.buttons["character-try-again"].label, "None of these: try again (2 left)")
+        app.buttons["character-try-1"].tap()
+        snapshot("character-03-pick")
+        pick.tap()
+        let done = app.buttons["character-done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "Meet Yo-Yo")
+        let enabled = expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: done)
+        wait(for: [enabled], timeout: 20)
+        snapshot("character-04-meet")
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 5), "Done closes the sheet")
+        XCTAssertFalse(offer.exists, "and the offer has gone")
+        let change = app.buttons["change-face"]
+        reveal(change, in: app)
+        change.tap()
+        let character = app.buttons["face-character"]
+        XCTAssertTrue(character.waitForExistence(timeout: 5))
+        XCTAssertTrue(character.isSelected, "the character shows, for the whole household")
+        snapshot("character-05-chosen")
+    }
+
     /// A companion added today: the first week, never a zero, in the wall's words.
     func testAFirstWeek() {
         let app = launch(["-sampleCompanions", "4"])

@@ -325,6 +325,18 @@ final class CompanionStore: StoredFirstObservable {
         }
     }
 
+    /// Saves a drawn character and shows it. Returns why it couldn't, if it couldn't.
+    func useCharacter(stills: [CharacterMood: Data], strips: [CharacterMood: (Data, Int)], for companionId: Companion.ID, by person: Person.ID?) -> String? {
+        do {
+            try database.saveCharacter(stills: stills, strips: strips, companionId: companionId, by: person)
+            lastError = nil
+            return nil
+        } catch {
+            lastError = error.userMessage
+            return error.userMessage
+        }
+    }
+
     /// Shows `face` for the companion, everywhere. Returns why it couldn't, if it couldn't.
     func chooseFace(_ face: CompanionFaceChoice, for companionId: Companion.ID, by person: Person.ID?) -> String? {
         do {

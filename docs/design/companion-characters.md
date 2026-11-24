@@ -78,6 +78,34 @@ One pure rule decides it for every screen (`CharacterOffer.card`):
 After it is closed, the face row in the editor and the page's link are the way in.
 Until the relay ships in a build, the card never shows, and the photo sticker is made from the face sheet.
 
+## The character journey
+
+Four steps, from the offer card, the face sheet's "Draw Yo-Yo", or the editor's "Draw a new character from this photo" (`CharacterJourneyContent`, its steps in `CharacterDrawing`):
+
+1. The device cuts the pet out of its photo, as for the sticker; with no photo, it asks for one first.
+2. Consent, shown rather than described: "This is what we'll send", the photo and the cut-out side by side, and "Only the cut-out of Yo-Yo goes to OpenAI to be drawn. The rest of the photo stays on this phone. OpenAI doesn't train on it and deletes it within 30 days." It offers "Draw Yo-Yo", "Keep it on this phone: use the photo sticker" (the free path, which sends nothing) and "Choose another photo". Nothing is sent before "Draw Yo-Yo".
+3. "Drawing Yo-Yo", honest about the wait ("It takes about half a minute, sometimes more"), then "Which one is most Yo-Yo?": three tries, "This one", and "None of these: try again (2 left)" while rounds are left.
+4. "Meet Yo-Yo": the four moods, each arriving as it is drawn to match the try picked (doing fine is the try itself); tapping a mood redraws just that one. "Done" saves the character in one transaction and shows it for the whole household.
+
+An animation that fails (the model's animated output is a preview feature) never holds a mood back: the still stands, "Done" doesn't wait for animations, and an animation can be made another time.
+A mood whose still fails says "Couldn't draw this one. Tap to try again."; "Done" waits for every mood's still, and a redraw that fails keeps the still it had.
+
+Every failure has words and a way on (`CharacterWords.failure`):
+
+- No network: "Porchlight can't reach the internet. Yo-Yo keeps the photo; try again once you're online." Try again, or use the photo sticker.
+- The relay or the model down: "Drawing isn't working right now. Try again in a little while; Yo-Yo keeps the photo meanwhile."
+- The model refused the picture: "OpenAI wouldn't draw this photo. Try another one, where Yo-Yo is clearly the subject." Another photo, or the sticker.
+- App Check said no: "Porchlight's drawing service couldn't check this device. Try again later, or draw Yo-Yo from another device."
+- A request outside the contract, which is a bug: "Something went wrong in Porchlight, not on your side. Try again; if it keeps happening, tell us."
+- A limit: no rounds left for this pet ("Yo-Yo has had all three rounds of tries."), the household's calls for the day ("Your household has drawn a lot today. Try again tomorrow."), or a mood redrawn as often as it can be ("That mood has been redrawn as many times as it can be. The one before stays."). The relay now names the limit in its details; until the client reads it, the step and the rounds left from the relay's last answer tell them apart.
+
+A drawing the app closed mid-way is kept on this device, never synced (`CharacterDraftStore`, a file per companion in Application Support): the cut-out, the tries, the one picked and the moods so far.
+Coming back, the face sheet says "Finish drawing Yo-Yo", and the journey offers "Finish drawing" (back to the tries, or to the moods so far, without drawing again) or "Throw it away".
+Nothing of a drawing shows anywhere until "Done", and while one waits to be finished the offer card stays away.
+The rounds the relay last reported are remembered per companion on the device, so the offer and "Remove character" can say them without asking the relay, which is never called before "Draw".
+
+The relay is reached through `CharacterService` (`allowance`, `tries`, `mood`, `animation`); tests, previews and UI tests use `FakeCharacterService`, which draws placeholder pixel sprites in code, counts its calls and fails as scripted (`-debugCharacterService draws|noAnimations|limit|refused|unavailable|offline|slow`).
+
 ## Storage and sync
 
 Two synced tables under the companion ("characters v1"):

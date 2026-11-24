@@ -30,3 +30,10 @@ struct CharacterAnimationView<Fallback: View>: View {
         CharacterStill(picture: still, isPixelArt: true, size: size, fallback: fallback)
     }
 }
+
+/// The relay's GIF as the strip `CharacterImage` keeps (`frames`: `frameCount` square frames
+/// side by side, each `CharacterImage.frameSide` pixels, scaled without smoothing).
+enum CharacterFrames {
+    /// Stand-in: no codec yet, so no animation is kept; the still stands on its own.
+    static func strip(_ animation: CharacterAnimation) -> (strip: Data, frames: Int)? { nil }
+}

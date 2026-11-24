@@ -35,9 +35,13 @@ struct FaceChoiceRow: View {
     let companionId: Companion.ID
     /// Who is choosing, on a personal device.
     var personId: Person.ID?
+    /// The photo in the editor, which may have just been picked.
+    var draftPhoto: Data?
 
     @Environment(CompanionStore.self) private var store
     @State private var sheet: FaceRequest?
+    /// A photo picked here that isn't the one the character was drawn from.
+    @State private var photoChanged = false
 
     var body: some View {
         if let companion = store.snapshot.companions.first(where: { $0.id == companionId }) {
@@ -77,6 +81,25 @@ struct FaceChoiceRow: View {
                 .accessibilityIdentifier("editor-face-more")
             }
             .faceSheet($sheet, personId: personId)
+            .task(id: draftPhoto?.count) {
+                photoChanged = draftPhoto != nil && draftPhoto != store.photo(of: companionId)
+            }
+            // A new photo never changes or deletes the character; it offers to draw a new one.
+            if photoChanged, look.character?.hasCharacter == true, CharacterServices.current.isConfigured,
+               CharacterOffer.roundsLeft(companionId) != 0 {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(FaceWords.photoChanged(companion.name))
+                        .font(.body(12.5, weight: 600))
+                        .foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button(FaceWords.drawFromPhoto) { sheet = FaceRequest(companionId: companionId, start: .draw, photo: draftPhoto) }
+                        .font(.body(12.5, weight: 800))
+                        .foregroundStyle(Theme.accent)
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("draw-from-new-photo")
+                }
+                .padding(.top, 4)
+            }
         }
     }
 }

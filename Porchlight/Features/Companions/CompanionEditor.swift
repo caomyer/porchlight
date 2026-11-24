@@ -378,7 +378,7 @@ struct CompanionEditorForm: View {
             }
             field("Look") { lookPicker }
             if let companionId = draft.companionId {
-                field("Face") { FaceChoiceRow(companionId: companionId) }
+                field("Face") { FaceChoiceRow(companionId: companionId, draftPhoto: draft.photo) }
             }
             SectionLabel("Care routines")
             VStack(spacing: 10) {
@@ -411,7 +411,7 @@ struct CompanionEditorForm: View {
                             .fixedSize()
                     }
                     if let companionId = draft.companionId {
-                        field("Face") { FaceChoiceRow(companionId: companionId) }
+                        field("Face") { FaceChoiceRow(companionId: companionId, draftPhoto: draft.photo) }
                     }
                     SectionLabel("Care routines")
                     ScrollView(showsIndicators: false) {

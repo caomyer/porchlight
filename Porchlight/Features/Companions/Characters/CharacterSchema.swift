@@ -219,6 +219,21 @@ extension AppDatabase {
         }
     }
 
+    /// Saves a drawn character, every mood's still and the animations that came, in one
+    /// transaction, in place of the character before it, and shows it. The sticker stays.
+    func saveCharacter(
+        stills: [CharacterMood: Data], strips: [CharacterMood: (Data, Int)], companionId: Companion.ID, by person: Person.ID?, now: Date = .now
+    ) throws {
+        try writer.write { db in
+            guard try Companion.exists(db, key: companionId) else { throw CharacterError.unknownCompanion }
+            guard stills[.fine] != nil else { throw CharacterError.faceNotAvailable }
+            var images = stills.map { CharacterImage(companionId: companionId, source: .character, mood: $0.key, image: $0.value) }
+            images += strips.map { CharacterImage(companionId: companionId, source: .character, mood: $0.key, kind: .frames, frameCount: $0.value.1, image: $0.value.0) }
+            try Self.replace(.character, of: companionId, with: images, db: db)
+            try Self.choose(.character, companionId: companionId, by: person, now: now, db: db)
+        }
+    }
+
     /// Shows `face` for the companion, everywhere. Nothing is drawn or deleted: a character or
     /// sticker not shown stays, and showing it again costs nothing.
     func chooseFace(_ face: CompanionFaceChoice, companionId: Companion.ID, by person: Person.ID?, now: Date = .now) throws {

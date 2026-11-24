@@ -35,11 +35,13 @@ struct PocketCompanionWeek: View {
                         hero(report)
                         let offer = CharacterOffer.card(
                             species: report.companion.species, look: report.look.character, hasPhoto: report.look.photo != nil,
-                            isDrawing: false, dismissed: offerDismissed, availability: .unavailable
+                            isDrawing: CharacterDrawing.hasDraft(companionId), dismissed: offerDismissed,
+                            availability: CharacterServices.current.isConfigured
+                                ? .available(roundsLeft: CharacterOffer.roundsLeft(companionId)) : .unavailable
                         )
                         if report.weeksBack == 0, offer != .hidden {
                             CharacterOfferCard(name: report.name, card: offer) {
-                                face = FaceRequest(companionId: companionId, start: .sticker)
+                                face = FaceRequest(companionId: companionId, start: .draw)
                             } dismiss: {
                                 CharacterOffer.dismiss(companionId)
                                 offerDismissed = true

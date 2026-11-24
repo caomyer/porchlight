@@ -60,6 +60,10 @@ enum CharacterServiceError: Error, Equatable, Sendable {
     /// No network: the call never reached the relay.
     case offline
 
+    /// What kind of failure it is. The engine's branch makes this error a struct with a kind
+    /// and the relay's reason; screens decide by `kind` either way.
+    var kind: CharacterServiceError { self }
+
     /// The relay's `details.code`, read as an error; an unknown or missing code is `unavailable`.
     init(code: String?) {
         switch code {

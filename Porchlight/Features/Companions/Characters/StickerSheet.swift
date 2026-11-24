@@ -254,9 +254,11 @@ private struct SheetText: ViewModifier {
 
 /// The face sheet for a companion: what it shows, and making its photo sticker.
 struct FaceRequest: Identifiable {
-    enum Start { case choose, sticker }
+    enum Start { case choose, sticker, draw }
     let companionId: Companion.ID
     var start: Start = .choose
+    /// A photo to draw from instead of the saved one: one just picked in the editor.
+    var photo: Data?
     var id: Companion.ID { companionId }
 }
 
@@ -265,6 +267,12 @@ enum FaceWords {
     static func title(_ name: String) -> String { "\(name.possessive) face" }
     static func everywhere(_ name: String) -> String { "It shows everywhere \(name) does, for the whole household." }
     static let makeSticker = "Make a photo sticker"
+    static let newCharacter = "Draw a new character"
+    static func photoChanged(_ name: String) -> String {
+        "\(name.possessive) character was drawn from the old photo, and stays until you draw a new one."
+    }
+    static let drawFromPhoto = "Draw a new character from this photo"
+    static func finishDrawing(_ name: String) -> String { "Finish drawing \(name)" }
     static let newSticker = "Make a new photo sticker"
     static let removeCharacter = "Remove character"
     static func removeQuestion(_ name: String) -> String { "Remove \(name.possessive) character for everyone?" }
@@ -285,11 +293,16 @@ struct FaceSheetContent: View {
     var start: FaceRequest.Start = .choose
     /// Rounds of tries left for drawing, when the relay said.
     var roundsLeft: Int?
+    /// A photo to draw from instead of the saved one.
+    var photo: Data?
     var cut: @Sendable (Data) async throws -> PhotoSticker.Result = { try await PhotoSticker.make(from: $0) }
+    var service: any CharacterService = CharacterServices.current
+    var drafts: CharacterDraftStore = .standard
     let close: () -> Void
 
     @Environment(CompanionStore.self) private var store
     @State private var makingSticker = false
+    @State private var drawingCharacter = false
     @State private var confirmingRemove = false
 
     private var companion: Companion? { store.snapshot.companions.first { $0.id == companionId } }
@@ -300,13 +313,25 @@ struct FaceSheetContent: View {
                 StickerSheetContent(companionId: companionId, name: name, personId: personId, cut: cut) {
                     if start == .sticker { close() } else { makingSticker = false }
                 }
+            } else if drawingCharacter {
+                CharacterJourneyContent(
+                    companionId: companionId, name: name, personId: personId, photo: photo, service: service, drafts: drafts, cutOut: cut
+                ) {
+                    drawingCharacter = false
+                    makingSticker = true
+                } close: {
+                    if start == .draw { close() } else { drawingCharacter = false }
+                }
             } else if let companion {
                 choices(companion)
             }
         }
         // Opened to make a sticker, the sheet closes once it is used; opened on the faces, it
         // comes back to them with the sticker ticked.
-        .onAppear { makingSticker = start == .sticker }
+        .onAppear {
+            makingSticker = start == .sticker
+            drawingCharacter = start == .draw
+        }
     }
 
     @ViewBuilder
@@ -344,6 +369,13 @@ struct FaceSheetContent: View {
                 .accessibilityAddTraits(face == shown ? .isSelected : [])
                 .accessibilityIdentifier("face-\(face.rawValue)")
             }
+        }
+        if service.isConfigured, companion.species.isDrawnAsCharacter {
+            let title = CharacterDrawing.hasDraft(companionId, in: drafts) ? FaceWords.finishDrawing(name)
+                : look.character?.hasCharacter == true ? FaceWords.newCharacter : CharacterWords.draw(name)
+            Button(title) { drawingCharacter = true }
+                .buttonStyle(PhoneButtonStyle(kind: .ghost))
+                .accessibilityIdentifier("draw-character")
         }
         Button(look.character?.hasSticker == true ? FaceWords.newSticker : FaceWords.makeSticker) { makingSticker = true }
             .buttonStyle(PhoneButtonStyle(kind: .ghost))
@@ -418,7 +450,8 @@ private struct FaceSheetHost: ViewModifier {
         if sizeClass == .compact {
             content.sheet(item: $request) { request in
                 PhoneSheet(title: title(request)) {
-                    FaceSheetContent(companionId: request.companionId, name: name(request.companionId), personId: personId, start: request.start) {
+                    FaceSheetContent(companionId: request.companionId, name: name(request.companionId), personId: personId, start: request.start,
+                                     roundsLeft: CharacterOffer.roundsLeft(request.companionId), photo: request.photo) {
                         self.request = nil
                     }
                 } footer: {
@@ -446,7 +479,8 @@ private struct WallFaceSheet: View {
             Text(title)
                 .font(.display(26))
                 .accessibilityAddTraits(.isHeader)
-            FaceSheetContent(companionId: request.companionId, name: name, personId: personId, start: request.start) { closeSheet() }
+            FaceSheetContent(companionId: request.companionId, name: name, personId: personId, start: request.start,
+                                     roundsLeft: CharacterOffer.roundsLeft(request.companionId), photo: request.photo) { closeSheet() }
         }
         .foregroundStyle(Theme.ink)
     }
