@@ -58,7 +58,14 @@ enum CharacterWords {
         case .offline:
             "Porchlight can't reach the internet. \(name) keeps the photo; try again once you're online."
         case .unavailable:
-            "Drawing isn't working right now. Try again in a little while; \(name) keeps the photo meanwhile."
+            switch failure.error.reason {
+            case .spendCeiling?:
+                "Porchlight has drawn all it can for everyone today. Try again tomorrow; \(name) keeps the photo meanwhile."
+            case .model?:
+                "OpenAI isn't drawing right now. Try again in a little while; \(name) keeps the photo meanwhile."
+            default:
+                "Drawing isn't working right now. Try again in a little while; \(name) keeps the photo meanwhile."
+            }
         case .refused:
             "OpenAI wouldn't draw this photo. Try another one, where \(name) is clearly the subject."
         case .unauthenticated:
@@ -66,12 +73,22 @@ enum CharacterWords {
         case .invalid:
             "Something went wrong in Porchlight, not on your side. Try again; if it keeps happening, tell us."
         case .limitReached:
-            switch failure.stage {
-            case .mood: "That mood has been redrawn as many times as it can be. The one before stays."
-            case .tries, .allowance:
-                roundsLeft.map { $0 > 0 } == true
-                    ? "Your household has drawn a lot today. Try again tomorrow."
-                    : "\(name) has had all three rounds of tries."
+            switch failure.error.reason {
+            case .rounds?: "\(name) has had all three rounds of tries."
+            case .moodRedraws?: "That mood has been redrawn as many times as it can be. The one before stays."
+            case .animationRedraws?: "That mood's movement has been redrawn as many times as it can be. It stays as it is."
+            case .companions?: "Your household has characters for as many pets as it can have. A photo sticker is always free."
+            case .householdDay?: "Your household has drawn a lot today. Try again tomorrow."
+            case .installationDay?: "This device has drawn a lot today. Try again tomorrow, or from another device."
+            default:
+                // No reason given: the step and the rounds last reported tell the limits apart.
+                switch failure.stage {
+                case .mood: "That mood has been redrawn as many times as it can be. The one before stays."
+                case .tries, .allowance:
+                    roundsLeft.map { $0 > 0 } == true
+                        ? "Your household has drawn a lot today. Try again tomorrow."
+                        : "\(name) has had all three rounds of tries."
+                }
             }
         }
     }

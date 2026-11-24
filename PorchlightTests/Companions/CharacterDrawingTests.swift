@@ -191,6 +191,26 @@ struct CharacterDrawingTests {
                 == "That mood has been redrawn as many times as it can be. The one before stays.")
     }
 
+    @Test("Each reason the relay gives has its own words; with none, the step and the rounds left decide")
+    func reasons() {
+        func words(_ kind: CharacterServiceError.Kind, _ reason: CharacterServiceError.Reason?, stage: CharacterDrawing.Failure.Stage = .tries) -> String {
+            CharacterWords.failure(CharacterDrawing.Failure(error: CharacterServiceError(kind, reason: reason), stage: stage), name: "Yo-Yo", roundsLeft: 2)
+        }
+        #expect(words(.limitReached, .rounds) == "Yo-Yo has had all three rounds of tries.")
+        #expect(words(.limitReached, .householdDay) == "Your household has drawn a lot today. Try again tomorrow.")
+        #expect(words(.limitReached, .installationDay) == "This device has drawn a lot today. Try again tomorrow, or from another device.")
+        #expect(words(.limitReached, .companions).hasPrefix("Your household has characters for as many pets as it can have."))
+        #expect(words(.limitReached, .moodRedraws, stage: .mood(.waiting)) == "That mood has been redrawn as many times as it can be. The one before stays.")
+        #expect(words(.limitReached, .animationRedraws, stage: .mood(.waiting)).hasPrefix("That mood's movement"))
+        #expect(words(.unavailable, .spendCeiling).hasPrefix("Porchlight has drawn all it can for everyone today."))
+        #expect(words(.unavailable, .model).hasPrefix("OpenAI isn't drawing right now."))
+        #expect(words(.unavailable, .relay).hasPrefix("Drawing isn't working right now."))
+        #expect(words(.limitReached, nil) == "Your household has drawn a lot today. Try again tomorrow.", "no reason, rounds left: the day's limit")
+        // Every reason has words of its own; the relay's own failure has the plain ones.
+        let all = CharacterServiceError.Reason.allCases.map { words($0.kind, $0) }
+        #expect(Set(all).count == all.count)
+    }
+
     @Test("Closed mid-way, the drawing is kept on this device and resumed where it stopped, or thrown away; never shown half done")
     func resume() async throws {
         let fake = FakeCharacterService()

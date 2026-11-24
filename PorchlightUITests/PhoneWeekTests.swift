@@ -341,6 +341,16 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         snapshot("character-05-chosen")
     }
 
+    /// A character (`-sampleCharacter`, drawn in code) wherever Yo-Yo shows on the phone: Today
+    /// and Yo-Yo's page, with no offer once it has one. Review shots.
+    func testTheCharacterEverywhereOnThePhone() {
+        let app = launch(["-samplePhoto", "YES", "-sampleCharacter", "YES"])
+        snapshot("character-20-phone-today")
+        openWeek(app)
+        XCTAssertFalse(app.buttons["character-offer"].exists, "no offer once Yo-Yo has a character")
+        snapshot("character-21-phone-page")
+    }
+
     /// A companion added today: the first week, never a zero, in the wall's words.
     func testAFirstWeek() {
         let app = launch(["-sampleCompanions", "4"])

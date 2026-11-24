@@ -43,6 +43,19 @@ enum CompanionSamples {
         if withSticker, let sticker = CharacterPlaceholders.sticker() {
             try database.saveSticker(sticker, companionId: companionId, by: nil, now: now)
         }
+        // `-sampleCharacter YES`: a character drawn in code, every mood with its movement, shown.
+        if UserDefaults.standard.bool(forKey: "sampleCharacter") {
+            var stills: [CharacterMood: Data] = [:]
+            var strips: [CharacterMood: (Data, Int)] = [:]
+            for mood in CharacterMood.allCases {
+                stills[mood] = CharacterPlaceholders.sprite(species: .dog, variant: 0, mood: mood)
+                if let gif = CharacterPlaceholders.animation(species: .dog, variant: 0, mood: mood),
+                   let strip = CharacterAnimationCodec.strip(fromGIF: gif) {
+                    strips[mood] = (strip.image, strip.frameCount)
+                }
+            }
+            try database.saveCharacter(stills: stills, strips: strips, companionId: companionId, by: nil, now: now)
+        }
         guard let walk = routines.first(where: { $0.kind == .walk }) else { return }
         let walkId = walk.id
         let feed = routines.first(where: { $0.kind == .feed })

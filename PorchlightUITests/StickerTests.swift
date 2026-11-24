@@ -93,6 +93,20 @@ final class StickerTests: XCTestCase {
         snapshot("character-13-wall-hero")
     }
 
+    /// A character (`-sampleCharacter`, drawn in code) wherever Yo-Yo shows on the wall: the
+    /// Today tile, the companion screen, and Pitch in's care rows. Review shots.
+    func testTheCharacterEverywhereOnTheWall() {
+        for screen in ["today", "companion-1", "chores"] {
+            let app = XCUIApplication.porchlight()
+            app.launchArguments = ["-sampleHousehold", "-samplePhoto", "YES", "-sampleCharacter", "YES", "-startScreen", screen]
+            app.launch()
+            _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
+            Thread.sleep(forTimeInterval: 2)
+            snapshot("character-20-wall-\(screen)")
+            app.terminate()
+        }
+    }
+
     func testNoSubjectSaysWhyAndKeepsThePhoto() {
         let app = launch(["-debugStickerSubject", "none"])
         let change = app.buttons["change-face"]

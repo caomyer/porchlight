@@ -98,11 +98,18 @@ A mood whose still fails says "Couldn't draw this one. Tap to try again."; "Done
 Every failure has words and a way on (`CharacterWords.failure`):
 
 - No network: "Porchlight can't reach the internet. Yo-Yo keeps the photo; try again once you're online." Try again, or use the photo sticker.
-- The relay or the model down: "Drawing isn't working right now. Try again in a little while; Yo-Yo keeps the photo meanwhile."
+- Unavailable, by the relay's reason: the project's spending for the day ("Porchlight has drawn all it can for everyone today. Try again tomorrow; Yo-Yo keeps the photo meanwhile."), the model ("OpenAI isn't drawing right now. Try again in a little while; ..."), or the relay itself and no reason ("Drawing isn't working right now. Try again in a little while; Yo-Yo keeps the photo meanwhile.").
 - The model refused the picture: "OpenAI wouldn't draw this photo. Try another one, where Yo-Yo is clearly the subject." Another photo, or the sticker.
 - App Check said no: "Porchlight's drawing service couldn't check this device. Try again later, or draw Yo-Yo from another device."
 - A request outside the contract, which is a bug: "Something went wrong in Porchlight, not on your side. Try again; if it keeps happening, tell us."
-- A limit: no rounds left for this pet ("Yo-Yo has had all three rounds of tries."), the household's calls for the day ("Your household has drawn a lot today. Try again tomorrow."), or a mood redrawn as often as it can be ("That mood has been redrawn as many times as it can be. The one before stays."). The relay now names the limit in its details; until the client reads it, the step and the rounds left from the relay's last answer tell them apart.
+- A limit, by the relay's reason (`details.reason`):
+  - `rounds`: "Yo-Yo has had all three rounds of tries."
+  - `household-day`: "Your household has drawn a lot today. Try again tomorrow."
+  - `installation-day`: "This device has drawn a lot today. Try again tomorrow, or from another device."
+  - `companions`: "Your household has characters for as many pets as it can have. A photo sticker is always free."
+  - `mood-redraws`: "That mood has been redrawn as many times as it can be. The one before stays."
+  - `animation-redraws`: "That mood's movement has been redrawn as many times as it can be. It stays as it is."
+  - With no reason (an older relay, or one this build doesn't know), the step and the rounds left from the relay's last answer tell the limits apart.
 
 A drawing the app closed mid-way is kept on this device, never synced (`CharacterDraftStore`, a file per companion in Application Support): the cut-out, the tries, the one picked and the moods so far.
 Coming back, the face sheet says "Finish drawing Yo-Yo", and the journey offers "Finish drawing" (back to the tries, or to the moods so far, without drawing again) or "Throw it away".
