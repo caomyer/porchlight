@@ -60,14 +60,14 @@ function counted(use: CompanionUse, step: Step, mood: Mood | undefined, by: numb
   const { roundsPerCompanion, drawsPerMood, drawsPerAnimation } = config.limits;
   if (step === "tries") {
     const rounds = (next.rounds ?? 0) + by;
-    if (rounds > roundsPerCompanion) throw new RelayError("limit-reached", "rounds");
+    if (rounds > roundsPerCompanion) throw new RelayError("limit-reached", "rounds", "rounds");
     next.rounds = Math.max(0, rounds);
     return next;
   }
   const key = mood ?? "fine";
   const bucket = step === "mood" ? next.moods! : next.animations!;
   const value = (bucket[key] ?? 0) + by;
-  if (value > (step === "mood" ? drawsPerMood : drawsPerAnimation)) throw new RelayError("limit-reached", step);
+  if (value > (step === "mood" ? drawsPerMood : drawsPerAnimation)) throw new RelayError("limit-reached", step, step === "mood" ? "mood-redraws" : "animation-redraws");
   bucket[key] = Math.max(0, value);
   return next;
 }
@@ -92,16 +92,16 @@ export function firestoreLedger(db: Firestore): Ledger {
         ]);
 
         const spent = (spend.get("micro") as number | undefined) ?? 0;
-        if (spent + micro(claim.estimate) > micro(claim.ceiling)) throw new RelayError("unavailable", "spend ceiling");
+        if (spent + micro(claim.estimate) > micro(claim.ceiling)) throw new RelayError("unavailable", "spend ceiling", "spend-ceiling");
 
         const homeCalls = (homeDay.get("calls") as number | undefined) ?? 0;
-        if (homeCalls >= config.limits.callsPerHouseholdPerDay) throw new RelayError("limit-reached", "household day");
+        if (homeCalls >= config.limits.callsPerHouseholdPerDay) throw new RelayError("limit-reached", "household day", "household-day");
         const deviceCalls = (device?.get("calls") as number | undefined) ?? 0;
-        if (device && deviceCalls >= config.limits.callsPerInstallationPerDay) throw new RelayError("limit-reached", "installation day");
+        if (device && deviceCalls >= config.limits.callsPerInstallationPerDay) throw new RelayError("limit-reached", "installation day", "installation-day");
 
         const companions = (home.get("companions") as string[] | undefined) ?? [];
         if (!companions.includes(companion)) {
-          if (companions.length >= config.limits.companionsPerHousehold) throw new RelayError("limit-reached", "companions");
+          if (companions.length >= config.limits.companionsPerHousehold) throw new RelayError("limit-reached", "companions", "companions");
           tx.set(householdRef(household), { companions: [...companions, companion] }, { merge: true });
         }
 

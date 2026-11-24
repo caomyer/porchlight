@@ -49,6 +49,24 @@ A failure carries one of these in `details.code`, which is the only thing the ap
 
 A callable's status is one of a fixed set, which is why the relay's own codes ride in `details`.
 
+Beside the code, `details.reason` says why, so the app can choose its words:
+
+| `details.code` | `details.reason` | Meaning |
+|---|---|---|
+| `limit-reached` | `rounds` | This companion has had its three rounds of tries. |
+| `limit-reached` | `mood-redraws` | This mood's still has been drawn as often as it may be. |
+| `limit-reached` | `animation-redraws` | This mood's animation has been drawn as often as it may be. |
+| `limit-reached` | `companions` | The household has as many companions with characters as it may have. |
+| `limit-reached` | `household-day` | The household has made its calls for today. Tomorrow is open again. |
+| `limit-reached` | `installation-day` | This installation has made its calls for today. |
+| `unavailable` | `spend-ceiling` | The whole service has spent its money for today. Tomorrow is open again. |
+| `unavailable` | `model` | The image model failed, timed out or could not be reached. Trying again soon may work. |
+| `unavailable` | `relay` | The relay itself failed. Trying again soon may work. |
+
+`refused` and `invalid` carry no reason.
+The set is closed and is written down in `functions/src/errors.ts` (`RelayReason`) and `functions/src/contract.ts` (`FailureDetails`).
+A reason may be added in a later version, so the app treats one it does not know as absent and falls back on the code.
+
 The app calls `drawCharacter` with a limited-use App Check token, because the relay spends each token it accepts:
 
 ```swift
@@ -114,6 +132,12 @@ They are not scripted, and the relay's code never does them.
 npx --prefix firebase/functions firebase functions:secrets:set OPENAI_API_KEY --project <project-id>
 ```
 
+10. Say how long old build images are kept, once, or the first deploy ends with a warning about a missing cleanup policy and does not report itself complete:
+
+```
+npx --prefix firebase/functions firebase functions:artifacts:setpolicy --project <project-id>
+```
+
 The project id is never committed, because this repository is public.
 Give it to each command, or copy `.firebaserc.example` to `.firebaserc`, which is git-ignored, and put it there.
 
@@ -151,7 +175,8 @@ A default written in the code is not enough: without a value in that file a depl
 To change the ceiling, change `functions/.env` and deploy again.
 
 The script reads the deploy's own output as well as its exit status.
-It ends with a line that starts `DEPLOY SUCCEEDED` or `DEPLOY FAILED`, and exits non-zero on any failure, so nothing wrapped around it can mistake one for the other.
+It ends with a line that starts `DEPLOY SUCCEEDED`, `DEPLOY FAILED` or `DEPLOYED, BUT`, and exits non-zero unless it succeeded, so nothing wrapped around it can mistake one for the other.
+`DEPLOYED, BUT` means the functions went out and only the cleanup policy of step 10 is missing: set it, and nothing needs deploying again.
 
 After a deploy, check in the Firebase console that both functions show App Check as enforced.
 

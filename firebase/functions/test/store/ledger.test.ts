@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { config, moods, type Mood, type Step } from "../../src/config";
 import { hashed } from "../../src/contract";
-import { RelayError } from "../../src/errors";
+import { details, RelayError } from "../../src/errors";
 import { fakeModel } from "../../src/fake";
 import { firestoreLedger, type Claim, type Ledger } from "../../src/ledger";
 import { relay } from "../../src/service";
@@ -38,6 +38,17 @@ async function outcome(work: Promise<unknown>): Promise<string> {
     return "ok";
   } catch (error) {
     if (error instanceof RelayError) return `${error.code}: ${error.reason}`;
+    throw error;
+  }
+}
+
+/** What the app would be told of a failure. */
+async function told(work: Promise<unknown>): Promise<unknown> {
+  try {
+    await work;
+    return "ok";
+  } catch (error) {
+    if (error instanceof RelayError) return details(error);
     throw error;
   }
 }
@@ -219,6 +230,43 @@ describe("the day's spending", () => {
     const base = claim({ day, estimate: 0.09, ceiling: 0.05 });
     expect(await outcome(ledger.reserve(base))).toBe("unavailable: spend ceiling");
     expect(await ledger.roundsLeft(base.household, base.companion)).toBe(3);
+  });
+});
+
+describe("the reason each limit gives the app", () => {
+  it("names the limit, from the closed set", async () => {
+    const rounds = claim();
+    for (let round = 0; round < 3; round += 1) await ledger.reserve(rounds);
+    expect(await told(ledger.reserve(rounds))).toEqual({ code: "limit-reached", reason: "rounds" });
+
+    const mood = claim({ step: "mood", mood: "asleep" });
+    for (let draw = 0; draw < 3; draw += 1) await ledger.reserve(mood);
+    expect(await told(ledger.reserve(mood))).toEqual({ code: "limit-reached", reason: "mood-redraws" });
+
+    const animation = claim({ step: "animation", mood: "asleep" });
+    for (let draw = 0; draw < 3; draw += 1) await ledger.reserve(animation);
+    expect(await told(ledger.reserve(animation))).toEqual({ code: "limit-reached", reason: "animation-redraws" });
+
+    const home = claim();
+    for (let pet = 0; pet < 6; pet += 1) await ledger.reserve({ ...home, companion: newId() });
+    expect(await told(ledger.reserve({ ...home, companion: newId() }))).toEqual({ code: "limit-reached", reason: "companions" });
+
+    expect(await told(ledger.reserve(claim({ estimate: 0.09, ceiling: 0.05 })))).toEqual({ code: "unavailable", reason: "spend-ceiling" });
+  });
+
+  it("names the day's ceilings", async () => {
+    const base = claim();
+    const calls = [...everything(base), ...everything({ ...base, companion: newId() })];
+    let last: unknown;
+    for (const call of calls.slice(0, config.limits.callsPerHouseholdPerDay + 1)) last = await told(ledger.reserve(call));
+    expect(last).toEqual({ code: "limit-reached", reason: "household-day" });
+
+    const installation = newId();
+    const day = newDay();
+    for (const household of [newId(), newId()]) {
+      for (const call of everything(claim({ household, installation, day })).slice(0, 21)) last = await told(ledger.reserve(call));
+    }
+    expect(last).toEqual({ code: "limit-reached", reason: "installation-day" });
   });
 });
 

@@ -51,7 +51,7 @@ function modelRequest(request: DrawRequest, household: string): ModelRequest {
 
 /** A still as the app keeps it, or an error when the model sent something else. */
 async function still(output: Buffer): Promise<string> {
-  if (!pngSize(output)) throw new RelayError("unavailable", "model sent no PNG");
+  if (!pngSize(output)) throw new RelayError("unavailable", "model sent no PNG", "model");
   return (await downscaled(output)).toString("base64");
 }
 
@@ -82,7 +82,7 @@ export function relay(parts: Parts): Relay {
           throw error;
         }
         log.error("ledger failed", { ...fields, errorClass: "ledger", ...described(error) });
-        throw new RelayError("unavailable", "ledger");
+        throw new RelayError("unavailable", "ledger", "relay");
       }
 
       try {
@@ -95,7 +95,7 @@ export function relay(parts: Parts): Relay {
         } else {
           const gif = result.outputs[0]!;
           const frames = gifFrames(gif);
-          if (!frames || frames < 2) throw new RelayError("unavailable", "model sent no animation");
+          if (!frames || frames < 2) throw new RelayError("unavailable", "model sent no animation", "model");
           response = { gif: gif.toString("base64"), frames };
         }
         const dollars = usageDollars(result.usage);
@@ -112,7 +112,7 @@ export function relay(parts: Parts): Relay {
         // Not one of the relay's own failures: a bug, or something beneath it. Its name and
         // scrubbed message are kept, so it can be found and fixed.
         log.error("draw failed unexpectedly", { ...fields, errorClass: "internal", ...described(error), ms: now().getTime() - started });
-        throw new RelayError("unavailable", "internal");
+        throw new RelayError("unavailable", "internal", "relay");
       }
     },
 
@@ -122,7 +122,7 @@ export function relay(parts: Parts): Relay {
         return { roundsLeft: await ledger.roundsLeft(hashed("household", request.householdId), hashed("companion", request.companionId)) };
       } catch (error) {
         log.error("ledger failed", { errorClass: "ledger", ...described(error) });
-        throw new RelayError("unavailable", "ledger");
+        throw new RelayError("unavailable", "ledger", "relay");
       }
     },
   };

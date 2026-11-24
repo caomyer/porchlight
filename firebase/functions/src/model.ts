@@ -100,7 +100,7 @@ function read(attempt: Attempt, expected: number): { result?: Omit<ModelResult, 
       ? data.map((item) => field(item, "b64_json")).filter((item): item is string => typeof item === "string" && item.length > 0)
       : [];
     if (outputs.length < expected) {
-      return { error: new RelayError("unavailable", `model returned ${outputs.length} of ${expected}`), retry: true };
+      return { error: new RelayError("unavailable", `model returned ${outputs.length} of ${expected}`, "model"), retry: true };
     }
     const usage = field(body, "usage");
     const details = field(usage, "input_tokens_details");
@@ -123,12 +123,12 @@ function read(attempt: Attempt, expected: number): { result?: Omit<ModelResult, 
     return { error: new RelayError("refused", code), retry: false };
   }
   if (status === 429 || status >= 500 || status === 408) {
-    return { error: new RelayError("unavailable", `model status ${status}`), retry: true };
+    return { error: new RelayError("unavailable", `model status ${status}`, "model"), retry: true };
   }
   // A request the model will not take as written (a bad key, an unknown field, no access
   // to a feature): trying again cannot help, and it is not the person's doing.
   const named = typeof code === "string" ? code : typeof type === "string" ? type : "unknown";
-  return { error: new RelayError("unavailable", `model status ${status} ${named}`.slice(0, 100)), retry: false };
+  return { error: new RelayError("unavailable", `model status ${status} ${named}`.slice(0, 100), "model"), retry: false };
 }
 
 export function usageDollars(usage: Usage): number {
@@ -142,7 +142,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 export function openAIModel(key: () => string, transport: Transport = post, pause: (ms: number) => Promise<void> = wait): ImageModel {
   return {
     async draw(request) {
-      let last = new RelayError("unavailable", "no attempt");
+      let last = new RelayError("unavailable", "no attempt", "model");
       for (let attempt = 1; attempt <= 1 + config.model.retries; attempt += 1) {
         let outcome: ReturnType<typeof read>;
         try {
@@ -151,7 +151,7 @@ export function openAIModel(key: () => string, transport: Transport = post, paus
           // A timeout or a dropped connection. The error's own text is never kept: it
           // could hold a URL or a header.
           const name = error instanceof Error ? error.name : "Error";
-          outcome = { error: new RelayError("unavailable", `transport ${name}`), retry: true };
+          outcome = { error: new RelayError("unavailable", `transport ${name}`, "model"), retry: true };
         }
         if (outcome.result) return { ...outcome.result, attempts: attempt };
         last = outcome.error ?? last;

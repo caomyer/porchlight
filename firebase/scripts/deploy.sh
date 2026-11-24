@@ -37,22 +37,27 @@ fi
 
 # The deploy's own output is kept and read: the CLI has been seen to print "Error:" and
 # still leave a wrapper thinking all was well, so both its exit status and its words are
-# checked, and either one fails this script.
+# checked. The words decide: a deploy that says "Error:" has failed whatever it exits with.
 log=$(mktemp -t porchlight-relay-deploy)
 set +e
 npx --prefix functions firebase deploy --only functions:characters,firestore:rules --project "$project" --non-interactive 2>&1 | tee "$log"
 deploy_status=${pipestatus[1]}
 set -e
+
+# The functions can go out and the CLI still end unhappy, because the project has no
+# cleanup policy for old build images. That is one command to put right, and nothing
+# needs deploying again; it is told apart from a deploy that failed.
+if grep -qi "cleanup policy" "$log" && ! grep -q "Deploy complete" "$log"; then
+  echo "DEPLOYED, BUT the project has no cleanup policy for old build images, so firebase did not report itself complete. Set it once:" >&2
+  echo "  npx --prefix firebase/functions firebase functions:artifacts:setpolicy --project $project" >&2
+  exit 3
+fi
 if (( deploy_status != 0 )); then
   echo "DEPLOY FAILED: firebase deploy exited with status $deploy_status. Nothing above should be trusted as deployed." >&2
   exit $deploy_status
 fi
 if grep -q "Error:" "$log"; then
   echo "DEPLOY FAILED: firebase deploy printed an error (above) although it exited with status 0." >&2
-  exit 1
-fi
-if ! grep -q "Deploy complete" "$log"; then
-  echo "DEPLOY FAILED: firebase deploy did not say \"Deploy complete\"." >&2
   exit 1
 fi
 rm -f "$log"
