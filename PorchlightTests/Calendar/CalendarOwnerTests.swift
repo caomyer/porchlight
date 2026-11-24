@@ -123,6 +123,41 @@ struct CalendarOwnerTests {
         #expect(try owners(db)["jc1984@gmail.com"] == .some(nil))
     }
 
+    @Test("A calendar handed back under a new identifier keeps its owner and choices, in the same row")
+    func newIdentifier() throws {
+        let (db, householdId, people) = try household(role: .sharedScreen, person: nil)
+        let mia = try #require(people.first { $0.name == "Mia" }?.id)
+        var birthdays = Self.calendar("Birthdays", account: "From Contacts", kind: .birthdays)
+        birthdays.id = "birthdays-before-access"
+        let home = Self.calendar("Calendar", account: "On this iPad")
+        try db.syncCalendarSources(householdId: householdId, calendars: [birthdays, home])
+        let before = try #require(try db.calendarSnapshot().sources.first { $0.title == "Birthdays" })
+        try db.setCalendarSourceOwner(id: before.id, owner: .person(mia))
+        try db.setCalendarSourceShown(id: before.id, isShown: false)
+
+        // The system rebuilds Contacts' birthdays under a new identifier.
+        birthdays.id = "birthdays-after-access"
+        try db.syncCalendarSources(householdId: householdId, calendars: [birthdays, home])
+        let sources = try db.calendarSnapshot().sources.filter { $0.title == "Birthdays" }
+        #expect(sources.count == 1, "one row, not a second that guesses again")
+        #expect(sources.first?.id == before.id)
+        #expect(sources.first?.externalId == "birthdays-after-access")
+        #expect(sources.first?.ownerId == mia)
+        #expect(sources.first?.isShown == false)
+
+        // Two calendars with the same title and account can't be told apart: each new one
+        // starts its own row, and the old row is kept, as for any calendar that went away.
+        var first = Self.calendar("Work", account: "Google · a@example.com")
+        first.id = "work-1"
+        try db.syncCalendarSources(householdId: householdId, calendars: [birthdays, home, first])
+        var again = first
+        again.id = "work-2"
+        var other = first
+        other.id = "work-3"
+        try db.syncCalendarSources(householdId: householdId, calendars: [birthdays, home, again, other])
+        #expect(try db.calendarSnapshot().sources.filter { $0.title == "Work" }.map(\.externalId).sorted() == ["work-1", "work-2", "work-3"])
+    }
+
     @Test("Choosing a calendar as the home calendar makes it everyone's, unless someone picked its owner")
     func homeIsEveryones() throws {
         let (db, householdId, people) = try household(role: .personal, person: "James")

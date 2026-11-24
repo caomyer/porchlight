@@ -117,6 +117,13 @@ extension AppDatabase {
     /// Existing rows keep the household's choices; only their title, account
     /// and color follow the provider. Rows for calendars that disappeared are
     /// kept, so choices survive an account being removed and re-added.
+    ///
+    /// A calendar can come back under a new identifier: an account removed and added
+    /// again, or Contacts' birthdays rebuilt by the system just after calendar access is
+    /// granted, which on iOS 27 happened while someone was picking its owner during setup.
+    /// So a calendar with an identifier never seen takes over the row of the one calendar
+    /// with its title and account that the provider no longer lists, choices and all,
+    /// rather than starting a new row that guesses its owner again.
     func syncCalendarSources(householdId: Household.ID, calendars: [ExternalCalendar], now: Date = .now) throws {
         guard !calendars.isEmpty else { return }
         try writer.write { db in
@@ -132,8 +139,21 @@ extension AppDatabase {
                 home.map { $0.title == calendar.title && $0.accountKind == calendar.accountKind } ?? false
             }
             let byExternalId = Dictionary(existing.map { ($0.externalId, $0) }, uniquingKeysWith: { first, _ in first })
+            let listed = Set(calendars.map(\.id))
+            // Rows whose calendar the provider no longer lists, by title and account, when
+            // that names one row and one newly seen calendar: the same calendar, renamed by
+            // the system.
+            func sameCalendar(_ source: CalendarSource) -> String { "\(source.title)\u{1F}\(source.account)" }
+            func sameCalendar(_ calendar: ExternalCalendar) -> String { "\(calendar.title)\u{1F}\(calendar.account)" }
+            let gone = Dictionary(grouping: existing.filter { !listed.contains($0.externalId) }, by: sameCalendar)
+            let unseen = Dictionary(grouping: calendars.filter { byExternalId[$0.id] == nil }, by: sameCalendar)
             for calendar in calendars {
-                if var source = byExternalId[calendar.id] {
+                if byExternalId[calendar.id] == nil, unseen[sameCalendar(calendar)]?.count == 1,
+                   let matches = gone[sameCalendar(calendar)], matches.count == 1, var source = matches.first {
+                    source.externalId = calendar.id
+                    source.colorHex = calendar.colorHex
+                    try source.update(db)
+                } else if var source = byExternalId[calendar.id] {
                     guard source.title != calendar.title || source.account != calendar.account || source.colorHex != calendar.colorHex else { continue }
                     source.title = calendar.title
                     source.account = calendar.account

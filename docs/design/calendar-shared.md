@@ -35,6 +35,14 @@ The protection is that nothing is passed on from a device until its calendar cho
 The phone's first-run explanation names work calendars as the ones to set to Keep it quiet.
 A calendar added later, after the choices were seen, follows the default; its row on the Calendars page says what it is set to.
 
+### A calendar under a new identifier
+
+iOS can hand a calendar back under a new identifier: an account removed and added again, or Contacts' birthdays rebuilt just after calendar access is granted.
+On iOS 27 the second happened in the wall's setup while someone was picking the owner of Birthdays: the choice went to the old row and the list showed a new row with a fresh guess, so the owner seemed to snap back to Everyone, and an open menu closed under the finger as its row was rebuilt.
+So a calendar with an identifier never seen takes over the row of the one calendar with the same title and account that iOS no longer lists, with every choice on it (`syncCalendarSources`).
+When the title and account name more than one such calendar on either side, they can't be told apart, and each new one starts its own row as before.
+The rows on the wall and the phone are keyed by that row, not by the identifier, so a menu open on one stays open (`CalendarOwnerTests.newIdentifier`).
+
 ## Tables
 
 Three synced tables, each device writing only under its own `device` row, so no two devices ever write the same row and there are no conflicts to resolve:
