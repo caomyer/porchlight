@@ -245,20 +245,23 @@ struct CharacterAnimationTests {
 
     // MARK: When it plays
 
-    @Test("A play shows each frame in turn for its moment, then nothing: the still")
+    @Test("A turn shows each frame for its moment, twice through, then nothing: the still")
     func playback() {
         let step = CharacterAnimationCodec.frameDuration
         #expect(CharacterPlayback.frame(at: 0, frameCount: 9) == 0)
         #expect(CharacterPlayback.frame(at: step * 0.99, frameCount: 9) == 0)
         #expect(CharacterPlayback.frame(at: step * 1.01, frameCount: 9) == 1)
         #expect(CharacterPlayback.frame(at: step * 8.5, frameCount: 9) == 8)
-        #expect(CharacterPlayback.frame(at: step * 9.01, frameCount: 9) == nil, "over: it never loops")
+        #expect(CharacterPlayback.frame(at: step * 9.01, frameCount: 9) == 0, "a turn is two plays back to back")
+        #expect(CharacterPlayback.frame(at: step * 17.5, frameCount: 9) == 8)
+        #expect(CharacterPlayback.frame(at: step * 18.01, frameCount: 9) == nil, "then over: it never loops")
         #expect(CharacterPlayback.frame(at: 3600, frameCount: 9) == nil)
         #expect(CharacterPlayback.frame(at: -1, frameCount: 9) == nil, "not begun")
         #expect(CharacterPlayback.frame(at: 0, frameCount: 1) == nil && CharacterPlayback.frame(at: 0, frameCount: 0) == nil, "one frame is no animation")
         #expect(abs(CharacterPlayback.duration(frameCount: 9) - step * 9) < 0.0001)
         #expect(CharacterPlayback.duration(frameCount: 9) < 2, "a play is a moment")
-        #expect(CharacterPlayback.rest >= 60, "then about a minute's rest")
+        #expect(CharacterPlayback.playsPerTurn == 2 && abs(CharacterPlayback.turn(frameCount: 9) - step * 18) < 0.0001, "a turn, two of them")
+        #expect(CharacterPlayback.rest == 10, "then ten seconds' rest")
     }
 
     @Test("A face plays only with frames, in front, large enough, and never under Reduce Motion")

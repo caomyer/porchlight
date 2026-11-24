@@ -112,6 +112,42 @@ struct CompanionFace: View {
     }
 }
 
+/// A face on its tinted disc, as lists, headers and cards show it. A photo or a drawn face sits
+/// inside the disc, as it always has; a character or a photo sticker, on clear with its own
+/// white edge, stands on the card itself, with no disc behind it, and fills the disc's frame.
+/// The one place that decides (docs/design/companion-characters.md, "Where it stands").
+struct DiscFace: View {
+    var look: CompanionLook
+    var expression: FaceExpression = .happy
+    var mood: CharacterMood?
+    /// The disc's side.
+    let side: CGFloat
+    /// The face's side inside the disc, for a photo or a drawn face.
+    let face: CGFloat
+    let disc: Color
+
+    var body: some View {
+        if look.standsOnCard {
+            CompanionFace(look: look, expression: expression, size: side, mood: mood)
+                .frame(width: side, height: side)
+        } else {
+            CompanionFace(look: look, expression: expression, size: face, mood: mood)
+                .frame(width: side, height: side)
+                .background(disc, in: Circle())
+        }
+    }
+}
+
+extension CompanionLook {
+    /// A character or a photo sticker shows: it stands on the card, with no disc.
+    var standsOnCard: Bool {
+        switch character?.shown {
+        case .character?, .sticker?: true
+        default: false
+        }
+    }
+}
+
 /// The mock's gentle bob: up a few points and a small tilt, 1.6 s each way.
 ///
 /// It bobs twice when the face appears or is tapped, then once a minute. Bobbing forever

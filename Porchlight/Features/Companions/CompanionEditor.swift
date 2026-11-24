@@ -722,9 +722,7 @@ private struct CompanionPreviewCard: View {
                 .tracking(1.1)
                 .foregroundStyle(Theme.muted)
             HStack(spacing: 14) {
-                CompanionFace(look: look, size: 66)
-                    .frame(width: 78, height: 78)
-                    .background(look.tint.wash(0.3), in: Circle())
+                DiscFace(look: look, side: 78, face: 66, disc: look.tint.wash(0.3))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(name).font(.display(26)).lineLimit(1).minimumScaleFactor(0.6)
                     Text(first.map { CompanionWeekWords.waitingForFirst(CareWords($0, species: draft.species)) } ?? draft.species.label)

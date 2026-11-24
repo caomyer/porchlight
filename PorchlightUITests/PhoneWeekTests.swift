@@ -341,14 +341,50 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         snapshot("character-05-chosen")
     }
 
-    /// A character (`-sampleCharacter`, drawn in code) wherever Yo-Yo shows on the phone: Today
-    /// and Yo-Yo's page, with no offer once it has one. Review shots.
+    /// A character and a photo sticker (`-sampleCharacter`, `-sampleSticker`, drawn in code)
+    /// wherever Yo-Yo shows on the phone, light and dark: Today and Yo-Yo's page, standing on
+    /// the card with no disc behind them, and no offer once there is one. Review shots.
     func testTheCharacterEverywhereOnThePhone() {
-        let app = launch(["-samplePhoto", "YES", "-sampleCharacter", "YES"])
-        snapshot("character-20-phone-today")
+        for face in ["Character", "Sticker"] {
+            for dark in [false, true] {
+                XCUIDevice.shared.appearance = dark ? .dark : .light
+                let app = launch(["-samplePhoto", "YES", "-sample\(face)", "YES"])
+                let look = "\(face.lowercased())-\(dark ? "dark" : "light")"
+                snapshot("face-30-phone-today-\(look)")
+                openWeek(app)
+                XCTAssertFalse(app.buttons["character-offer"].exists, "no offer once Yo-Yo has a \(face.lowercased())")
+                snapshot("face-31-phone-page-\(look)")
+                app.terminate()
+            }
+        }
+        XCUIDevice.shared.appearance = .light
+    }
+
+    /// From the page's header, the same face sheet as the wall hero's: for a companion with a
+    /// character and two rounds left, the faces with the character ticked, a new character to
+    /// draw, a sticker to make, and removing the character, which asks first and says the rounds.
+    func testChangingTheCharacterFromThePage() {
+        let app = launch(["-samplePhoto", "YES", "-sampleCharacter", "YES", "-debugCharacterService", "draws"])
         openWeek(app)
-        XCTAssertFalse(app.buttons["character-offer"].exists, "no offer once Yo-Yo has a character")
-        snapshot("character-21-phone-page")
+        let change = app.buttons["change-face"]
+        XCTAssertTrue(change.waitForExistence(timeout: 5), "The header links to the face")
+        XCTAssertEqual(change.label, "Change Yo-Yo's character or photo")
+        snapshot("face-40-phone-header")
+        change.tap()
+        let character = app.buttons["face-character"]
+        XCTAssertTrue(character.waitForExistence(timeout: 5))
+        XCTAssertTrue(character.isSelected, "the character shows")
+        for face in ["photo", "drawn"] { XCTAssertTrue(app.buttons["face-\(face)"].exists, "\(face) is a face to choose") }
+        XCTAssertEqual(app.buttons["draw-character"].label, "Draw a new character")
+        XCTAssertEqual(app.buttons["make-sticker"].label, "Make a photo sticker")
+        let remove = app.buttons["remove-character"]
+        XCTAssertTrue(remove.exists)
+        snapshot("face-41-phone-sheet")
+        remove.tap()
+        let detail = "Its moods are deleted on every device. Drawing another one uses a round of tries again. 2 rounds are left."
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", detail)).firstMatch.waitForExistence(timeout: 5),
+                      "it asks first, and says the rounds left")
+        snapshot("face-42-phone-remove")
     }
 
     /// A companion added today: the first week, never a zero, in the wall's words.

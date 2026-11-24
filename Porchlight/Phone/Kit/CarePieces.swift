@@ -3,7 +3,8 @@ import SwiftUI
 // The care pieces at phone size: a companion's face, a slot tile, and the pill that
 // adds someone who came along. The words and states come from CareLogic, as on the wall.
 
-/// A companion's face on its tinted circle.
+/// A companion's face on its tinted circle, or standing on the card when it is a character or
+/// sticker (`DiscFace`).
 struct CompanionBadge: View {
     let report: CompanionReport
     @PhoneMetric private var side: CGFloat
@@ -16,10 +17,11 @@ struct CompanionBadge: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        CompanionFace(look: report.look, expression: report.expression, size: side * 0.86, mood: report.characterMood)
-            .frame(width: side, height: side)
-            .background(report.look.tint.wash(0.3, over: Theme.surface, in: scheme), in: Circle())
-            .accessibilityHidden(true)
+        DiscFace(
+            look: report.look, expression: report.expression, mood: report.characterMood,
+            side: side, face: side * 0.86, disc: report.look.tint.wash(0.3, over: Theme.surface, in: scheme)
+        )
+        .accessibilityHidden(true)
     }
 }
 

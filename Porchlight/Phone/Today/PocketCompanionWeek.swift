@@ -63,12 +63,6 @@ struct PocketCompanionWeek: View {
                             diary(week, report: report)
                             podium(week)
                             milestones(week, report: report)
-                            Button(CharacterOffer.change(report.name)) { face = FaceRequest(companionId: companionId) }
-                                .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
-                                .foregroundStyle(Theme.accent)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 6)
-                                .accessibilityIdentifier("change-face")
                         } else {
                             Text("Add a care routine in Household to track \(report.name.possessive) day.")
                                 .phoneFont(.body, 14, weight: 600, relativeTo: .subheadline)
@@ -139,6 +133,17 @@ struct PocketCompanionWeek: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .accessibilityElement(children: .combine)
+            // The way to the face sheet, as under the wall hero's name: in line with the
+            // lines above, beside the face, on a row of its own.
+            if report.weeksBack == 0 {
+                Button(CharacterOffer.change(report.name)) { face = FaceRequest(companionId: companionId) }
+                    .phoneFont(.body, 13, weight: 700, relativeTo: .footnote)
+                    .foregroundStyle(Theme.accent)
+                    .frame(minHeight: 32)
+                    .padding(.leading, typeSize.isAccessibilitySize ? 0 : 76)
+                    .padding(.top, -8)
+                    .accessibilityIdentifier("change-face")
+            }
             MoodMeter(report: report)
         }
         .phoneCard(tint: report.look.tint)

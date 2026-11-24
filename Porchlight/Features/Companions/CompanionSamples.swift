@@ -55,6 +55,8 @@ enum CompanionSamples {
                 }
             }
             try database.saveCharacter(stills: stills, strips: strips, companionId: companionId, by: nil, now: now)
+            // Drawn with one round of three: two left, as the relay would have said.
+            CharacterOffer.remember(roundsLeft: 2, for: companionId)
         }
         guard let walk = routines.first(where: { $0.kind == .walk }) else { return }
         let walkId = walk.id

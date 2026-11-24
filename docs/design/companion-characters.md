@@ -8,7 +8,7 @@ The approved proposal set the journey and the look; these decisions are taken:
 
 - One house style for every pet: pixel sticker. No picker.
 - Free, limited to three rounds of tries per pet. The relay enforces the limit; the app only shows what is left.
-- Every mood is animated. Motion plays once when a character appears, then about once a minute, never in a loop, and not at all under Reduce Motion.
+- Every mood is animated. Motion plays twice when a character appears, then twice about every ten seconds and twice on a tap, never in a loop, and not at all under Reduce Motion. (It was once a minute until James's first live test, where it was missed.)
 - Dogs and cats first. Other species keep today's faces.
 - The drawing is OpenAI's, reached only through Porchlight's relay, never directly from the app.
 
@@ -51,10 +51,18 @@ The sheet shows the photo and the sticker side by side, says it was made on this
 A photo picked there becomes the companion's photo too when its sticker is used, so choosing the photo again shows the one the sticker came from.
 A slow cut overtaken by another photo is dropped, so the sheet never shows the sticker of a photo no longer chosen (`StickerMaking`).
 
+## Where it stands
+
+A character or a photo sticker is drawn on clear with its own white edge, so it stands on the card itself: no tinted disc behind it, and it fills the disc's whole frame.
+A photo or a drawn face keeps its disc and its size exactly as before, pixel for pixel.
+One view decides (`DiscFace`, by `CompanionLook.standsOnCard`); every place that put a disc behind a face (the phone's badge on Today and a companion's page, the wall's Today tile, the editor's preview) draws through it.
+In James's first live test the character sat on a tan disc, which made a clear, edged picture look pasted on.
+
 ## Choosing the face, and going back
 
 A companion's face is one choice for the whole household, shown everywhere on the phone and the wall: its character, its photo sticker, its photo, or the drawn face (the emoji for species without one).
 The choice offers only what exists for that companion, and is made in two places: the companion editor's "Face" row, and the face sheet that the companion page's quiet link opens ("Change Yo-Yo's character or photo"), on the phone and on the wall.
+On the phone the link sits in the page's header, under the lines beside the face, as it sits under the name in the wall's hero; it was at the very end of the page until James's first live test, where he didn't find it.
 Switching away from the character or the sticker deletes nothing, and switching back costs nothing and redraws nothing (`AppDatabase.chooseFace`).
 The face sheet also makes the photo sticker ("Make a photo sticker", or "Make a new photo sticker" over an old one) and, once there is a character, removes it.
 "Remove character" asks first, "Remove Yo-Yo's character for everyone?", says its moods are deleted on every device and that drawing another uses a round of tries again, with the rounds left when the relay has said; the rounds used are not given back.
@@ -190,12 +198,15 @@ Four moods' animations of one pet measured 0.79 MB together, where they were 2.3
 
 The pictures travel to iCloud as assets, not record fields (`image` is an `ASSET` in `Config/cloudkit-schema.ckdb`), so a record's one megabyte limit does not apply to them at either size.
 
-It plays by `CharacterPlayback`, a pure schedule: once when the face appears, then it rests on its still, then once more about every minute while it is on screen.
+It plays by `CharacterPlayback`, a pure schedule, in turns of two plays back to back, about two seconds: a turn when the face appears, then it rests on its still, then a turn about every ten seconds while it is on screen, and a turn whenever the face is tapped.
+A turn begins only once the strip is decoded and ready to show.
+In James's first live test (build 20261124.085813) he saw no movement at all: the one play began as the face appeared, while the strip's bytes were still being read, so it passed on the still, and the next play was a minute away.
+On the wall's hero, whose face also bobs on a tap, one tap does both.
 It never loops.
 Under Reduce Motion it never moves.
 It plays only while the app is in front, and its task ends when the face leaves the screen.
 A face smaller than 40 points stays still, since nine frames in a small dot are only a flicker.
-At rest a character is one picture and no timer, so a page of pets costs what their stills cost; a play runs a timeline for about a second and then the timeline is gone.
+At rest a character is one picture and no timer, so a page of pets costs what their stills cost; a turn runs a timeline for about two seconds and then the timeline is gone.
 A frame stands in for the still, never over it, so the still never shows through where a frame is clear.
 A new mood plays its own animation at once.
 

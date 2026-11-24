@@ -77,9 +77,10 @@ struct CompanionTodayCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
-                CompanionFace(look: report.look, expression: report.expression, size: 66, mood: report.characterMood)
-                    .frame(width: 78, height: 78)
-                    .background(report.look.tint.wash(0.3), in: Circle())
+                DiscFace(
+                    look: report.look, expression: report.expression, mood: report.characterMood,
+                    side: 78, face: 66, disc: report.look.tint.wash(0.3)
+                )
                 VStack(alignment: .leading, spacing: 4) {
                     Text(report.name)
                         .font(.display(26))

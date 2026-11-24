@@ -11,6 +11,12 @@ final class StickerTests: XCTestCase {
         continueAfterFailure = false
     }
 
+    override func tearDown() {
+        // A test that turned the look dark leaves the next one light, however it ended.
+        XCUIDevice.shared.appearance = .light
+        super.tearDown()
+    }
+
     private func launch(_ arguments: [String]) -> XCUIApplication {
         let app = XCUIApplication.porchlight()
         app.launchArguments = ["-sampleHousehold", "-samplePhoto", "YES", "-startScreen", "companion-1"] + arguments
@@ -93,18 +99,25 @@ final class StickerTests: XCTestCase {
         snapshot("character-13-wall-hero")
     }
 
-    /// A character (`-sampleCharacter`, drawn in code) wherever Yo-Yo shows on the wall: the
-    /// Today tile, the companion screen, and Pitch in's care rows. Review shots.
+    /// A character and a photo sticker (`-sampleCharacter`, `-sampleSticker`, drawn in code)
+    /// wherever Yo-Yo shows on the wall, light and dark: the Today tile, the companion screen,
+    /// and Pitch in's care rows, standing on the card with no disc. Review shots.
     func testTheCharacterEverywhereOnTheWall() {
-        for screen in ["today", "companion-1", "chores"] {
-            let app = XCUIApplication.porchlight()
-            app.launchArguments = ["-sampleHousehold", "-samplePhoto", "YES", "-sampleCharacter", "YES", "-startScreen", screen]
-            app.launch()
-            _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
-            Thread.sleep(forTimeInterval: 2)
-            snapshot("character-20-wall-\(screen)")
-            app.terminate()
+        for face in ["Character", "Sticker"] {
+            for dark in [false, true] {
+                XCUIDevice.shared.appearance = dark ? .dark : .light
+                for screen in ["today", "companion-1", "chores"] {
+                    let app = XCUIApplication.porchlight()
+                    app.launchArguments = ["-sampleHousehold", "-samplePhoto", "YES", "-sample\(face)", "YES", "-startScreen", screen]
+                    app.launch()
+                    _ = app.otherElements.firstMatch.waitForExistence(timeout: 30)
+                    Thread.sleep(forTimeInterval: 2)
+                    snapshot("face-30-wall-\(screen)-\(face.lowercased())-\(dark ? "dark" : "light")")
+                    app.terminate()
+                }
+            }
         }
+        XCUIDevice.shared.appearance = .light
     }
 
     func testNoSubjectSaysWhyAndKeepsThePhoto() {
