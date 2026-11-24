@@ -30,6 +30,9 @@ describe("the words the model is given", () => {
       const text = triesPrompt(species);
       expect(text).toContain("recognisably this same animal");
       expect(text).toContain("add nothing it is not wearing");
+      // What a cut-out brings along from behind the pet stays out of the character.
+      expect(text).toContain(`Draw only this one ${species}`);
+      expect(text).toContain("leave it out");
       expect(text).toContain("16-bit");
     }
   });

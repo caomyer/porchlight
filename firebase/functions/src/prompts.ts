@@ -68,6 +68,8 @@ export function triesPrompt(species: Species): string {
   return [
     `Redraw the ${species} in this photo as a pixel-art sticker, like a character sprite from a 16-bit game.`,
     "It must be recognisably this same animal: keep its exact coat colour and texture, markings, ear shape, face, tail and anything it is wearing, and add nothing it is not wearing.",
+    // A cut-out can bring along what stood behind the pet: a person's legs, a cushion.
+    `Draw only this one ${species}: if part of a person, another animal, furniture or any other object is in the picture, leave it out.`,
     poses.fine[species],
     style,
     ending,

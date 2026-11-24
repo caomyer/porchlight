@@ -2,10 +2,9 @@
 // judge likeness and consistency by eye and to measure what a character costs.
 //
 //   npm --prefix ../functions run build
-//   node run.mjs --photos <folder> --out <folder> [--budget 5] [--animations fine|all|none]
+//   node run.mjs --photos <folder> --out <folder> --key-file <file> [--budget 5] [--animations fine|all|none]
 //
-// Each photo is named `<name>.<dog|cat>.jpg` (or .png). The key is read from the
-// OPENAI_API_KEY environment variable and is never printed. Nothing is uploaded anywhere
+// Each photo is named `<name>.<dog|cat>.jpg` (or .png). Nothing is uploaded anywhere
 // but to the image model. Not part of CI: it spends money.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
@@ -35,11 +34,18 @@ const out = option("out", join(here, "out"));
 const budget = Number.parseFloat(option("budget", "5"));
 const animations = option("animations", "fine");
 if (!photos) {
-  console.error("usage: node run.mjs --photos <folder> --out <folder> [--budget 5] [--animations fine|all|none]");
+  console.error("usage: node run.mjs --photos <folder> --out <folder> --key-file <file> [--budget 5] [--animations fine|all|none]");
   process.exit(2);
 }
+// The key: from the environment, or from the OPENAI_API_KEY line of a file kept outside
+// the repository. It is used to call the model and never printed.
+const keyFile = option("key-file");
+if (!process.env.OPENAI_API_KEY && keyFile) {
+  const line = readFileSync(keyFile, "utf8").split("\n").find((entry) => entry.startsWith("OPENAI_API_KEY="));
+  if (line) process.env.OPENAI_API_KEY = line.slice("OPENAI_API_KEY=".length).trim();
+}
 if (!process.env.OPENAI_API_KEY) {
-  console.error("Set OPENAI_API_KEY in the environment first (it is never printed).");
+  console.error("Give the key with --key-file <file with an OPENAI_API_KEY= line>, or in the OPENAI_API_KEY environment variable.");
   process.exit(2);
 }
 

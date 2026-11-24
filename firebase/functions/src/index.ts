@@ -33,9 +33,6 @@ const options: CallableOptions = {
   maxInstances: config.deploy.maxInstances,
   // Only a genuine copy of the app, on a real device, may call.
   enforceAppCheck: true,
-  // Each token is good for one call, so a captured one cannot be replayed. The emulator
-  // has no App Check service to spend a token with.
-  consumeAppCheckToken: !emulated,
   cors: false,
 };
 
@@ -68,10 +65,16 @@ async function answered<T>(name: string, work: () => Promise<T>): Promise<T> {
   }
 }
 
-export const drawCharacter = onCall({ ...options, secrets: [openAIKey] }, (request: CallableRequest) =>
+/**
+ * Drawing spends money, so its token is good for one call only: a captured token cannot
+ * be replayed (the app asks for a limited-use token for this call). The emulator has no
+ * App Check service to spend a token with.
+ */
+export const drawCharacter = onCall({ ...options, consumeAppCheckToken: !emulated, secrets: [openAIKey] }, (request: CallableRequest) =>
   answered("drawCharacter", () => theRelay().draw(request.data, { installationId: request.auth?.uid })),
 );
 
+/** Reading what is left costs nothing and changes nothing: an ordinary App Check token will do. */
 export const characterAllowance = onCall({ ...options, timeoutSeconds: 30, memory: "256MiB" }, (request: CallableRequest) =>
   answered("characterAllowance", () => theRelay().allowance(request.data)),
 );
