@@ -1,0 +1,13 @@
+# The real project id is never committed: scripts/deploy.sh takes it as an argument.
+.firebaserc
+node_modules/
+functions/lib/
+*.log
+# Local stand-ins for secrets and parameters, written by the tests.
+functions/.secret.local
+functions/.env.local
+functions/.env.demo-porchlight
+# What the evaluation writes.
+evaluation/out/
+evaluation/photos/
+.firebase/
