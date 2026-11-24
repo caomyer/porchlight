@@ -39,6 +39,8 @@ struct HostedScreen {
 
     /// An iPhone 15, in points.
     static let size = CGSize(width: 393, height: 852)
+    /// The smallest phone the app supports, an iPhone SE, in points.
+    static let smallest = CGSize(width: 375, height: 667)
 
     let elements: [Element]
     /// The whole page, as tall as its content.
@@ -71,7 +73,7 @@ struct HostedScreen {
     /// Hosts `screen` in `look`, lets it draw, and reads it. With `activating`, the element
     /// whose label begins with that is activated first, as a tap or VoiceOver's double tap
     /// would (a tab picked, a section opened), and the screen is read after it has redrawn.
-    static func host(_ screen: some View, look: Look, activating: String? = nil) async throws -> HostedScreen {
+    static func host(_ screen: some View, look: Look, activating: String? = nil, size: CGSize = size) async throws -> HostedScreen {
         enableAccessibility()
         guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
             throw Failure.noScene
@@ -101,7 +103,7 @@ struct HostedScreen {
             }
         }
         let elements = read(host.view as Any)
-        let image = try await picture(of: window, elements: elements)
+        let image = try await picture(of: window, elements: elements, size: size)
         return HostedScreen(elements: elements, image: image)
     }
 
@@ -135,7 +137,7 @@ struct HostedScreen {
     /// piece is put in its place in one tall image. Then the image is checked against the
     /// page: where the page has words, the picture must have something drawn, and a picture
     /// that is blank there fails the test instead of being saved as a shot.
-    private static func picture(of window: UIWindow, elements: [Element]) async throws -> UIImage {
+    private static func picture(of window: UIWindow, elements: [Element], size: CGSize) async throws -> UIImage {
         let bottom = elements.map(\.frame.maxY).max() ?? size.height
         let height = max(size.height, bottom + 24)
         let format = UIGraphicsImageRendererFormat()

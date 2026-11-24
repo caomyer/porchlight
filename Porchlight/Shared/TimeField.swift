@@ -1,12 +1,13 @@
 import SwiftUI
 
 // The one time control in the app. At rest a time is a pill in Today's serif
-// numerals. Tapping it opens a small card from the pill, already showing that
-// time: a few suggestions for the usual cases, the hour and the minutes in
-// their own boxes, and a number pad that types into the selected box. The
-// iPad's keyboard never comes up (iPad has no small number keyboard, and the
-// full one covers half the wall), though a hardware keyboard types straight
-// in. A start and end is two pills.
+// numerals. Tapping it opens a small card, already showing that time: a few
+// suggestions for the usual cases, the hour and the minutes in their own boxes,
+// and a number pad that types into the selected box. On the wall the card is a
+// popover from the pill; on a phone it is its own small sheet, as tall as the
+// card (`TimeCardPresentation`). The on-screen keyboard never comes up (iPad has
+// no small number keyboard, and the full one covers half the wall), though a
+// hardware keyboard types straight in. A start and end is two pills.
 
 /// Which end of a stretch of hours is being set.
 enum HoursEnd: Hashable, Sendable {
@@ -38,6 +39,7 @@ struct TimeFieldControl: View {
     /// Sets the time (minutes from midnight); returns why it can't, if it can't.
     let apply: (Int) -> String?
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var isOpen = false
     @State private var typing = TimeTyping()
     /// A time typed that can't be used, shown with the reason until it's fixed.
@@ -54,19 +56,19 @@ struct TimeFieldControl: View {
             note = nil
             isOpen = true
         }
-        .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+        .modifier(TimeCardPresentation(isOpen: $isOpen, asSheet: sizeClass == .compact) { asSheet in
             TimeKeypadCard(
                 minute: refused ?? minute, nextDay: nextDay && refused == nil, clock: clock,
                 suggestions: suggestions, note: note, typing: $typing,
+                title: asSheet ? accessibilityLabel : nil,
+                fillsWidth: asSheet,
                 onChange: change,
                 onSuggestion: { suggestion in
                     if let problem = suggestion.apply() { note = problem } else { isOpen = false }
                 },
                 onClose: { isOpen = false }
             )
-            .presentationCompactAdaptation(.popover)
-            .presentationBackground(Theme.surface)
-        }
+        })
         .onChange(of: isOpen) { _, open in
             // Closing drops a time that couldn't be used; good ones are already set.
             if !open {
@@ -83,6 +85,50 @@ struct TimeFieldControl: View {
         } else {
             refused = nil
             note = nil
+        }
+    }
+}
+
+/// How the card comes up, so that it is always whole and every key in reach.
+///
+/// On a phone, its own small sheet as tall as the card: a popover there gets only the
+/// room on one side of the pill, and iOS squeezes the card into it and cuts it off
+/// (on iOS 27, a pill halfway down the care sheet lost its suggestions' tops and the
+/// pad's last row and Done). A sheet's room doesn't depend on where the pill is. If
+/// even the whole screen is too short, as at the largest text sizes, the card scrolls.
+///
+/// On the wall, a popover from the pill, which has room on the iPad's tall screen; if
+/// it is ever squeezed, the card scrolls inside it rather than being cut.
+struct TimeCardPresentation<Card: View>: ViewModifier {
+    @Binding var isOpen: Bool
+    let asSheet: Bool
+    @ViewBuilder let card: (_ asSheet: Bool) -> Card
+
+    /// The card's own height, measured, for the sheet's one height.
+    @State private var height: CGFloat = 520
+
+    func body(content: Content) -> some View {
+        if asSheet {
+            content.sheet(isPresented: $isOpen) {
+                ScrollView {
+                    card(true)
+                        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height = $0 }
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .presentationDetents([.height(height)])
+                .presentationDragIndicator(.hidden)
+                .presentationCornerRadius(28)
+                .presentationBackground(Theme.surface)
+            }
+        } else {
+            content.popover(isPresented: $isOpen, arrowEdge: .bottom) {
+                ViewThatFits(in: .vertical) {
+                    card(false)
+                    ScrollView { card(false) }
+                }
+                .presentationCompactAdaptation(.popover)
+                .presentationBackground(Theme.surface)
+            }
         }
     }
 }
@@ -152,17 +198,29 @@ struct TimeKeypadCard: View {
     var suggestions: [TimeSuggestion] = []
     let note: String?
     @Binding var typing: TimeTyping
+    /// What is being set, as a heading: in its own sheet the pill is out of sight.
+    var title: String?
+    /// In its own sheet on a phone: the screen's width, with taller keys for a thumb.
+    var fillsWidth = false
     let onChange: (Int) -> Void
     let onSuggestion: (TimeSuggestion) -> Void
     let onClose: () -> Void
 
     @FocusState private var hasKeys: Bool
 
+    private var keyHeight: CGFloat { fillsWidth ? 52 : 46 }
+
     private static let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"]
     private static let warn = Color(hex: 0xB4532A)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let title {
+                Text(title)
+                    .font(.body(17, weight: 800))
+                    .foregroundStyle(Theme.ink)
+                    .accessibilityAddTraits(.isHeader)
+            }
             if !suggestions.isEmpty {
                 FlowLayout(spacing: 6) {
                     ForEach(suggestions) { suggestion in
@@ -188,13 +246,13 @@ struct TimeKeypadCard: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
                 ForEach(Array(Self.keys.enumerated()), id: \.offset) { _, key in
                     if key.isEmpty {
-                        Color.clear.frame(minHeight: 46).accessibilityHidden(true)
+                        Color.clear.frame(minHeight: keyHeight).accessibilityHidden(true)
                     } else {
                         Button { press(key) } label: {
                             Text(key)
                                 .font(key == "⌫" ? .body(17, weight: 700) : .display(21))
                                 .foregroundStyle(Theme.ink)
-                                .frame(maxWidth: .infinity, minHeight: 46)
+                                .frame(maxWidth: .infinity, minHeight: keyHeight)
                                 .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
@@ -221,8 +279,12 @@ struct TimeKeypadCard: View {
                 .accessibilityIdentifier("time-done")
             }
         }
-        .padding(14)
-        .frame(width: 272)
+        .padding(.horizontal, fillsWidth ? 20 : 14)
+        .padding(.top, fillsWidth ? 22 : 14)
+        .padding(.bottom, 14)
+        .frame(width: fillsWidth ? nil : 272)
+        .frame(maxWidth: fillsWidth ? 480 : nil)
+        .frame(maxWidth: fillsWidth ? .infinity : nil)
         // A hardware keyboard types straight in.
         .focusable()
         .focusEffectDisabled()

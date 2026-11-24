@@ -93,6 +93,16 @@ Chores do the same with `AppDatabase.completeChore`: a chore someone just checke
 
 The wall's care form logic moved out of its view into `CareLogFields` and `CareLogDay`, and the time pill's day math into `LogTimeDay`, so the wall's log sheet and the phone's care sheet share one implementation.
 
+### The time card on a phone
+
+On a phone the time pill's card comes up as its own small sheet, as tall as the card and headed with what is being set ("Started", "Time eaten"); on the wall it stays a popover from the pill (`TimeCardPresentation`).
+A popover on a phone gets only the room on one side of its pill, and iOS squeezes the card into that room and cuts it off: on iOS 27 a pill halfway down the care sheet left the suggestions sliced at the top and the pad ending at 7 8 9, with no 0, no delete and no Done.
+iOS picks the popover's side itself (it ignores the arrow edge asked for), so no rule about where the pill sits could make the popover safe; a sheet's room doesn't depend on the pill at all.
+The sheet has no grabber, since Done and a swipe down both close it, and keeps the card's own surface and a 28-point corner.
+If even the whole screen is shorter than the card, the card scrolls in its sheet; on the wall, a popover that is ever squeezed scrolls the card rather than cutting it.
+On iOS 27 the care sheet stays out of sight while the card is up, which is why the card names its field; Done brings the care sheet back with the time set.
+`PhoneWeekTests.testTheTimeCardIsWhole` opens the card from the companion page's "Log a walk" on a 24-hour clock and checks every key and the first suggestion are whole and in reach, and that 0 types; `TimeCardScreenTests` draws the card on the smallest phone and an iPhone 15, light, dark and at the largest text, 12 and 24-hour, with and without suggestions, and the wall's.
+
 ### A log that names nobody
 
 A log always has someone on it: the rules refuse one with nobody (`CareRules.validatedNote`), and every sheet keeps Save off until someone is picked.

@@ -832,6 +832,7 @@ Unfrozen on November 21, when the dish editor landed.
 |---|---|---|---|---|---|
 | testEarlierWeeks | | The week pager back a week: its name, the streak said to be today's, a dot opening its walk to fix, back to this week | Keep; that week's numbers and the catch-up rule are `CompanionWeekTests.earlierWeek` | | |
 | testEarlierWeekLooks | | Last week at the largest size in the night look | Keep (looks) | | |
+| testTheTimeCardIsWhole | | Log a walk from the page on a 24-hour clock: the time card whole, every key, Done and the first suggestion in reach, 0 types | Keep; the card in every look is `TimeCardScreenTests` | | |
 | testTappingThePawTrail | 74 | A logged, a missed and an open dot each open the right sheet | Keep; the dots' labels are `CompanionWeekTests` | | |
 | testAMealInTheDiaryAndTheTrail | 72 | A dinner logged from the trail shows in trail and diary | Keep | | |
 | testWater | 30 | Water has its week | Down: "Log a refill" and "Water diary" are `CompanionWeekTests`; keep as a tab tap inside testAMealInTheDiaryAndTheTrail | 20 | |

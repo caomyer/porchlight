@@ -217,6 +217,47 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         }
     }
 
+    /// Log a walk from the companion page, on a 24-hour clock, and open its time: the card
+    /// is whole wherever the pill sits, its suggestions uncut, and every key and Done in
+    /// reach. Once the card came up above a pill in the middle of the screen with less room
+    /// than it needs, and the system cut it at both ends: no 0, no delete, no Done.
+    func testTheTimeCardIsWhole() {
+        let app = launch(["-AppleLocale", "en_GB"])
+        openWeek(app)
+        let log = app.buttons["log-routine"]
+        reveal(log, in: app)
+        log.tap()
+        let time = app.buttons["exact-time"]
+        XCTAssertTrue(time.waitForExistence(timeout: 5), "The care sheet has its time")
+        time.tap()
+        let done = app.buttons["time-done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "The time card opens")
+        snapshot("week-60-time-card")
+        let window = app.windows.firstMatch.frame
+        for key in ["key-0", "key-delete", "key-1", "time-done"] {
+            let button = app.buttons[key]
+            XCTAssertTrue(button.exists && button.isHittable, "\(key) is in reach")
+            XCTAssertTrue(window.contains(button.frame), "\(key) is whole on screen: \(button.frame)")
+        }
+        // The first suggestion, whole and inside the card with the keys below it.
+        let chip = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Just'")).firstMatch
+        XCTAssertTrue(chip.exists && chip.isHittable, "The first suggestion is in reach")
+        XCTAssertTrue(window.contains(chip.frame), "and whole on screen: \(chip.frame)")
+        let hour = app.buttons["time-hour"]
+        XCTAssertLessThan(chip.frame.maxY, hour.frame.minY, "above the time, not cut by the card's edge")
+
+        // Typing 0 works: the minutes become 10.
+        XCTAssertFalse(app.buttons["PM"].exists, "a 24-hour clock")
+        let startHour = hour.value as? String ?? ""
+        app.buttons["time-minute"].tap()
+        app.buttons["key-1"].tap()
+        app.buttons["key-0"].tap()
+        XCTAssertEqual(app.buttons["time-minute"].value as? String, "10")
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 5), "Done closes the card")
+        XCTAssertTrue((time.value as? String)?.hasPrefix("\(startHour):10") == true, "and the walk starts at \(startHour):10: \(time.value ?? "")")
+    }
+
     /// A companion added today: the first week, never a zero, in the wall's words.
     func testAFirstWeek() {
         let app = launch(["-sampleCompanions", "4"])
