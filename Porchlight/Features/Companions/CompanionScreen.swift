@@ -104,7 +104,7 @@ private struct HeroCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            CompanionFace(look: report.look, expression: report.expression, size: 184, bobs: true)
+            CompanionFace(look: report.look, expression: report.expression, size: 184, bobs: true, mood: report.characterMood)
                 .padding(.top, 10)
             Text(report.name)
                 .font(.display(36))

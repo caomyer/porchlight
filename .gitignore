@@ -9,6 +9,9 @@ xcuserdata/
 # Machine-specific signing settings, and the App Store Connect key's ids
 Config/Local.xcconfig
 Config/AppStoreConnect.env
+# The character relay's Firebase project (scripts/firebase-config.sh)
+Config/Firebase.xcconfig
+GoogleService-Info.plist
 *.p8
 .DS_Store
 # Claude Code worktrees and local state

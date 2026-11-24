@@ -16,7 +16,7 @@ struct CompanionBadge: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        CompanionFace(look: report.look, expression: report.expression, size: side * 0.86)
+        CompanionFace(look: report.look, expression: report.expression, size: side * 0.86, mood: report.characterMood)
             .frame(width: side, height: side)
             .background(report.look.tint.wash(0.3, over: Theme.surface, in: scheme), in: Circle())
             .accessibilityHidden(true)

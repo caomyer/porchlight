@@ -99,6 +99,112 @@ A sticker is one still, a 512 pixel PNG, shown for every mood; on the sample's d
 Older builds keep the new records waiting in the sync engine's metadata and show the photo, which still syncs; on updating they show the sticker (`OlderBuildSyncTests.olderBuildAndCharacters`).
 The CloudKit schema gains both record types (`Config/cloudkit-schema.ckdb`, checked by `SchemaFileTests`); they must be deployed to Production before a build that writes them ships.
 
+## Moods follow the day
+
+A character's mood is one pure rule, `CharacterMoodRule.mood(for:now:)`, read from what the app already knows about today: the slots owed, what was logged and when, and the time of day in the household's calendar.
+Every face that has the companion's report passes it on as `mood:` (`report.characterMood`); a face without a report keeps reading its expression, sleepy for asleep and doing fine otherwise.
+The log celebration is always the zoomies.
+
+When more than one mood applies, the first of these wins:
+
+1. Waiting, overdue: a slot that is late, or open past its routine's nudge time, and still owed.
+2. Zoomies: something was logged within the last hour.
+3. Waiting: a slot is open now.
+4. Asleep: it is night (9 PM to 6 AM), or everything owed today is done.
+5. Doing fine: anything else.
+
+The reasons for the order:
+
+- Care that is owed and running late is the one thing a face must never hide, so it comes first, even over a walk logged a minute ago.
+- The zoomies are the thanks for logging, and they only last the hour, so they show over a slot that has merely opened; the card's own words still say that slot is open.
+- Waiting comes before asleep, so at 9 PM a companion whose walk is still owed waits up for it.
+- Night runs to 6 AM, not to midnight, so a companion is asleep at 2 AM though the new day's slots are all ahead of it.
+
+A slot that was never owed (its window closed before the companion arrived) never makes it wait, by the same rule the paw trail uses (`CareLogic.isOwed`).
+An all-day slot waits from midnight but is never late; only its nudge makes it overdue.
+A log set in the future is not "just now".
+Asked about a moment on another day than the report's, the report's slots say nothing, and only the hour and the last log speak.
+The widgets draw no face, so they have no mood.
+
+## A mood's animation
+
+The relay sends an animation as a GIF: nine frames, 512 pixels square, on clear.
+`CharacterAnimationCodec.strip(fromGIF:)` turns it into what `CharacterImage` stores: one PNG strip of square frames side by side, each 256 pixels, scaled down without smoothing so the pixel art stays crisp.
+A strip is one picture to store, sync and decode, and a frame is drawn by sliding the strip, so nothing is decoded while it plays.
+
+- Frames are read as they would show: a GIF whose later frames hold only what changed is composed first, which ImageIO does and `CharacterAnimationTests.partialFramesAreComposed` pins.
+- A frame that isn't square is fitted inside its square and centred, on clear.
+- More than 16 frames are sampled evenly down to 16, first and last kept.
+- Bytes that are not an animation (a still, an error page, a GIF of one frame or cut short) make no strip, and the mood's still stands on its own.
+- The GIF's own frame delays are dropped: every frame shows for 0.12 seconds, so a play of nine frames is about a second, and nothing more needs storing.
+
+Measured on the relay's real drawings, a strip is 0.54 to 0.67 MB, so four moods' animations are about 2.4 MB a pet, beside four stills.
+A palette PNG would be about a third of that; it is not built, because ImageIO does not write one.
+
+It plays by `CharacterPlayback`, a pure schedule: once when the face appears, then it rests on its still, then once more about every minute while it is on screen.
+It never loops.
+Under Reduce Motion it never moves.
+It plays only while the app is in front, and its task ends when the face leaves the screen.
+A face smaller than 40 points stays still, since nine frames in a small dot are only a flicker.
+At rest a character is one picture and no timer, so a page of pets costs what their stills cost; a play runs a timeline for about a second and then the timeline is gone.
+A frame stands in for the still, never over it, so the still never shows through where a frame is clear.
+A new mood plays its own animation at once.
+
+## The relay's client
+
+`RelayCharacterService` is the real `CharacterService`: it knows the contract (what is sent, what comes back, which error is which) and nothing of Firebase.
+The transport behind it is `CharacterRelayBackend`; the real one, `FirebaseRelayBackend`, is the only file that imports Firebase.
+
+What is sent, as firebase/README.md has it:
+
+- `characterAllowance` with the household's and the companion's ids, with an ordinary App Check token.
+- `drawCharacter` with those ids, the species, the step, the cut-out as base64, and for a mood or an animation the mood and the picture to match; with a limited-use App Check token, which the relay spends.
+- Ids go in lower case, as the app writes them.
+- The app sends no prompt and no text of its own.
+
+An answer outside the contract (a picture that is not base64, a still that is not a PNG, an animation that is not a GIF, a count that is not a number) is the relay being unavailable, never a broken picture on a screen.
+
+Failures are read in this order: no network, then the relay's own `details.code`, then a caller that could not be checked (`unauthenticated`), and anything else is unavailable.
+`CharacterServiceError` carries the code as `kind` and, beside it, the relay's `details.reason`: which limit was reached (`rounds`, `mood-redraws`, `animation-redraws`, `companions`, `household-day`, `installation-day`) or why it is unavailable (`spend-ceiling`, `model`, `relay`).
+A reason that is unknown, missing or belongs to another code is no reason, and the kind alone speaks.
+Screens decide by kind and word by reason.
+
+With no network nothing is sent: the system's path monitor says so before a call that could otherwise wait three minutes.
+A drawing may take 180 seconds, the function's own limit (one model attempt of up to 75 seconds and one retry); asking what is left, 30.
+Cancelling the task ends the wait at once.
+The request cannot be taken back, so the relay may still finish the drawing and count it.
+
+### Nothing until asked
+
+A household that never asks for a character makes no call to Firebase and configures none of it.
+At launch `CharacterRelay.install` only reads the build's four ids and puts the service in `CharacterServices.live`.
+Reading `isConfigured` makes no backend.
+The first drawing or allowance call makes the backend, which configures Firebase for the process, once.
+`CharacterRelayClientTests.nothingUntilAsked` and `firebaseNotConfiguredAtLaunch` hold the app to it; the second runs inside the launched app, as every unit test does.
+
+### Firebase in the build
+
+The app links three Firebase libraries, pinned to an exact release in project.yml: Core, App Check and Functions.
+It uses no Analytics, no Auth, no Firestore and no messaging, and Firebase never wraps the app delegate (`FirebaseAppDelegateProxyEnabled` is off).
+App Check fetches a token only when a call needs one, never on its own in the background (`FirebaseAppCheckTokenAutoRefreshEnabled` is off).
+
+The project's ids are not secrets, but the repository is public, so they are never committed.
+The owner's `GoogleService-Info.plist` stays outside the repository, at `~/.config/porchlight/GoogleService-Info.plist`.
+`scripts/firebase-config.sh` writes four of its values to `Config/Firebase.xcconfig`, which is git-ignored and which `Config/Base.xcconfig` includes when it is there; they reach the app through its Info.plist.
+The plist itself is never bundled, so a build needs no file that may be missing.
+A build without the ids, CI's among them, builds, launches and passes every test, has no relay, and never offers to draw.
+`scripts/testflight.sh` runs that script first and stops loudly without the plist: a release that silently could not draw would only be found out on someone's phone.
+
+### App Check
+
+Every build people run uses App Attest, so the relay knows a call comes from a genuine copy of Porchlight on a real device.
+The entitlement's environment is production in Release builds, as CloudKit's is, and development in Debug.
+A debug build may use App Check's debug provider, and only when it is handed a debug token for that run, as the environment variable `FIRAAppCheckDebugToken` or the launch argument `-debugAppCheckToken`.
+The token is registered in the Firebase console by the project's owner and is never in the repository.
+On a simulator there is no App Attest, so without a debug token the relay refuses a debug build as unauthenticated.
+
+Not yet seen on a real device: App Attest attesting and the relay accepting its token, a limited-use token being spent once, and whether the wall's old iPad can attest at all.
+
 ## Tests
 
 `PhotoStickerTests` finds subjects in masks drawn in code, draws the sticker from a photo drawn in code and checks its square, its clear corners and its white outline, and covers no subject, several, one cut by the edge, a huge photo, an unreadable one, a device that can't and one too slow.
@@ -107,3 +213,7 @@ It also covers the steps of making one, where it is kept, switching faces (nothi
 `CharacterScreenTests` draws the companion page with the photo and with the sticker, Today with it, the offer card asking for a photo and offering to draw, the face sheet with a photo, a sticker and a character, and the sticker's steps, in light, dark and at the largest text.
 `PhoneWeekTests.testMakingThePhotoStickerAndSwitchingFaces` and the wall's `StickerTests` make a sticker and switch faces in the app, with a drawn stand-in for the cut-out (`-debugStickerSubject`) and a photo drawn in code (`-samplePhoto`, `-sampleSticker`).
 The repository holds no real pet's picture: the sample photo and sticker are drawn in code (`CharacterPlaceholders`).
+`CharacterMoodRuleTests` covers each mood, the order when two apply, the all-day slot, a report's own mood through a day, another day than the report's, and a slot never owed.
+`CharacterAnimationTests` covers the strip from the relay's GIF, a GIF of partial frames, other shapes and frame counts, everything that is not an animation, and the schedule of a play.
+`CharacterAnimationScreenTests` draws a character at rest and a frame mid-play, and checks one frame shows, clipped to the face.
+`CharacterRelayClientTests` covers the build's ids, what each call sends, answers outside the contract, every failure with its reason, no network, cancelling, the debug token, and that nothing is made, configured or sent until a character is asked for.

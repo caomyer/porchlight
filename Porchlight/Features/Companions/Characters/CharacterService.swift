@@ -42,33 +42,87 @@ struct CharacterAnimation: Sendable, Equatable {
     var frames: Int
 }
 
-/// What can go wrong, in the relay's words (its `details.code`), plus no network at all.
-enum CharacterServiceError: Error, Equatable, Sendable {
-    /// `limit-reached`: no rounds left for this pet, or the household's calls for today, or
-    /// a mood redrawn as often as it can be. The relay doesn't say which; the journey tells
-    /// them apart by what it knows (the rounds left, the step).
-    case limitReached
-    /// `refused`: the model would not draw this picture.
-    case refused
-    /// `unavailable`: the relay or the model is down, or the project's spending ceiling is
-    /// reached. Also any code the app doesn't know.
-    case unavailable
-    /// `unauthenticated`: App Check said no; this device or build can't be checked.
-    case unauthenticated
-    /// `invalid`: a request outside the contract, which is a bug in the app.
-    case invalid
-    /// No network: the call never reached the relay.
-    case offline
+/// What can go wrong, in the relay's words: its `details.code` as `kind`, and beside it the
+/// `details.reason` the relay gives for a limit or for being unavailable. Plus no network at all.
+///
+/// The plain errors (`.limitReached`, `.unavailable`, ...) carry no reason, and are what a
+/// call throws when the relay gave none. Screens decide by `kind` and word by `reason`:
+/// two errors of one kind with different reasons are not equal.
+struct CharacterServiceError: Error, Equatable, Sendable {
+    enum Kind: Equatable, Sendable {
+        /// `limit-reached`: see `Reason` for which limit.
+        case limitReached
+        /// `refused`: the model would not draw this picture.
+        case refused
+        /// `unavailable`: the relay or the model is down, or the project's spending ceiling is
+        /// reached. Also any code the app doesn't know.
+        case unavailable
+        /// `unauthenticated`: App Check said no; this device or build can't be checked.
+        case unauthenticated
+        /// `invalid`: a request outside the contract, which is a bug in the app.
+        case invalid
+        /// No network: the call never reached the relay.
+        case offline
+    }
 
-    /// The relay's `details.code`, read as an error; an unknown or missing code is `unavailable`.
-    init(code: String?) {
-        switch code {
-        case "limit-reached": self = .limitReached
-        case "refused": self = .refused
-        case "unauthenticated": self = .unauthenticated
-        case "invalid": self = .invalid
-        default: self = .unavailable
+    /// Which limit was reached, or why the relay is unavailable, in the relay's words.
+    enum Reason: String, Equatable, Sendable, CaseIterable {
+        /// No rounds of tries left for this companion, for life.
+        case rounds
+        /// This mood's still has been redrawn as often as it can be.
+        case moodRedraws = "mood-redraws"
+        /// This mood's animation has been redrawn as often as it can be.
+        case animationRedraws = "animation-redraws"
+        /// The household has characters for as many companions as it can.
+        case companions
+        /// The household's calls for today are used up; tomorrow there are more.
+        case householdDay = "household-day"
+        /// This copy of the app's calls for today are used up.
+        case installationDay = "installation-day"
+        /// The whole project has spent what it may today; tomorrow it draws again.
+        case spendCeiling = "spend-ceiling"
+        /// The model that draws is down, slow or out of reach.
+        case model
+        /// The relay itself failed.
+        case relay
+
+        /// The kind of error a reason belongs to; given with another kind it is dropped.
+        var kind: Kind {
+            switch self {
+            case .rounds, .moodRedraws, .animationRedraws, .companions, .householdDay, .installationDay: .limitReached
+            case .spendCeiling, .model, .relay: .unavailable
+            }
         }
+    }
+
+    var kind: Kind
+    /// Nil when the relay gave none, or one this build doesn't know: then `kind` alone speaks.
+    var reason: Reason?
+
+    init(_ kind: Kind, reason: Reason? = nil) {
+        self.kind = kind
+        self.reason = reason?.kind == kind ? reason : nil
+    }
+
+    static let limitReached = CharacterServiceError(.limitReached)
+    static let refused = CharacterServiceError(.refused)
+    static let unavailable = CharacterServiceError(.unavailable)
+    static let unauthenticated = CharacterServiceError(.unauthenticated)
+    static let invalid = CharacterServiceError(.invalid)
+    static let offline = CharacterServiceError(.offline)
+
+    /// The relay's `details.code` and `details.reason`, read as an error. An unknown or
+    /// missing code is `unavailable`; an unknown or missing reason, or one that belongs to
+    /// another code, is no reason.
+    init(code: String?, reason: String? = nil) {
+        let kind: Kind = switch code {
+        case "limit-reached": .limitReached
+        case "refused": .refused
+        case "unauthenticated": .unauthenticated
+        case "invalid": .invalid
+        default: .unavailable
+        }
+        self.init(kind, reason: reason.flatMap(Reason.init(rawValue:)))
     }
 }
 
