@@ -7,7 +7,7 @@ import { config } from "./config";
 import { RelayError, statusFor } from "./errors";
 import { fakeModel } from "./fake";
 import { firestoreLedger } from "./ledger";
-import { log } from "./log";
+import { described, log } from "./log";
 import { openAIModel } from "./model";
 import { relay, type Relay } from "./service";
 
@@ -59,7 +59,7 @@ async function answered<T>(name: string, work: () => Promise<T>): Promise<T> {
     return await work();
   } catch (error) {
     const failure = error instanceof RelayError ? error : new RelayError("unavailable", "internal");
-    if (!(error instanceof RelayError)) log.error(`${name} failed`, { errorClass: "internal" });
+    if (!(error instanceof RelayError)) log.error(`${name} failed`, { errorClass: "internal", ...described(error) });
     else if (failure.code === "invalid") log.warn(`${name} refused its input`, { errorClass: "invalid", reason: failure.reason });
     throw new HttpsError(statusFor[failure.code], failure.code, { code: failure.code });
   }

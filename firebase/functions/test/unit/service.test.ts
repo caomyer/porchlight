@@ -5,7 +5,7 @@ import { hashed } from "../../src/contract";
 import { RelayError } from "../../src/errors";
 import { fakeModel } from "../../src/fake";
 import { gifFrames, pngSize } from "../../src/images";
-import { safe } from "../../src/log";
+import { described, safe, scrubbed } from "../../src/log";
 import type { ModelRequest } from "../../src/model";
 import { promptFor } from "../../src/prompts";
 import { relay } from "../../src/service";
@@ -102,13 +102,39 @@ describe("when the drawing fails", () => {
     }
   });
 
-  it("calls anything unexpected unavailable, and still gives the round back", async () => {
-    const { service, calls, log } = made({ failure: () => new TypeError("something broke with secret details") });
+  it("calls anything unexpected unavailable, gives the round back, and logs what it was without its data", async () => {
+    const key = "sk-proj-abcdefghijklmnopqrstuvwxyz0123456789";
+    const message = `Cannot read properties of undefined (reading 'data') with Bearer ${key} and image ${cutout.slice(0, 400)}`;
+    const { service, calls, log } = made({ failure: () => new TypeError(message) });
     const error = await failure(service.draw({ ...ids(), species: "dog", step: "tries", cutout }, {}));
     expect(error.code).toBe("unavailable");
     expect(error.reason).toBe("internal");
     expect(calls.released).toHaveLength(1);
-    expect(strings(log.entries).join(" ")).not.toContain("secret details");
+    const entry = log.entries.find((logged) => logged.event === "draw failed unexpectedly")!;
+    expect(entry.level).toBe("error");
+    expect(entry.fields).toMatchObject({ errorClass: "internal", errorName: "TypeError", step: "tries" });
+    expect(entry.fields.detail).toContain("Cannot read properties of undefined (reading 'data')");
+    const written = strings(safe(entry.fields)).join(" ");
+    expect(written).not.toContain(key);
+    expect(written).not.toContain("abcdefghijklmnop");
+    expect(written).not.toContain(cutout.slice(0, 40));
+    expect((safe(entry.fields).detail as string).length).toBeLessThanOrEqual(300);
+  });
+
+  it("scrubs keys, tokens and long runs from anything it describes", () => {
+    expect(scrubbed("failed with Authorization: Bearer abc.def.ghi and more")).toBe("failed with Authorization: Bearer [key] and more");
+    expect(scrubbed("key sk-test-1234567890 was refused")).toBe("key [key] was refused");
+    expect(scrubbed(`bytes ${"iVBORw0KGgo".repeat(20)} end`)).toBe("bytes [long] end");
+    expect(scrubbed("deadline   exceeded\n after 30s")).toBe("deadline exceeded after 30s");
+    expect(described("just a string")).toEqual({ errorName: "string", detail: "just a string" });
+    expect(described(new RangeError("out of range"))).toEqual({ errorName: "RangeError", detail: "out of range" });
+  });
+
+  it("says what a broken ledger said", async () => {
+    const { service, log } = made({ reserve: () => new Error("10 ABORTED: too much contention on these documents") });
+    await failure(service.draw({ ...ids(), species: "dog", step: "tries", cutout }, {}));
+    const entry = log.entries.find((logged) => logged.event === "ledger failed")!;
+    expect(entry.fields).toMatchObject({ errorClass: "ledger", errorName: "Error", detail: "10 ABORTED: too much contention on these documents" });
   });
 
   it("draws nothing when a limit stands in the way", async () => {

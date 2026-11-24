@@ -145,7 +145,13 @@ zsh firebase/scripts/deploy.sh <project-id>
 ```
 
 It installs, lints, runs every test, checks the secret is set (without reading it), then deploys the two functions and the Firestore rules.
-The first deploy asks for `DAILY_SPEND_CEILING_DOLLARS` if it is to differ from 5; the answer is kept in `functions/.env.<project-id>`, which holds no secret.
+It never asks a question.
+The one parameter the functions take, `DAILY_SPEND_CEILING_DOLLARS`, has its value in `functions/.env`, which is committed and holds nothing secret.
+A default written in the code is not enough: without a value in that file a deploy that cannot ask stops with "have no value for the following environment variables".
+To change the ceiling, change `functions/.env` and deploy again.
+
+The script reads the deploy's own output as well as its exit status.
+It ends with a line that starts `DEPLOY SUCCEEDED` or `DEPLOY FAILED`, and exits non-zero on any failure, so nothing wrapped around it can mistake one for the other.
 
 After a deploy, check in the Firebase console that both functions show App Check as enforced.
 

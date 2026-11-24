@@ -3,7 +3,7 @@ import { hashed, parseAllowance, parseDraw, type DrawRequest, type DrawResponse 
 import { RelayError } from "./errors";
 import { downscaled, gifFrames, pngSize } from "./images";
 import type { Ledger, Reservation } from "./ledger";
-import type { Log } from "./log";
+import { described, type Log } from "./log";
 import { usageDollars, type ImageModel, type ModelRequest } from "./model";
 import { promptFor } from "./prompts";
 
@@ -81,7 +81,7 @@ export function relay(parts: Parts): Relay {
           event("draw turned down", { ...fields, errorClass: error.code, reason: error.reason });
           throw error;
         }
-        log.error("ledger failed", { ...fields, errorClass: "ledger" });
+        log.error("ledger failed", { ...fields, errorClass: "ledger", ...described(error) });
         throw new RelayError("unavailable", "ledger");
       }
 
@@ -99,15 +99,20 @@ export function relay(parts: Parts): Relay {
           response = { gif: gif.toString("base64"), frames };
         }
         const dollars = usageDollars(result.usage);
-        await ledger.settle(reservation, dollars).catch(() => log.error("settle failed", { ...fields, errorClass: "ledger" }));
+        await ledger.settle(reservation, dollars).catch((failed: unknown) => log.error("settle failed", { ...fields, errorClass: "ledger", ...described(failed) }));
         log.info("drew", { ...fields, ...result.usage, dollars, attempts: result.attempts, ms: now().getTime() - started });
         return response;
       } catch (error) {
         // Nothing was handed over, so nothing is used up.
-        await ledger.release(reservation).catch(() => log.error("release failed", { ...fields, errorClass: "ledger" }));
-        const failure = error instanceof RelayError ? error : new RelayError("unavailable", "internal");
-        log.warn("draw failed", { ...fields, errorClass: failure.code, reason: failure.reason, ms: now().getTime() - started });
-        throw failure;
+        await ledger.release(reservation).catch((failed: unknown) => log.error("release failed", { ...fields, errorClass: "ledger", ...described(failed) }));
+        if (error instanceof RelayError) {
+          log.warn("draw failed", { ...fields, errorClass: error.code, reason: error.reason, ms: now().getTime() - started });
+          throw error;
+        }
+        // Not one of the relay's own failures: a bug, or something beneath it. Its name and
+        // scrubbed message are kept, so it can be found and fixed.
+        log.error("draw failed unexpectedly", { ...fields, errorClass: "internal", ...described(error), ms: now().getTime() - started });
+        throw new RelayError("unavailable", "internal");
       }
     },
 
@@ -115,8 +120,8 @@ export function relay(parts: Parts): Relay {
       const request = parseAllowance(data);
       try {
         return { roundsLeft: await ledger.roundsLeft(hashed("household", request.householdId), hashed("companion", request.companionId)) };
-      } catch {
-        log.error("ledger failed", { errorClass: "ledger" });
+      } catch (error) {
+        log.error("ledger failed", { errorClass: "ledger", ...described(error) });
         throw new RelayError("unavailable", "ledger");
       }
     },
