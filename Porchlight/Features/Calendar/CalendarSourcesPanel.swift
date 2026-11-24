@@ -258,7 +258,10 @@ private struct MappingTable: View {
 
     private func rows(_ mappings: [(calendar: ExternalCalendar, source: CalendarSource)]) -> some View {
         VStack(spacing: 0) {
-            ForEach(Array(mappings.enumerated()), id: \.element.calendar.id) { index, mapping in
+            // Keyed by the row the choices live in, not the provider's identifier, so a
+            // calendar the system hands back under a new identifier keeps its row, and an
+            // open menu on it stays open.
+            ForEach(Array(mappings.enumerated()), id: \.element.source.id) { index, mapping in
                 MappingRow(calendar: mapping.calendar, source: mapping.source)
                     .overlay(alignment: .bottom) {
                         if index < mappings.count - 1 { Rectangle().fill(Theme.line).frame(height: 1) }
