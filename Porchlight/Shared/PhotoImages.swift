@@ -13,6 +13,8 @@ enum PhotoSource: Hashable, Sendable {
     case companion(Companion.ID, byteCount: Int)
     case recipeThumbnail(RecipePhoto.ID, byteCount: Int)
     case recipeImage(RecipePhoto.ID, byteCount: Int)
+    /// A picture of a companion's character: a still, or a strip of animation frames.
+    case character(CharacterImage.ID, byteCount: Int)
     /// Bytes not saved yet, such as a photo just taken or picked.
     case unsaved(Data)
 }
@@ -115,6 +117,7 @@ extension AppDatabase {
             return try writer.read { db in try Data.fetchOne(db, sql: "SELECT thumbnail FROM recipePhoto WHERE id = ?", arguments: [photoId]) }
         case let .recipeImage(photoId, _):
             return try writer.read { db in try Data.fetchOne(db, sql: "SELECT image FROM recipePhoto WHERE id = ?", arguments: [photoId]) }
+        case let .character(imageId, _): (table, key, id) = ("companionCharacterImage", "id", imageId.description)
         case let .unsaved(data): return data
         }
         return try writer.read { db in

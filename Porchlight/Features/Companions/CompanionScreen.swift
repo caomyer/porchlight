@@ -100,6 +100,7 @@ struct CompanionScreen: View {
 private struct HeroCard: View {
     @Environment(AppModel.self) private var model
     let report: CompanionReport
+    @State private var face: FaceRequest?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -115,6 +116,10 @@ private struct HeroCard: View {
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
                 .padding(.top, 2)
+            if report.weeksBack == 0 {
+                FaceLink(title: CharacterOffer.change(report.name)) { face = FaceRequest(companionId: report.id) }
+                    .padding(.top, 8)
+            }
             MoodMeter(report: report)
                 .padding(.top, 16)
                 .padding(.bottom, 4)
@@ -130,6 +135,7 @@ private struct HeroCard: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .faceSheet($face, personId: nil)
         .background {
             ZStack {
                 SurfaceShape(cornerRadius: Theme.radius)

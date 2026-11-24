@@ -27,12 +27,21 @@ enum CompanionSamples {
         if withWater {
             draft.routines.append(CareRoutineDraft(kind: .water, windows: [.hours("Morning", 7, 11)], stars: 1))
         }
+        // `-samplePhoto YES`: a photo of Yo-Yo, drawn in code; `-sampleSticker YES` also the
+        // sticker cut from it (docs/design/companion-characters.md).
+        let withSticker = UserDefaults.standard.bool(forKey: "sampleSticker")
+        if withSticker || UserDefaults.standard.bool(forKey: "samplePhoto") {
+            draft.photo = CharacterPlaceholders.photo()
+        }
         // The routines started with the 34 days of history below.
         let started = DayKey(now, calendar: calendar).adding(days: -34, calendar: calendar)
         for index in draft.routines.indices { draft.routines[index].startDay = started }
         let companionId = try database.saveCompanion(draft, householdId: householdId, now: now)
         let routines = try database.writer.read { db in
             try CareRoutine.filter(Column("companionId") == companionId).order(Column("sortOrder")).fetchAll(db)
+        }
+        if withSticker, let sticker = CharacterPlaceholders.sticker() {
+            try database.saveSticker(sticker, companionId: companionId, by: nil, now: now)
         }
         guard let walk = routines.first(where: { $0.kind == .walk }) else { return }
         let walkId = walk.id

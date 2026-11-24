@@ -21,6 +21,10 @@ struct PocketCompanionWeek: View {
     @State private var routineId: CareRoutine.ID?
     /// Weeks before this one the page shows; back to this week when the day turns.
     @State private var weeksBack = 0
+    /// The face sheet, from the offer or the page's own link.
+    @State private var face: FaceRequest?
+    /// The offer's close control, read again when it is tapped.
+    @State private var offerDismissed = false
 
     var body: some View {
         TimelineView(.everyMinute) { _ in
@@ -29,6 +33,18 @@ struct PocketCompanionWeek: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         hero(report)
+                        let offer = CharacterOffer.card(
+                            species: report.companion.species, look: report.look.character, hasPhoto: report.look.photo != nil,
+                            isDrawing: false, dismissed: offerDismissed, availability: .unavailable
+                        )
+                        if report.weeksBack == 0, offer != .hidden {
+                            CharacterOfferCard(name: report.name, card: offer) {
+                                face = FaceRequest(companionId: companionId, start: .sticker)
+                            } dismiss: {
+                                CharacterOffer.dismiss(companionId)
+                                offerDismissed = true
+                            }
+                        }
                         if let week {
                             if report.weeks.count > 1 {
                                 RoutineTabs(weeks: report.weeks, selected: week.id) { routineId = $0 }
@@ -45,6 +61,12 @@ struct PocketCompanionWeek: View {
                             diary(week, report: report)
                             podium(week)
                             milestones(week, report: report)
+                            Button(CharacterOffer.change(report.name)) { face = FaceRequest(companionId: companionId) }
+                                .phoneFont(.body, 14, weight: 700, relativeTo: .subheadline)
+                                .foregroundStyle(Theme.accent)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                                .accessibilityIdentifier("change-face")
                         } else {
                             Text("Add a care routine in Household to track \(report.name.possessive) day.")
                                 .phoneFont(.body, 14, weight: 600, relativeTo: .subheadline)
@@ -66,6 +88,8 @@ struct PocketCompanionWeek: View {
         }
         .background(Theme.background)
         .sheet(item: $careSheet, onDismiss: toasts.showPending) { PocketCareSheet(request: $0, logging: logging.inSheet) }
+        .faceSheet($face, personId: me?.id)
+        .onAppear { offerDismissed = CharacterOffer.isDismissed(companionId) }
     }
 
     // MARK: Opening a log

@@ -362,6 +362,27 @@ enum SyncMirror {
         var setAt: Date
     }
 
+    // A companion's character and its pictures (docs/design/companion-characters.md).
+
+    @Table("companionCharacter") struct CompanionCharacter {
+        @Column(primaryKey: true) let companionId: UUID
+        var face: String
+        var style: String
+        var personId: UUID?
+        var chosenAt: Date
+    }
+
+    @Table("companionCharacterImage") struct CompanionCharacterImage {
+        let id: UUID
+        var companionId: UUID
+        var source: String
+        var mood: String
+        var kind: String
+        var frameCount: Int
+        var byteCount: Int
+        var image: Data
+    }
+
     @Table("sharedEvent") struct SharedEvent {
         let id: UUID
         var sharedCalendarId: UUID
@@ -392,6 +413,7 @@ extension SyncMirror {
         Recipe.self, RecipePhoto.self,
         CalendarFeed.self, SharedCalendar.self, SharedEvent.self,
         HomeCalendar.self, EventFor.self,
+        CompanionCharacter.self, CompanionCharacterImage.self,
     ]
 
     /// The zone the household lives in, the engine's own default.
@@ -420,6 +442,7 @@ extension SyncMirror {
             Recipe.self, RecipePhoto.self,
             CalendarFeed.self, SharedCalendar.self, SharedEvent.self,
             HomeCalendar.self, EventFor.self,
+            CompanionCharacter.self, CompanionCharacterImage.self,
             containerIdentifier: SyncController.containerIdentifier,
             defaultZone: zone,
             startImmediately: false,

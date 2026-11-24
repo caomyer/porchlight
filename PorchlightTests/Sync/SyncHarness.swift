@@ -78,6 +78,7 @@ final class SyncHarness {
         yoyo.name = "Yo-Yo"
         yoyo.photo = try CompanionPhotos.prepared(try #require(Self.image().jpegData(compressionQuality: 0.8)))
         let companionId = try database.saveCompanion(yoyo, householdId: household.id)
+        try database.saveSticker(try #require(Self.image().pngData()), companionId: companionId, by: people[0])
         let walk = try #require(try database.writer.read { db in
             try CareRoutine.filter(Column("companionId") == companionId).fetchOne(db)
         })

@@ -258,6 +258,47 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue((time.value as? String)?.hasPrefix("\(startHour):10") == true, "and the walk starts at \(startHour):10: \(time.value ?? "")")
     }
 
+    /// The photo sticker from the companion's page (docs/design/companion-characters.md): the
+    /// page's quiet link to the face, the sheet with the photo and the sticker cut from it, the
+    /// sticker ticked and shown once used, and switching faces back and forth, which redraws
+    /// nothing. The cut-out is a drawn stand-in (`-debugStickerSubject`) and the photo is drawn
+    /// in code (`-samplePhoto`).
+    func testMakingThePhotoStickerAndSwitchingFaces() {
+        let app = launch(["-samplePhoto", "YES", "-debugStickerSubject", "middle"])
+        openWeek(app)
+        XCTAssertFalse(app.buttons["character-offer"].exists, "no offer while this build can't draw")
+        let change = app.buttons["change-face"]
+        reveal(change, in: app)
+        XCTAssertEqual(change.label, "Change Yo-Yo's character or photo")
+        change.tap()
+        let photo = app.buttons["face-photo"]
+        XCTAssertTrue(photo.waitForExistence(timeout: 5), "The face sheet lists the faces there are")
+        XCTAssertTrue(photo.isSelected, "the photo shows now")
+        XCTAssertFalse(app.buttons["face-sticker"].exists)
+        snapshot("face-01-sheet")
+        app.buttons["make-sticker"].tap()
+        let use = app.buttons["use-sticker"]
+        XCTAssertTrue(use.waitForExistence(timeout: 15), "It cuts Yo-Yo out")
+        XCTAssertTrue(app.images["sticker-preview"].exists, "and shows the sticker beside the photo")
+        XCTAssertTrue(app.staticTexts["Porchlight cut Yo-Yo out of the photo on this phone. Nothing is sent anywhere."].exists)
+        snapshot("face-02-sticker")
+        use.tap()
+        let sticker = app.buttons["face-sticker"]
+        XCTAssertTrue(sticker.waitForExistence(timeout: 5), "Back on the faces, the sticker is one of them")
+        XCTAssertTrue(sticker.isSelected, "and shows")
+        snapshot("face-03-sticker-chosen")
+        photo.tap()
+        XCTAssertTrue(photo.isSelected, "The photo again")
+        sticker.tap()
+        XCTAssertTrue(sticker.isSelected, "and the sticker again, at once: nothing is cut again")
+        XCTAssertFalse(app.staticTexts["sticker-cutting"].exists)
+        app.buttons["face-done"].tap()
+        XCTAssertTrue(sticker.waitForNonExistence(timeout: 5), "Done closes the sheet")
+        app.swipeDown()
+        app.swipeDown()
+        snapshot("face-04-page")
+    }
+
     /// A companion added today: the first week, never a zero, in the wall's words.
     func testAFirstWeek() {
         let app = launch(["-sampleCompanions", "4"])

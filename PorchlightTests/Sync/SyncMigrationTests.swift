@@ -172,13 +172,14 @@ struct SyncSchemaRulesTests {
         "recipe": "dish", "recipePhoto": "dish",
         "calendarFeed": "device", "sharedCalendar": "calendarFeed", "sharedEvent": "sharedCalendar",
         "homeCalendar": "household", "eventFor": "household",
+        "companionCharacter": "companion", "companionCharacterImage": "companion",
     ]
 
     /// Tables keyed by their parent's id, one row per parent, instead of an id of their own.
     /// `deviceState` is a device-only key-value table, keyed by its key.
     private static let keyedByParent = [
         "companionPhoto": "companionId", "journalEntryPhotoThumb": "photoId", "journalEntryPhotoImage": "photoId",
-        "deviceState": "key", "calendarItemFor": "itemId",
+        "deviceState": "key", "calendarItemFor": "itemId", "companionCharacter": "companionId",
     ]
 
     /// Tables that stay on the device and never sync.

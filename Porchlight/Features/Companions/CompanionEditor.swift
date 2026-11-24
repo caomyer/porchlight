@@ -377,6 +377,9 @@ struct CompanionEditorForm: View {
                     .accessibilityIdentifier("companion-name")
             }
             field("Look") { lookPicker }
+            if let companionId = draft.companionId {
+                field("Face") { FaceChoiceRow(companionId: companionId) }
+            }
             SectionLabel("Care routines")
             VStack(spacing: 10) {
                 ForEach(draft.routines) { routine in
@@ -406,6 +409,9 @@ struct CompanionEditorForm: View {
                         .frame(maxWidth: 260)
                         field("Look") { lookPicker }
                             .fixedSize()
+                    }
+                    if let companionId = draft.companionId {
+                        field("Face") { FaceChoiceRow(companionId: companionId) }
                     }
                     SectionLabel("Care routines")
                     ScrollView(showsIndicators: false) {

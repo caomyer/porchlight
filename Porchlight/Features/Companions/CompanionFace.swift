@@ -16,6 +16,8 @@ struct CompanionLook: Equatable {
     var species: Species
     var coat: CoatPreset
     var photo: PhotoSource?
+    /// Its sticker or drawn character, shown in place of the photo when it has one.
+    var character: CharacterLook?
 
     init(species: Species, coat: CoatPreset, photo: PhotoSource? = nil) {
         self.species = species
@@ -36,15 +38,42 @@ struct CompanionLook: Equatable {
     var tint: Color { coat.tint }
 }
 
-/// A companion's face: a photo, a drawn dog or cat, or an emoji in a circle.
+/// A companion's face: its sticker or character, a photo, a drawn dog or cat, or an emoji
+/// in a circle.
 struct CompanionFace: View {
     var look: CompanionLook
     var expression: FaceExpression = .happy
     var size: CGFloat
     /// Gently bob, like the hero face on the companion page.
     var bobs = false
+    /// The character's mood (`CharacterMoodRule.mood(for:now:)`); nil reads it from `expression`.
+    var mood: CharacterMood?
+
+    private var characterMood: CharacterMood { mood ?? (expression == .sleepy ? .asleep : .fine) }
 
     var body: some View {
+        Group {
+            switch look.character?.shown {
+            case .character:
+                if let character = look.character, let still = character.still(characterMood) {
+                    CharacterAnimationView(still: still, frames: character.animation(characterMood), size: size) { photoOrDrawn }
+                }
+            case .sticker:
+                if let sticker = look.character?.sticker {
+                    CharacterStill(picture: sticker, size: size) { photoOrDrawn }
+                }
+            case .drawn:
+                drawn
+            case .photo, nil:
+                photoOrDrawn
+            }
+        }
+        .modifier(Bob(isOn: bobs, size: size))
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var photoOrDrawn: some View {
         Group {
             if let photo = look.photo {
                 PhotoView(request: PhotoRequest(photo)) { image in
@@ -66,8 +95,6 @@ struct CompanionFace: View {
                 drawn
             }
         }
-        .modifier(Bob(isOn: bobs, size: size))
-        .accessibilityHidden(true)
     }
 
     @ViewBuilder

@@ -19,6 +19,8 @@ struct CompanionSnapshot: Equatable, Sendable {
     var companions: [Companion] = []
     /// The size of each companion's photo, for those that have one.
     var photos: [Companion.ID: Int] = [:]
+    /// Each companion's sticker or character, for those that have one (sizes only).
+    var characters: [Companion.ID: CharacterLook] = [:]
     /// Ordered by companion, then sort order.
     var routines: [CareRoutine] = []
     /// Every care log with its people, oldest first.
@@ -85,13 +87,16 @@ struct CompanionSnapshot: Equatable, Sendable {
         }
         return CompanionSnapshot(
             household: household, people: everyone.active, everyone: everyone,
-            companions: companions, photos: photos, routines: routines, entries: entries
+            companions: companions, photos: photos, characters: try AppDatabase.characterLooks(db, householdId: householdId),
+            routines: routines, entries: entries
         )
     }
 
     /// How a saved companion looks, with its photo when it has one.
     func look(of companion: Companion) -> CompanionLook {
-        CompanionLook(companion, photo: photos[companion.id].map { .companion(companion.id, byteCount: $0) })
+        var look = CompanionLook(companion, photo: photos[companion.id].map { .companion(companion.id, byteCount: $0) })
+        look.character = characters[companion.id]
+        return look
     }
 
     var calendar: Calendar { household?.calendar ?? .current }
@@ -300,6 +305,41 @@ final class CompanionStore: StoredFirstObservable {
             lastError = error.userMessage
             return nil
         }
+    }
+
+    /// A companion's photo, nil when it has none.
+    func photo(of companionId: Companion.ID) -> Data? {
+        try? database.companionPhoto(id: companionId)
+    }
+
+    /// Makes `sticker` the companion's face, with `photo` as its photo when one was picked
+    /// for it. Returns why it couldn't, if it couldn't.
+    func useSticker(_ sticker: Data, photo: Data?, for companionId: Companion.ID, by person: Person.ID?) -> String? {
+        do {
+            try database.saveSticker(sticker, photo: photo, companionId: companionId, by: person)
+            lastError = nil
+            return nil
+        } catch {
+            lastError = error.userMessage
+            return error.userMessage
+        }
+    }
+
+    /// Shows `face` for the companion, everywhere. Returns why it couldn't, if it couldn't.
+    func chooseFace(_ face: CompanionFaceChoice, for companionId: Companion.ID, by person: Person.ID?) -> String? {
+        do {
+            try database.chooseFace(face, companionId: companionId, by: person)
+            lastError = nil
+            return nil
+        } catch {
+            lastError = error.userMessage
+            return error.userMessage
+        }
+    }
+
+    /// Deletes the companion's character for everyone.
+    func removeCharacter(of companionId: Companion.ID, by person: Person.ID?) {
+        perform { try database.removeCharacter(companionId: companionId, by: person) }
     }
 
     func delete(companionId: Companion.ID) {

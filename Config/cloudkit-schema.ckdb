@@ -252,6 +252,59 @@ DEFINE SCHEMA
         GRANT READ TO "_world"
     );
 
+    RECORD TYPE companionCharacter (
+        "___createTime"                                    TIMESTAMP,
+        "___createdBy"                                     REFERENCE,
+        "___etag"                                          STRING,
+        "___modTime"                                       TIMESTAMP,
+        "___modifiedBy"                                    REFERENCE,
+        "___recordID"                                      REFERENCE,
+        chosenAt                                           ENCRYPTED TIMESTAMP,
+        companionId                                        ENCRYPTED STRING,
+        face                                               ENCRYPTED STRING,
+        personId                                           ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_chosenAt    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_companionId ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_face        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_personId    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_style       ENCRYPTED INT64,
+        style                                              ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE companionCharacterImage (
+        "___createTime"                                    TIMESTAMP,
+        "___createdBy"                                     REFERENCE,
+        "___etag"                                          STRING,
+        "___modTime"                                       TIMESTAMP,
+        "___modifiedBy"                                    REFERENCE,
+        "___recordID"                                      REFERENCE,
+        byteCount                                          ENCRYPTED INT64,
+        companionId                                        ENCRYPTED STRING,
+        frameCount                                         ENCRYPTED INT64,
+        id                                                 ENCRYPTED STRING,
+        image                                              ASSET,
+        image_hash                                         ENCRYPTED BYTES,
+        kind                                               ENCRYPTED STRING,
+        mood                                               ENCRYPTED STRING,
+        source                                             ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_byteCount   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_companionId ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_frameCount  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id          ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_image       ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_kind        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_mood        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_source      ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE companionPhoto (
         "___createTime"                                    TIMESTAMP,
         "___createdBy"                                     REFERENCE,

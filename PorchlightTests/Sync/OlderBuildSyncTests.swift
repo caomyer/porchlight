@@ -251,7 +251,14 @@ private final class Phone {
     /// Which build a device runs: today's, the one from before the shared calendar, the one
     /// from before recipes (dishes, but no recipe tables and no planned dinner's dish), or
     /// the one from before dishes.
-    enum Build { case today, beforeHomeCalendar, beforeCalendar, beforeRecipes, beforeDishes }
+    /// Two more for a companion's character: today's companion tables with the character's
+    /// and without them, as a build from before characters has them.
+    enum Build {
+        case today, beforeHomeCalendar, beforeCalendar, beforeRecipes, beforeDishes, withCharacters, beforeCharacters
+
+        /// Today's schema apart from any characters.
+        var isToday: Bool { self == .today || self == .withCharacters || self == .beforeCharacters }
+    }
 
     /// Each device its own install, so each has its own row in the household.
     init(_ cloud: Cloud, build: Build, folder: URL? = nil, install: String = UUID().uuidString) async throws {
@@ -264,7 +271,16 @@ private final class Phone {
         let install = (try? String(contentsOf: installFile, encoding: .utf8)) ?? install
         try install.write(to: installFile, atomically: true, encoding: .utf8)
         database = try AppDatabase.openOnDisk(folder: self.folder, installId: install)
-        if build != .today {
+        if build == .beforeCharacters {
+            // Before characters: neither of their tables.
+            try await database.writer.write { db in
+                try db.execute(sql: """
+                    DROP TABLE "companionCharacterImage"; DROP TABLE "companionCharacter";
+                    DELETE FROM grdb_migrations WHERE identifier = ?;
+                    """, arguments: [AppDatabase.characterMigration])
+            }
+        }
+        if !build.isToday {
             // Before the home calendar: no home calendar, no "For", no device half of either.
             try await database.writer.write { db in
                 try db.execute(sql: """
@@ -274,7 +290,7 @@ private final class Phone {
                     """, arguments: [AppDatabase.homeCalendarMigration, AppDatabase.ownerChosenMigration])
             }
         }
-        if build != .today && build != .beforeHomeCalendar {
+        if !build.isToday && build != .beforeHomeCalendar {
             // Before the shared calendar: none of its tables, and no choice per calendar.
             try await database.writer.write { db in
                 try db.execute(sql: """
@@ -326,6 +342,8 @@ private final class Phone {
                 case .beforeCalendar: Self.beforeCalendarTables
                 case .beforeRecipes: Self.beforeRecipesTables
                 case .beforeDishes: Self.olderTables
+                case .withCharacters: Self.companionTables + Self.characterTables
+                case .beforeCharacters: Self.companionTables
                 }
             }()
         )
@@ -335,10 +353,21 @@ private final class Phone {
 
     /// The same device after updating to the newer build: its database and metadata, the
     /// newer schema, a new engine.
-    func updated() async throws -> Phone {
+    func updated(to build: Build = .today) async throws -> Phone {
         engine.stop()
         try database.writer.close()
-        return try await Phone(cloud, build: .today, folder: folder)
+        return try await Phone(cloud, build: build, folder: folder)
+    }
+
+    static var companionTables: [any SynchronizableTable] {
+        [
+            SynchronizedTable(for: SyncMirror.Household.self), SynchronizedTable(for: SyncMirror.Person.self),
+            SynchronizedTable(for: SyncMirror.Companion.self), SynchronizedTable(for: SyncMirror.CompanionPhoto.self),
+        ]
+    }
+
+    static var characterTables: [any SynchronizableTable] {
+        [SynchronizedTable(for: SyncMirror.CompanionCharacter.self), SynchronizedTable(for: SyncMirror.CompanionCharacterImage.self)]
     }
 
     static var olderTables: [any SynchronizableTable] {
@@ -874,6 +903,38 @@ struct EventForSyncTests {
         try await older.engine.fetchChanges()
         #expect(try older.count("SELECT COUNT(*) FROM eventFor") == 1)
         #expect(try older.count("SELECT COUNT(*) FROM homeCalendar") == 1)
+    }
+
+    @Test("A build from before characters keeps the companion and its photo, holds the sticker without harm, and shows it on updating")
+    func olderBuildAndCharacters() async throws {
+        // The stand-in for iCloud names its records with the uuid dependency.
+        try await withDependencies { $0.uuid = .incrementing } operation: { try await olderBuildAndCharactersBody() }
+    }
+
+    private func olderBuildAndCharactersBody() async throws {
+        let cloud = Cloud()
+        let mia = try await Phone(cloud, build: .withCharacters)
+        let household = try mia.database.createHousehold(name: "The Lake House", people: [PersonDraft(name: "Mia", color: .coral)])
+        var yoyo = CompanionDraft.new(species: .dog)
+        yoyo.name = "Yo-Yo"
+        yoyo.photo = Data("photo".utf8)
+        let companionId = try mia.database.saveCompanion(yoyo, householdId: household.id)
+        try mia.database.saveSticker(Data("sticker".utf8), companionId: companionId, by: nil)
+        try await mia.engine.sendChanges()
+
+        var older = try await Phone(cloud, build: .beforeCharacters)
+        try await older.engine.fetchChanges()
+        #expect(try older.hasTable("companionCharacter") == false)
+        for type in ["companionCharacter", "companionCharacterImage"] {
+            #expect(try older.waiting(recordType: type) == 1, "\(type) waits in the engine's metadata")
+        }
+        #expect(try older.count("SELECT COUNT(*) FROM companion") == 1, "the companion syncs as before")
+        #expect(try older.count("SELECT COUNT(*) FROM companionPhoto") == 1, "and keeps its photo, shown there meanwhile")
+
+        older = try await older.updated(to: .withCharacters)
+        try await older.engine.fetchChanges()
+        let looks = try await older.database.writer.read { db in try AppDatabase.characterLooks(db, householdId: household.id) }
+        #expect(looks[companionId]?.shown == .sticker, "updated, it shows the sticker")
     }
 
     @Test("A Busy only event's record re-keys without a title, and nothing unmatched is deleted")
