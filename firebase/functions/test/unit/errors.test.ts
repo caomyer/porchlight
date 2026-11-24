@@ -8,7 +8,7 @@ import { png } from "../support";
 /** Every reason the contract names. Adding one here is adding it to the contract. */
 const reasons: RelayReason[] = [
   "rounds", "mood-redraws", "animation-redraws", "companions", "household-day", "installation-day",
-  "spend-ceiling", "model", "relay",
+  "spend-ceiling", "model", "model-key", "relay",
 ];
 
 describe("what the app is told about a failure", () => {
@@ -31,7 +31,7 @@ describe("what the app is told about a failure", () => {
 
   it("uses only reasons from the closed set, in a shape the contract names", () => {
     for (const reason of reasons) {
-      const code = ["spend-ceiling", "model", "relay"].includes(reason) ? "unavailable" : "limit-reached";
+      const code = ["spend-ceiling", "model", "model-key", "relay"].includes(reason) ? "unavailable" : "limit-reached";
       const sent: FailureDetails = details(new RelayError(code, "for the log", reason)) as FailureDetails;
       expect(sent.reason).toBe(reason);
       expect(reason).toMatch(/^[a-z]+(-[a-z]+)*$/);
@@ -58,7 +58,7 @@ describe("a failure of the image model", () => {
   }
 
   it("is told to the app as the model's, whichever way it failed", async () => {
-    for (const answer of [{ status: 500, body: {} }, { status: 429, body: {} }, { status: 401, body: { error: { code: "invalid_api_key" } } }, new Error("socket hang up"), { status: 200, body: { data: [] } }]) {
+    for (const answer of [{ status: 500, body: {} }, { status: 429, body: {} }, { status: 400, body: { error: { code: "unsupported_value" } } }, new Error("socket hang up"), { status: 200, body: { data: [] } }]) {
       expect(details(await caught(failing(answer)))).toEqual({ code: "unavailable", reason: "model" });
     }
   });

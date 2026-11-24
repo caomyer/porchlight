@@ -12,7 +12,15 @@
 set -euo pipefail
 
 here=${0:A:h}
-cd "$here/.."
+source_dir=${here:h}
+
+# Everything runs in a copy outside the repository. The repository may sit in a folder a
+# file-syncing service watches (iCloud Drive), and thousands of installed package files
+# there are slow to sync and come back as duplicates; nothing is installed or built in it.
+work=$(mktemp -d -t porchlight-relay)
+trap 'rm -rf "$work"' EXIT
+rsync -a --exclude node_modules --exclude lib --exclude '*.log' --exclude '.secret*' "$source_dir/" "$work/"
+cd "$work"
 
 project=${1:-}
 if [[ -z "$project" && -f .firebaserc ]]; then
