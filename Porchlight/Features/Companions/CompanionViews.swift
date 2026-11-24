@@ -7,7 +7,7 @@ struct CompanionRailIcon: View {
 
     var body: some View {
         if let report = store.report(for: companionId) {
-            CompanionFace(look: report.look, expression: report.expression, size: 28)
+            CompanionFace(look: report.look, expression: report.expression, size: 28, mood: report.characterMood)
         } else {
             Image(systemName: "pawprint").font(.system(size: 21, weight: .medium))
         }
@@ -77,7 +77,7 @@ struct CompanionTodayCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
-                CompanionFace(look: report.look, expression: report.expression, size: 66)
+                CompanionFace(look: report.look, expression: report.expression, size: 66, mood: report.characterMood)
                     .frame(width: 78, height: 78)
                     .background(report.look.tint.wash(0.3), in: Circle())
                 VStack(alignment: .leading, spacing: 4) {

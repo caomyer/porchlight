@@ -44,6 +44,8 @@ private enum Launch {
 
     @MainActor
     static func start() -> Launch {
+        // Only reads the build's settings: nothing of Firebase starts until a character is asked for.
+        CharacterRelay.install()
         #if DEBUG
         if SchemaSeed.isRequested { return .seedingSchema }
         #endif

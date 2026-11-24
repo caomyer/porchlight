@@ -1,0 +1,89 @@
+name: Relay
+
+# The character relay's own checks (firebase/): lint, the unit tests, and the limit and
+# callable tests in the Firebase emulators. One small Linux job, so it never takes a Mac
+# from the app's tests (.github/workflows/tests.yml, which leaves firebase/ alone).
+#
+# It runs when a push changes firebase/ or this file, on every push to integration/next
+# or main (the release gate, whatever changed), and when run by hand.
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: relay-${{ github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changed:
+    name: What changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      relay: ${{ steps.look.outputs.relay }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # A push names the commit it replaced; a new branch has none, and is compared with
+      # main. Anything this cannot work out counts as changed: a check that runs once too
+      # often costs a minute, one that is skipped by mistake costs a broken relay.
+      - name: Did the relay change?
+        id: look
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          relay=yes
+          if [ "$EVENT" = "push" ] && [ "$REF" != "refs/heads/main" ] && [ "$REF" != "refs/heads/integration/next" ]; then
+            base="$BEFORE"
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
+            fi
+            if [ -n "$base" ] && git diff --quiet "$base" HEAD -- firebase .github/workflows/relay.yml; then
+              relay=no
+            fi
+          fi
+          echo "relay=$relay" >> "$GITHUB_OUTPUT"
+          echo "Run the relay's checks: $relay"
+
+  relay:
+    name: Relay
+    needs: changed
+    if: needs.changed.outputs.relay == 'yes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: firebase/functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      # The Firestore emulator is a Java program.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      # Builds, runs the unit tests, then starts the emulators and runs the limit and the
+      # callable tests in them. The image model is a stand-in throughout: no key, no cost.
+      - name: Test
+        run: npm test

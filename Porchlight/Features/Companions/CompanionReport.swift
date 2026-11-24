@@ -41,6 +41,8 @@ struct CompanionReport {
     var mood: Double?
     var today: DayKey
     var now: Date
+    /// The household's calendar, which every time of day here is read in.
+    var calendar: Calendar
     /// The week the page shows: seven days, this week's ending today.
     var weekDays: [DayKey]
     /// Weeks before this one the page shows (`WeekPaging`); 0 is this week.
@@ -121,6 +123,7 @@ struct CompanionReport {
             mood: mood,
             today: today,
             now: now,
+            calendar: calendar,
             weekDays: weekDays,
             weeksBack: shown,
             weeksBackLimit: limit,

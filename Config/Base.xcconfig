@@ -1,3 +1,7 @@
 // Shared build settings. Machine-specific values (your signing team) live in
 // Local.xcconfig, which is git-ignored. Copy Local.example.xcconfig to start.
 #include? "Local.xcconfig"
+// The Firebase project the character relay lives in: written by scripts/firebase-config.sh
+// from the project owner's GoogleService-Info.plist, git-ignored (the repository is public).
+// Absent in most builds, CI's among them: then nothing offers to draw a character.
+#include? "Firebase.xcconfig"

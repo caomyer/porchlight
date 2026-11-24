@@ -136,7 +136,7 @@ private struct CareLogForm: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
-                CompanionFace(look: report.look, expression: report.expression, size: 56)
+                CompanionFace(look: report.look, expression: report.expression, size: 56, mood: report.characterMood)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.display(30))
@@ -442,7 +442,7 @@ private struct CelebrationView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
             VStack(spacing: 0) {
-                CompanionFace(look: look, expression: .happy, size: 200)
+                CompanionFace(look: look, expression: .happy, size: 200, mood: .zoomies)
                     .scaleEffect(x: jump ? 1 : 1.02, y: jump ? 1 : 0.97, anchor: .bottom)
                     .rotationEffect(.degrees(jump ? 4 : 0))
                     .offset(y: jump ? -34 : 10)

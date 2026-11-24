@@ -39,6 +39,13 @@ packages:
   SQLiteData:
     url: https://github.com/caomyer/sqlite-data
     revision: ba1f32c07667c0ee585a35057f1421f01f96ff33
+  # Firebase, for one thing only: the relay that draws companion characters
+  # (docs/design/companion-characters.md, "The relay's client"). Core, App Check (App Attest
+  # proves a call comes from a genuine copy of the app) and Functions (the relay's two
+  # callables). No Analytics, no Auth, no Firestore in the app. Pinned to an exact release.
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    exactVersion: 13.1.1
 targets:
   Porchlight:
     type: application
@@ -48,6 +55,12 @@ targets:
     dependencies:
       - package: GRDB
       - package: SQLiteData
+      - package: Firebase
+        product: FirebaseCore
+      - package: Firebase
+        product: FirebaseAppCheck
+      - package: Firebase
+        product: FirebaseFunctions
       - target: PorchlightWidgets
     info:
       path: Porchlight/Info.plist
@@ -77,6 +90,17 @@ targets:
           - DMSans.ttf
           - Caveat.ttf
         ITSAppUsesNonExemptEncryption: false
+        # The relay's Firebase project, from Config/Firebase.xcconfig (git-ignored, written by
+        # scripts/firebase-config.sh). Empty in a build without it: then Firebase is never
+        # configured and nothing offers to draw a character.
+        PorchlightFirebaseAppID: $(PORCHLIGHT_FIREBASE_APP_ID)
+        PorchlightFirebaseAPIKey: $(PORCHLIGHT_FIREBASE_API_KEY)
+        PorchlightFirebaseProjectID: $(PORCHLIGHT_FIREBASE_PROJECT_ID)
+        PorchlightFirebaseSenderID: $(PORCHLIGHT_FIREBASE_SENDER_ID)
+        # Firebase never wraps the app delegate, and App Check fetches a token only when a
+        # call needs one, never on its own in the background.
+        FirebaseAppDelegateProxyEnabled: false
+        FirebaseAppCheckTokenAutoRefreshEnabled: false
         NSCalendarsFullAccessUsageDescription: Porchlight shows the calendars you choose, on Today and on your household's wall. It adds or changes an event only when you do, in the calendar you choose.
         NSCameraUsageDescription: Porchlight uses the camera to snap photos of your meals for the food diary.
         NSLocationWhenInUseUsageDescription: Porchlight uses your approximate location once to show local weather.
@@ -104,6 +128,9 @@ targets:
           - iCloud.com.mingyucao.porchlight
         com.apple.developer.icloud-container-environment: $(PORCHLIGHT_CLOUDKIT_ENVIRONMENT)
         aps-environment: development
+        # App Attest, which App Check uses to prove a call to the relay comes from a genuine
+        # copy of the app on a real device. Production wherever CloudKit is Production.
+        com.apple.developer.devicecheck.appattest-environment: $(PORCHLIGHT_APPATTEST_ENVIRONMENT)
         # The widgets read the summary the app writes here.
         com.apple.security.application-groups:
           - group.com.mingyucao.porchlight
@@ -120,8 +147,10 @@ targets:
         # on Development (docs/design/sync-icloud.md, "One iCloud for cable installs and TestFlight").
         Debug:
           PORCHLIGHT_CLOUDKIT_ENVIRONMENT: Development
+          PORCHLIGHT_APPATTEST_ENVIRONMENT: development
         Release:
           PORCHLIGHT_CLOUDKIT_ENVIRONMENT: Production
+          PORCHLIGHT_APPATTEST_ENVIRONMENT: production
   PorchlightWidgets:
     type: app-extension
     platform: iOS

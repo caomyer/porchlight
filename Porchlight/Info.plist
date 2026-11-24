@@ -39,6 +39,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CKSharingSupported</key>
 	<true/>
+	<key>FirebaseAppCheckTokenAutoRefreshEnabled</key>
+	<false/>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
@@ -47,6 +51,14 @@
 	<string>Porchlight uses the camera to snap photos of your meals for the food diary.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Porchlight uses your approximate location once to show local weather.</string>
+	<key>PorchlightFirebaseAPIKey</key>
+	<string>$(PORCHLIGHT_FIREBASE_API_KEY)</string>
+	<key>PorchlightFirebaseAppID</key>
+	<string>$(PORCHLIGHT_FIREBASE_APP_ID)</string>
+	<key>PorchlightFirebaseProjectID</key>
+	<string>$(PORCHLIGHT_FIREBASE_PROJECT_ID)</string>
+	<key>PorchlightFirebaseSenderID</key>
+	<string>$(PORCHLIGHT_FIREBASE_SENDER_ID)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Fraunces.ttf</string>

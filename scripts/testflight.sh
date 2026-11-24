@@ -12,8 +12,11 @@
 # MARKETING_VERSION in project.yml, and its build number comes from the commit
 # (scripts/lib/version.sh), so a commit can be uploaded once, and a later one is higher.
 #
-# Needs: Xcode, `brew install xcodegen`, Config/Local.xcconfig (DEVELOPMENT_TEAM) and
-# Config/AppStoreConnect.env (the App Store Connect API key; see scripts/lib/signing.sh).
+# Needs: Xcode, `brew install xcodegen`, Config/Local.xcconfig (DEVELOPMENT_TEAM),
+# Config/AppStoreConnect.env (the App Store Connect API key; see scripts/lib/signing.sh) and
+# the character relay's Firebase project at ~/.config/porchlight/GoogleService-Info.plist
+# (scripts/firebase-config.sh): a TestFlight build without it could not draw characters,
+# so there is none.
 # Builds outside the repository, in ~/Library/Developer/Xcode/DerivedData/Porchlight-testflight,
 # whose newest build is also where --upload-only looks.
 set -euo pipefail
@@ -23,7 +26,7 @@ for argument in "$@"; do
   case "$argument" in
     --no-upload) mode=build ;;
     --upload-only) mode=upload ;;
-    -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $argument" >&2; exit 1 ;;
   esac
 done
@@ -61,6 +64,13 @@ fi
 
 if [[ ! -f Config/Local.xcconfig ]]; then
   echo "Missing Config/Local.xcconfig. Copy Config/Local.example.xcconfig and set DEVELOPMENT_TEAM." >&2
+  exit 1
+fi
+# The relay's Firebase project, from outside the repository into this checkout's build
+# settings. Loudly: a release that silently could not draw characters would only be found
+# out on someone's phone.
+if ! zsh "$root/scripts/firebase-config.sh"; then
+  echo "TESTFLIGHT STOPPED: no Firebase project for the character relay. Save GoogleService-Info.plist to ~/.config/porchlight/ (see scripts/firebase-config.sh), then run this again." >&2
   exit 1
 fi
 # A build is a commit: what is uploaded can always be found again.
