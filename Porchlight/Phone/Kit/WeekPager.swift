@@ -18,16 +18,24 @@ struct WeekPager: View {
     @PhoneMetric(upTo: 1.4) private var chevron: CGFloat = 36
 
     var body: some View {
-        HStack(spacing: 6) {
-            arrow("chevron.left", label: "Previous week", id: "week-back", shown: page.weeksBack < page.limit) {
-                page.go(page.weeksBack + 1)
-            }
-            VStack(spacing: 2) {
+        // The arrows and the week's name share one row and one centre line, at every text
+        // size. "Back to this week" sits under the name in a row of its own, so it never
+        // pulls the arrows down; its room is always kept, so the week below doesn't move
+        // when stepping away from this week.
+        let away = page.weeksBack > 0
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 6) {
+                arrow("chevron.left", label: "Previous week", id: "week-back", shown: page.weeksBack < page.limit) {
+                    page.go(page.weeksBack + 1)
+                }
                 Text(WeekPaging.weekName(weeksBack: page.weeksBack))
                     .phoneFont(.display, 17, weight: 600, relativeTo: .headline)
                     .foregroundStyle(Theme.ink)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    // Grown to the largest sizes, the words would crowd out the week they name.
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                     .accessibilityLabel(page.spoken)
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("week-name")
@@ -38,26 +46,24 @@ struct WeekPager: View {
                         @unknown default: break
                         }
                     }
-                // Always laid out, so the week below doesn't move when stepping away from
-                // this week; on this week it is invisible and out of reach.
-                let away = page.weeksBack > 0
-                Button("Back to this week") { page.go(0) }
-                    .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
-                    .foregroundStyle(Theme.accent)
-                    .buttonStyle(.plain)
-                    .frame(minHeight: 28)
-                    .contentShape(Rectangle())
-                    .opacity(away ? 1 : 0)
-                    .disabled(!away)
-                    .accessibilityHidden(!away)
-                    .accessibilityIdentifier("week-this")
+                arrow("chevron.right", label: "Next week", id: "week-forward", shown: page.weeksBack > 0) {
+                    page.go(page.weeksBack - 1)
+                }
             }
-            .frame(maxWidth: .infinity)
-            // Grown to the largest sizes, the words would crowd out the week they name.
-            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
-            arrow("chevron.right", label: "Next week", id: "week-forward", shown: page.weeksBack > 0) {
-                page.go(page.weeksBack - 1)
-            }
+            // On this week it is invisible and out of reach. Tucked up a little: the name's
+            // row is as tall as an arrow, taller than the name.
+            Button("Back to this week") { page.go(0) }
+                .phoneFont(.body, 12.5, weight: 800, relativeTo: .footnote)
+                .foregroundStyle(Theme.accent)
+                .buttonStyle(.plain)
+                .frame(minHeight: 28)
+                .contentShape(Rectangle())
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+                .padding(.top, -8)
+                .opacity(away ? 1 : 0)
+                .disabled(!away)
+                .accessibilityHidden(!away)
+                .accessibilityIdentifier("week-this")
         }
     }
 
@@ -78,7 +84,7 @@ struct WeekPager: View {
             .accessibilityLabel(label)
             .accessibilityIdentifier(id)
         } else {
-            Color.clear.frame(width: max(chevron, 44), height: 1).accessibilityHidden(true)
+            Color.clear.frame(width: max(chevron, 44), height: 44).accessibilityHidden(true)
         }
     }
 }

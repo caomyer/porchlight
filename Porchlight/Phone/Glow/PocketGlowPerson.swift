@@ -52,7 +52,8 @@ struct PocketGlowPerson: View {
             GlowNumber(
                 number: glow.weekStars,
                 title: "\(StarWords.noun(glow.weekStars)) \(week.isThisWeek ? "this week" : "that week")",
-                detail: "\(glow.lastWeekStars) \(week.isThisWeek ? "last week" : "the week before")"
+                // The same comparison, in the same words, as their row on Glow's page.
+                detail: glow.trend(isThisWeek: week.isThisWeek)
             )
             .accessibilityIdentifier("glow-person-week")
             GlowNumber(number: glow.lifetimeStars, title: "\(StarWords.noun(glow.lifetimeStars)) all time", detail: nil)

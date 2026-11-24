@@ -120,6 +120,29 @@ struct GlowStoryTests {
         }
     }
 
+    @Test("A person's row, their own page and their wall card give one comparison: the same stretch of last week, in the same words")
+    func oneComparison() {
+        let today = day("2026-11-18") // a Wednesday
+        let week = HomeWeek(containing: today, calendar: calendar)
+        let earnings = [
+            // Mia this week: 14. Last week by Wednesday: 16; her whole last week: 34.
+            chore(1, "Dishes", "2026-11-15", by: mia, stars: 6), chore(1, "Dishes", "2026-11-17", by: mia, stars: 8),
+            chore(1, "Dishes", "2026-11-08", by: mia, stars: 10), chore(1, "Dishes", "2026-11-11", by: mia, stars: 6),
+            chore(1, "Dishes", "2026-11-13", by: mia, stars: 18),
+        ]
+        let summary = GlowSummary(
+            people: people, earnings: earnings, redemptions: [], rewards: [], lifetime: [:], week: week, today: today, calendar: calendar
+        )
+        let glow = summary.people[1]
+        #expect(glow.weekStars == 14 && glow.lastWeekSoFar == 16 && glow.lastWeekStars == 34)
+        // The one comparison, never the whole week that today has not caught up with.
+        #expect(glow.trend(isThisWeek: true) == "This time last week: 16")
+        #expect(GlowWords.personLine(glow, isThisWeek: true, emoji: false) == "2 chores · This time last week: 16")
+        #expect(glow.trend(isThisWeek: true)?.contains("34") == false)
+        // James did nothing either week: nothing to compare, on any screen.
+        #expect(summary.people[0].trend(isThisWeek: true) == nil)
+    }
+
     @Test("The total says the household's stars and my share, in the star words")
     func totalWords() {
         #expect(GlowWords.total(stars: 14, mine: 6, isThisWeek: true) == "stars this week · 6 from you")
@@ -231,6 +254,15 @@ struct GlowStoryTests {
             let saved = try db.saveReward(idea, householdId: household.id, today: day("2026-11-18"))
             #expect(saved.ownerId == nil && saved.targetStars == idea.targetStars && saved.emoji == idea.emoji)
         }
+    }
+
+    @Test("The wall's person cards list as many tasks as the wall has room for, the porch keeping its least")
+    @MainActor
+    func wallCardRows() {
+        // The column under the header on a 13-inch wall, on a 10.5-inch one, and on something smaller.
+        #expect(PersonGlowCard.rows(inColumn: 916) == 6)
+        #expect(PersonGlowCard.rows(inColumn: 718) == 4)
+        #expect(PersonGlowCard.rows(inColumn: 400) == 2)
     }
 
     // MARK: A cash-in made elsewhere

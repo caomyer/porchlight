@@ -487,6 +487,13 @@ struct GlowSummary: Equatable {
         /// What they did most this week, e.g. ("🦮", "Walk · Yo-Yo", 5).
         var favorite: Favorite?
         var id: Person.ID { person.id }
+
+        /// Their week beside their own last week, in the one way every screen says it:
+        /// against the same stretch of last week ("This time last week: 16"), or against
+        /// the whole week before for an earlier week. Nil with nothing to compare with.
+        func trend(isThisWeek: Bool) -> String? {
+            GlowWords.ownTrend(stars: weekStars, before: lastWeekSoFar, isThisWeek: isThisWeek)
+        }
     }
 
     struct Favorite: Equatable {

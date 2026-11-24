@@ -177,7 +177,7 @@ struct PocketGlowScreen: View {
                 if index > 0 { GlowDivider() }
                 let name = glow.id == me?.id ? "You" : glow.person.name
                 let line = GlowWords.personLine(glow, isThisWeek: week.isThisWeek, emoji: false)
-                let trend = GlowWords.ownTrend(stars: glow.weekStars, before: glow.lastWeekSoFar, isThisWeek: week.isThisWeek)
+                let trend = glow.trend(isThisWeek: week.isThisWeek)
                 Button { path.append(.person(glow.id)) } label: {
                     HStack(spacing: 10) {
                         PersonAvatar(glow.person)

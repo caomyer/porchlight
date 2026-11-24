@@ -51,18 +51,23 @@ struct GlowScreen: View {
                 HeaderChip(title: "New reward", symbol: "plus") { present(.new) }
             }
             HStack(alignment: .top, spacing: 16) {
-                VStack(spacing: 16) {
-                    PorchLightHero(summary: summary, isThisWeek: isThisWeek)
-                        .frame(height: 236)
-                    HStack(alignment: .top, spacing: 16) {
-                        ForEach(summary.people) { glow in
-                            PersonGlowCard(
-                                glow: glow, days: week.days, today: store.today, isThisWeek: isThisWeek,
-                                tasks: GlowStory.tasks(store.snapshot.earnings, in: week, people: model.people, person: glow.id)
-                            ) { present(.person(glow.id)) }
+                // The people's cards are as tall as what they say, all one height, and the
+                // porch takes the rest of the column: no card is stretched over an empty band.
+                GeometryReader { proxy in
+                    VStack(spacing: 16) {
+                        PorchLightHero(summary: summary, isThisWeek: isThisWeek)
+                            .frame(minHeight: PersonGlowCard.porchAtLeast, maxHeight: .infinity)
+                        HStack(alignment: .top, spacing: 16) {
+                            ForEach(summary.people) { glow in
+                                PersonGlowCard(
+                                    glow: glow, days: week.days, today: store.today, isThisWeek: isThisWeek,
+                                    tasks: GlowStory.tasks(store.snapshot.earnings, in: week, people: model.people, person: glow.id),
+                                    rows: PersonGlowCard.rows(inColumn: proxy.size.height)
+                                ) { present(.person(glow.id)) }
+                            }
                         }
+                        .fixedSize(horizontal: false, vertical: true)
                     }
-                    .frame(maxHeight: .infinity, alignment: .top)
                 }
                 .frame(maxWidth: .infinity)
                 VStack(spacing: 16) {
@@ -120,7 +125,7 @@ private struct PorchLightHero: View {
                     startRadius: 4,
                     endRadius: 60 + 150 * glow
                 )
-                Sparks(sparks: summary.sparks, center: lantern, maxRadius: min(size.width * 0.3, size.height * 0.62)) { personId in
+                Sparks(sparks: summary.sparks, center: lantern, maxRadius: Self.sparkRadius(in: size)) { personId in
                     personId.map { model.color(for: .person($0)) } ?? Theme.everyone
                 }
                 Lantern(glow: glow)
@@ -145,6 +150,12 @@ private struct PorchLightHero: View {
         .shadow(color: Color(hex: 0x2B2440).opacity(0.25), radius: 14, y: 8)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(headline + ". " + detail)
+    }
+
+    /// How far the sparks spread from the lantern: as far as the porch is tall, and never
+    /// into the words, which have the left half (the spiral is a quarter wider than tall).
+    static func sparkRadius(in size: CGSize) -> CGFloat {
+        min(size.width * 0.18, size.height * 0.62)
     }
 
     /// 0...1: how brightly the porch glows, against last week by this day (or a gentle 10 to start).
@@ -254,14 +265,31 @@ struct SparkShape: Shape {
 
 /// One person's week: their stars, their days, what they did in words and by task, and how
 /// it sits beside their own last week. It opens to their own page.
-private struct PersonGlowCard: View {
+struct PersonGlowCard: View {
     let glow: GlowSummary.PersonGlow
     let days: [DayKey]
     let today: DayKey
     var isThisWeek = true
     /// What they did that week, most stars first.
     var tasks: [GlowTask] = []
+    /// How many of them the card lists before "and 3 more".
+    var rows = PersonGlowCard.mostRows
     let onOpen: () -> Void
+
+    /// The porch above the cards never gets less than this.
+    static let porchAtLeast: CGFloat = 236
+    static let mostRows = 6
+    static let rowHeight: CGFloat = 36
+    /// A card's height without its task rows: its padding, name, days, summary, "and more"
+    /// and footer.
+    static let heightWithoutRows: CGFloat = 310
+
+    /// How many task rows fit when the column is `height` tall and the porch keeps its
+    /// least: six on a 13-inch wall, four on a 10.5-inch one, never fewer than two.
+    static func rows(inColumn height: CGFloat) -> Int {
+        let room = height - porchAtLeast - 16 - heightWithoutRows
+        return min(max(Int(room / rowHeight), 2), mostRows)
+    }
 
     @Environment(HomeStore.self) private var store
 
@@ -292,21 +320,14 @@ private struct PersonGlowCard: View {
                 .accessibilityLabel("\(StarWords.count(glow.weekStars)) \(isThisWeek ? "this week" : "that week")")
             }
             DayBars(values: glow.byDay, days: days, today: today, color: color, calendar: store.calendar)
-                .frame(minHeight: 86, maxHeight: 150)
-            VStack(alignment: .leading, spacing: 7) {
-                Text(GlowWords.didLine(glow, isThisWeek: isThisWeek))
-                    .font(.body(14, weight: 600))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                if !tasks.isEmpty {
-                    Text(GlowWords.taskLine(tasks))
-                        .font(.body(13.5, weight: 600))
-                        .foregroundStyle(Theme.muted)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("glow-tasks-\(glow.person.name)")
-                }
-            }
+                .frame(height: 104)
+            Text(GlowWords.didLine(glow, isThisWeek: isThisWeek))
+                .font(.body(14, weight: 600))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            // What they did, a row a task, as many as the wall has room for.
+            if !tasks.isEmpty { taskRows(rows) }
+            // Only the difference between two people's cards, which share one height.
             Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(footer)
@@ -328,10 +349,48 @@ private struct PersonGlowCard: View {
         .contentShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
     }
 
+    /// The first `count` tasks as rows, then how many more there are.
+    private func taskRows(_ count: Int) -> some View {
+        let shown = Array(tasks.prefix(count))
+        let more = tasks.count - shown.count
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(shown.enumerated()), id: \.element.id) { index, task in
+                if index > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
+                HStack(spacing: 8) {
+                    Text(task.emoji).font(.system(size: 16)).frame(width: 24)
+                    Text(task.title)
+                        .font(.body(14.5, weight: 700))
+                        .lineLimit(1)
+                    if task.times > 1 {
+                        Text("×\(task.times)")
+                            .font(.body(13, weight: 700))
+                            .foregroundStyle(Theme.muted)
+                            .fixedSize()
+                    }
+                    Spacer(minLength: 4)
+                    Text("+\(task.stars)")
+                        .font(.body(13.5, weight: 800))
+                        .foregroundStyle(Theme.muted)
+                        .monospacedDigit()
+                        .fixedSize()
+                        .accessibilityLabel(StarWords.count(task.stars))
+                }
+                .frame(height: Self.rowHeight)
+            }
+            if more > 0 {
+                Text("and \(more) more")
+                    .font(.body(12.5, weight: 700))
+                    .foregroundStyle(Theme.muted)
+                    .frame(height: 26)
+            }
+        }
+        .accessibilityIdentifier("glow-tasks-\(glow.person.name)")
+    }
+
     /// "Up 3 on last week · 41 stars all time": their own trend, then all time.
     private var footer: String {
         let allTime = "\(StarWords.count(glow.lifetimeStars)) all time"
-        guard let trend = GlowWords.ownTrend(stars: glow.weekStars, before: glow.lastWeekSoFar, isThisWeek: isThisWeek) else { return allTime }
+        guard let trend = glow.trend(isThisWeek: isThisWeek) else { return allTime }
         return trend + " · " + allTime
     }
 }
@@ -615,7 +674,8 @@ struct GlowPersonSheet: View {
                 }
                 HStack(spacing: 12) {
                     number(glow.weekStars, "\(StarWords.noun(glow.weekStars)) \(isThisWeek ? "this week" : "that week")")
-                    number(glow.lastWeekStars, "\(StarWords.noun(glow.lastWeekStars)) \(isThisWeek ? "last week" : "the week before")")
+                    // The same comparison as their card and the phone: last week up to this weekday.
+                    number(glow.lastWeekSoFar, isThisWeek ? "\(StarWords.noun(glow.lastWeekSoFar)) by this time last week" : "\(StarWords.noun(glow.lastWeekSoFar)) the week before")
                     number(glow.lifetimeStars, "\(StarWords.noun(glow.lifetimeStars)) all time")
                 }
                 DayBars(values: glow.byDay, days: week.days, today: store.today, color: glow.person.color.color, calendar: calendar)

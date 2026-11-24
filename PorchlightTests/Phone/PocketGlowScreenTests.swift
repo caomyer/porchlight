@@ -91,6 +91,12 @@ struct PocketGlowScreenTests {
         #expect(page.offSides.isEmpty, "nothing runs off either side (\(look)): \(page.offSides.map { "\($0.label.prefix(30)) \($0.frame.integral)" })")
         #expect(page.elements.contains { $0.label.hasPrefix("Mia") }, "whose page it is:\n\(page.listing)")
         #expect(page.elements.contains { $0.label.contains("this week") && $0.label.contains("last week") }, "this week beside last week:\n\(page.listing)")
+        // The tile and Mia's row on Glow's page give the same comparison, in the same words.
+        let reading = GlowReading(home: house.home, people: house.model.people, weeksBack: 0)
+        let trend = try #require(reading.summary.people.first { $0.id == house.other.id }?.trend(isThisWeek: true), "the samples give Mia a last week")
+        #expect(page.elements.contains { $0.label.contains("this week") && $0.label.hasSuffix(trend) }, "the tile says \"\(trend)\":\n\(page.listing)")
+        let main = try await glow(house, look: look, shot: "glow-agree")
+        #expect(main.elements.contains { $0.isButton && $0.label.hasPrefix("Mia, ") && $0.label.hasSuffix(trend) }, "and so does her row:\n\(main.listing)")
         #expect(page.elements.contains { $0.label.contains("all time") }, "all time:\n\(page.listing)")
         #expect(page.elements.contains { $0.label.hasPrefix("Mia's week") }, "her days:\n\(page.listing)")
         #expect(page.elements.contains { $0.label.hasPrefix("What Mia did") }, "what she did:\n\(page.listing)")

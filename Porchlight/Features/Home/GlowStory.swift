@@ -263,7 +263,7 @@ enum GlowWords {
     /// A person's row said whole: what they did, then their own trend.
     static func personLine(_ glow: GlowSummary.PersonGlow, isThisWeek: Bool, emoji: Bool = true) -> String {
         let did = didLine(glow, isThisWeek: isThisWeek, emoji: emoji)
-        guard let trend = ownTrend(stars: glow.weekStars, before: glow.lastWeekSoFar, isThisWeek: isThisWeek) else { return did }
+        guard let trend = glow.trend(isThisWeek: isThisWeek) else { return did }
         return "\(did) · \(trend)"
     }
 

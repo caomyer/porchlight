@@ -31,6 +31,14 @@ Star counts always go through `StarWords`.
 - **A fair comparison mid-week.**
   This week is compared with last week up to the same weekday, for the household and for each person (`lastWeekSoFar`).
   An earlier week is read whole and compared with the whole week before it (`GlowWeeks.readThrough`).
+- **One comparison everywhere.**
+  A person's row on the phone, the tile on their own page, their card on the wall and the wall's sheet all say the same thing in the same words: `PersonGlow.trend`, their week against the same stretch of their last week ("This time last week: 16").
+  Their whole last week is not shown beside it: mid-week it reads as a different verdict on the same person (`GlowStoryTests.oneComparison`, and `PocketGlowScreenTests` checks the row and the tile agree).
+- **The wall's person card is filled with what is true.**
+  Under the days, what they did is a row a task, then "and 3 more"; never one run-on line over an empty band.
+  The cards are as tall as what they say, all one height, and the porch above takes the rest of the column.
+  How many rows a card lists follows the wall's height, the porch keeping at least 236 points: six on a 13-inch wall, four on a 10.5-inch one (`PersonGlowCard.rows`).
+  The sparks spread as far as the porch is tall and never into its words.
 - **Each thing done counts once.**
   A walk taken together is one time and its stars once in the household's total and in "Where the stars came from", with both people named.
   On a person's own page it is their own credit.
@@ -51,6 +59,7 @@ Star counts always go through `StarWords`.
 
 Glow's weeks are the household's own weeks (`HomeWeek`), counted back from the one holding today (`GlowWeeks.week`).
 The pager is the one the food diary and a companion's week use (`WeekPager` on the phone, `PagerButton` on the wall).
+On the phone its arrows and the week's name share one row and one centre line at every text size; "Back to this week" sits under the name in a row of its own, whose room is always kept so the week below never moves.
 It goes back to the week of the first star anyone earned (`HomeSnapshot.firstStarDay`) and returns to this week when the day turns.
 Stars are loaded two weeks back by default; paging further asks the store for more (`HomeStore.include(from:)`), one week before the week shown, for its trend.
 Nothing about what iCloud stores changes.
@@ -76,6 +85,12 @@ On an earlier week the total, the strip, each person, the tasks and what happene
   The first time the wall looks, nothing is owed for what is already there.
   Its round has already started over by then, so it says whose treat it was and what it cost, not who earned each star.
   The celebration waits for a touch and steps aside by itself after 45 seconds, so the wall can rest.
+
+## Review shots
+
+`scripts/review-shots.sh <result bundle> <folder>` writes a UI run's named screenshots out of its result bundle, upright.
+A wall screenshot can come out a quarter turn on its side: on some iOS versions the screen's picture is the iPad's portrait buffer while the app runs in landscape.
+That is the screenshot, not the app or the test host, and the script turns such pictures back.
 
 ## Tests
 
