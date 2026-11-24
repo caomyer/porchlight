@@ -112,14 +112,18 @@ struct CompanionCharacter: Codable, Equatable, Sendable, FetchableRecord, Persis
 ///
 /// A still is a PNG on clear, `stillSide` pixels square: the sticker as `PhotoSticker`
 /// draws it, a character's mood as the relay sends it. An animation (kind `frames`) is one
-/// PNG strip of `frameCount` square frames side by side, each `frameSide` pixels, scaled
-/// down from the relay's GIF without smoothing; pixel art keeps it small. Keyed by companion,
+/// PNG strip of `frameCount` square frames side by side, each `frameSide` pixels, the
+/// relay's own size; pixel art and a palette keep it small. Strips kept before frames were
+/// 512 have 256 pixel frames, and are read the same way. Keyed by companion,
 /// set, mood and kind (`id(companionId:source:mood:kind:)`).
 struct CharacterImage: Codable, Equatable, Identifiable, Sendable, FetchableRecord, PersistableRecord {
     typealias ID = Porchlight.ID<CharacterImage>
     static let databaseTableName = "companionCharacterImage"
     static let stillSide = 512
-    static let frameSide = 256
+    /// New animations' frames are kept at the stills' size, so a character on center stage
+    /// (168 points, 504 pixels) is as sharp moving as resting. Strips kept before at 256 stay as
+    /// they are and are scaled up (`CharacterPixels`).
+    static let frameSide = 512
 
     var id: ID
     var companionId: Companion.ID

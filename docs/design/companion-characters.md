@@ -16,8 +16,10 @@ It ships in three slices, each shippable alone: the photo sticker (no server), t
 
 ## Nothing changes on update
 
-A household that updates and does nothing sees no change to any companion's face.
-A companion with no sticker and no character draws exactly as in the release before characters, on every screen of the phone and the wall: its photo in a circle, its drawn face, or its emoji.
+A household that updates and does nothing sees no change to any companion's face itself.
+A companion with no sticker and no character draws exactly as in the release before characters, at any size it is drawn: its photo in a circle, its drawn face, or its emoji.
+Where it stands did change for every household on the phone, by design: a companion's page opens on center stage with the face at 168 points, and its Today card shows the face at 84 points, both in the same round frame as before ("Where it stands").
+The wall's screens are as they were.
 Widgets and notifications never drew a companion's face and still don't.
 Nothing is generated, cut out, uploaded or migrated on update: the "characters v1" migration only adds the two empty tables.
 No call goes to Firebase, not even for an App Check token, until someone taps Draw; Firebase is configured then, not at launch.
@@ -57,6 +59,21 @@ A character or a photo sticker is drawn on clear with its own white edge, so it 
 A photo or a drawn face keeps its disc and its size exactly as before, pixel for pixel.
 One view decides (`DiscFace`, by `CompanionLook.standsOnCard`); every place that put a disc behind a face (the phone's badge on Today and a companion's page, the wall's Today tile, the editor's preview) draws through it.
 In James's first live test the character sat on a tan disc, which made a clear, edged picture look pasted on.
+
+A character or a sticker standing on the card casts a soft ground shadow, so it stands rather than floats (`StageFace`, the one face both the wall's hero and the phone's page draw).
+
+On the phone a companion's page opens on center stage, as the wall's hero does: the face at 168 points on every phone, then the week's name, what the pet is and the week so far, the mood and the way to change the face, all centred.
+Under the name, one line of what the pet is and the week so far, never cut off: a size smaller if it must, then the week alone, then wrapped.
+The mood's track has no names at its ends on the phone, as the mock drew it; the mood under it says where the marker is, and VoiceOver still reads the ends.
+The face does not shrink on short screens, so "Log a walk" moved down by about 100 points.
+It is on the first screen of the largest phone; on an iPhone 15 (393 by 852 points) it ends about 32 points below the tab bar's top, and on the smallest phone (375 by 667) it is a scroll away, as it already was before.
+To give back what could be given honestly, the week pager no longer keeps a row of its own for "Back to this week": the link sits under the week's name, in the arrows' row, which is always as tall as the two need, so nothing moves when stepping away (on Food's diary and Glow too).
+
+On Today a companion's card shows the face at 84 points, inside the card, beside the name, with no rise over the card's edge and no extra margin.
+The name, the last walk's line and the streak sit one under another beside it, so the line keeps one line ("Walked 23h ago by Carol" included) and the card grows by only the face's extra height.
+A photo or a drawn face keeps its round frame at that size.
+A tap on a character that moves plays its mood's animation and does nothing else: no hop, no sparkles, no words.
+A tap on any other face, or on a character under Reduce Motion, opens the companion's page, as the rest of the card's header does.
 
 ## Choosing the face, and going back
 
@@ -177,7 +194,10 @@ The widgets draw no face, so they have no mood.
 ## A mood's animation
 
 The relay sends an animation as a GIF: nine frames, 512 pixels square, on clear.
-`CharacterAnimationCodec.strip(fromGIF:)` turns it into what `CharacterImage` stores: one PNG strip of square frames side by side, each 256 pixels, scaled down without smoothing so the pixel art stays crisp.
+`CharacterAnimationCodec.strip(fromGIF:)` turns it into what `CharacterImage` stores: one PNG strip of square frames side by side, each 512 pixels, the relay's own size, so a character on center stage (168 points, 504 pixels on the phone) is as sharp moving as at rest.
+Strips stored before frames were 512 have 256 pixel frames; they stay as they are, with no migration and no redraw, and are read the same way.
+
+On screen every frame, and the first frame at rest, is scaled by one rule (`CharacterPixels`): without smoothing when the picture is enlarged, so a 256 pixel frame at 168 points has about two screen pixels to each of its own and stays crisp; smoothed when it is reduced, so a 512 pixel frame at 84 points drops no row or column.
 A strip is one picture to store, sync and decode, and a frame is drawn by sliding the strip, so nothing is decoded while it plays.
 
 - Frames are read as they would show: a GIF whose later frames hold only what changed is composed first, which ImageIO does and `CharacterAnimationTests.partialFramesAreComposed` pins.
@@ -195,10 +215,12 @@ Any PNG reads back the same way, so a strip stored either way plays.
 Measured on nine of the relay's real drawings (four moods of one dog and the evaluation's five animals), every strip had 210 to 255 colours and came back with no pixel changed.
 A strip is 0.10 to 0.22 MB as a palette PNG, where the full-colour one was 0.27 to 0.67 MB.
 Four moods' animations of one pet measured 0.79 MB together, where they were 2.39 MB.
+At 512 pixel frames, the size new animations are kept at, a strip holds four times the pixels: the same nine drawings measured 0.31 to 0.73 MB a strip, and one pet's four moods 2.57 MB together.
+Every strip stays far under CloudKit's limit for an asset, and nothing in the app limits a picture's bytes; what grows is iCloud storage and the first sync of a household's pets.
 
 The pictures travel to iCloud as assets, not record fields (`image` is an `ASSET` in `Config/cloudkit-schema.ckdb`), so a record's one megabyte limit does not apply to them at either size.
 
-It plays by `CharacterPlayback`, a pure schedule, in turns of two plays back to back, about two seconds: a turn when the face appears, then it rests on its still, then a turn about every ten seconds while it is on screen, and a turn whenever the face is tapped.
+It plays by `CharacterPlayback`, a pure schedule, in turns of two plays back to back, about two seconds: a turn when the face appears, then it rests, then a turn about every ten seconds while it is on screen, and a turn whenever the face is tapped.
 A turn begins only once the strip is decoded and ready to show.
 In James's first live test (build 20261124.085813) he saw no movement at all: the one play began as the face appeared, while the strip's bytes were still being read, so it passed on the still, and the next play was a minute away.
 On the wall's hero, whose face also bobs on a tap, one tap does both.
@@ -208,6 +230,12 @@ It plays only while the app is in front, and its task ends when the face leaves 
 A face smaller than 40 points stays still, since nine frames in a small dot are only a flicker.
 At rest a character is one picture and no timer, so a page of pets costs what their stills cost; a turn runs a timeline for about two seconds and then the timeline is gone.
 A frame stands in for the still, never over it, so the still never shows through where a frame is clear.
+
+At rest a face shows its animation's first frame, not its still, wherever the mood has a strip: at every size, on the phone and the wall, including faces too small to animate.
+The still is a separate drawing with its own pose and outline, so resting on it made every play begin and end with a jump.
+The first frame is read as that square of the strip (`CharacterFirstFrame`, a `PhotoCrop` of it), so it is the very pixels a play starts and ends on, and `CharacterPresenceScreenTests.restIsFirstFrame` proves the two identical.
+While the strip is being read nothing shows, never the still first, since that would swap the still for the frame a moment later on a cold open.
+The still shows only when the mood has no strip, or the strip's bytes are gone or can't be read.
 A new mood plays its own animation at once.
 
 ## The relay's client

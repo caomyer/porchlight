@@ -41,6 +41,8 @@ struct HostedScreen {
     static let size = CGSize(width: 393, height: 852)
     /// The smallest phone the app supports, an iPhone SE, in points.
     static let smallest = CGSize(width: 375, height: 667)
+    /// The largest phone, an iPhone Pro Max, in points.
+    static let largestPhone = CGSize(width: 440, height: 956)
 
     let elements: [Element]
     /// The whole page, as tall as its content.

@@ -71,6 +71,23 @@ struct CharacterAnimationView<Fallback: View>: View {
         CharacterStill(picture: still, isPixelArt: true, size: size, fallback: fallback)
     }
 
+    /// The picture at rest: the animation's own first frame wherever the mood has one, so a
+    /// play starts and ends on the very same pixels and the pet is one picture everywhere,
+    /// at every size, moving or not. The mood's still (a separate drawing, with its own
+    /// outline and pose) shows only when there is no strip, or its bytes are gone or can't be
+    /// read; while they are being read nothing shows, since showing the still first would
+    /// swap it for the frame a moment later, the jump this rule is here to end. It is drawn by
+    /// the very view that draws a play's frames, at frame 0, so the two are one picture by
+    /// construction, not two drawings that happen to agree.
+    @ViewBuilder
+    private var restView: some View {
+        if let frames, frames.frameCount >= 1 {
+            CharacterFrame(strip: frames, index: 0, size: size) { stillView }
+        } else {
+            stillView
+        }
+    }
+
     var body: some View {
         Group {
             if plays, ready, let frames, let startedAt {
@@ -80,11 +97,11 @@ struct CharacterAnimationView<Fallback: View>: View {
                         // clear, the still must not show through.
                         CharacterFrame(strip: frames, index: index, size: size) { stillView }
                     } else {
-                        stillView
+                        restView
                     }
                 }
             } else {
-                stillView
+                restView
             }
         }
         .frame(width: size, height: size)
@@ -123,31 +140,53 @@ struct CharacterAnimationView<Fallback: View>: View {
     }
 }
 
+/// How a character's pixels are scaled to the screen, at rest and in play alike: without smoothing when the picture is
+/// enlarged, which keeps pixel art crisp (a strip of 256 pixel frames, from before frames were
+/// kept at 512, shown at 168 points is 504 pixels: about two screen pixels to each of its
+/// own); smoothed when it is reduced, so no row or column of it is dropped.
+enum CharacterPixels {
+    static func interpolation(framePixels: Int, points: CGFloat, displayScale: CGFloat) -> Image.Interpolation {
+        CGFloat(framePixels) <= points * displayScale ? .none : .high
+    }
+
+    /// A frame's side in pixels: the strip's height. 256 for a strip from before frames were
+    /// kept at 512.
+    static func framePixels(_ image: UIImage?) -> Int {
+        image?.cgImage?.height ?? CharacterImage.frameSide
+    }
+}
+
 /// One frame of a stored strip: the strip slid so that frame fills the square, with the
-/// rest clipped away. Until the strip's bytes are read, or if they are gone, `waiting` shows
-/// (the still).
-struct CharacterFrame<Waiting: View>: View {
+/// rest clipped away. The face at rest is frame 0 of it. Nothing shows while the strip's
+/// bytes are read; if they are gone or can't be read, `missing` (the still).
+struct CharacterFrame<Missing: View>: View {
     let strip: CharacterLook.Picture
     let index: Int
     let size: CGFloat
-    @ViewBuilder let waiting: () -> Waiting
+    @ViewBuilder let missing: () -> Missing
+
+    @Environment(\.displayScale) private var displayScale
+    @Environment(PhotoImages.self) private var images
 
     var body: some View {
         let count = max(strip.frameCount, 1)
-        PhotoView(request: PhotoRequest(.character(strip.id, byteCount: strip.byteCount))) { image in
+        let request = PhotoRequest(.character(strip.id, byteCount: strip.byteCount))
+        PhotoView(request: request) { image in
             Color.clear
                 .frame(width: size, height: size)
                 .overlay(alignment: .leading) {
                     image
                         .resizable()
-                        // Pixel art: scaled without smoothing, as its still is.
-                        .interpolation(.none)
+                        // As the first frame at rest is scaled (`CharacterPixels`), so the two match.
+                        .interpolation(CharacterPixels.interpolation(
+                            framePixels: CharacterPixels.framePixels(images.cached(request)), points: size, displayScale: displayScale
+                        ))
                         .frame(width: size * CGFloat(count), height: size)
                         .offset(x: -size * CGFloat(min(max(index, 0), count - 1)))
                 }
                 .clipped()
-        } placeholder: { _ in
-            waiting()
+        } placeholder: { isMissing in
+            if isMissing { missing() } else { Color.clear.frame(width: size, height: size) }
         }
     }
 }

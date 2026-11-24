@@ -93,27 +93,36 @@ private struct FullCareCard: View {
     }
 
     private var header: some View {
-        Button { handlers.open(card) } label: { headerContent.contentShape(Rectangle()) }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens \(report.name.possessive) week")
-            .accessibilityIdentifier("week-\(report.name)")
+        HStack(alignment: .center, spacing: 10) {
+            TodayFace(report: report) { handlers.open(card) }
+            Button { handlers.open(card) } label: { headerContent.contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens \(report.name.possessive) week")
+                .accessibilityIdentifier("week-\(report.name)")
+        }
     }
 
+    /// The name, the last walk's line and the streak, one under another beside the 84 point
+    /// face, which is taller than the three: the line keeps the card's width to itself and
+    /// stays one line up to the largest standard text size (a little smaller if it must, as
+    /// "Walked 23h ago by Carol" on the smallest phone); at accessibility sizes it wraps.
     private var headerContent: some View {
         HStack(alignment: .center, spacing: 10) {
-            CompanionBadge(report)
             VStack(alignment: .leading, spacing: 1) {
                 Text(report.name)
                     .phoneFont(.display, 20, weight: 600, relativeTo: .title3)
                 Text(PocketToday.lastLine(card.shown, report: report, me: me?.id, names: store.snapshot.names))
                     .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
                     .foregroundStyle(Theme.muted)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                    .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.85)
+                if report.streak > 1 && !typeSize.isAccessibilitySize {
+                    PhoneTag(text: "🔥 \(report.streak)-day streak")
+                        .padding(.top, 5)
+                }
             }
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            if report.streak > 1 && !typeSize.isAccessibilitySize {
-                PhoneTag(text: "🔥 \(report.streak)-day streak")
-            }
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(Theme.muted)
@@ -304,5 +313,34 @@ enum PocketCareWords {
 
     static func capitalized(_ text: String) -> String {
         text.prefix(1).uppercased() + text.dropFirst()
+    }
+}
+
+/// The face on a companion's Today card: 84 points, inside the card, a character or sticker
+/// standing on it with no disc, a photo or drawn face in its round frame (`DiscFace`). A tap
+/// on a character that moves plays its mood; on any other face it opens the companion's page,
+/// as the rest of the card's header does (docs/design/companion-characters.md, "Where it stands").
+struct TodayFace: View {
+    let report: CompanionReport
+    let open: () -> Void
+
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    static let size: CGFloat = 84
+
+    var body: some View {
+        Button {
+            if !(report.look.animates(in: report.characterMood) && !reduceMotion) { open() }
+        } label: {
+            DiscFace(
+                look: report.look, expression: report.expression, mood: report.characterMood,
+                side: Self.size, face: Self.size * 0.86, disc: report.look.tint.wash(0.3, over: Theme.surface, in: scheme)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHidden(true)
+        .accessibilityIdentifier("today-face-\(report.name)")
     }
 }

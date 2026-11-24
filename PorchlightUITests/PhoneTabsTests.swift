@@ -166,7 +166,9 @@ final class PhoneTabsTests: XCTestCase, PhoneTestHelpers {
         XCTAssertTrue(element(app, beginningWith: "That week").exists, "What happened that week")
         snapshot("m3-44-glow-last-week")
         app.buttons["week-this"].tap()
-        XCTAssertTrue(name.label.hasPrefix("This week, "), name.label)
+        // The page redraws a week of stars: wait for it rather than read the label at once.
+        let thisWeek = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label BEGINSWITH %@", "This week, "), object: name)
+        XCTAssertEqual(XCTWaiter.wait(for: [thisWeek], timeout: 5), .completed, name.label)
 
         let lately = element(app, beginningWith: "Lately")
         reveal(lately, in: app)

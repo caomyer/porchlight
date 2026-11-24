@@ -39,6 +39,13 @@ struct CharacterAnimationScreenTests {
 
     /// How many pixels of a picture are not the paper behind it, in the square the face fills.
     private func inked(_ image: UIImage, in rect: CGRect) throws -> Int {
+        let bytes = try pixels(image, in: rect)
+        let paper = (bytes[0], bytes[1], bytes[2])
+        return stride(from: 0, to: bytes.count, by: 4).count { abs(Int(bytes[$0]) - Int(paper.0)) + abs(Int(bytes[$0 + 1]) - Int(paper.1)) + abs(Int(bytes[$0 + 2]) - Int(paper.2)) > 24 }
+    }
+
+    /// The pixels of a picture in a square of it, as RGBA bytes.
+    private func pixels(_ image: UIImage, in rect: CGRect) throws -> [UInt8] {
         let cg = try #require(image.cgImage)
         let scale = CGFloat(cg.width) / image.size.width
         let area = CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale).integral
@@ -47,8 +54,7 @@ struct CharacterAnimationScreenTests {
         let context = try #require(CGContext(data: &bytes, width: crop.width, height: crop.height, bitsPerComponent: 8, bytesPerRow: crop.width * 4,
                                              space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
         context.draw(crop, in: CGRect(x: 0, y: 0, width: crop.width, height: crop.height))
-        let paper = (bytes[0], bytes[1], bytes[2])
-        return stride(from: 0, to: bytes.count, by: 4).count { abs(Int(bytes[$0]) - Int(paper.0)) + abs(Int(bytes[$0 + 1]) - Int(paper.1)) + abs(Int(bytes[$0 + 2]) - Int(paper.2)) > 24 }
+        return bytes
     }
 
     private func page(_ title: String, @ViewBuilder face: () -> some View) -> some View {
@@ -84,6 +90,7 @@ struct CharacterAnimationScreenTests {
     func midPlay() async throws {
         let drawn = try drawn()
         var inkedByFrame: [Int] = []
+        var drawnByFrame: [[UInt8]] = []
         for index in [0, 1, 4] {
             let screen = page("Frame \(index)") {
                 CharacterFrame(strip: drawn.frames, index: index, size: 200) { Color.red.frame(width: 200, height: 200) }
@@ -96,11 +103,14 @@ struct CharacterAnimationScreenTests {
             #expect(below.frame.minY - title.frame.maxY >= 200 && below.frame.minY - title.frame.maxY < 260, "a frame is the face's size, not the strip's")
             let face = CGRect(x: 16, y: title.frame.maxY + 16, width: 200, height: 200)
             inkedByFrame.append(try inked(hosted.image, in: face))
+            drawnByFrame.append(try pixels(hosted.image, in: face))
             // Right of the face, where the strip's next frames would spill if it weren't clipped.
             #expect(try inked(hosted.image, in: CGRect(x: 230, y: face.minY, width: 140, height: 200)) == 0, "frame \(index) shows one frame only")
         }
         #expect(inkedByFrame.allSatisfy { $0 > 2000 }, "each frame is drawn: \(inkedByFrame)")
-        #expect(Set(inkedByFrame).count > 1, "and they are different frames: \(inkedByFrame)")
+        // Different pictures, not only different amounts of ink: a dash on the spot moves the
+        // same sprite, and at 512 pixel frames its frames can ink exactly as much.
+        #expect(Set(drawnByFrame).count == drawnByFrame.count, "and they are different frames")
     }
 
     @Test("A strip whose bytes are gone shows what waits in its place, the still")

@@ -113,40 +113,63 @@ struct PocketCompanionWeek: View {
 
     // MARK: Hero
 
+    /// Center stage (docs/design/companion-characters.md, "Where it stands"): the face standing
+    /// on the card at the top, 168 points on every phone, then the week's name, one line of what
+    /// it is and the week so far, the mood's track and words, and the way to change the face,
+    /// all centred, as the wall's hero has them. On the smallest phone "Log a walk" is a scroll
+    /// away, as it was before; on an iPhone 15 and larger it is on the first screen.
     private func hero(_ report: CompanionReport) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            AdaptiveRow(spacing: 12) {
-                CompanionBadge(report, size: 64)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(report.name.possessive) week")
-                        .phoneFont(.display, 24, weight: 600, relativeTo: .title)
-                        .accessibilityAddTraits(.isHeader)
-                    Text(report.aboutLine(calendar: store.snapshot.calendar))
-                        .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
-                        .foregroundStyle(Theme.muted)
-                    Text(report.weeksBack > 0 ? report.weekLine(calendar: store.snapshot.calendar)
-                         : report.weekStats.count == 0 ? "The first week together" : report.weekSummary)
-                        .phoneFont(.body, 12.5, weight: 600, relativeTo: .footnote)
-                        .foregroundStyle(Theme.muted)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 8) {
+            StageFace(
+                look: report.look, expression: report.expression, mood: report.characterMood, size: 168,
+                disc: report.look.tint.wash(0.3, over: Theme.surface, in: scheme)
+            )
+            VStack(spacing: 2) {
+                Text("\(report.name.possessive) week")
+                    .phoneFont(.display, 24, weight: 600, relativeTo: .title)
+                    .accessibilityAddTraits(.isHeader)
+                aboutAndWeek(report)
             }
+            .multilineTextAlignment(.center)
             .accessibilityElement(children: .combine)
-            // The way to the face sheet, as under the wall hero's name: in line with the
-            // lines above, beside the face, on a row of its own.
+            MoodMeter(report: report, namesEnds: false)
+                .padding(.top, 4)
             if report.weeksBack == 0 {
                 Button(CharacterOffer.change(report.name)) { face = FaceRequest(companionId: companionId) }
                     .phoneFont(.body, 13, weight: 700, relativeTo: .footnote)
                     .foregroundStyle(Theme.accent)
                     .frame(minHeight: 32)
-                    .padding(.leading, typeSize.isAccessibilitySize ? 0 : 76)
-                    .padding(.top, -8)
                     .accessibilityIdentifier("change-face")
             }
-            MoodMeter(report: report)
         }
+        .frame(maxWidth: .infinity)
         .phoneCard(tint: report.look.tint)
+    }
+
+    /// "Toy poodle · 4 yrs · 12 walks · 5h 50m outside": one line, whole words only. If it is
+    /// too long for the phone, its letters a size smaller; then the week alone ("Nov 5 to 11 ·
+    /// 14 walks"); then, and at accessibility sizes, the whole of it over as many lines as it
+    /// takes. Never cut off.
+    private func aboutAndWeek(_ report: CompanionReport) -> some View {
+        let calendar = store.snapshot.calendar
+        let week = report.weeksBack > 0
+            ? report.weekLine(calendar: calendar)
+            : report.weekStats.count == 0 ? "The first week together" : report.weekSummary
+        let whole = report.aboutLine(calendar: calendar) + " · " + week
+        return ViewThatFits(in: .horizontal) {
+            if !typeSize.isAccessibilitySize {
+                line(whole, size: 12.5).fixedSize()
+                line(whole, size: 11.5).fixedSize()
+                line(week, size: 12.5).fixedSize()
+            }
+            line(whole, size: 12.5).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func line(_ text: String, size: CGFloat) -> some View {
+        Text(text)
+            .phoneFont(.body, size, weight: 600, relativeTo: .footnote)
+            .foregroundStyle(Theme.muted)
     }
 
     // MARK: Numbers

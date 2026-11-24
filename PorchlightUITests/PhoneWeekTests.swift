@@ -387,6 +387,27 @@ final class PhoneWeekTests: XCTestCase, PhoneTestHelpers {
         snapshot("face-42-phone-remove")
     }
 
+    /// Today and the page with each kind of face (a character and a sticker drawn in code, a
+    /// photo drawn in code, the drawn face), light and dark, and at the largest text. Review
+    /// shots of the faces' presence (docs/design/companion-characters.md, "Where it stands").
+    func testFacesOnTodayAndThePage() {
+        let faces: [(String, [String])] = [
+            ("character", ["-samplePhoto", "YES", "-sampleCharacter", "YES"]), ("sticker", ["-samplePhoto", "YES", "-sampleSticker", "YES"]),
+            ("photo", ["-samplePhoto", "YES"]), ("drawn", []),
+        ]
+        for (face, arguments) in faces {
+            for look in ["light", "dark", "largest"] {
+                XCUIDevice.shared.appearance = look == "dark" ? .dark : .light
+                let app = launch(arguments + (look == "largest" ? Self.largest : []))
+                snapshot("presence-today-\(face)-\(look)")
+                openWeek(app)
+                snapshot("presence-page-\(face)-\(look)")
+                app.terminate()
+            }
+        }
+        XCUIDevice.shared.appearance = .light
+    }
+
     /// A companion added today: the first week, never a zero, in the wall's words.
     func testAFirstWeek() {
         let app = launch(["-sampleCompanions", "4"])

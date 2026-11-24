@@ -9,18 +9,24 @@ import SwiftUI
 /// The mood as a bar from its lowest word to its highest, with a knob where it is now.
 struct MoodMeter: View {
     let report: CompanionReport
+    /// The track's two ends named above it, as the wall's hero has them. The phone's center
+    /// stage leaves them out: the mood line under the track says where the marker is, and
+    /// the ends are still spoken.
+    var namesEnds = true
 
     var body: some View {
         let moods = CompanionPresets.moods(for: report.companion.species)
         VStack(spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(moods.first?.label ?? "")
-                Spacer(minLength: 8)
-                Text(moods.last?.label ?? "")
-                    .multilineTextAlignment(.trailing)
+            if namesEnds {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(moods.first?.label ?? "")
+                    Spacer(minLength: 8)
+                    Text(moods.last?.label ?? "")
+                        .multilineTextAlignment(.trailing)
+                }
+                .sharedFont(.body, 11.5, weight: 700, relativeTo: .caption)
+                .foregroundStyle(Theme.muted)
             }
-            .sharedFont(.body, 11.5, weight: 700, relativeTo: .caption)
-            .foregroundStyle(Theme.muted)
             GeometryReader { proxy in
                 Capsule()
                     .fill(LinearGradient(
@@ -48,6 +54,7 @@ struct MoodMeter: View {
         .animation(.easeInOut(duration: 0.6), value: report.mood)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Mood, \(report.moodText)")
+        .accessibilityValue("From \(moods.first?.label ?? "") to \(moods.last?.label ?? "")")
     }
 }
 

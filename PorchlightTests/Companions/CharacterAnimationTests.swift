@@ -89,17 +89,19 @@ struct CharacterAnimationTests {
         let source = try #require(CharacterAnimationCodec.frames(ofGIF: gif))
         let stored = CharacterAnimationCodec.frames(ofStrip: image, count: strip.frameCount)
         #expect(stored.count == source.count)
+        // The placeholder sprite is 32 blocks across, at any stored size.
+        let block = CharacterImage.frameSide / 32
         for (index, frame) in stored.enumerated() {
             #expect(frame.width == CharacterImage.frameSide && frame.height == CharacterImage.frameSide)
             // The sprite's body, and a corner it never fills.
-            let body = Self.pixel(frame, x: 15 * 8 + 4, y: 22 * 8 + 4)
+            let body = Self.pixel(frame, x: 15 * block + block / 2, y: 22 * block + block / 2)
             let same = Self.pixel(source[index], x: 15 * 16 + 8, y: 22 * 16 + 8)
             #expect(zip(body, same).allSatisfy { abs(Int($0) - Int($1)) <= 12 }, "frame \(index) keeps its colours: \(body) \(same)")
             #expect(Self.pixel(frame, x: 1, y: 1)[3] == 0, "frame \(index) is clear where the sprite is")
         }
         // The frames differ: the strip is the animation, not nine copies of one frame.
         // (The placeholder sprite lifts a block on some frames: the row above its head fills.)
-        #expect(Set(stored.map { Self.pixel($0, x: 15 * 8 + 4, y: 6 * 8 + 4)[3] }).count > 1)
+        #expect(Set(stored.map { Self.pixel($0, x: 15 * block + block / 2, y: 6 * block + block / 2)[3] }).count > 1)
     }
 
     @Test("A GIF of another size or shape still makes square frames, fitted and centred on clear")
@@ -191,10 +193,11 @@ struct CharacterAnimationTests {
         #expect(read.width == CharacterImage.frameSide * frames.count && read.height == CharacterImage.frameSide)
         // Against the frames themselves, scaled as the codec scales them.
         let stored = CharacterAnimationCodec.frames(ofStrip: read, count: frames.count)
+        let block = CharacterImage.frameSide / 32
         for (index, frame) in frames.enumerated() {
             for (x, y) in [(15, 22), (10, 12), (1, 1), (30, 30), (16, 20)] {
                 let was = Self.pixel(frame, x: x * 16 + 8, y: y * 16 + 8)
-                let now = Self.pixel(stored[index], x: x * 8 + 4, y: y * 8 + 4)
+                let now = Self.pixel(stored[index], x: x * block + block / 2, y: y * block + block / 2)
                 #expect(zip(was, now).allSatisfy { abs(Int($0) - Int($1)) <= 2 }, "frame \(index) at block (\(x), \(y)): \(was) became \(now)")
             }
         }

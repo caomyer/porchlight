@@ -138,7 +138,49 @@ struct DiscFace: View {
     }
 }
 
+/// A face standing on its card at its full size, as a companion's page shows it, on the wall
+/// (its hero) and on the phone (its header): a character or a photo sticker with a soft
+/// shadow on the ground under it; a photo or drawn face as `DiscFace` draws it when a disc is
+/// given, or bare, as the wall's hero has always shown one.
+struct StageFace: View {
+    var look: CompanionLook
+    var expression: FaceExpression = .happy
+    var mood: CharacterMood?
+    let size: CGFloat
+    /// The disc behind a photo or drawn face; nil for none.
+    var disc: Color?
+    /// Gently bob, as the wall's hero face does.
+    var bobs = false
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if look.standsOnCard {
+                // The ground it stands on: a soft shadow under its feet, never a disc.
+                Ellipse()
+                    .fill(Color.black.opacity(0.13))
+                    .frame(width: size * 0.56, height: size * 0.07)
+                    .blur(radius: size * 0.025)
+                    .offset(y: size * 0.015)
+                    .accessibilityHidden(true)
+            }
+            if let disc {
+                DiscFace(look: look, expression: expression, mood: mood, side: size, face: size * 0.86, disc: disc)
+            } else {
+                CompanionFace(look: look, expression: expression, size: size, bobs: bobs, mood: mood)
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 extension CompanionLook {
+    /// Whether this face plays an animation in `mood` (a character with that mood's frames):
+    /// a tap on it plays, rather than opening anything.
+    func animates(in mood: CharacterMood?) -> Bool {
+        guard character?.shown == .character, let character else { return false }
+        return character.animation(mood ?? .fine) != nil
+    }
+
     /// A character or a photo sticker shows: it stands on the card, with no disc.
     var standsOnCard: Bool {
         switch character?.shown {
