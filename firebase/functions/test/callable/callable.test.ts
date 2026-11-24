@@ -24,7 +24,7 @@ const withToken = { "X-Firebase-AppCheck": "a-token-the-emulator-does-not-verify
 interface Answer {
   status: number;
   result?: Record<string, unknown>;
-  error?: { status: string; message: string; details?: { code?: string } };
+  error?: { status: string; message: string; details?: { code?: string; reason?: string } };
 }
 
 async function call(name: string, data: unknown, headers: Record<string, string> = withToken): Promise<Answer> {
@@ -86,7 +86,7 @@ describe("drawCharacter", () => {
     expect((await call("characterAllowance", pet)).result).toEqual({ roundsLeft: 2 });
   });
 
-  it("says limit-reached, in details.code, after the third round", async () => {
+  it("says limit-reached and why, in details, after the third round", async () => {
     const pet = ids();
     for (let round = 0; round < 3; round += 1) {
       expect((await call("drawCharacter", { ...pet, species: "cat", step: "tries", cutout })).status).toBe(200);
@@ -94,7 +94,7 @@ describe("drawCharacter", () => {
     const fourth = await call("drawCharacter", { ...pet, species: "cat", step: "tries", cutout });
     expect(fourth.status).toBe(429);
     expect(fourth.error?.status).toBe("RESOURCE_EXHAUSTED");
-    expect(fourth.error?.details?.code).toBe("limit-reached");
+    expect(fourth.error?.details).toEqual({ code: "limit-reached", reason: "rounds" });
     expect((await call("characterAllowance", pet)).result).toEqual({ roundsLeft: 0 });
   });
 
@@ -102,7 +102,7 @@ describe("drawCharacter", () => {
     const answer = await call("drawCharacter", { ...ids(), species: "dog", step: "tries", cutout, prompt: "a dragon" });
     expect(answer.status).toBe(400);
     expect(answer.error?.status).toBe("INVALID_ARGUMENT");
-    expect(answer.error?.details?.code).toBe("invalid");
+    expect(answer.error?.details).toEqual({ code: "invalid" });
     expect(answer.error?.message).toBe("invalid");
   });
 });

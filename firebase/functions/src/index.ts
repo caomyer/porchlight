@@ -4,7 +4,7 @@ import { defineSecret, defineString } from "firebase-functions/params";
 import { HttpsError, onCall, type CallableOptions, type CallableRequest } from "firebase-functions/v2/https";
 
 import { config } from "./config";
-import { RelayError, statusFor } from "./errors";
+import { details, RelayError, statusFor } from "./errors";
 import { fakeModel } from "./fake";
 import { firestoreLedger } from "./ledger";
 import { described, log } from "./log";
@@ -58,10 +58,10 @@ async function answered<T>(name: string, work: () => Promise<T>): Promise<T> {
   try {
     return await work();
   } catch (error) {
-    const failure = error instanceof RelayError ? error : new RelayError("unavailable", "internal");
+    const failure = error instanceof RelayError ? error : new RelayError("unavailable", "internal", "relay");
     if (!(error instanceof RelayError)) log.error(`${name} failed`, { errorClass: "internal", ...described(error) });
     else if (failure.code === "invalid") log.warn(`${name} refused its input`, { errorClass: "invalid", reason: failure.reason });
-    throw new HttpsError(statusFor[failure.code], failure.code, { code: failure.code });
+    throw new HttpsError(statusFor[failure.code], failure.code, details(failure));
   }
 }
 

@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { config } from "../../src/config";
 import { hashed } from "../../src/contract";
-import { RelayError } from "../../src/errors";
+import { details, RelayError } from "../../src/errors";
 import { fakeModel } from "../../src/fake";
 import { gifFrames, pngSize } from "../../src/images";
 import { described, safe, scrubbed } from "../../src/log";
@@ -109,6 +109,7 @@ describe("when the drawing fails", () => {
     const error = await failure(service.draw({ ...ids(), species: "dog", step: "tries", cutout }, {}));
     expect(error.code).toBe("unavailable");
     expect(error.reason).toBe("internal");
+    expect(details(error)).toEqual({ code: "unavailable", reason: "relay" });
     expect(calls.released).toHaveLength(1);
     const entry = log.entries.find((logged) => logged.event === "draw failed unexpectedly")!;
     expect(entry.level).toBe("error");
@@ -145,10 +146,11 @@ describe("when the drawing fails", () => {
     expect(calls.released).toHaveLength(0);
   });
 
-  it("draws nothing past the day's spending, and logs it as an error", async () => {
-    const { service, seen, log } = made({ reserve: () => new RelayError("unavailable", "spend ceiling") });
+  it("draws nothing past the day's spending, says so to the app, and logs it as an error", async () => {
+    const { service, seen, log } = made({ reserve: () => new RelayError("unavailable", "spend ceiling", "spend-ceiling") });
     const error = await failure(service.draw({ ...ids(), species: "dog", step: "tries", cutout }, {}));
     expect(error.code).toBe("unavailable");
+    expect(details(error)).toEqual({ code: "unavailable", reason: "spend-ceiling" });
     expect(seen).toHaveLength(0);
     expect(log.entries.filter((entry) => entry.level === "error")).toHaveLength(1);
   });

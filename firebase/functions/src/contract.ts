@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { moods, speciesList, steps, type Mood, type Species, type Step } from "./config";
-import { RelayError } from "./errors";
+import { RelayError, type RelayCode, type RelayReason } from "./errors";
 import { decodePng } from "./images";
 
 /** What the app sends to `drawCharacter`, once checked. */
@@ -22,6 +22,27 @@ export type DrawResponse =
   | { images: string[]; roundsLeft: number }
   | { image: string }
   | { gif: string; frames: number };
+
+/**
+ * What a failed call carries in its `details`, the only part of a failure the app reads.
+ *
+ * `code` is one of `limit-reached`, `refused`, `unavailable`, `invalid`. (A call with no
+ * valid App Check token is answered by Firebase itself, as `unauthenticated`, with no
+ * details.)
+ *
+ * `reason` says more, for the app to choose its words, and is a closed set:
+ * - with `limit-reached`: `rounds`, `mood-redraws`, `animation-redraws`, `companions`,
+ *   `household-day`, `installation-day`;
+ * - with `unavailable`: `spend-ceiling`, `model`, `relay`;
+ * - with `refused` and `invalid`: none.
+ *
+ * Each is explained on `RelayReason` (errors.ts). A reason may be added in a later
+ * version, so an app treats one it does not know as absent and falls back on the code.
+ */
+export interface FailureDetails {
+  code: Exclude<RelayCode, "unauthenticated">;
+  reason?: RelayReason;
+}
 
 export interface AllowanceRequest {
   householdId: string;
