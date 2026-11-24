@@ -1,0 +1,32 @@
+{
+  "name": "porchlight-character-relay",
+  "private": true,
+  "description": "Draws a companion's character for Porchlight: holds the image model's key, the prompts and the limits.",
+  "main": "lib/src/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src test --max-warnings 0",
+    "test:unit": "vitest run --dir test/unit",
+    "test:store": "vitest run --dir test/store",
+    "test:callable": "vitest run --dir test/callable",
+    "test:emulated": "node test/emulator-secret.mjs && cd .. && firebase emulators:exec --project demo-porchlight --only firestore,functions \"npm --prefix functions run test:store && npm --prefix functions run test:callable\"",
+    "test": "npm run build && npm run test:unit && npm run test:emulated"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.1",
+    "firebase-functions": "^7.4.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.15.0",
+    "firebase-tools": "^15.37.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.74.0",
+    "vitest": "^3.2.7"
+  }
+}
