@@ -137,6 +137,15 @@ struct CharacterPresenceScreenTests {
         return try #require(image.dataProvider?.data as Data?)
     }
 
+    /// A render on the card's paper, kept for review where the screen shots go.
+    private func saveRender(_ view: some View, images: PhotoImages, name: String) throws {
+        guard let path = ProcessInfo.processInfo.environment["PORCHLIGHT_SCREEN_SHOTS"] else { return }
+        let renderer = ImageRenderer(content: view.padding(24).background(Theme.surface).environment(images).environment(\.displayScale, 3))
+        renderer.scale = 3
+        let png = try #require(renderer.uiImage?.pngData())
+        try png.write(to: URL(fileURLWithPath: path, isDirectory: true).appendingPathComponent("\(name).png"))
+    }
+
     /// A strip of the placeholder's zoomies at `side` pixels a frame, and its still.
     private func pictures(side: Int) throws -> (still: CharacterLook.Picture, strip: CharacterLook.Picture, images: PhotoImages, db: AppDatabase) {
         let home = try self.home("drawn")
@@ -161,12 +170,9 @@ struct CharacterPresenceScreenTests {
                 let stillAlone = try pixels(CharacterStill(picture: still, isPixelArt: true, size: size) { EmptyView() }, images: images)
                 #expect(rest != stillAlone, "and not the separate still")
             }
-            // The pair, to look at: at rest, and the first frame of a play, at center stage.
-            for (name, face) in [("rest", AnyView(CharacterAnimationView(still: still, frames: strip, size: 168) { EmptyView() })),
-                                 ("first-played-frame", AnyView(CharacterFrame(strip: strip, index: 0, size: 168) { EmptyView() }))] {
-                let hosted = try await HostedScreen.host(face.padding(40).background(Theme.surface).environment(images), look: .light)
-                try hosted.saveShot("presence-\(side)-\(name)")
-            }
+            // The pair, to look at: the very renders compared above, at center stage, on the card.
+            try saveRender(CharacterAnimationView(still: still, frames: strip, size: 168) { EmptyView() }, images: images, name: "presence-\(side)-rest")
+            try saveRender(CharacterFrame(strip: strip, index: 0, size: 168) { EmptyView() }, images: images, name: "presence-\(side)-first-played-frame")
         }
     }
 
