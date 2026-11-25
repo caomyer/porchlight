@@ -125,7 +125,8 @@ struct PocketPitchIn: View {
                         ? task.completion.map { $0.dayKey.formatted(.dateTime.weekday(.abbreviated), calendar: home.calendar) }
                         : PocketChoreWords.subtitle(task, today: home.today, calendar: home.calendar, people: model.everyone, me: me?.id),
                     stars: task.chore.stars, isDone: task.isDone,
-                    doneBy: task.completion?.personId.flatMap(model.person)
+                    doneBy: task.completion?.personId.flatMap(model.person),
+                    lateFrom: dayLabels ? nil : ChoreSchedule.lateFrom(task.chore, isDone: task.isDone, today: home.today, calendar: home.calendar)
                 ) { logging.complete(task.chore, by: me?.id) }
             }
         }

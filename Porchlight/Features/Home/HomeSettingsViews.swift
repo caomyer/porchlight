@@ -192,7 +192,11 @@ private struct ChoreSettingsRow: View {
 
     private var details: String {
         var parts = [ChoreSchedule.describe(chore, today: store.today, calendar: store.calendar)]
-        if let hint = chore.timeHint { parts.append(hint) }
+        if let time = chore.timeOfDay {
+            parts.append(ClockStyle.current.text(time))
+        } else if let hint = chore.timeHint {
+            parts.append(hint)
+        }
         parts.append("+\(chore.stars) \(chore.stars == 1 ? "star" : "stars")")
         return parts.joined(separator: " · ")
     }

@@ -155,6 +155,9 @@ The first schema came from the seed on James's iPhone (`seed`, `export`, review,
   Every care log that build writes carries them; older builds ignore the field, keep it when they edit a log, and place the log by its time.
 - `journalEntry.otherSources` (encrypted string) and `sqlitedata_icloud_userModificationTime_otherSources` (encrypted 64-bit integer), with the build whose meals can come from several places ("Where, one kind or several").
 - The record types `dish`, `mealDish` and `mealDishRating`, with the build whose meals name their dishes (dishes.md).
+- `chore.timeOfDay` and `sqlitedata_icloud_userModificationTime_timeOfDay` (encrypted 64-bit integers), with the build that gives a chore a time (phone-shell.md, "A chore's time").
+  A chore with no time sends no value, so it syncs as before; one given a time is refused by a Production without the field and waits on the device, with the other changes iCloud isn't taking, until the schema is deployed ("When iCloud turns changes down").
+  Older builds ignore the field, show the chore's hint or when it is due, and keep the time when they edit the chore.
 
 ### When iCloud turns changes down
 

@@ -85,7 +85,7 @@ final class SyncHarness {
         _ = try database.logCare(routineId: walk.id, CareLogDraft(people: people, occurredAt: CompanionClock.now(), vibe: .smooth))
 
         let chore = try database.saveChore(
-            ChoreDraft(title: "Dishes", emoji: "🍽️", ownerId: people[0], recurrence: .daily, anchorDay: today, timeHint: nil, stars: 1),
+            ChoreDraft(title: "Dishes", emoji: "🍽️", ownerId: people[0], recurrence: .daily, anchorDay: today, timeHint: nil, timeOfDay: 19 * 60, stars: 1),
             householdId: household.id
         )
         _ = try database.toggleChore(id: chore.id, day: today, personId: people[1])

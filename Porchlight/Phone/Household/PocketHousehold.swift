@@ -536,10 +536,12 @@ struct PocketChoresPage: View {
         .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1) } }
     }
 
-    /// "Mia · Every Monday · ⭐ 2".
+    /// "Mia · Every Monday · 7:00 PM · ⭐ 2": the time only when the chore has one.
     private func detail(_ chore: Chore) -> String {
         let owner = chore.ownerId.flatMap { model.everyone.person($0) }?.name ?? "Anyone"
-        return [owner, ChoreSchedule.describe(chore, today: store.today, calendar: store.calendar), "⭐ \(chore.stars)"].joined(separator: " · ")
+        let time = chore.timeOfDay.map { ClockStyle.current.text($0) }
+        return [owner, ChoreSchedule.describe(chore, today: store.today, calendar: store.calendar), time, "⭐ \(chore.stars)"]
+            .compactMap { $0 }.joined(separator: " · ")
     }
 }
 

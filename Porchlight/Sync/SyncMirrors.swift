@@ -162,6 +162,7 @@ enum SyncMirror {
         var archived: Bool
         var sortOrder: Int
         var createdAt: Date
+        var timeOfDay: Int?
     }
 
     @Table("choreCompletion") struct ChoreCompletion {

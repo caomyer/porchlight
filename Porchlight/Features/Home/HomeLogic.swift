@@ -23,10 +23,37 @@ enum ChoreSchedule {
         return occurs(chore, on: day, calendar: calendar)
     }
 
-    /// The small line under a chore's title: its time hint, or a description of when it is due.
-    static func subtitle(for chore: Chore, today: DayKey, calendar: Calendar) -> String {
+    /// The small line under a chore's title: its time ("7:00 PM"), else a hint typed before
+    /// chores had a time, else a description of when it is due.
+    static func subtitle(for chore: Chore, today: DayKey, calendar: Calendar, clock: ClockStyle = .current) -> String {
+        if let time = chore.timeOfDay { return clock.text(time) }
         if let hint = chore.timeHint, !hint.isEmpty { return hint }
         return describe(chore, today: today, calendar: calendar)
+    }
+
+    /// When an open chore's line turns the accent color on `today`: once its time has come,
+    /// or at once for an overdue one-off. Nil for a done chore, or one with no time on time.
+    /// The line changes color and nothing else: no badge, no word more.
+    static func lateFrom(_ chore: Chore, isDone: Bool, today: DayKey, calendar: Calendar) -> Date? {
+        guard !isDone else { return nil }
+        if chore.recurrence.isOnce, chore.anchor < today { return .distantPast }
+        guard let time = chore.timeOfDay else { return nil }
+        return calendar.date(byAdding: .minute, value: time, to: today.startDate(in: calendar))
+    }
+
+    static func isLate(_ chore: Chore, isDone: Bool, today: DayKey, now: Date, calendar: Calendar) -> Bool {
+        lateFrom(chore, isDone: isDone, today: today, calendar: calendar).map { now >= $0 } ?? false
+    }
+
+    /// A column's chores in the order they are shown: open chores with a time first, by
+    /// time, then the rest in the board's own order, done ones where they always were.
+    static func ordered(_ tasks: [ChoreBoard.Task]) -> [ChoreBoard.Task] {
+        let timed = tasks.enumerated()
+            .filter { !$0.element.isDone && $0.element.chore.timeOfDay != nil }
+            .sorted { ($0.element.chore.timeOfDay ?? 0, $0.offset) < ($1.element.chore.timeOfDay ?? 0, $1.offset) }
+            .map(\.element)
+        let ids = Set(timed.map(\.id))
+        return timed + tasks.filter { !ids.contains($0.id) }
     }
 
     /// "every day", "Mon, Wed", "monthly on the 3rd", or "due Fri" for a one-off.
@@ -119,7 +146,7 @@ struct ChoreBoard: Equatable {
         let activeRewards = rewards.filter { !$0.archived }
 
         func tasks(for ownerId: Person.ID?) -> [Task] {
-            active.filter { $0.ownerId == ownerId }.map { Task(chore: $0, completion: byChoreToday[$0.id]) }
+            ChoreSchedule.ordered(active.filter { $0.ownerId == ownerId }.map { Task(chore: $0, completion: byChoreToday[$0.id]) })
         }
         func statuses(for ownerId: Person.ID?) -> [RewardStatus] {
             activeRewards.filter { $0.ownerId == ownerId }.map {

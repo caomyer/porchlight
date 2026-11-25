@@ -121,6 +121,7 @@ struct AppDatabase: Sendable {
         registerSharedCalendarMigrations(&migrator)
         registerHomeCalendarMigrations(&migrator)
         registerCharacterMigrations(&migrator)
+        registerHomeMigrationsAfterSync(&migrator)
         return migrator
     }
 }

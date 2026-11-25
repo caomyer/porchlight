@@ -42,7 +42,8 @@ struct YoursTodayCard: View {
                         PhoneChoreRow(
                             kind: .mine, emoji: task.chore.emoji, title: task.chore.title,
                             subtitle: PocketChoreWords.subtitle(task, today: home.today, calendar: home.calendar),
-                            stars: task.chore.stars, isDone: task.isDone
+                            stars: task.chore.stars, isDone: task.isDone,
+                            lateFrom: ChoreSchedule.lateFrom(task.chore, isDone: task.isDone, today: home.today, calendar: home.calendar)
                         ) { onCheck(task.chore) }
                     }
                 }
@@ -84,7 +85,8 @@ struct AnyoneCanTakeCard: View {
                         kind: .anyone, emoji: task.chore.emoji, title: task.chore.title,
                         subtitle: PocketChoreWords.subtitle(task, today: home.today, calendar: home.calendar, people: model.everyone, me: me?.id),
                         stars: task.chore.stars, isDone: task.isDone,
-                        doneBy: task.completion?.personId.flatMap(model.person)
+                        doneBy: task.completion?.personId.flatMap(model.person),
+                        lateFrom: ChoreSchedule.lateFrom(task.chore, isDone: task.isDone, today: home.today, calendar: home.calendar)
                     ) { onTake(task.chore) }
                 }
             }

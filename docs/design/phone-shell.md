@@ -204,7 +204,25 @@ The trail's letters stop growing at the extra-large size, like the Food tab's we
 The header counts this week's chore days, done of all, from the wall's week marks.
 A segmented control picks Yours (today's, then what I did earlier this week), Open (shared chores nobody has done today) or Everyone (every person's column, kids included, then Anyone).
 Someone else's chore is shown, not checkable: it is theirs to check off on their phone or the wall.
-"+ Add a chore" opens the wall's `ChoreEditor` in a phone sheet (`PhoneEditorSheet`), with its repeat picker and start day; the editor now stacks its time hints and buttons at a compact width, and starts a new chore as mine.
+"+ Add a chore" opens the wall's `ChoreEditor` in a phone sheet (`PhoneEditorSheet`), with its repeat picker and start day; the editor stacks its buttons at a compact width, and starts a new chore as mine.
+
+### A chore's time
+
+A chore has one optional time, `timeOfDay`, minutes from midnight; nil means any time that day, which is what most chores are.
+It replaced "When, roughly", a text box and three chips whose words the app could not read (the approved "Chore Time" mock).
+The editor, on the wall and the phone, has a "Time" row with one pill: "Any time" when unset.
+Tapping it opens the time card every other time uses (`TimeFieldControl`), with three one-tap suggestions, Morning 8:00, Noon and Evening 7:00, in this device's clock.
+Unset, the card opens at 8:00 and Done sets what it shows; set, the pill shows the time and an x that clears it back to "Any time".
+
+The line under a chore shows its time when it has one, else a hint typed before times existed, else when it is due (`ChoreSchedule.subtitle`), on Today, Pitch in, the wall's board, the wall's "around" view and the household's chore list.
+On the phone's Today and the wall's board, open chores with a time come first, by time, then the rest in today's order; a done chore stays where it was, as before (`ChoreSchedule.ordered`).
+The line turns the accent color once the time has come today and the chore is still open, and an overdue one-off's does as before (`ChoreSchedule.lateFrom`); no badge and no new words.
+Doing a chore after its time earns the same stars.
+
+Hints typed before keep showing until their chore has a time, and stay stored and synced whatever happens: the editor shows no hint and carries it through a save unchanged.
+Wiping it on any save would lose words someone typed for a chore they only opened to change its stars; keeping it costs nothing, since a time shows over it, and clearing the time shows it again.
+
+The field needs Production's schema before a build that sets a time ships (sync-icloud.md, "Fields waiting for Production").
 
 ## Food (B5)
 

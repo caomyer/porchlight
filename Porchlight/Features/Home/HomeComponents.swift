@@ -276,3 +276,27 @@ private struct FadingWallSheet<Content: View>: View {
         }
     }
 }
+
+/// A chore's line under its title, muted, turning the accent color once `lateFrom` has
+/// come (`ChoreSchedule.lateFrom`), checked each minute while it is on screen.
+struct LateLine<Styled: View>: View {
+    let text: String
+    let lateFrom: Date?
+    @ViewBuilder let style: (Text) -> Styled
+
+    var body: some View {
+        if let lateFrom {
+            TimelineView(.everyMinute) { _ in
+                style(Text(text)).foregroundStyle(CompanionClock.now() >= lateFrom ? Theme.accent : Theme.muted)
+            }
+        } else {
+            style(Text(text)).foregroundStyle(Theme.muted)
+        }
+    }
+}
+
+extension LateLine where Styled == Text {
+    init(text: String, lateFrom: Date?, font: Font) {
+        self.init(text: text, lateFrom: lateFrom) { $0.font(font) }
+    }
+}

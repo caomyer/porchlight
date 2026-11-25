@@ -35,6 +35,16 @@ enum HomeSamples {
         _ = try chore("🧹", "Vacuum the living room", nil, .once, anchor: week.last, hint: "this weekend", stars: 2)
         let fridge = try chore("🧊", "Clean out the fridge", nil, .once, anchor: today.adding(days: 1, calendar: calendar), hint: "before the weekend", stars: 2)
         let sheets = try chore("🛏️", "Change the sheets", nil, .weekdays([weekday]), hint: "this week", stars: 1)
+        // `-sampleChoreTimes YES`: two of the first person's chores with a time, one long past
+        // in the morning and one this evening, laid among the untimed ones.
+        if UserDefaults.standard.bool(forKey: "sampleChoreTimes") {
+            for (emoji, title, minute, stars) in [("🗑️", "Take the bins out", 19 * 60, 2), ("🍽️", "Empty the dishwasher", 7 * 60, 1)] {
+                try database.saveChore(
+                    ChoreDraft(title: title, emoji: emoji, ownerId: first, recurrence: .daily, anchorDay: start, timeOfDay: minute, stars: stars),
+                    householdId: householdId
+                )
+            }
+        }
 
         // A few weeks of history so stars and the shared goal have something to show.
         let repeating = [breakfast, recycling, plants, dishes, sheets]

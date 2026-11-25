@@ -100,4 +100,18 @@ extension AppDatabase {
             try db.create(index: "rewardRedemption_on_day", on: "rewardRedemption", columns: ["day"])
         }
     }
+
+    /// Changes to the home tables after they were rebuilt for sync.
+    static let choreTimeMigration = "home v3: a chore's time"
+
+    static func registerHomeMigrationsAfterSync(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration(choreTimeMigration) { db in
+            // Minutes from midnight, or nil for any time. Nil for every chore so far, so it
+            // writes no rows. Once a chore is given a time, its iCloud record carries the
+            // field (and its modification time), so Production must know `timeOfDay` before
+            // a build that sets one ships (docs/design/sync-icloud.md, "Fields waiting for
+            // Production").
+            try db.execute(sql: #"ALTER TABLE "chore" ADD COLUMN "timeOfDay" INTEGER"#)
+        }
+    }
 }

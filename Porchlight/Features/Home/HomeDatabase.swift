@@ -23,6 +23,7 @@ enum HomeValidationError: Error, Equatable, LocalizedError {
     case notFound
     case notDue
     case alreadyCashedIn
+    case invalidTime
 
     var errorDescription: String? {
         switch self {
@@ -38,6 +39,7 @@ enum HomeValidationError: Error, Equatable, LocalizedError {
         case .notFound: "That item no longer exists."
         case .notDue: "That chore isn't due that day."
         case .alreadyCashedIn: "That reward was just cashed in."
+        case .invalidTime: "That time isn't valid."
         }
     }
 }
@@ -57,7 +59,10 @@ struct ChoreDraft: Equatable, Sendable {
     var recurrence: Recurrence = .daily
     /// First day for repeating chores; due day for one-off chores.
     var anchorDay: DayKey
+    /// An old typed hint, carried through an edit unchanged; the editor no longer writes one.
     var timeHint: String?
+    /// Minutes from midnight; nil for any time that day.
+    var timeOfDay: Int?
     var stars = 1
 }
 
@@ -104,6 +109,7 @@ extension AppDatabase {
         let hint = draft.timeHint?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let hint, hint.count > HomeLimits.hint { throw HomeValidationError.hintTooLong(limit: HomeLimits.hint) }
         guard HomeLimits.stars.contains(draft.stars) else { throw HomeValidationError.starsOutOfRange(HomeLimits.stars) }
+        if let time = draft.timeOfDay, !(0..<TimeEntry.day).contains(time) { throw HomeValidationError.invalidTime }
         switch draft.recurrence {
         case let .weekdays(days) where days.filter({ (1...7).contains($0) }).isEmpty:
             throw HomeValidationError.noWeekdays
@@ -134,6 +140,7 @@ extension AppDatabase {
             chore.recurrence = draft.recurrence
             chore.anchorDay = anchor.rawValue
             chore.timeHint = (hint?.isEmpty ?? true) ? nil : hint
+            chore.timeOfDay = draft.timeOfDay
             chore.stars = draft.stars
             try chore.save(db)
             return chore

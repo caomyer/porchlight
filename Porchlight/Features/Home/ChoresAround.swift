@@ -362,10 +362,7 @@ private struct TodayChoreRow: View {
                             .font(.body(15, weight: 700))
                             .lineLimit(1)
                         if let hint = hint {
-                            Text(hint)
-                                .font(.body(12, weight: 600))
-                                .foregroundStyle(isOverdue ? Theme.accent : Theme.muted)
-                                .lineLimit(1)
+                            LateLine(text: hint, lateFrom: lateFrom) { $0.font(.body(12, weight: 600)).lineLimit(1) }
                         }
                     }
                     Spacer(minLength: 0)
@@ -383,15 +380,17 @@ private struct TodayChoreRow: View {
         .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
     }
 
-    /// The time hint, or when a one-off is (over)due. Repeating chores due today say nothing more.
+    /// The chore's time, else a hint typed before chores had one, else when a one-off is
+    /// (over)due. Repeating chores due today with neither say nothing more.
     private var hint: String? {
-        if let hint = task.chore.timeHint, !hint.isEmpty { return hint }
-        guard task.chore.recurrence.isOnce else { return nil }
-        return ChoreSchedule.describe(task.chore, today: today, calendar: calendar)
+        if task.chore.timeOfDay != nil || task.chore.recurrence.isOnce || !(task.chore.timeHint ?? "").isEmpty {
+            return ChoreSchedule.subtitle(for: task.chore, today: today, calendar: calendar)
+        }
+        return nil
     }
 
-    private var isOverdue: Bool {
-        task.chore.recurrence.isOnce && task.chore.anchor < today
+    private var lateFrom: Date? {
+        ChoreSchedule.lateFrom(task.chore, isDone: task.isDone, today: today, calendar: calendar)
     }
 }
 

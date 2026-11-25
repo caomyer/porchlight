@@ -21,6 +21,8 @@ struct PhoneChoreRow: View {
     let isDone: Bool
     /// Who did it, for a done row anyone could take.
     var doneBy: Person?
+    /// When the line turns the accent color (`ChoreSchedule.lateFrom`).
+    var lateFrom: Date?
     let action: () -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -56,9 +58,9 @@ struct PhoneChoreRow: View {
                         .strikethrough(isDone, color: Theme.muted)
                         .foregroundStyle(isDone ? Theme.muted : Theme.ink)
                     if let subtitle {
-                        Text(subtitle)
-                            .phoneFont(.body, 12, weight: 600, relativeTo: .caption)
-                            .foregroundStyle(Theme.muted)
+                        LateLine(text: subtitle, lateFrom: lateFrom) { text in
+                            text.phoneFont(.body, 12, weight: 600, relativeTo: .caption)
+                        }
                     }
                 }
                 .fixedSize(horizontal: false, vertical: true)

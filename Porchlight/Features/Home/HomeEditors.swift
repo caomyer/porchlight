@@ -17,12 +17,15 @@ struct ChoreEditor: View {
     @State private var emoji = ""
     @State private var ownerId: Person.ID?
     @State private var repeatChoice: RepeatChoice?
-    @State private var timeHint = ""
+    /// A hint typed before chores had a time: kept as it is, never edited here.
+    @State private var timeHint: String?
+    @State private var time: Int?
     @State private var stars = 1
     @State private var error: String?
     @State private var loaded = false
 
-    private static let hintSuggestions = ["before noon", "after dinner", "anytime"]
+    /// The card's one-tap times: morning, noon and evening.
+    static let suggestedTimes: [(title: String, minute: Int)] = [("Morning", 8 * 60), ("Noon", 12 * 60), ("Evening", 19 * 60)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -56,19 +59,18 @@ struct ChoreEditor: View {
                     )
                 }
             }
-            EditorRow(label: "When, roughly") {
-                // A phone stacks the field over its suggestions; the wall keeps them in a row.
-                if isCompact {
-                    VStack(alignment: .leading, spacing: 8) {
-                        hintField
-                        FlowLayout(spacing: 8) { hintChips }
+            EditorRow(label: "Time") {
+                TimeFieldControl(
+                    minute: time,
+                    suggestions: timeSuggestions,
+                    accessibilityLabel: "Time",
+                    identifier: "chore-time",
+                    clear: { time = nil },
+                    apply: { minute in
+                        time = minute
+                        return nil
                     }
-                } else {
-                    HStack(spacing: 8) {
-                        hintField.frame(width: 180)
-                        hintChips
-                    }
-                }
+                )
             }
             if isCompact {
                 EditorRow(label: "Stars") {
@@ -98,15 +100,18 @@ struct ChoreEditor: View {
 
     private var isCompact: Bool { sizeClass == .compact }
 
-    private var hintField: some View {
-        TextField("e.g. 7-9am", text: $timeHint)
-            .font(.body(16, weight: 600))
-            .fieldStyle()
-    }
-
-    private var hintChips: some View {
-        ForEach(Self.hintSuggestions, id: \.self) { hint in
-            ChoiceChip(title: hint, isSelected: timeHint == hint) { timeHint = timeHint == hint ? "" : hint }
+    /// "Morning 8:00", "Noon", "Evening 7:00", in this device's clock.
+    private var timeSuggestions: [TimeSuggestion] {
+        let clock = ClockStyle.current
+        return Self.suggestedTimes.map { suggestion in
+            TimeSuggestion(
+                title: suggestion.title,
+                detail: suggestion.minute == 12 * 60 ? nil : clock.parts(suggestion.minute).time,
+                isSelected: time == suggestion.minute
+            ) {
+                time = suggestion.minute
+                return nil
+            }
         }
     }
 
@@ -138,7 +143,8 @@ struct ChoreEditor: View {
         title = chore.title
         emoji = chore.emoji ?? ""
         ownerId = chore.ownerId
-        timeHint = chore.timeHint ?? ""
+        timeHint = chore.timeHint
+        time = chore.timeOfDay
         stars = chore.stars
     }
 
@@ -146,7 +152,7 @@ struct ChoreEditor: View {
         guard let repeatChoice else { return }
         let draft = ChoreDraft(
             title: title, emoji: emoji, ownerId: ownerId, recurrence: repeatChoice.recurrence,
-            anchorDay: repeatChoice.startDay(calendar: store.calendar), timeHint: timeHint, stars: stars
+            anchorDay: repeatChoice.startDay(calendar: store.calendar), timeHint: timeHint, timeOfDay: time, stars: stars
         )
         if store.saveChore(draft, id: chore?.id) {
             close()

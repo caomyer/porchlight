@@ -17,12 +17,15 @@ struct Chore: Codable, Equatable, Identifiable, Sendable {
     var weekdayMask: Int
     var intervalDays: Int
     var anchorDay: String
-    /// A loose window like "7-9am" or "before noon".
+    /// A loose window like "7-9am" or "before noon", typed before chores had a time. Kept,
+    /// and shown until the chore has a time; nothing writes a new one.
     var timeHint: String?
     var stars: Int
     var archived: Bool
     var sortOrder: Int
     var createdAt: Date
+    /// When in the day it is done, as minutes from midnight; nil for any time that day.
+    var timeOfDay: Int? = nil
 
     var owner: Owner { ownerId.map(Owner.person) ?? .everyone }
     var anchor: DayKey { DayKey(rawValue: anchorDay) }

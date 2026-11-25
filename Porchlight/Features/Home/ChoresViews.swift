@@ -301,9 +301,7 @@ private struct ChoreRow: View {
                         .lineLimit(2)
                     HStack(spacing: 4) {
                         if let emoji = task.chore.emoji { Text(emoji).font(.system(size: 12)) }
-                        Text(subtitle)
-                            .font(.body(12, weight: 600))
-                            .foregroundStyle(isOverdue ? Theme.accent : Theme.muted)
+                        LateLine(text: subtitle, lateFrom: lateFrom, font: .body(12, weight: 600))
                     }
                     .lineLimit(1)
                 }
@@ -326,8 +324,8 @@ private struct ChoreRow: View {
         return ChoreSchedule.subtitle(for: task.chore, today: today, calendar: calendar)
     }
 
-    private var isOverdue: Bool {
-        task.chore.recurrence.isOnce && !task.isDone && task.chore.anchor < today
+    private var lateFrom: Date? {
+        ChoreSchedule.lateFrom(task.chore, isDone: task.isDone, today: today, calendar: calendar)
     }
 }
 
@@ -649,7 +647,8 @@ struct ChoreTaskSheet: View {
         let pattern = current.recurrence.isOnce
             ? Recurrence.describeDue(current.anchor, today: store.today, calendar: store.calendar)
             : current.recurrence.describe(start: current.anchor, calendar: store.calendar)
-        return "\(owner) · \(pattern) · +\(current.stars) \(current.stars == 1 ? "star" : "stars")"
+        let time = current.timeOfDay.map { " · " + ClockStyle.current.text($0) } ?? ""
+        return "\(owner) · \(pattern)\(time) · +\(current.stars) \(current.stars == 1 ? "star" : "stars")"
     }
 
     private var dayTitle: String {

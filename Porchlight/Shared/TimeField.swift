@@ -29,13 +29,23 @@ struct TimeSuggestion: Identifiable {
 // MARK: - The control
 
 /// A time pill and the card it opens. The owner says which times it can take.
+///
+/// A time that may be left unset (a chore's) passes nil and `clear`: unset, the pill reads
+/// `emptyTitle` and the card opens at `startMinute`, which Done sets; set, the pill has an x
+/// that clears it back.
 struct TimeFieldControl: View {
-    let minute: Int
+    let minute: Int?
     var nextDay = false
     var clock: ClockStyle = .current
     var suggestions: [TimeSuggestion] = []
     let accessibilityLabel: String
     let identifier: String
+    /// What the pill says with no time.
+    var emptyTitle = "Any time"
+    /// Where the card starts with no time.
+    var startMinute = 8 * 60
+    /// Clears the time, for a time that may be unset.
+    var clear: (() -> Void)?
     /// Sets the time (minutes from midnight); returns why it can't, if it can't.
     let apply: (Int) -> String?
 
@@ -49,7 +59,7 @@ struct TimeFieldControl: View {
     var body: some View {
         TimeFieldPill(
             minute: minute, nextDay: nextDay, isOpen: isOpen, clock: clock,
-            accessibilityLabel: accessibilityLabel, identifier: identifier
+            accessibilityLabel: accessibilityLabel, identifier: identifier, emptyTitle: emptyTitle, clear: clear
         ) {
             typing = TimeTyping()
             refused = nil
@@ -58,7 +68,7 @@ struct TimeFieldControl: View {
         }
         .modifier(TimeCardPresentation(isOpen: $isOpen, asSheet: sizeClass == .compact) { asSheet in
             TimeKeypadCard(
-                minute: refused ?? minute, nextDay: nextDay && refused == nil, clock: clock,
+                minute: refused ?? minute ?? startMinute, nextDay: nextDay && refused == nil, clock: clock,
                 suggestions: suggestions, note: note, typing: $typing,
                 title: asSheet ? accessibilityLabel : nil,
                 fillsWidth: asSheet,
@@ -66,7 +76,11 @@ struct TimeFieldControl: View {
                 onSuggestion: { suggestion in
                     if let problem = suggestion.apply() { note = problem } else { isOpen = false }
                 },
-                onClose: { isOpen = false }
+                onClose: {
+                    // Done on an unset time sets the one the card shows.
+                    if minute == nil, refused == nil, apply(startMinute) != nil { return }
+                    isOpen = false
+                }
             )
         })
         .onChange(of: isOpen) { _, open in
@@ -133,14 +147,17 @@ struct TimeCardPresentation<Card: View>: ViewModifier {
     }
 }
 
-/// A time at rest, or while its card is open.
+/// A time at rest, or while its card is open; with no time, `emptyTitle`, and with a time
+/// that may be cleared, an x beside it.
 struct TimeFieldPill: View {
-    let minute: Int
+    let minute: Int?
     var nextDay = false
     var isOpen = false
     var clock: ClockStyle = .current
     let accessibilityLabel: String
     let identifier: String
+    var emptyTitle = "Any time"
+    var clear: (() -> Void)?
     let action: () -> Void
 
     /// The phone's compact layout follows Dynamic Type; the wall's type is fixed, as
@@ -153,9 +170,48 @@ struct TimeFieldPill: View {
 
     private var scales: Bool { sizeClass == .compact }
 
+    @ScaledMetric(relativeTo: .body) private var emptySize: CGFloat = 15
+    @ScaledMetric(relativeTo: .body) private var clearSize: CGFloat = 12
+
     var body: some View {
-        let parts = clock.parts(minute)
-        Button(action: action) {
+        HStack(spacing: 0) {
+            Button(action: action) {
+                label
+                    .padding(.leading, scales ? inset : 14)
+                    .padding(.trailing, minute != nil && clear != nil ? 6 : (scales ? inset : 14))
+                    .padding(.top, 6)
+                    .padding(.bottom, 7)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(minute.map { clock.text($0) + (nextDay ? ", next day" : "") } ?? emptyTitle)
+            .accessibilityHint("Pick or type a time")
+            .accessibilityIdentifier(identifier)
+            if minute != nil, let clear {
+                Button(action: clear) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: scales ? clearSize : 12, weight: .bold))
+                        .foregroundStyle(Theme.muted)
+                        .padding(.leading, 4)
+                        .padding(.trailing, scales ? inset : 14)
+                        .frame(minHeight: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(emptyTitle)
+                .accessibilityIdentifier(identifier + "-clear")
+            }
+        }
+        .background(Theme.surface, in: Capsule())
+        .overlay(Capsule().strokeBorder(isOpen ? Theme.accent : Theme.line, lineWidth: isOpen ? 2 : 1.5))
+        .fixedSize()
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        if let minute {
+            let parts = clock.parts(minute)
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(parts.time)
                     .font(.display(scales ? timeSize : 19))
@@ -172,19 +228,13 @@ struct TimeFieldPill: View {
                         .foregroundStyle(Theme.accent)
                 }
             }
-            .padding(.horizontal, scales ? inset : 14)
-            .padding(.top, 6)
-            .padding(.bottom, 7)
-            .background(Theme.surface, in: Capsule())
-            .overlay(Capsule().strokeBorder(isOpen ? Theme.accent : Theme.line, lineWidth: isOpen ? 2 : 1.5))
-            .contentShape(Capsule())
+        } else {
+            // As tall as a time, so the row doesn't jump when one is set.
+            Text(emptyTitle)
+                .font(.body(scales ? emptySize : 15, weight: 700))
+                .foregroundStyle(Theme.ink)
+                .frame(minHeight: scales ? timeSize * 1.25 : 24)
         }
-        .buttonStyle(.plain)
-        .fixedSize()
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityValue(clock.text(minute) + (nextDay ? ", next day" : ""))
-        .accessibilityHint("Pick or type a time")
-        .accessibilityIdentifier(identifier)
     }
 }
 
