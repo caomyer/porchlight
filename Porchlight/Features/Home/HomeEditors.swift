@@ -162,6 +162,7 @@ struct RewardEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(HomeStore.self) private var store
     @Environment(\.closeWallSheet) private var close
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let reward: Reward?
 
     @State private var title = ""
@@ -198,26 +199,27 @@ struct RewardEditor: View {
                     } action: { ownerId = nil }
                 }
             }
-            HStack(alignment: .bottom) {
-                EditorRow(label: "Goal") {
-                    CountStepper(value: $target, range: 5...1000, step: 5, suffix: "stars")
-                }
-                Spacer()
-                if let reward {
-                    Button("Start over") {
-                        store.restart(reward)
-                        close()
+            // A phone stacks the goal over full-width buttons, as the chore editor does: in a
+            // row beside the goal, three buttons broke their words letter by letter.
+            if sizeClass == .compact {
+                EditorRow(label: "Goal") { goalStepper }
+                VStack(spacing: 10) {
+                    saveButton.buttonStyle(PhoneButtonStyle())
+                    if let reward {
+                        restartButton(reward).buttonStyle(PhoneButtonStyle(kind: .ghost))
+                        archiveButton(reward).buttonStyle(PhoneButtonStyle(kind: .ghost))
                     }
-                    .buttonStyle(SecondaryButtonStyle())
-                    Button(reward.archived ? "Restore" : "Archive") {
-                        store.setArchived(reward, !reward.archived)
-                        close()
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
                 }
-                Button(reward == nil ? "Add reward" : "Save", action: save)
-                    .buttonStyle(PrimaryButtonStyle())
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+            } else {
+                HStack(alignment: .bottom) {
+                    EditorRow(label: "Goal") { goalStepper }
+                    Spacer()
+                    if let reward {
+                        restartButton(reward).buttonStyle(SecondaryButtonStyle())
+                        archiveButton(reward).buttonStyle(SecondaryButtonStyle())
+                    }
+                    saveButton.buttonStyle(PrimaryButtonStyle())
+                }
             }
             ErrorLine(message: error)
         }
@@ -233,6 +235,29 @@ struct RewardEditor: View {
             } else {
                 ownerId = model.people.first?.id
             }
+        }
+    }
+
+    private var goalStepper: some View {
+        CountStepper(value: $target, range: 5...1000, step: 5, suffix: "stars")
+    }
+
+    private var saveButton: some View {
+        Button(reward == nil ? "Add reward" : "Save", action: save)
+            .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+    }
+
+    private func restartButton(_ reward: Reward) -> some View {
+        Button("Start over") {
+            store.restart(reward)
+            close()
+        }
+    }
+
+    private func archiveButton(_ reward: Reward) -> some View {
+        Button(reward.archived ? "Restore" : "Archive") {
+            store.setArchived(reward, !reward.archived)
+            close()
         }
     }
 

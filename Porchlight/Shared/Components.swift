@@ -5,11 +5,24 @@ extension Color {
     /// This color laid at `opacity` over the paper surface, as a solid color.
     /// The Sunday Paper tint used for event blocks, chips and selected states.
     ///
-    /// Both colors are read in `scheme`'s look: a wash is computed outside any view, so
-    /// it can't follow the look on its own. The wall is always light; the phone passes
-    /// its environment's color scheme.
-    func wash(_ opacity: Double, over base: Color = Theme.surface, in scheme: ColorScheme = .light) -> Color {
-        let top = rgba(in: scheme)
+    /// It follows the look it is drawn in, as any color of the theme does: both colors are
+    /// mixed again for each look, light or dark, when the view draws it. The wall is always
+    /// light (`preferredColorScheme(.light)`), so it draws the light mix. Given `scheme`, it is
+    /// that look's mix whatever the view's look, for the few places that need one look.
+    ///
+    /// Once it defaulted to the light look, and every caller had to pass the phone's own
+    /// look: the chore editor's chosen chips, which didn't, were near white with light words
+    /// on them in the dark look (build 20261125.034137).
+    func wash(_ opacity: Double, over base: Color = Theme.surface, in scheme: ColorScheme? = nil) -> Color {
+        if let scheme { return Self.mix(self, over: base, opacity, in: scheme) }
+        let top = self
+        return Color(UIColor { traits in
+            UIColor(Self.mix(top, over: base, opacity, in: traits.userInterfaceStyle == .dark ? .dark : .light))
+        })
+    }
+
+    private static func mix(_ color: Color, over base: Color, _ opacity: Double, in scheme: ColorScheme) -> Color {
+        let top = color.rgba(in: scheme)
         let bottom = base.rgba(in: scheme)
         return Color(
             .sRGB,
