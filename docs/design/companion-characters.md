@@ -7,7 +7,8 @@ A companion with no character keeps its photo or drawn face everywhere, and a ch
 The approved proposal set the journey and the look; these decisions are taken:
 
 - One house style for every pet: pixel sticker. No picker.
-- Free, limited to three rounds of tries per pet. The relay enforces the limit; the app only shows what is left.
+- Free, limited to three rounds of tries per pet. The relay keeps the count; the app only shows what is left.
+  During beta testing the relay counts the rounds and does not enforce them ("What the relay counts and what it enforces", below).
 - Every mood is animated. Motion plays twice when a character appears, then twice about every ten seconds and twice on a tap, never in a loop, and not at all under Reduce Motion. (It was once a minute until James's first live test, where it was missed.)
 - Dogs and cats first. Other species keep today's faces.
 - The drawing is OpenAI's, reached only through Porchlight's relay, never directly from the app.
@@ -262,6 +263,40 @@ With no network nothing is sent: the system's path monitor says so before a call
 A drawing may take 180 seconds, the function's own limit (one model attempt of up to 75 seconds and one retry); asking what is left, 30.
 Cancelling the task ends the wait at once.
 The request cannot be taken back, so the relay may still finish the drawing and count it.
+
+### What the relay counts and what it enforces
+
+The relay counts everything it draws, per companion, for life, and per household and installation, per day.
+Which counts turn a call down depends on one switch, the relay's `ENFORCE_LIFETIME_LIMITS` parameter (`firebase/functions/.env`).
+
+Counted and enforced always, because they protect the bill:
+
+- 40 calls in a UTC day for a household, and 40 for a signed-in installation.
+- Six companions with characters in a household.
+- The whole service's spending in a day, 5 dollars.
+
+Counted always, enforced only when the switch says `true`:
+
+- Three rounds of tries for a companion.
+- Three draws of each mood's still.
+- Three draws of each mood's animation.
+
+During beta testing the switch is `false`.
+A call past one of these three is drawn like any other, counted like any other, and its log line carries `overLimit: true` and `limit` naming which was passed.
+The counts stay true, so turning the switch to `true` and deploying enforces the limits again from what was really used, with nothing to repair: a companion past three rounds is then turned down, and one within them is unaffected.
+
+What the app is told while the switch is `false`:
+
+- `roundsLeft`, from `characterAllowance` and from each round of tries, is the real number left until it would reach 0, and from then on it is 1.
+  A companion nothing was drawn for reads 3; after one round 2; after two rounds 1; after three, four or ten rounds, still 1.
+  It never reads 0, because a build stops offering "Draw a new character" at 0.
+- So the app's "tries left" wording counts 3, 2, 1 and then stays at "1 round of tries left" however many more are drawn.
+  That is a true floor and a false count, accepted for the beta: nothing in the app says the limits are not enforced.
+- No `limit-reached` with the reason `rounds`, `mood-redraws` or `animation-redraws` is sent.
+  The reasons `companions`, `household-day` and `installation-day`, and `unavailable` with `spend-ceiling`, are sent as before.
+
+What can still stop a tester: the household's 40 calls in a day.
+A whole character is 8 calls, so a household that draws five characters in one day, or redraws a great deal, meets "household-day" and waits for the next UTC day.
 
 ### Nothing until asked
 

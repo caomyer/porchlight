@@ -103,6 +103,24 @@ All in `functions/src/config.ts`.
 A drawing that fails or is refused uses up no round and no redraw.
 It still counts toward the day's 40 calls, because that ceiling is there to stop a runaway app.
 
+### Counted, and enforced or not
+
+The first two limits above, the lifetime limits, are always counted and are enforced only when the `ENFORCE_LIFETIME_LIMITS` parameter says `true`.
+It is `false` during beta testing, in `functions/.env`.
+
+While it is `false`:
+
+- A call past three rounds, or past three draws of a mood's still or animation, is drawn and counted like any other, and its log line carries `overLimit: true` and `limit: "rounds" | "mood-redraws" | "animation-redraws"`.
+- `roundsLeft` is the real number left until that would be 0, and 1 from then on: 3, 2, 1, 1, 1. It never reads 0, because the app stops offering a new character at 0.
+- No `limit-reached` is sent with the reason `rounds`, `mood-redraws` or `animation-redraws`.
+
+The other limits are enforced whatever it says: six companions in a household, the day's 40 calls for a household and for an installation, and the day's spending ceiling.
+With the lifetime limits off, the day's 40 calls are what bounds one household's cost: at most about 3 dollars a day.
+
+To enforce the lifetime limits again, set `ENFORCE_LIFETIME_LIMITS=true` in `functions/.env` and deploy.
+The counts were kept all along, so each companion is held to what it really used, and nothing needs repairing.
+Any value but `true` or `false` is read as the default in `config.ts` (`enforceLifetimeByDefault`), which is `false`.
+
 The installation ceiling only applies when the app signs in (Firebase Anonymous Authentication is enough).
 App Check proves a call comes from a genuine copy of the app, but it does not say which device, so without sign-in only the household ceiling applies.
 
