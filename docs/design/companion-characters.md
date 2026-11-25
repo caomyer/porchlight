@@ -301,8 +301,10 @@ What the app is told while the switch is `false`:
 - `roundsLeft`, from `characterAllowance` and from each round of tries, is the real number left until it would reach 0, and from then on it is 1.
   A companion nothing was drawn for reads 3; after one round 2; after two rounds 1; after three, four or ten rounds, still 1.
   It never reads 0, because a build stops offering "Draw a new character" at 0.
-- So the app's "tries left" wording counts 3, 2, 1 and then stays at "1 round of tries left" however many more are drawn.
-  That is a true floor and a false count, accepted for the beta: nothing in the app says the limits are not enforced.
+- So the app states a count only above one: "None of these: try again (2 left)", then "None of these: try again"; removing a character says "2 rounds are left.", then says nothing of rounds.
+  "1 left" would be untrue for good during the beta, and with the limits enforced the last round goes unannounced, which is still true.
+- The app remembers none left only when the relay answers `limit-reached` with the reason `rounds`; the household's or a device's calls for the day used up are gone tomorrow, and are never remembered as none left (`CharacterDrawingTests.roundsDuringBeta`).
+  The app has no cap of its own on rounds or redraws.
 - No `limit-reached` with the reason `rounds`, `mood-redraws` or `animation-redraws` is sent.
   The reasons `companions`, `household-day` and `installation-day`, and `unavailable` with `spend-ceiling`, are sent as before.
 
