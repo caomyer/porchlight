@@ -214,7 +214,7 @@ The editor, on the wall and the phone, has a "Time" row with one pill: "Any time
 Tapping it opens the time card every other time uses (`TimeFieldControl`), with three one-tap suggestions, Morning 8:00, Noon and Evening 7:00, in this device's clock.
 Unset, the card opens at 8:00 and Done sets what it shows; set, the pill shows the time and an x that clears it back to "Any time".
 
-The line under a chore shows its time when it has one, else a hint typed before times existed, else when it is due (`ChoreSchedule.subtitle`), on Today, Pitch in, the wall's board, the wall's "around" view and the household's chore list.
+The line under a chore shows its time when it has one, in the style of the times beside it ("7pm", "7:30am", as "Done 7:40am"; the household's 12- or 24-hour clock), else a hint typed before times existed, else when it is due (`ChoreSchedule.subtitle`), on Today, Pitch in, the wall's board, the wall's "around" view and the household's chore list.
 On the phone's Today and the wall's board, open chores with a time come first, by time, then the rest in today's order; a done chore stays where it was, as before (`ChoreSchedule.ordered`).
 The line turns the accent color once the time has come today and the chore is still open, and an overdue one-off's does as before (`ChoreSchedule.lateFrom`); no badge and no new words.
 Doing a chore after its time earns the same stars.

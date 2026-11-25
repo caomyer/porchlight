@@ -647,7 +647,7 @@ struct ChoreTaskSheet: View {
         let pattern = current.recurrence.isOnce
             ? Recurrence.describeDue(current.anchor, today: store.today, calendar: store.calendar)
             : current.recurrence.describe(start: current.anchor, calendar: store.calendar)
-        let time = current.timeOfDay.map { " · " + ClockStyle.current.text($0) } ?? ""
+        let time = current.timeOfDay.map { " · " + ChoreSchedule.timeText($0) } ?? ""
         return "\(owner) · \(pattern)\(time) · +\(current.stars) \(current.stars == 1 ? "star" : "stars")"
     }
 

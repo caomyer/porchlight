@@ -40,7 +40,7 @@ final class WallChoreTimeTests: XCTestCase {
         app.buttons["Open Take the bins out"].tap()
         let edit = app.buttons["Edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 10), "the chore's sheet")
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "7:00 PM")).firstMatch.exists, "which says its time")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "7pm")).firstMatch.exists, "which says its time")
         edit.tap()
         let pill = app.buttons["chore-time"]
         XCTAssertTrue(pill.waitForExistence(timeout: 10))

@@ -23,12 +23,19 @@ enum ChoreSchedule {
         return occurs(chore, on: day, calendar: calendar)
     }
 
-    /// The small line under a chore's title: its time ("7:00 PM"), else a hint typed before
+    /// The small line under a chore's title: its time ("7pm"), else a hint typed before
     /// chores had a time, else a description of when it is due.
-    static func subtitle(for chore: Chore, today: DayKey, calendar: Calendar, clock: ClockStyle = .current) -> String {
-        if let time = chore.timeOfDay { return clock.text(time) }
+    static func subtitle(for chore: Chore, today: DayKey, calendar: Calendar, twelveHour: Bool = ClockFormat.usesTwelveHourClock) -> String {
+        if let time = chore.timeOfDay { return timeText(time, twelveHour: twelveHour) }
         if let hint = chore.timeHint, !hint.isEmpty { return hint }
         return describe(chore, today: today, calendar: calendar)
+    }
+
+    /// A chore's time as every other time on the line beside it reads: "7pm", "7:30am", or
+    /// "19" on a 24-hour clock (`CareTime.hour`, as "Done 7:40am" and "5-8pm" are). The
+    /// editor's pill keeps the time control's own style.
+    static func timeText(_ minute: Int, twelveHour: Bool = ClockFormat.usesTwelveHourClock) -> String {
+        CareTime.hour(minute, twelveHour: twelveHour)
     }
 
     /// When an open chore's line turns the accent color on `today`: once its time has come,

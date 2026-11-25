@@ -11,7 +11,6 @@ import Testing
 struct ChoreTimeTests {
     private var calendar: Calendar { HomeLogicTests.calendar }
     private let today = DayKey(rawValue: "2026-11-04")
-    private let clock = ClockStyle(uses24Hours: false)
 
     private func chore(_ id: Int, time: Int? = nil, hint: String? = nil, _ recurrence: Recurrence = .daily, anchor: String = "2026-11-01") -> Chore {
         var chore = HomeLogicTests.chore(id: id, recurrence, anchor: anchor)
@@ -26,11 +25,13 @@ struct ChoreTimeTests {
 
     @Test("The line under a chore: its time, else an old typed hint, else when it is due")
     func subtitlePrecedence() {
-        #expect(ChoreSchedule.subtitle(for: chore(1, time: 19 * 60, hint: "after dinner"), today: today, calendar: calendar, clock: clock) == "7:00 PM")
-        #expect(ChoreSchedule.subtitle(for: chore(1, hint: "after dinner"), today: today, calendar: calendar, clock: clock) == "after dinner")
-        #expect(ChoreSchedule.subtitle(for: chore(1), today: today, calendar: calendar, clock: clock) == "every day")
-        #expect(ChoreSchedule.subtitle(for: chore(1, time: 7 * 60), today: today, calendar: calendar, clock: ClockStyle(uses24Hours: true)) == "07:00")
-        #expect(ChoreSchedule.subtitle(for: chore(1, hint: ""), today: today, calendar: calendar, clock: clock) == "every day", "an empty hint is no hint")
+        #expect(ChoreSchedule.subtitle(for: chore(1, time: 19 * 60, hint: "after dinner"), today: today, calendar: calendar, twelveHour: true) == "7pm")
+        #expect(ChoreSchedule.subtitle(for: chore(1, time: 7 * 60 + 30), today: today, calendar: calendar, twelveHour: true) == "7:30am",
+                "in the style of the times beside it, as \"Done 7:40am\"")
+        #expect(ChoreSchedule.subtitle(for: chore(1, hint: "after dinner"), today: today, calendar: calendar, twelveHour: true) == "after dinner")
+        #expect(ChoreSchedule.subtitle(for: chore(1), today: today, calendar: calendar, twelveHour: true) == "every day")
+        #expect(ChoreSchedule.subtitle(for: chore(1, time: 19 * 60 + 15), today: today, calendar: calendar, twelveHour: false) == "19:15", "on a 24-hour clock")
+        #expect(ChoreSchedule.subtitle(for: chore(1, hint: ""), today: today, calendar: calendar, twelveHour: true) == "every day", "an empty hint is no hint")
     }
 
     @Test("On the board, open chores with a time come first by time, then the rest in today's order; done ones stay where they were")

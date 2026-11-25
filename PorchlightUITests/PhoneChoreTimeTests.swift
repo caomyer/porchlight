@@ -36,8 +36,8 @@ final class PhoneChoreTimeTests: XCTestCase, PhoneTestHelpers {
             let app = launch(dark: dark)
             let dishwasher = row(app, "Empty the dishwasher"), bins = row(app, "Take the bins out")
             reveal(dishwasher, in: app)
-            XCTAssertEqual(dishwasher.value as? String, "7:00 AM")
-            XCTAssertEqual(bins.value as? String, "7:00 PM")
+            XCTAssertEqual(dishwasher.value as? String, "7am")
+            XCTAssertEqual(bins.value as? String, "7pm")
             let others = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Check off ")).allElementsBoundByIndex
                 .filter { $0.label != dishwasher.label && $0.label != bins.label }
             XCTAssertLessThan(dishwasher.frame.minY, bins.frame.minY, "by time: 7:00 AM before 7:00 PM")
@@ -91,7 +91,7 @@ final class PhoneChoreTimeTests: XCTestCase, PhoneTestHelpers {
             app.buttons["Yours"].tap()
             let ferns = row(app, "Water the ferns")
             XCTAssertTrue(ferns.waitForExistence(timeout: 5))
-            XCTAssertEqual(ferns.value as? String, "8:00 AM", "its time is its line")
+            XCTAssertEqual(ferns.value as? String, "8am", "its time is its line, as the times beside it read")
             XCTAssertLessThan(ferns.frame.minY, row(app, "Take the bins out").frame.minY, "8:00 AM comes before 7:00 PM")
             app.terminate()
         }
@@ -115,6 +115,6 @@ final class PhoneChoreTimeTests: XCTestCase, PhoneTestHelpers {
         reveal(save, in: app)
         save.tap()
         XCTAssertTrue(bins.waitForExistence(timeout: 5))
-        XCTAssertTrue((bins.label + " " + ((bins.value as? String) ?? "")).contains("12:00 PM"), "the list says the new time: \(bins.label)")
+        XCTAssertTrue((bins.label + " " + ((bins.value as? String) ?? "")).contains("12pm"), "the list says the new time: \(bins.label)")
     }
 }
