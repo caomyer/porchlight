@@ -61,6 +61,7 @@ Beside the code, `details.reason` says why, so the app can choose its words:
 | `limit-reached` | `installation-day` | This installation has made its calls for today. |
 | `unavailable` | `spend-ceiling` | The whole service has spent its money for today. Tomorrow is open again. |
 | `unavailable` | `model` | The image model failed, timed out or could not be reached. Trying again soon may work. |
+| `unavailable` | `model-key` | The image model turned the relay itself away: its key is wrong, lacks a permission, or its account is not allowed this model. Trying again will not help until the owner puts it right. Added after the first release. |
 | `unavailable` | `relay` | The relay itself failed. Trying again soon may work. |
 
 `refused` and `invalid` carry no reason.
@@ -76,6 +77,19 @@ let draw = Functions.functions(region: "us-central1").httpsCallable("drawCharact
 
 `characterAllowance` takes an ordinary App Check token.
 
+## When the model turns the relay away
+
+A wrong key, a key without permission for images, an organisation that is not verified, a model the account may not use, no access to GIF output and a billing limit all come back from the model as a refusal with a status and a few words, and only the words tell them apart.
+So a failed draw's log line carries the model's own answer:
+
+- `modelStatus`: the HTTP status.
+- `modelCode`, `modelType`, `modelParam`: the model's own names for the error, as `invalid_api_key`, `insufficient_quota`, `output_format`.
+- `modelMessage`: its message, with any key replaced by `[key]`, any long run of bytes replaced by `[long]`, cut at 300 characters.
+- `requestId`: the id the model gave the request, to quote to its support.
+
+None of this is sent to the app.
+A 401 or 403 from the model is logged as an error, is not tried again, and reaches the app as `unavailable` with the reason `model-key`.
+
 ## Limits
 
 All in `functions/src/config.ts`.
@@ -88,6 +102,24 @@ All in `functions/src/config.ts`.
 
 A drawing that fails or is refused uses up no round and no redraw.
 It still counts toward the day's 40 calls, because that ceiling is there to stop a runaway app.
+
+### Counted, and enforced or not
+
+The first two limits above, the lifetime limits, are always counted and are enforced only when the `ENFORCE_LIFETIME_LIMITS` parameter says `true`.
+It is `false` during beta testing, in `functions/.env`.
+
+While it is `false`:
+
+- A call past three rounds, or past three draws of a mood's still or animation, is drawn and counted like any other, and its log line carries `overLimit: true` and `limit: "rounds" | "mood-redraws" | "animation-redraws"`.
+- `roundsLeft` is the real number left until that would be 0, and 1 from then on: 3, 2, 1, 1, 1. It never reads 0, because the app stops offering a new character at 0.
+- No `limit-reached` is sent with the reason `rounds`, `mood-redraws` or `animation-redraws`.
+
+The other limits are enforced whatever it says: six companions in a household, the day's 40 calls for a household and for an installation, and the day's spending ceiling.
+With the lifetime limits off, the day's 40 calls are what bounds one household's cost: at most about 3 dollars a day.
+
+To enforce the lifetime limits again, set `ENFORCE_LIFETIME_LIMITS=true` in `functions/.env` and deploy.
+The counts were kept all along, so each companion is held to what it really used, and nothing needs repairing.
+Any value but `true` or `false` is read as the default in `config.ts` (`enforceLifetimeByDefault`), which is `false`.
 
 The installation ceiling only applies when the app signs in (Firebase Anonymous Authentication is enough).
 App Check proves a call comes from a genuine copy of the app, but it does not say which device, so without sign-in only the household ceiling applies.
@@ -143,8 +175,11 @@ Give it to each command, or copy `.firebaserc.example` to `.firebaserc`, which i
 
 ## Test
 
+Run the tests in a copy outside the repository when the repository sits in a folder a file-syncing service watches, such as iCloud Drive: installing thousands of package files there is slow and comes back as duplicate files.
+
 ```
-cd firebase/functions
+rsync -a --exclude node_modules --exclude lib firebase/ /tmp/porchlight-relay/
+cd /tmp/porchlight-relay/functions
 npm ci
 npm run lint
 npm test
@@ -168,6 +203,7 @@ CI runs the same commands in `.github/workflows/relay.yml`, on Linux, when `fire
 zsh firebase/scripts/deploy.sh <project-id>
 ```
 
+It copies `firebase/` to a temporary folder outside the repository and works there, so nothing is installed or built inside the repository.
 It installs, lints, runs every test, checks the secret is set (without reading it), then deploys the two functions and the Firestore rules.
 It never asks a question.
 The one parameter the functions take, `DAILY_SPEND_CEILING_DOLLARS`, has its value in `functions/.env`, which is committed and holds nothing secret.

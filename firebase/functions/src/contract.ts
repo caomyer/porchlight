@@ -33,7 +33,7 @@ export type DrawResponse =
  * `reason` says more, for the app to choose its words, and is a closed set:
  * - with `limit-reached`: `rounds`, `mood-redraws`, `animation-redraws`, `companions`,
  *   `household-day`, `installation-day`;
- * - with `unavailable`: `spend-ceiling`, `model`, `relay`;
+ * - with `unavailable`: `spend-ceiling`, `model`, `model-key`, `relay`;
  * - with `refused` and `invalid`: none.
  *
  * Each is explained on `RelayReason` (errors.ts). A reason may be added in a later

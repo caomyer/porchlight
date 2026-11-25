@@ -26,7 +26,7 @@ function made(options: { failure?: () => Error | undefined; reserve?: () => Erro
   const { ledger, calls } = openLedger({ reserve: options.reserve });
   const service = relay({
     model: fakeModel({ seen: (request) => seen.push(request), failure: options.failure }),
-    ledger, log, now: fixedNow, dailyCeiling: 5,
+    ledger, log, now: fixedNow, dailyCeiling: 5, enforceLifetimeLimits: true,
   });
   return { service, seen, log, calls };
 }

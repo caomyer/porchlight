@@ -29,7 +29,7 @@ beforeAll(() => {
 });
 
 function claim(overrides: Partial<Claim> = {}): Claim {
-  return { household: newId(), companion: newId(), step: "tries", day: newDay(), estimate: 0.09, ceiling: 1000, ...overrides };
+  return { household: newId(), companion: newId(), step: "tries", day: newDay(), estimate: 0.09, ceiling: 1000, enforceLifetime: true, ...overrides };
 }
 
 async function outcome(work: Promise<unknown>): Promise<string> {
@@ -62,12 +62,12 @@ async function spent(day: string): Promise<number> {
 describe("rounds of tries", () => {
   it("are three for a companion, for life, and count down", async () => {
     const base = claim();
-    expect(await ledger.roundsLeft(base.household, base.companion)).toBe(3);
+    expect(await ledger.roundsLeft(base.household, base.companion, true)).toBe(3);
     expect((await ledger.reserve(base)).roundsLeft).toBe(2);
     expect((await ledger.reserve({ ...base, day: newDay() })).roundsLeft).toBe(1);
     expect((await ledger.reserve({ ...base, day: newDay() })).roundsLeft).toBe(0);
     expect(await outcome(ledger.reserve({ ...base, day: newDay() }))).toBe("limit-reached: rounds");
-    expect(await ledger.roundsLeft(base.household, base.companion)).toBe(0);
+    expect(await ledger.roundsLeft(base.household, base.companion, true)).toBe(0);
   });
 
   it("are never more than three, however many calls arrive at once", async () => {
@@ -75,7 +75,7 @@ describe("rounds of tries", () => {
     const results = await Promise.all(Array.from({ length: 8 }, () => outcome(ledger.reserve(base))));
     expect(count(results, "ok")).toBe(3);
     expect(count(results, "limit-reached: rounds")).toBe(5);
-    expect(await ledger.roundsLeft(base.household, base.companion)).toBe(0);
+    expect(await ledger.roundsLeft(base.household, base.companion, true)).toBe(0);
   });
 
   it("come back when the drawing failed", async () => {
@@ -83,7 +83,7 @@ describe("rounds of tries", () => {
     const first = await ledger.reserve(base);
     await ledger.reserve(base);
     await ledger.release(first);
-    expect(await ledger.roundsLeft(base.household, base.companion)).toBe(2);
+    expect(await ledger.roundsLeft(base.household, base.companion, true)).toBe(2);
   });
 
   it("belong to one companion: another has its own", async () => {
@@ -106,7 +106,7 @@ describe("moods and animations", () => {
   it("do not use up rounds, nor rounds them", async () => {
     const base = claim({ step: "mood", mood: "fine" });
     for (let draw = 0; draw < 3; draw += 1) await ledger.reserve(base);
-    expect(await ledger.roundsLeft(base.household, base.companion)).toBe(3);
+    expect(await ledger.roundsLeft(base.household, base.companion, true)).toBe(3);
     expect(await outcome(ledger.reserve({ ...base, step: "animation" }))).toBe("ok");
     expect(await outcome(ledger.reserve({ ...base, step: "tries", mood: undefined }))).toBe("ok");
   });
@@ -229,7 +229,7 @@ describe("the day's spending", () => {
     const day = newDay();
     const base = claim({ day, estimate: 0.09, ceiling: 0.05 });
     expect(await outcome(ledger.reserve(base))).toBe("unavailable: spend ceiling");
-    expect(await ledger.roundsLeft(base.household, base.companion)).toBe(3);
+    expect(await ledger.roundsLeft(base.household, base.companion, true)).toBe(3);
   });
 });
 
@@ -272,7 +272,7 @@ describe("the reason each limit gives the app", () => {
 
 describe("the whole relay on a real ledger", () => {
   async function draw(options: { failure?: () => Error | undefined; delayMs?: number } = {}) {
-    const service = relay({ model: fakeModel(options), ledger, log: memoryLog(), now: () => new Date(), dailyCeiling: 1000 });
+    const service = relay({ model: fakeModel(options), ledger, log: memoryLog(), now: () => new Date(), dailyCeiling: 1000, enforceLifetimeLimits: true });
     const ids = { householdId: newId(), companionId: newId() };
     const cutout = await pngBase64();
     return { service, ids, request: { ...ids, species: "dog", step: "tries", cutout } };

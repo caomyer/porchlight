@@ -10,6 +10,7 @@ import { firestoreLedger } from "./ledger";
 import { described, log } from "./log";
 import { openAIModel } from "./model";
 import { relay, type Relay } from "./service";
+import { enforced } from "./settings";
 
 initializeApp();
 
@@ -20,6 +21,16 @@ const openAIKey = defineSecret("OPENAI_API_KEY");
 const dailyCeiling = defineString("DAILY_SPEND_CEILING_DOLLARS", {
   default: String(config.cost.defaultDailyCeiling),
   description: "The most the relay may spend on drawings in one UTC day, in US dollars.",
+});
+
+/**
+ * Whether the three lifetime limits (rounds of tries, mood redraws, animation redraws)
+ * turn a call down. "false" during beta testing: they are counted and a call past one is
+ * drawn and logged. "true" enforces them again; nothing else needs changing.
+ */
+const enforceLifetimeLimits = defineString("ENFORCE_LIFETIME_LIMITS", {
+  default: String(config.limits.enforceLifetimeByDefault),
+  description: "Whether the lifetime limits on tries and redraws turn a call down: true or false.",
 });
 
 const emulated = process.env.FUNCTIONS_EMULATOR === "true";
@@ -49,6 +60,7 @@ function theRelay(): Relay {
     log,
     now: () => new Date(),
     dailyCeiling: Number.isFinite(ceiling) && ceiling >= 0 ? ceiling : config.cost.defaultDailyCeiling,
+    enforceLifetimeLimits: enforced(enforceLifetimeLimits.value()),
   });
   return made;
 }
