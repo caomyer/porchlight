@@ -86,6 +86,25 @@ describe("drawCharacter", () => {
     expect((await call("characterAllowance", pet)).result).toEqual({ roundsLeft: 2 });
   });
 
+  it("draws an animation from the still alone, with no cut-out sent, and counts it", async () => {
+    const pet = ids();
+    const still = await pngBase64(512, 512);
+    for (let draw = 0; draw < 3; draw += 1) {
+      const animation = await call("drawCharacter", { ...pet, species: "cat", step: "animation", mood: "asleep", reference: still });
+      expect(animation.status).toBe(200);
+      expect(animation.result?.frames).toBe(9);
+      expect(gifFrames(Buffer.from(animation.result?.gif as string, "base64"))).toBe(9);
+    }
+    // The same limit as with a cut-out: three draws of one mood's animation.
+    const fourth = await call("drawCharacter", { ...pet, species: "cat", step: "animation", mood: "asleep", reference: still });
+    expect(fourth.error?.details).toEqual({ code: "limit-reached", reason: "animation-redraws" });
+    // A mood and the tries still need theirs.
+    const mood = await call("drawCharacter", { ...pet, species: "cat", step: "mood", mood: "asleep", reference: still });
+    expect(mood.error?.details).toEqual({ code: "invalid" });
+    const tries = await call("drawCharacter", { ...pet, species: "cat", step: "tries" });
+    expect(tries.error?.details).toEqual({ code: "invalid" });
+  });
+
   it("says limit-reached and why, in details, after the third round", async () => {
     const pet = ids();
     for (let round = 0; round < 3; round += 1) {

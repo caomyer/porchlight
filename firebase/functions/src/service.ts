@@ -32,12 +32,12 @@ function modelRequest(request: DrawRequest, household: string): ModelRequest {
   switch (request.step) {
     case "tries":
       return {
-        ...base, images: [request.cutout], size: config.model.stillSize, quality: config.model.triesQuality,
+        ...base, images: [request.cutout!], size: config.model.stillSize, quality: config.model.triesQuality,
         count: config.model.triesPerRound, format: "png",
       };
     case "mood":
       return {
-        ...base, images: [request.reference!, request.cutout], size: config.model.stillSize, quality: config.model.finalQuality,
+        ...base, images: [request.reference!, request.cutout!], size: config.model.stillSize, quality: config.model.finalQuality,
         count: 1, format: "png",
       };
     case "animation":
