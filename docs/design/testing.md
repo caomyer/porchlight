@@ -180,6 +180,9 @@ The night look and the largest text size are checked by eye from screenshots, pl
   Adding and editing adds `-sampleHomeCalendar YES`: the household's home calendar is the sample's "Us", with a weekly piano lesson on Thursdays at 4 in it.
   The recipes add `-debugFoodView recipes|recipe|recipe-long|recipe-edit|recipe-plan` (the bank, the first recipe, or the recipe with the most ingredients opened, in its editor, or being planned) and `-sampleFood norecipes|long` (an empty bank, or a recipe as long as they come, cooked once, with a card).
 - A layout fact that holds for a component everywhere (the time pill, the photo row) is asserted once, in one looks test, not in each class that shows the component.
+- The night look in a UI test: the test turns the simulator dark (`XCUIDevice.shared.appearance = .dark`) before it launches, and `XCUIApplication.porchlight()` passes the same look to the app (`PORCHLIGHT_LOOK`, read by `DebugLaunch.look`, which sets the phone's look; a release build has none and follows the phone).
+  On iOS 27 simulators, the CI runners' among them, the simulator's look alone never reached the app, and every "-dark" shot was a light one for weeks without anything failing.
+  So a phone shot named for the night look checks that it is one (`PhoneTestHelpers.snapshot`: the screen's top corner must be dark) and fails loudly when it isn't.
 
 ### Review shots
 
