@@ -1,5 +1,5 @@
 import { config } from "./config";
-import { RelayError } from "./errors";
+import { RelayError, type Upstream } from "./errors";
 
 /** What one call to the image model asks for. */
 export interface ModelRequest {
@@ -36,6 +36,8 @@ export interface ImageModel {
 interface Attempt {
   status: number;
   body: unknown;
+  /** The id the model gave the request, from its `x-request-id` header. */
+  requestId?: string;
 }
 
 export type Transport = (form: FormData, key: string, timeoutMs: number) => Promise<Attempt>;
@@ -54,7 +56,7 @@ export const post: Transport = async (form, key, timeoutMs) => {
   } catch {
     body = undefined;
   }
-  return { status: response.status, body };
+  return { status: response.status, body, requestId: response.headers.get("x-request-id") ?? undefined };
 };
 
 function form(request: ModelRequest): FormData {
@@ -100,7 +102,8 @@ function read(attempt: Attempt, expected: number): { result?: Omit<ModelResult, 
       ? data.map((item) => field(item, "b64_json")).filter((item): item is string => typeof item === "string" && item.length > 0)
       : [];
     if (outputs.length < expected) {
-      return { error: new RelayError("unavailable", `model returned ${outputs.length} of ${expected}`, "model"), retry: true };
+      const upstream: Upstream = { status, requestId: attempt.requestId };
+      return { error: new RelayError("unavailable", `model returned ${outputs.length} of ${expected}`, "model", upstream), retry: true };
     }
     const usage = field(body, "usage");
     const details = field(usage, "input_tokens_details");
@@ -119,16 +122,37 @@ function read(attempt: Attempt, expected: number): { result?: Omit<ModelResult, 
   const error = field(body, "error");
   const code = field(error, "code");
   const type = field(error, "type");
+  // Everything the model said about the failure, kept for the log: a wrong key, a missing
+  // permission, an unverified organisation, an unknown model, no access to GIF output and
+  // a billing limit all arrive as a status with these words, and only the words differ.
+  const upstream: Upstream = {
+    status,
+    code: text(code),
+    type: text(type),
+    param: text(field(error, "param")),
+    message: text(field(error, "message")),
+    requestId: attempt.requestId,
+  };
   if (typeof code === "string" && refusalCodes.includes(code)) {
-    return { error: new RelayError("refused", code), retry: false };
+    return { error: new RelayError("refused", code, undefined, upstream), retry: false };
   }
   if (status === 429 || status >= 500 || status === 408) {
-    return { error: new RelayError("unavailable", `model status ${status}`, "model"), retry: true };
+    return { error: new RelayError("unavailable", `model status ${status}`, "model", upstream), retry: true };
   }
-  // A request the model will not take as written (a bad key, an unknown field, no access
-  // to a feature): trying again cannot help, and it is not the person's doing.
   const named = typeof code === "string" ? code : typeof type === "string" ? type : "unknown";
-  return { error: new RelayError("unavailable", `model status ${status} ${named}`.slice(0, 100), "model"), retry: false };
+  const reason = `model status ${status} ${named}`.slice(0, 100);
+  // The model turned the relay itself away: its key, its permissions or its account.
+  // Trying again cannot help, and nothing will until the owner puts it right.
+  if (status === 401 || status === 403) {
+    return { error: new RelayError("unavailable", reason, "model-key", upstream), retry: false };
+  }
+  // A request the model will not take as written (an unknown field, a size it does not
+  // allow): trying again cannot help, and it is not the person's doing.
+  return { error: new RelayError("unavailable", reason, "model", upstream), retry: false };
+}
+
+function text(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 export function usageDollars(usage: Usage): number {

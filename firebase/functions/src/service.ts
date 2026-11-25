@@ -3,7 +3,7 @@ import { hashed, parseAllowance, parseDraw, type DrawRequest, type DrawResponse 
 import { RelayError } from "./errors";
 import { downscaled, gifFrames, pngSize } from "./images";
 import type { Ledger, Reservation } from "./ledger";
-import { described, type Log } from "./log";
+import { described, upstreamFields, type Log } from "./log";
 import { usageDollars, type ImageModel, type ModelRequest } from "./model";
 import { promptFor } from "./prompts";
 
@@ -106,7 +106,12 @@ export function relay(parts: Parts): Relay {
         // Nothing was handed over, so nothing is used up.
         await ledger.release(reservation).catch((failed: unknown) => log.error("release failed", { ...fields, errorClass: "ledger", ...described(failed) }));
         if (error instanceof RelayError) {
-          log.warn("draw failed", { ...fields, errorClass: error.code, reason: error.reason, ms: now().getTime() - started });
+          // The model turning the relay itself away is the owner's to put right, and is
+          // logged as an error; an outage or a refusal is a warning.
+          const event = error.shared === "model-key" ? log.error : log.warn;
+          event("draw failed", {
+            ...fields, errorClass: error.code, reason: error.reason, ...upstreamFields(error.upstream), ms: now().getTime() - started,
+          });
           throw error;
         }
         // Not one of the relay's own failures: a bug, or something beneath it. Its name and
