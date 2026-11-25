@@ -117,7 +117,11 @@ When no cut-out can be made (no subject, a device that can't lift one, an unread
 Sending the whole photo instead was considered and left out: "only the cut-out leaves this phone" stays true without a second kind of consent, and another photo is the better way on.
 On a phone the face sheet opens at full height, since the journey's steps differ in height and a sheet fitted to each would leave the page behind cut at a different line each time.
 
-An animation that fails (the model's animated output is a preview feature) never holds a mood back: the still stands, "Done" doesn't wait for animations, and an animation can be made another time.
+"Done" comes once every mood is settled: its still drawn, and its animation come or failed (`CharacterDrawing.isSettled`), so nothing the relay has drawn and counted is still on its way when the character is saved.
+Until then a mood's tile says "Drawing...", the still dimmed under the spinner, as while its still is drawn.
+In James's first drawing "Done" came with the last stills, ten seconds before three of the animations, and those were dropped for good: waiting, zoomies and asleep never moved.
+An animation that fails (the model's animated output is a preview feature) settles its mood all the same: the still stands on its own, and "Done" comes.
+A redraw unsettles only its own mood, until its new still and movement come; a drawing closed mid-way and resumed draws the movements that hadn't come.
 A mood whose still fails says "Couldn't draw this one. Tap to try again."; "Done" waits for every mood's still, and a redraw that fails keeps the still it had.
 
 Every failure has words and a way on (`CharacterWords.failure`):
@@ -220,8 +224,8 @@ Every strip stays far under CloudKit's limit for an asset, and nothing in the ap
 
 The pictures travel to iCloud as assets, not record fields (`image` is an `ASSET` in `Config/cloudkit-schema.ckdb`), so a record's one megabyte limit does not apply to them at either size.
 
-It plays by `CharacterPlayback`, a pure schedule, in turns of two plays back to back, about two seconds: a turn when the face appears, then it rests, then a turn about every ten seconds while it is on screen, and a turn whenever the face is tapped.
-A turn begins only once the strip is decoded and ready to show.
+It plays by `CharacterPlayback`, a pure schedule, in turns of two plays back to back, about two seconds: a turn when the face appears, then it rests, then a turn about every ten seconds while it is on screen, and a turn whenever the face is tapped where the face is itself what is tapped.
+A turn begins only once the strip is decoded and ready to show; bytes not there yet (still on their way by sync) are asked for again every ten seconds while the face is on screen.
 In James's first live test (build 20261124.085813) he saw no movement at all: the one play began as the face appeared, while the strip's bytes were still being read, so it passed on the still, and the next play was a minute away.
 A character that animates never bobs, on the wall's hero or anywhere, on a tap or on the minute: its animation is its life, and nothing is added to it (`CompanionFace.bobs`).
 A photo, a sticker or a drawn face bobs on the wall's hero as before.
@@ -234,10 +238,17 @@ A frame stands in for the still, never over it, so the still never shows through
 
 At rest a face shows its animation's first frame, not its still, wherever the mood has a strip: at every size, on the phone and the wall, including faces too small to animate.
 The still is a separate drawing with its own pose and outline, so resting on it made every play begin and end with a jump.
-The first frame is read as that square of the strip (`CharacterFirstFrame`, a `PhotoCrop` of it), so it is the very pixels a play starts and ends on, and `CharacterPresenceScreenTests.restIsFirstFrame` proves the two identical.
+It is drawn by the very view that draws a play's frames (`CharacterFrame`, at frame 0), so it is the very pixels a play starts and ends on, and `CharacterPresenceScreenTests.restIsFirstFrame` proves the two identical.
 While the strip is being read nothing shows, never the still first, since that would swap the still for the frame a moment later on a cold open.
 The still shows only when the mood has no strip, or the strip's bytes are gone or can't be read.
 A new mood plays its own animation at once.
+
+### Where a tap plays
+
+A face listens for a tap only where the face is itself what is tapped (`CharacterTap`): the phone page's center stage and the wall's hero play on a tap; the phone's Today card face is its own Button, and its action plays a character that moves and opens the page for any other face.
+Everywhere else a character is a picture inside something that is tapped (the wall's rail entry, the phone's grid and all-set cards, the companions list, the face sheet's choices, the calendar's moments), and the face has no tap of its own.
+In build 20261124.220829 every face carried a tap gesture, and inside a Button it took the touch from the Button: the wall's rail entry for a character and the phone's grid card did nothing at all when tapped, and the all-set card nothing when tapped on the face.
+`PhoneCharacterTapTests` and `WallCharacterTapTests` touch each of those faces on its own pixels, real touches rather than accessibility activations, which would go round the gesture.
 
 ## The relay's client
 

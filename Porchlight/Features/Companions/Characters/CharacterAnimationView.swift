@@ -53,6 +53,8 @@ struct CharacterAnimationView<Fallback: View>: View {
     let still: CharacterLook.Picture
     let frames: CharacterLook.Picture?
     let size: CGFloat
+    /// How a tap plays it: never by default (`CharacterTap`).
+    var tap: CharacterTap = .none
     @ViewBuilder let fallback: () -> Fallback
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -105,22 +107,33 @@ struct CharacterAnimationView<Fallback: View>: View {
             }
         }
         .frame(width: size, height: size)
-        // A tap plays a turn. Simultaneous, so a face that bobs on a tap (the wall's hero)
-        // bobs and plays on the same tap.
-        .simultaneousGesture(TapGesture().onEnded { if plays && ready { Task { await turn() } } })
+        .modifier(PlaysOnTap(isOn: tap == .own) { playOnce() })
+        .onChange(of: tap) { old, new in
+            if case let .counted(count) = new, case let .counted(before) = old, count != before { playOnce() }
+        }
         // One task per face and mood: a new mood plays its own animation at once.
         .task(id: PlayKey(frames: frames, plays: plays)) {
             startedAt = nil
             ready = false
             guard plays, let frames else { return }
             // The strip first: a turn that began before it could show would pass on the still.
-            guard await images.image(PhotoRequest(.character(frames.id, byteCount: frames.byteCount))) != nil else { return }
+            // Bytes not there yet (still on their way by sync) are asked for again, every ten
+            // seconds while the face is on screen, so it plays once they come.
+            while await images.image(PhotoRequest(.character(frames.id, byteCount: frames.byteCount))) == nil {
+                try? await Task.sleep(for: .seconds(CharacterPlayback.rest))
+                if Task.isCancelled { return }
+            }
             ready = true
             while !Task.isCancelled {
                 await turn()
                 try? await Task.sleep(for: .seconds(CharacterPlayback.rest))
             }
         }
+    }
+
+    /// A turn now, on a tap, once the strip is ready.
+    private func playOnce() {
+        if plays && ready { Task { await turn() } }
     }
 
     /// One turn: its plays back to back, then the still again. A tap during a turn starts
@@ -137,6 +150,37 @@ struct CharacterAnimationView<Fallback: View>: View {
     private struct PlayKey: Equatable {
         var frames: CharacterLook.Picture?
         var plays: Bool
+    }
+}
+
+/// How a tap reaches a character's animation (docs/design/companion-characters.md, "A mood's
+/// animation"). A tap gesture on a face inside someone else's Button takes the touch from it,
+/// so the Button never fires: in James's test the wall's rail entry and the phone's grid card
+/// went dead (build 20261124.220829). So a face listens for taps only where it is itself
+/// what is tapped.
+enum CharacterTap: Equatable {
+    /// No tap: the face is a picture inside a row, a card or a rail entry that does its own thing.
+    case none
+    /// The face is the tap target and plays on a tap: the phone page's center stage, the
+    /// wall's hero.
+    case own
+    /// A Button around the face plays it by counting its taps: each new count plays a turn
+    /// (the phone's Today card, whose face is its own Button).
+    case counted(Int)
+}
+
+/// A tap that plays, only where the face is the tap target.
+private struct PlaysOnTap: ViewModifier {
+    var isOn: Bool
+    var play: () -> Void
+
+    func body(content: Content) -> some View {
+        if isOn {
+            // Simultaneous, so it never stands in the way of the wall hero's other gestures.
+            content.simultaneousGesture(TapGesture().onEnded { play() })
+        } else {
+            content
+        }
     }
 }
 

@@ -21,7 +21,9 @@ enum CharacterWords {
     static let pickNote = "Three tries from the same photo. Pick one, and the moods are drawn to match it."
     static let thisOne = "This one"
 
-    static func tryAgain(roundsLeft: Int) -> String { "None of these: try again (\(roundsLeft) left)" }
+    /// The count only above one: during beta testing the relay counts rounds without
+    /// enforcing them and says 1 from then on, so "1 left" would be untrue for good.
+    static func tryAgain(roundsLeft: Int) -> String { roundsLeft > 1 ? "None of these: try again (\(roundsLeft) left)" : "None of these: try again" }
     static func noTriesLeft(_ name: String) -> String { "No more tries for \(name). Pick the closest; any mood can be redrawn on its own." }
 
     static func meetTitle(_ name: String) -> String { "Meet \(name)" }

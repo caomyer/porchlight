@@ -277,7 +277,8 @@ enum FaceWords {
     static let removeCharacter = "Remove character"
     static func removeQuestion(_ name: String) -> String { "Remove \(name.possessive) character for everyone?" }
     static func removeDetail(roundsLeft: Int?) -> String {
-        let rounds = roundsLeft.map { $0 == 1 ? " 1 round is left." : " \($0) rounds are left." } ?? ""
+        // The count only above one, as on "try again".
+        let rounds = roundsLeft.flatMap { $0 > 1 ? " \($0) rounds are left." : nil } ?? ""
         return "Its moods are deleted on every device. Drawing another one uses a round of tries again." + rounds
     }
     static let done = "Done"

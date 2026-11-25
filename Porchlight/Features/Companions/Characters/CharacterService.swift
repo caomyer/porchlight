@@ -188,6 +188,8 @@ final class FakeCharacterService: CharacterService, @unchecked Sendable {
         case offline
         /// Every call waits this long before answering (seconds), for the waiting screens.
         case slow
+        /// Stills at once, every animation 8 seconds later: the moods wait for their movement.
+        case slowAnimations = "slow-animations"
     }
 
     struct Call: Equatable, Sendable {
@@ -202,10 +204,13 @@ final class FakeCharacterService: CharacterService, @unchecked Sendable {
     private var rounds: [Companion.ID: Int] = [:]
     private var recorded: [Call] = []
     var delay: Duration
+    /// How much longer an animation takes than a still.
+    var animationDelay: Duration
 
     init(script: Script = .draws, delay: Duration = .zero) {
         self.script = script
         self.delay = script == .slow ? .seconds(4) : delay
+        animationDelay = script == .slowAnimations ? .seconds(8) : .zero
     }
 
     var isConfigured: Bool { true }
@@ -221,6 +226,7 @@ final class FakeCharacterService: CharacterService, @unchecked Sendable {
             return self.script
         }
         if delay > .zero { try await Task.sleep(for: delay) }
+        if step == "animation", animationDelay > .zero { try await Task.sleep(for: animationDelay) }
         switch script {
         case .limitReached: throw CharacterServiceError.limitReached
         case .refused: throw CharacterServiceError.refused

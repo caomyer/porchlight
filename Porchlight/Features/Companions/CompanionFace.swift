@@ -48,6 +48,8 @@ struct CompanionFace: View {
     var bobs = false
     /// The character's mood (`CharacterMoodRule.mood(for:now:)`); nil reads it from `expression`.
     var mood: CharacterMood?
+    /// How a tap plays a character: never, unless the face is the tap target (`CharacterTap`).
+    var tap: CharacterTap = .none
 
     private var characterMood: CharacterMood { mood ?? (expression == .sleepy ? .asleep : .fine) }
 
@@ -56,7 +58,7 @@ struct CompanionFace: View {
             switch look.character?.shown {
             case .character:
                 if let character = look.character, let still = character.still(characterMood) {
-                    CharacterAnimationView(still: still, frames: character.animation(characterMood), size: size) { photoOrDrawn }
+                    CharacterAnimationView(still: still, frames: character.animation(characterMood), size: size, tap: tap) { photoOrDrawn }
                 }
             case .sticker:
                 if let sticker = look.character?.sticker {
@@ -133,13 +135,14 @@ struct DiscFace: View {
     /// The face's side inside the disc, for a photo or a drawn face.
     let face: CGFloat
     let disc: Color
+    var tap: CharacterTap = .none
 
     var body: some View {
         if look.standsOnCard {
-            CompanionFace(look: look, expression: expression, size: side, mood: mood)
+            CompanionFace(look: look, expression: expression, size: side, mood: mood, tap: tap)
                 .frame(width: side, height: side)
         } else {
-            CompanionFace(look: look, expression: expression, size: face, mood: mood)
+            CompanionFace(look: look, expression: expression, size: face, mood: mood, tap: tap)
                 .frame(width: side, height: side)
                 .background(disc, in: Circle())
         }
@@ -159,6 +162,8 @@ struct StageFace: View {
     var disc: Color?
     /// Gently bob, as the wall's hero face does.
     var bobs = false
+    /// A stage face is the tap target: a tap plays a character that moves.
+    var tap: CharacterTap = .own
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -172,9 +177,9 @@ struct StageFace: View {
                     .accessibilityHidden(true)
             }
             if let disc {
-                DiscFace(look: look, expression: expression, mood: mood, side: size, face: size * 0.86, disc: disc)
+                DiscFace(look: look, expression: expression, mood: mood, side: size, face: size * 0.86, disc: disc, tap: tap)
             } else {
-                CompanionFace(look: look, expression: expression, size: size, bobs: bobs, mood: mood)
+                CompanionFace(look: look, expression: expression, size: size, bobs: bobs, mood: mood, tap: tap)
             }
         }
         .frame(width: size, height: size)

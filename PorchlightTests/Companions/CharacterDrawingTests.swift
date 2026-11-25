@@ -167,6 +167,98 @@ struct CharacterDrawingTests {
         #expect(drawing.moodStates[.waiting] == .ready && drawing.draft.stills[.waiting] == before)
     }
 
+    /// Waits until `condition`, up to two seconds.
+    private func until(_ condition: () -> Bool) async throws {
+        for _ in 0..<200 where !condition() { try await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    @Test("Done waits until every mood is settled, its animation come or failed: a mood whose movement is on its way still says it is drawing, and the character saved has all four")
+    func doneWaitsForAnimations() async throws {
+        let fake = FakeCharacterService()
+        fake.animationDelay = .milliseconds(400)
+        let drawing = drawing(fake)
+        await drawing.cut()
+        await drawing.drawTries()
+        drawing.pick()
+        try await until { drawing.draft.stills.count == 4 }
+        #expect(drawing.draft.stills.count == 4 && drawing.draft.strips.isEmpty, "every still has come, no animation yet")
+        #expect(!drawing.canFinish, "Done isn't there yet: three animations the relay is drawing would be lost")
+        #expect(CharacterMood.allCases.allSatisfy { drawing.moodStates[$0] == .drawing && !drawing.isSettled($0) }, "each mood says it is still drawing")
+        try await until { drawing.canFinish }
+        #expect(drawing.canFinish && drawing.draft.strips.count == 4)
+        var saved = -1
+        #expect(drawing.finish { _, strips in saved = strips.count; return nil } == nil)
+        #expect(saved == 4, "the character saved has every mood's movement")
+    }
+
+    @Test("A failed animation settles its mood: Done comes, and that mood rests on its still")
+    func failedAnimationSettles() async throws {
+        let drawing = drawing(FakeCharacterService(script: .noAnimations))
+        await drawing.cut()
+        await drawing.drawTries()
+        drawing.pick()
+        try await until { drawing.canFinish }
+        #expect(drawing.canFinish && drawing.draft.strips.isEmpty)
+        #expect(CharacterMood.allCases.allSatisfy { drawing.moodStates[$0] == .ready })
+    }
+
+    @Test("A redraw unsettles only its own mood until its new still and movement come")
+    func redrawUnsettlesOneMood() async throws {
+        let fake = FakeCharacterService()
+        let drawing = drawing(fake)
+        await drawing.cut()
+        await drawing.drawTries()
+        drawing.pick()
+        try await until { drawing.canFinish }
+        fake.animationDelay = .milliseconds(400)
+        drawing.redraw(.zoomies)
+        try await until { fake.calls.filter { $0.step == "mood" && $0.mood == .zoomies }.count == 2 && drawing.draft.strips[.zoomies] == nil }
+        #expect(!drawing.isSettled(.zoomies) && !drawing.canFinish, "zoomies waits for its new movement")
+        #expect([CharacterMood.fine, .waiting, .asleep].allSatisfy(drawing.isSettled), "the others stay settled")
+        try await until { drawing.canFinish }
+        #expect(drawing.canFinish && drawing.draft.strips[.zoomies] != nil)
+    }
+
+    @Test("Closed while movements are on their way, a drawing resumed draws them, and Done waits for them")
+    func resumeDrawsMissingAnimations() async throws {
+        let fake = FakeCharacterService()
+        fake.animationDelay = .seconds(30)
+        let first = drawing(fake)
+        await first.cut()
+        await first.drawTries()
+        first.pick()
+        try await until { first.draft.stills.count == 4 }
+        first.leave()
+        #expect(first.draft.strips.isEmpty)
+
+        let quick = FakeCharacterService()
+        let again = drawing(quick)
+        #expect(again.step == .resume)
+        await again.resume()
+        #expect(again.step == .meeting && !again.canFinish, "the movements are drawn again, and Done waits")
+        try await until { again.canFinish }
+        #expect(again.draft.strips.count == 4)
+        #expect(quick.calls.filter { $0.step == "animation" }.count == 4 && quick.calls.filter { $0.step == "mood" }.isEmpty, "only what was missing")
+    }
+
+    @Test("During beta the relay says one round left for good: no words state one as a count, and only the relay's own 'rounds' answer hides the offer")
+    func roundsDuringBeta() async {
+        #expect(CharacterWords.tryAgain(roundsLeft: 2) == "None of these: try again (2 left)")
+        #expect(CharacterWords.tryAgain(roundsLeft: 1) == "None of these: try again")
+        #expect(FaceWords.removeDetail(roundsLeft: 2) == "Its moods are deleted on every device. Drawing another one uses a round of tries again. 2 rounds are left.")
+        #expect(FaceWords.removeDetail(roundsLeft: 1) == "Its moods are deleted on every device. Drawing another one uses a round of tries again.")
+        for (reason, remembered) in [(CharacterServiceError.Reason.householdDay, nil), (.installationDay, nil), (.rounds, 0)] as [(CharacterServiceError.Reason, Int?)] {
+            let suite = UserDefaults(suiteName: "rounds-\(UUID().uuidString)")!
+            let drawing = CharacterDrawing(
+                householdId: householdId, companionId: companionId, species: .dog, photo: Data("photo".utf8),
+                service: TriesLimited(reason), drafts: drafts, defaults: suite, cutOut: { _ in Self.cut }
+            )
+            await drawing.cut()
+            await drawing.drawTries()
+            #expect(CharacterOffer.roundsLeft(companionId, defaults: suite) == remembered, "\(reason): \(String(describing: remembered)) remembered")
+        }
+    }
+
     @Test("Every failure on the tries has words and a way on; retry goes back to the consent with the same cut-out")
     func failures() async {
         let words: [(FakeCharacterService.Script, String)] = [
@@ -239,5 +331,18 @@ struct CharacterDrawingTests {
         third.discard()
         #expect(!CharacterDrawing.hasDraft(companionId, in: drafts), "thrown away, it's gone")
         #expect(drawing(fake).step == .cutting, "and the next time starts afresh")
+    }
+}
+
+/// A relay that turns every round of tries down with one limit.
+private struct TriesLimited: CharacterService {
+    let reason: CharacterServiceError.Reason
+    init(_ reason: CharacterServiceError.Reason) { self.reason = reason }
+    var isConfigured: Bool { true }
+    func allowance(householdId: Household.ID, companionId: Companion.ID) async throws -> Int { 1 }
+    func tries(_ subject: CharacterSubject) async throws -> CharacterTries { throw CharacterServiceError(.limitReached, reason: reason) }
+    func mood(_ mood: CharacterMood, of subject: CharacterSubject, reference: Data) async throws -> Data { throw CharacterServiceError.unavailable }
+    func animation(_ mood: CharacterMood, of subject: CharacterSubject, reference: Data) async throws -> CharacterAnimation {
+        throw CharacterServiceError.unavailable
     }
 }

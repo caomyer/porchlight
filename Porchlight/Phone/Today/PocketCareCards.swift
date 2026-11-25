@@ -326,16 +326,20 @@ struct TodayFace: View {
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Taps that play the character, counted: the face inside listens for no tap of its own,
+    /// so this Button gets every touch (`CharacterTap`).
+    @State private var plays = 0
 
     static let size: CGFloat = 84
 
     var body: some View {
         Button {
-            if !(report.look.animates(in: report.characterMood) && !reduceMotion) { open() }
+            if report.look.animates(in: report.characterMood) && !reduceMotion { plays += 1 } else { open() }
         } label: {
             DiscFace(
                 look: report.look, expression: report.expression, mood: report.characterMood,
-                side: Self.size, face: Self.size * 0.86, disc: report.look.tint.wash(0.3, over: Theme.surface, in: scheme)
+                side: Self.size, face: Self.size * 0.86, disc: report.look.tint.wash(0.3, over: Theme.surface, in: scheme),
+                tap: .counted(plays)
             )
             .contentShape(Rectangle())
         }

@@ -85,7 +85,8 @@ final class CharacterDrawing {
         var stage: Stage
     }
 
-    /// How a mood stands while meeting.
+    /// How a mood stands while meeting. `drawing` lasts until the mood is settled: its still
+    /// drawn and its animation come or failed (`isSettled`).
     enum MoodState: Equatable {
         case drawing
         case ready
@@ -182,8 +183,10 @@ final class CharacterDrawing {
             step = .picking
         } catch {
             let error = error as? CharacterServiceError ?? .unavailable
-            // A limit with no rounds known to be left is this pet's: none are.
-            if error.kind == .limitReached, (draft.roundsLeft ?? 0) == 0 {
+            // Only the relay saying this pet's rounds are used up means none are left. The
+            // household's or this device's calls for the day are another limit, gone tomorrow:
+            // remembering 0 for it would hide the offer for good.
+            if error.kind == .limitReached, error.reason == .rounds || (error.reason == nil && draft.roundsLeft == 0) {
                 draft.roundsLeft = 0
                 CharacterOffer.remember(roundsLeft: 0, for: subject.companionId, defaults: defaults)
             }
@@ -211,9 +214,11 @@ final class CharacterDrawing {
             if draft.stills[mood] == nil {
                 moodStates[mood] = .drawing
                 work.append(Task { await self.drawMood(mood, cutout: cutout, reference: reference) })
+            } else if draft.strips[mood] == nil {
+                moodStates[mood] = .drawing
+                work.append(Task { await self.animate(mood, cutout: cutout) })
             } else {
                 moodStates[mood] = .ready
-                if draft.strips[mood] == nil { work.append(Task { await self.animate(mood, cutout: cutout) }) }
             }
         }
     }
@@ -231,7 +236,7 @@ final class CharacterDrawing {
             draft.stills[mood] = still
             if again { draft.strips[mood] = nil; draft.frameCounts[mood] = nil }
             drafts.save(draft)
-            moodStates[mood] = .ready
+            // Still drawing until its animation has come or failed.
             await animate(mood, cutout: cutout)
         } catch {
             // A redraw that fails keeps the still it had.
@@ -239,19 +244,33 @@ final class CharacterDrawing {
         }
     }
 
-    /// A mood's animation: when it fails (it is a preview feature at the model's maker), the
-    /// still stands on its own and the animation can be made another time.
+    /// A mood's animation; the mood is settled once it has come or failed. When it fails (it is
+    /// a preview feature at the model's maker), the still stands on its own. A call cut short by
+    /// leaving the sheet settles nothing: resuming draws it again.
     private func animate(_ mood: CharacterMood, cutout: Data) async {
-        guard let still = draft.stills[mood],
-              let animation = try? await service.animation(mood, of: subject(cutout), reference: still),
-              let strip = strip(animation) else { return }
-        draft.strips[mood] = strip.strip
-        draft.frameCounts[mood] = strip.frames
-        drafts.save(draft)
+        guard let still = draft.stills[mood] else { return }
+        let animation = try? await service.animation(mood, of: subject(cutout), reference: still)
+        if Task.isCancelled { return }
+        // A redraw since (a new still) settles with its own animation, not this one.
+        guard draft.stills[mood] == still else { return }
+        if let animation, let strip = strip(animation) {
+            draft.strips[mood] = strip.strip
+            draft.frameCounts[mood] = strip.frames
+            drafts.save(draft)
+        }
+        moodStates[mood] = .ready
     }
 
-    /// Every mood has its still: "Done" can save.
-    var canFinish: Bool { CharacterMood.allCases.allSatisfy { draft.stills[$0] != nil } }
+    /// A mood is settled when its still is drawn and its animation has come or failed: nothing
+    /// for it is still on its way.
+    func isSettled(_ mood: CharacterMood) -> Bool {
+        draft.stills[mood] != nil && moodStates[mood] == .ready
+    }
+
+    /// Every mood is settled: "Done" can save, and nothing is left in flight to lose. (In James's
+    /// first drawing "Done" came as the last stills arrived, and three animations the relay had
+    /// drawn and counted were dropped for good.)
+    var canFinish: Bool { CharacterMood.allCases.allSatisfy(isSettled) }
 
     /// Saves the character, every still and the animations that came, in one transaction,
     /// and shows it; the draft goes. Returns why it couldn't, if it couldn't.
