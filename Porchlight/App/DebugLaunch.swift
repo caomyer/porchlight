@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import SwiftUI
 import GRDB
 import UserNotifications
 
@@ -18,6 +19,18 @@ enum DebugLaunch {
     /// step over a sample household, for screenshots.
     static var onboardingStep: String? {
         UserDefaults.standard.string(forKey: "onboardingStep")
+    }
+
+    /// `PORCHLIGHT_LOOK=dark|light` in the environment: the phone drawn in that look, whatever
+    /// the simulator's own. The UI tests set it whenever they turn the simulator dark, since on
+    /// iOS 27 simulators `XCUIDevice.appearance` doesn't reach the app and every screen stayed
+    /// light (docs/design/testing.md, "Looks"). The wall stays light either way.
+    static var look: ColorScheme? {
+        switch ProcessInfo.processInfo.environment["PORCHLIGHT_LOOK"] {
+        case "dark": .dark
+        case "light": .light
+        default: nil
+        }
     }
 
     /// `-debugSetup you|people|companion|done` (with `-resetData`) opens that step of starting
@@ -156,5 +169,6 @@ enum DebugLaunch {
 enum DebugLaunch {
     static var onboardingStep: String? { nil }
     static var setupStep: String? { nil }
+    static var look: ColorScheme? { nil }
 }
 #endif

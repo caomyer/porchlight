@@ -36,16 +36,14 @@ final class PhoneNightEditorsTests: XCTestCase, PhoneTestHelpers {
         lightness(at: CGPoint(x: chip.frame.maxX - 8, y: chip.frame.midY))
     }
 
-    /// Whether the app is drawn in the night look at all: the sheet's paper by the left edge.
-    /// On iOS 27 simulators (the CI runners' and a Mac's), `XCUIDevice.appearance` doesn't
-    /// change the look and every screen stays light; then the chips can't be judged here, and
-    /// `PocketEditorsScreenTests` judges them in a hosted window whose look is its own.
-    private func requireNight(_ app: XCUIApplication) throws {
-        try XCTSkipUnless(isNight(app), "The simulator didn't take the night look; see PocketEditorsScreenTests")
-    }
-
-    private func isNight(_ app: XCUIApplication) -> Bool {
-        lightness(at: CGPoint(x: 10, y: app.windows.firstMatch.frame.midY)) < 0.5
+    /// The app is drawn in the night look: the sheet's paper by the left edge is dark. On iOS 27
+    /// simulators `XCUIDevice.appearance` alone never reached the app, and every screen stayed
+    /// light; the look now also goes to the app at launch (`DebugLaunch.look`), and a light
+    /// screen here fails rather than passing unjudged.
+    private func requireNight(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) throws {
+        let paper = lightness(at: CGPoint(x: 10, y: app.windows.firstMatch.frame.midY))
+        XCTAssertLessThan(paper, 0.5, "the app is not in the night look (paper at \(paper))", file: file, line: line)
+        if paper >= 0.5 { throw XCTSkip("Not in the night look; failed above") }
     }
 
     private func lightness(at spot: CGPoint) -> CGFloat {
@@ -111,7 +109,7 @@ final class PhoneNightEditorsTests: XCTestCase, PhoneTestHelpers {
             first.tap()
             Thread.sleep(forTimeInterval: 1)
             snapshot(shot)
-            if isNight(app) { chosenChipsAreDark(app, page) }
+            if (try? requireNight(app)) != nil { chosenChipsAreDark(app, page) }
             if page == "rewards" {
                 // Beside the goal, three buttons once broke their words letter by letter.
                 for title in ["Save", "Start over", "Archive"] {

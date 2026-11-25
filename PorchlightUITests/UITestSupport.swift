@@ -82,6 +82,9 @@ extension XCUIApplication {
         app.launchEnvironment["OS_ACTIVITY_MODE"] = "disable"
         app.launchEnvironment["PORCHLIGHT_TOAST_SECONDS"] = "30"
         app.launchEnvironment["PORCHLIGHT_NOW"] = UITestClock.midweek
+        // The look the test turned the simulator to, said to the app as well: on iOS 27
+        // simulators the simulator's look doesn't reach it (`DebugLaunch.look`).
+        app.launchEnvironment["PORCHLIGHT_LOOK"] = XCUIDevice.shared.appearance == .dark ? "dark" : "light"
         return app
     }
 }

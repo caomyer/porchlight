@@ -36,12 +36,32 @@ func restoreLightLook() {
 
 @MainActor
 extension PhoneTestHelpers {
-    /// Attaches a screenshot of the whole screen, kept with the results.
-    func snapshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    /// Attaches a screenshot of the whole screen, kept with the results. A shot named for the
+    /// night look ("-dark") must be one: on iOS 27 simulators the look once never took, and
+    /// every "-dark" shot was quietly a light one.
+    func snapshot(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
+        let screenshot = XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+        if name.contains("dark") {
+            let lightness = Self.lightness(of: screenshot, at: CGPoint(x: 6, y: 6))
+            XCTAssertLessThan(lightness, 0.35, "\(name) is not in the night look: the top corner is \(lightness) light", file: file, line: line)
+        }
+    }
+
+    /// How light a screenshot is at a point (in points), from 0 (black) to 1 (white).
+    static func lightness(of screenshot: XCUIScreenshot, at spot: CGPoint) -> CGFloat {
+        let image = screenshot.image
+        guard let cg = image.cgImage else { return -1 }
+        let scale = CGFloat(cg.width) / image.size.width
+        guard let pixel = cg.cropping(to: CGRect(x: (spot.x * scale).rounded(), y: (spot.y * scale).rounded(), width: 1, height: 1)) else { return -1 }
+        var bytes = [UInt8](repeating: 0, count: 4)
+        let context = CGContext(data: &bytes, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        context?.draw(pixel, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        return (0.2126 * CGFloat(bytes[0]) + 0.7152 * CGFloat(bytes[1]) + 0.0722 * CGFloat(bytes[2])) / 255
     }
 
     /// Scrolls the page down a screenful, then checks that the band of the status bar just

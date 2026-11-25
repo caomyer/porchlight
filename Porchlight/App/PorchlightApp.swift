@@ -146,7 +146,8 @@ struct RootView: View {
     var body: some View {
         Group {
             if sizeClass == .compact {
-                PocketRoot()
+                // Nil (always, in a release build) follows the phone's own look.
+                PocketRoot().preferredColorScheme(DebugLaunch.look)
             } else {
                 WallRoot()
             }
