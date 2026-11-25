@@ -94,25 +94,28 @@ describe("drawCharacter", () => {
     expect((await call("characterAllowance", pet)).result).toEqual({ roundsLeft: 2 });
   });
 
-  it("draws an animation from the still alone, with no cut-out sent, and counts it", async () => {
+  it("needs the cut-out on every step, an animation included", async () => {
     const pet = ids();
     const still = await pngBase64(512, 512);
-    for (let draw = 0; draw < 3; draw += 1) {
-      const animation = await call("drawCharacter", { ...pet, species: "cat", step: "animation", mood: "asleep", reference: still });
-      expect(animation.status).toBe(200);
-      expect(animation.result?.frames).toBe(9);
-      expect(gifFrames(Buffer.from(animation.result?.gif as string, "base64"))).toBe(9);
+    for (const body of [
+      { ...pet, species: "cat", step: "tries" },
+      { ...pet, species: "cat", step: "mood", mood: "asleep", reference: still },
+      { ...pet, species: "cat", step: "animation", mood: "asleep", reference: still },
+    ]) {
+      expect((await call("drawCharacter", body)).error?.details).toEqual({ code: "invalid" });
     }
-    // The same limit as with a cut-out: three draws of one mood's animation, turned down
-    // past that when the lifetime limits are enforced and drawn when they are only counted.
-    const fourth = await call("drawCharacter", { ...pet, species: "cat", step: "animation", mood: "asleep", reference: still });
+    // Nothing was counted for calls that were refused.
+    expect((await call("characterAllowance", pet)).result).toEqual({ roundsLeft: 3 });
+  });
+
+  it("after the third draw of a mood's animation, turns a fourth down when the limits are enforced, and draws it when they are only counted", async () => {
+    const pet = ids();
+    const still = await pngBase64(512, 512);
+    const body = { ...pet, species: "cat", step: "animation", mood: "asleep", cutout, reference: still };
+    for (let draw = 0; draw < 3; draw += 1) expect((await call("drawCharacter", body)).result?.frames).toBe(9);
+    const fourth = await call("drawCharacter", body);
     if (enforcing) expect(fourth.error?.details).toEqual({ code: "limit-reached", reason: "animation-redraws" });
     else expect(fourth.result?.frames).toBe(9);
-    // A mood and the tries still need theirs.
-    const mood = await call("drawCharacter", { ...pet, species: "cat", step: "mood", mood: "asleep", reference: still });
-    expect(mood.error?.details).toEqual({ code: "invalid" });
-    const tries = await call("drawCharacter", { ...pet, species: "cat", step: "tries" });
-    expect(tries.error?.details).toEqual({ code: "invalid" });
   });
 
   it("after the third round, turns a fourth down when the limits are enforced, and draws it with 1 round left when they are only counted", async () => {

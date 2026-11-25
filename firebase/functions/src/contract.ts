@@ -12,13 +12,8 @@ export interface DrawRequest {
   step: Step;
   /** Set for a mood and an animation. */
   mood?: Mood;
-  /**
-   * The pet's cut-out from the photo. Always there for tries and for a mood, which are
-   * drawn from it. An animation is drawn from the mood's still alone, so it may come
-   * without one: the app does not keep the cut-out once a character is saved, and an
-   * animation can still be made for it later.
-   */
-  cutout?: Buffer;
+  /** The pet's cut-out from the photo. */
+  cutout: Buffer;
   /** The chosen character (for a mood) or that mood's still (for an animation). */
   reference?: Buffer;
 }
@@ -89,11 +84,8 @@ export function parseDraw(data: unknown): DrawRequest {
     companionId: id(body.companionId, "companionId"),
     species: oneOf(body.species, speciesList, "species"),
     step,
+    cutout: decodePng(body.cutout, "cutout"),
   };
-  // Left out, or sent as nothing, only for an animation. One that is sent is checked the
-  // same on every step, so a picture that is not a PNG of the agreed size is never taken.
-  const absent = body.cutout === undefined || body.cutout === null;
-  if (!(step === "animation" && absent)) request.cutout = decodePng(body.cutout, "cutout");
   if (step === "tries") {
     if (body.mood !== undefined) throw new RelayError("invalid", "mood given for tries");
     if (body.reference !== undefined) throw new RelayError("invalid", "reference given for tries");

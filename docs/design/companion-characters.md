@@ -248,9 +248,6 @@ What is sent, as firebase/README.md has it:
 
 - `characterAllowance` with the household's and the companion's ids, with an ordinary App Check token.
 - `drawCharacter` with those ids, the species, the step, the cut-out as base64, and for a mood or an animation the mood and the picture to match; with a limited-use App Check token, which the relay spends.
-- The relay needs the cut-out for the tries and for a mood, which are drawn from it.
-  For an animation it is optional: the relay draws an animation from the mood's still alone and never reads the cut-out for that step, so an animation can be asked for with only the still, for a saved character whose cut-out is no longer kept.
-  A cut-out that is sent with an animation is still checked like any other, so a build that sends one is unaffected.
 - Ids go in lower case, as the app writes them.
 - The app sends no prompt and no text of its own.
 

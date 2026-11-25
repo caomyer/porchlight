@@ -24,15 +24,13 @@ Both functions are callables in `us-central1`, and both refuse a call without a 
 { householdId, companionId, species: "dog" | "cat",
   step: "tries" | "mood" | "animation",
   mood?: "fine" | "waiting" | "zoomies" | "asleep",
-  cutout?: <base64 PNG, longest side at most 1024; required unless step is "animation">,
+  cutout: <base64 PNG, longest side at most 1024>,
   reference?: <base64 PNG> }
 ```
 
 - `tries` takes the cut-out alone and returns `{ images: [three base64 PNGs, 512 square], roundsLeft }`.
 - `mood` needs `mood` and `reference` (the chosen character) and returns `{ image }`, a 512 square PNG.
 - `animation` needs `mood` and `reference` (that mood's still) and returns `{ gif, frames }`, a 512 square GIF and the number of frames it really holds.
-  For this step alone `cutout` may be left out: an animation is drawn from the still and the cut-out is never read.
-  One that is sent is still checked like any other.
 
 `characterAllowance` takes `{ householdId, companionId }` and returns `{ roundsLeft }`.
 
