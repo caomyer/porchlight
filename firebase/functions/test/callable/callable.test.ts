@@ -21,6 +21,14 @@ const ports = JSON.parse(readFileSync(join(__dirname, "..", "..", "..", "firebas
 const base = `http://127.0.0.1:${ports.functions.port}/demo-porchlight/${config.deploy.region}`;
 const withToken = { "X-Firebase-AppCheck": "a-token-the-emulator-does-not-verify" };
 
+/**
+ * The emulator runs the functions with the committed parameter file, so these tests hold
+ * the relay to whichever way ENFORCE_LIFETIME_LIMITS is set there: counted and not
+ * enforced during beta testing, enforced when it says true. Both ways are written out
+ * below; the unit and store tests run both whatever the file says.
+ */
+const enforcing = /^ENFORCE_LIFETIME_LIMITS=true\s*$/m.test(readFileSync(join(__dirname, "..", "..", ".env"), "utf8"));
+
 interface Answer {
   status: number;
   result?: Record<string, unknown>;
@@ -95,9 +103,11 @@ describe("drawCharacter", () => {
       expect(animation.result?.frames).toBe(9);
       expect(gifFrames(Buffer.from(animation.result?.gif as string, "base64"))).toBe(9);
     }
-    // The same limit as with a cut-out: three draws of one mood's animation.
+    // The same limit as with a cut-out: three draws of one mood's animation, turned down
+    // past that when the lifetime limits are enforced and drawn when they are only counted.
     const fourth = await call("drawCharacter", { ...pet, species: "cat", step: "animation", mood: "asleep", reference: still });
-    expect(fourth.error?.details).toEqual({ code: "limit-reached", reason: "animation-redraws" });
+    if (enforcing) expect(fourth.error?.details).toEqual({ code: "limit-reached", reason: "animation-redraws" });
+    else expect(fourth.result?.frames).toBe(9);
     // A mood and the tries still need theirs.
     const mood = await call("drawCharacter", { ...pet, species: "cat", step: "mood", mood: "asleep", reference: still });
     expect(mood.error?.details).toEqual({ code: "invalid" });
@@ -105,16 +115,37 @@ describe("drawCharacter", () => {
     expect(tries.error?.details).toEqual({ code: "invalid" });
   });
 
-  it("says limit-reached and why, in details, after the third round", async () => {
+  it("after the third round, turns a fourth down when the limits are enforced, and draws it with 1 round left when they are only counted", async () => {
     const pet = ids();
+    const left: unknown[] = [];
     for (let round = 0; round < 3; round += 1) {
-      expect((await call("drawCharacter", { ...pet, species: "cat", step: "tries", cutout })).status).toBe(200);
+      const answer = await call("drawCharacter", { ...pet, species: "cat", step: "tries", cutout });
+      expect(answer.status).toBe(200);
+      left.push(answer.result?.roundsLeft);
     }
     const fourth = await call("drawCharacter", { ...pet, species: "cat", step: "tries", cutout });
-    expect(fourth.status).toBe(429);
-    expect(fourth.error?.status).toBe("RESOURCE_EXHAUSTED");
-    expect(fourth.error?.details).toEqual({ code: "limit-reached", reason: "rounds" });
-    expect((await call("characterAllowance", pet)).result).toEqual({ roundsLeft: 0 });
+    if (enforcing) {
+      expect(left).toEqual([2, 1, 0]);
+      expect(fourth.status).toBe(429);
+      expect(fourth.error?.status).toBe("RESOURCE_EXHAUSTED");
+      expect(fourth.error?.details).toEqual({ code: "limit-reached", reason: "rounds" });
+      expect((await call("characterAllowance", pet)).result).toEqual({ roundsLeft: 0 });
+    } else {
+      expect(left).toEqual([2, 1, 1]);
+      expect(fourth.status).toBe(200);
+      expect(fourth.result?.images).toHaveLength(3);
+      expect(fourth.result?.roundsLeft).toBe(1);
+      expect((await call("characterAllowance", pet)).result).toEqual({ roundsLeft: 1 });
+    }
+  });
+
+  it("still turns a seventh companion down, whichever way the lifetime limits are set", async () => {
+    const householdId = newId();
+    for (let pet = 0; pet < 6; pet += 1) {
+      expect((await call("drawCharacter", { householdId, companionId: newId(), species: "dog", step: "tries", cutout })).status).toBe(200);
+    }
+    const seventh = await call("drawCharacter", { householdId, companionId: newId(), species: "dog", step: "tries", cutout });
+    expect(seventh.error?.details).toEqual({ code: "limit-reached", reason: "companions" });
   });
 
   it("refuses input outside the contract, and says nothing of why beyond its code", async () => {

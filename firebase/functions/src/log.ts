@@ -34,16 +34,23 @@ export interface LogFields {
   modelMessage?: string;
   /** The id the model gave the request, to quote to its support. */
   requestId?: string;
+  /**
+   * True when the call went past a lifetime limit that is counted but not enforced, with
+   * `limit` naming which. Never present on a call within its limits.
+   */
+  overLimit?: boolean;
+  limit?: string;
 }
 
 const maxLength = 120;
 const maxDetail = 300;
 
-export function safe(fields: LogFields): Record<string, string | number> {
-  const entry: Record<string, string | number> = {};
+export function safe(fields: LogFields): Record<string, string | number | boolean> {
+  const entry: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(fields)) {
     const cap = key === "detail" || key === "modelMessage" ? maxDetail : maxLength;
     if (typeof value === "number" && Number.isFinite(value)) entry[key] = value;
+    else if (typeof value === "boolean") entry[key] = value;
     else if (typeof value === "string") entry[key] = value.length > cap ? value.slice(0, cap) : value;
   }
   return entry;

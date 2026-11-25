@@ -85,7 +85,7 @@ describe("drawing an animation from the still alone", () => {
     const { ledger, calls } = openLedger();
     const service = relay({
       model: fakeModel({ seen: (request) => seen.push(request) }), ledger, log,
-      now: () => new Date("2026-11-24T10:30:00Z"), dailyCeiling: 5,
+      now: () => new Date("2026-11-24T10:30:00Z"), dailyCeiling: 5, enforceLifetimeLimits: true,
     });
     return { service, seen, log, calls };
   }
@@ -140,7 +140,7 @@ describe("drawing an animation from the still alone", () => {
     const { ledger, calls } = openLedger();
     const service = relay({
       model: fakeModel({ failure: () => new RelayError("unavailable", "model status 503", "model") }), ledger, log: memoryLog(),
-      now: () => new Date(), dailyCeiling: 5,
+      now: () => new Date(), dailyCeiling: 5, enforceLifetimeLimits: true,
     });
     await expect(service.draw({ ...ids(), species: "dog", step: "animation", mood: "fine", reference }, {})).rejects.toMatchObject({ code: "unavailable" });
     expect(calls.released).toHaveLength(1);

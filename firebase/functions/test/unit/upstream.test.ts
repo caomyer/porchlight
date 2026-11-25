@@ -123,7 +123,7 @@ describe("a draw the model turned away", () => {
   async function drawn(error: RelayError) {
     const log = memoryLog();
     const { ledger, calls } = openLedger();
-    const service = relay({ model: fakeModel({ failure: () => error }), ledger, log, now: () => new Date(), dailyCeiling: 5 });
+    const service = relay({ model: fakeModel({ failure: () => error }), ledger, log, now: () => new Date(), dailyCeiling: 5, enforceLifetimeLimits: true });
     let thrown: RelayError | undefined;
     try {
       await service.draw({ householdId: newId(), companionId: newId(), species: "dog", step: "tries", cutout }, {});

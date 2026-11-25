@@ -29,6 +29,14 @@ export const config = {
   },
 
   limits: {
+    /**
+     * Whether the three lifetime limits below (rounds, mood redraws, animation redraws)
+     * turn a call down, when the ENFORCE_LIFETIME_LIMITS parameter does not say. They are
+     * always counted. During beta testing they are not enforced: a call past one is drawn
+     * and logged as over the limit. The day's ceilings, the companions in a household and
+     * the day's spending are enforced whatever this says.
+     */
+    enforceLifetimeByDefault: false,
     /** Rounds of tries for one companion, for life. */
     roundsPerCompanion: 3,
     /** Times one mood's still may be drawn for one companion, for life. */

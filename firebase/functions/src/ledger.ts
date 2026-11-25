@@ -17,13 +17,33 @@ export interface Claim {
   estimate: number;
   /** The day's ceiling for the whole project, in dollars. */
   ceiling: number;
+  /**
+   * Whether a lifetime limit (rounds, mood redraws, animation redraws) turns the call
+   * down. When false the call is counted all the same and marked as over the limit.
+   */
+  enforceLifetime: boolean;
 }
 
 /** A claim that was granted, to settle or give back when the call ends. */
 export interface Reservation {
   claim: Claim;
-  /** Rounds of tries this companion has left after this call. */
+  /**
+   * Rounds of tries this companion has left after this call, as the app is told. While
+   * the lifetime limits are not enforced this is never less than 1, because the app stops
+   * offering a new character at 0.
+   */
   roundsLeft: number;
+  /** The lifetime limit this call went past, when they are not enforced; nil when within. */
+  over?: LifetimeLimit;
+}
+
+/** The three limits that last a companion's life. */
+export type LifetimeLimit = "rounds" | "mood-redraws" | "animation-redraws";
+
+/** The rounds left as the app is told, from the rounds really used. */
+export function reportedRounds(used: number, enforce: boolean): number {
+  const left = config.limits.roundsPerCompanion - used;
+  return enforce ? Math.max(0, left) : Math.max(1, left);
 }
 
 /**
@@ -38,7 +58,7 @@ export interface Ledger {
   settle(reservation: Reservation, dollars: number): Promise<void>;
   /** The call drew nothing: its round or redraw and its estimate are given back. */
   release(reservation: Reservation): Promise<void>;
-  roundsLeft(household: string, companion: string): Promise<number>;
+  roundsLeft(household: string, companion: string, enforceLifetime: boolean): Promise<number>;
 }
 
 interface CompanionUse {
@@ -54,22 +74,31 @@ function used(use: CompanionUse): number {
   return (use.rounds ?? 0) + sum(use.moods) + sum(use.animations);
 }
 
-/** Adds to the counter the step uses, or says the limit is reached. `by` is 1 or -1. */
-function counted(use: CompanionUse, step: Step, mood: Mood | undefined, by: number): CompanionUse {
+/**
+ * Adds to the counter the step uses. `by` is 1 or -1; giving one back is never turned down,
+ * whatever the count. Past its limit, an enforced call is
+ * turned down; one that is not enforced is counted all the same, and `over` names the
+ * limit it went past. The count is the truth either way: turning enforcement back on
+ * needs no repair.
+ */
+function counted(use: CompanionUse, step: Step, mood: Mood | undefined, by: number, enforce = true): { use: CompanionUse; over?: LifetimeLimit } {
   const next: CompanionUse = { rounds: use.rounds ?? 0, moods: { ...use.moods }, animations: { ...use.animations } };
   const { roundsPerCompanion, drawsPerMood, drawsPerAnimation } = config.limits;
   if (step === "tries") {
     const rounds = (next.rounds ?? 0) + by;
-    if (rounds > roundsPerCompanion) throw new RelayError("limit-reached", "rounds", "rounds");
+    const over = rounds > roundsPerCompanion;
+    if (over && enforce && by > 0) throw new RelayError("limit-reached", "rounds", "rounds");
     next.rounds = Math.max(0, rounds);
-    return next;
+    return { use: next, over: over ? "rounds" : undefined };
   }
   const key = mood ?? "fine";
   const bucket = step === "mood" ? next.moods! : next.animations!;
   const value = (bucket[key] ?? 0) + by;
-  if (value > (step === "mood" ? drawsPerMood : drawsPerAnimation)) throw new RelayError("limit-reached", step, step === "mood" ? "mood-redraws" : "animation-redraws");
+  const limit: LifetimeLimit = step === "mood" ? "mood-redraws" : "animation-redraws";
+  const over = value > (step === "mood" ? drawsPerMood : drawsPerAnimation);
+  if (over && enforce && by > 0) throw new RelayError("limit-reached", step, limit);
   bucket[key] = Math.max(0, value);
-  return next;
+  return { use: next, over: over ? limit : undefined };
 }
 
 export function firestoreLedger(db: Firestore): Ledger {
@@ -105,12 +134,12 @@ export function firestoreLedger(db: Firestore): Ledger {
           tx.set(householdRef(household), { companions: [...companions, companion] }, { merge: true });
         }
 
-        const next = counted((pet.data() as CompanionUse | undefined) ?? {}, claim.step, claim.mood, 1);
+        const { use: next, over } = counted((pet.data() as CompanionUse | undefined) ?? {}, claim.step, claim.mood, 1, claim.enforceLifetime);
         tx.set(companionRef(household, companion), next);
         tx.set(householdDay(household, day), { calls: homeCalls + 1 });
         if (installation) tx.set(installationDay(installation, day), { calls: deviceCalls + 1 });
         tx.set(spendRef(day), { micro: spent + micro(claim.estimate) }, { merge: true });
-        return { claim, roundsLeft: config.limits.roundsPerCompanion - (next.rounds ?? 0) };
+        return { claim, roundsLeft: reportedRounds(next.rounds ?? 0, claim.enforceLifetime), over };
       });
     },
 
@@ -126,7 +155,7 @@ export function firestoreLedger(db: Firestore): Ledger {
           tx.get(householdRef(claim.household)),
           tx.get(companionRef(claim.household, claim.companion)),
         ]);
-        const next = counted((pet.data() as CompanionUse | undefined) ?? {}, claim.step, claim.mood, -1);
+        const { use: next } = counted((pet.data() as CompanionUse | undefined) ?? {}, claim.step, claim.mood, -1);
         if (used(next) === 0) {
           // Nothing was ever drawn for this companion: it gives its place in the household back.
           tx.delete(companionRef(claim.household, claim.companion));
@@ -139,9 +168,9 @@ export function firestoreLedger(db: Firestore): Ledger {
       });
     },
 
-    async roundsLeft(household, companion) {
+    async roundsLeft(household, companion, enforceLifetime) {
       const pet = await companionRef(household, companion).get();
-      return config.limits.roundsPerCompanion - ((pet.get("rounds") as number | undefined) ?? 0);
+      return reportedRounds((pet.get("rounds") as number | undefined) ?? 0, enforceLifetime);
     },
   };
 }

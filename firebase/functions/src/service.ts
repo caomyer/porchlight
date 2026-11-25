@@ -24,6 +24,11 @@ export interface Parts {
   now: () => Date;
   /** The day's spending ceiling for the whole project, in dollars. */
   dailyCeiling: number;
+  /**
+   * Whether the three lifetime limits turn a call down. When false they are counted and a
+   * call past one is drawn and logged as over the limit.
+   */
+  enforceLifetimeLimits: boolean;
 }
 
 /** What the model is asked for at each step. */
@@ -74,6 +79,7 @@ export function relay(parts: Parts): Relay {
           day: now().toISOString().slice(0, 10),
           estimate: config.cost.estimate[request.step],
           ceiling: parts.dailyCeiling,
+          enforceLifetime: parts.enforceLifetimeLimits,
         });
       } catch (error) {
         if (error instanceof RelayError) {
@@ -100,7 +106,9 @@ export function relay(parts: Parts): Relay {
         }
         const dollars = usageDollars(result.usage);
         await ledger.settle(reservation, dollars).catch((failed: unknown) => log.error("settle failed", { ...fields, errorClass: "ledger", ...described(failed) }));
-        log.info("drew", { ...fields, ...result.usage, dollars, attempts: result.attempts, ms: now().getTime() - started });
+        // Past a lifetime limit that is counted but not enforced: drawn, and said so.
+        const over = reservation.over ? { overLimit: true, limit: reservation.over } : {};
+        log.info("drew", { ...fields, ...result.usage, dollars, attempts: result.attempts, ...over, ms: now().getTime() - started });
         return response;
       } catch (error) {
         // Nothing was handed over, so nothing is used up.
@@ -124,7 +132,9 @@ export function relay(parts: Parts): Relay {
     async allowance(data) {
       const request = parseAllowance(data);
       try {
-        return { roundsLeft: await ledger.roundsLeft(hashed("household", request.householdId), hashed("companion", request.companionId)) };
+        return {
+          roundsLeft: await ledger.roundsLeft(hashed("household", request.householdId), hashed("companion", request.companionId), parts.enforceLifetimeLimits),
+        };
       } catch (error) {
         log.error("ledger failed", { errorClass: "ledger", ...described(error) });
         throw new RelayError("unavailable", "ledger", "relay");

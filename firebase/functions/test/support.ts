@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import sharp from "sharp";
 
-import type { Claim, Ledger, Reservation } from "../src/ledger";
+import type { Claim, Ledger, LifetimeLimit, Reservation } from "../src/ledger";
 import type { Log, LogFields } from "../src/log";
 
 /** A PNG of the given size, as the app would send a cut-out. */
@@ -46,14 +46,14 @@ export function memoryLog(): Log & { entries: Logged[] } {
  * themselves are tested against Firestore (test/store); this one is for the service's own
  * rules: what it reserves, settles and gives back.
  */
-export function openLedger(options: { reserve?: () => Error | undefined; roundsLeft?: number } = {}) {
+export function openLedger(options: { reserve?: () => Error | undefined; roundsLeft?: number; over?: LifetimeLimit } = {}) {
   const calls = { reserved: [] as Claim[], settled: [] as { reservation: Reservation; dollars: number }[], released: [] as Reservation[] };
   const ledger: Ledger = {
     async reserve(claim) {
       const failure = options.reserve?.();
       if (failure) throw failure;
       calls.reserved.push(claim);
-      return { claim, roundsLeft: options.roundsLeft ?? 2 };
+      return { claim, roundsLeft: options.roundsLeft ?? 2, over: options.over };
     },
     async settle(reservation, dollars) {
       calls.settled.push({ reservation, dollars });
