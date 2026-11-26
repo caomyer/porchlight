@@ -166,6 +166,8 @@ enum DebugLaunch {
 #endif
 
 #if !DEBUG
+import SwiftUI
+
 enum DebugLaunch {
     static var onboardingStep: String? { nil }
     static var setupStep: String? { nil }

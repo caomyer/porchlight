@@ -36,16 +36,16 @@ func restoreLightLook() {
 
 @MainActor
 extension PhoneTestHelpers {
-    /// Attaches a screenshot of the whole screen, kept with the results. A shot named for the
-    /// night look ("-dark") must be one: on iOS 27 simulators the look once never took, and
-    /// every "-dark" shot was quietly a light one.
+    /// Attaches a screenshot of the whole screen, kept with the results. A shot taken with the
+    /// simulator turned dark, or named for the night look ("-dark"), must be one: on iOS 27
+    /// simulators the look once never took, and every such shot was quietly a light one.
     func snapshot(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-        if name.contains("dark") {
+        if name.contains("dark") || XCUIDevice.shared.appearance == .dark {
             let lightness = Self.lightness(of: screenshot, at: CGPoint(x: 6, y: 6))
             XCTAssertLessThan(lightness, 0.35, "\(name) is not in the night look: the top corner is \(lightness) light", file: file, line: line)
         }

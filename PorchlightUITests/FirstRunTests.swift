@@ -77,7 +77,12 @@ final class FirstRunTests: XCTestCase {
         snapshot("31-calendar-permission-prompt")
         (fullAccess.exists ? fullAccess : ok).tap()
 
-        let owner = app.buttons.matching(NSPredicate(format: "label CONTAINS ' belongs to '")).firstMatch
+        // Not the Birthdays calendar: iOS makes it from Contacts and can take it away again
+        // moments after access is granted. In run 45722375392 the owner menu was open on
+        // Birthdays (James, Mia, Everyone in the screen recording) when the list re-read the
+        // calendars, found only "Calendar", and the row and its menu went, so "Mia" was never
+        // there to tap. The iPad's own calendar stays.
+        let owner = app.buttons.matching(NSPredicate(format: "label CONTAINS ' belongs to ' AND NOT (label BEGINSWITH 'Birthdays ')")).firstMatch
         XCTAssertTrue(owner.waitForExistence(timeout: 30), "The iPad's calendars should be listed after access is granted")
         let calendarName = String(owner.label.components(separatedBy: " belongs to ").first ?? "")
         snapshot("32-calendars-listed")

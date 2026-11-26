@@ -162,10 +162,7 @@ final class PhoneCharacterTapTests: XCTestCase, PhoneTestHelpers {
         Thread.sleep(forTimeInterval: 3)
         XCTAssertFalse(done.isEnabled, "the stills are drawn, the movements are not: Done waits")
         XCTAssertTrue(app.descendants(matching: .any)["character-mood-asleep"].label.contains("Drawing..."), "and the moods say they are drawing")
-        let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "character-meet-waiting-for-movement"
-        shot.lifetime = .keepAlways
-        add(shot)
+        snapshot("character-meet-waiting-for-movement")
         let enabled = expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: done)
         wait(for: [enabled], timeout: 20)
         done.tap()
