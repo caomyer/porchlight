@@ -21,17 +21,10 @@ enum SyncSendRetry {
 
     /// Registers the task; must run before the app finishes launching.
     static func register() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
-            let done = UncheckedTask(task: task)
-            let work = Task { @MainActor in
-                let outcome = await SyncController.current?.sendSoon(timeout: .seconds(25)) ?? .off
-                after(outcome)
-                done.task.setTaskCompleted(success: outcome != .waiting)
-            }
-            task.expirationHandler = {
-                work.cancel()
-                done.task.setTaskCompleted(success: false)
-            }
+        BackgroundRefresh.register(identifier) {
+            let outcome = await SyncController.current?.sendSoon(timeout: .seconds(25)) ?? .off
+            after(outcome)
+            return outcome != .waiting
         }
     }
 
@@ -57,9 +50,4 @@ enum SyncSendRetry {
         // up the next time the app runs.
         try? BGTaskScheduler.shared.submit(request)
     }
-}
-
-/// The task, carried to the main actor where it is completed.
-private struct UncheckedTask: @unchecked Sendable {
-    let task: BGTask
 }

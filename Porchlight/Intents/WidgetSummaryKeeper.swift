@@ -133,13 +133,9 @@ final class WidgetSummaryKeeper {
 
     /// Registers the background refresh; must run before the app finishes launching.
     static func registerBackgroundRefresh() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: backgroundTask, using: nil) { task in
-            let done = UncheckedTask(task: task)
-            Task { @MainActor in
-                await shared?.refresh()
-                done.task.setTaskCompleted(success: true)
-            }
-            task.expirationHandler = { done.task.setTaskCompleted(success: false) }
+        BackgroundRefresh.register(backgroundTask) {
+            _ = await shared?.refresh()
+            return true
         }
     }
 
@@ -155,11 +151,6 @@ final class WidgetSummaryKeeper {
         // turn over when the app next runs, and say "Open Porchlight to see today" meanwhile.
         try? BGTaskScheduler.shared.submit(request)
     }
-}
-
-/// The task, carried to the main actor where it is completed.
-private struct UncheckedTask: @unchecked Sendable {
-    let task: BGTask
 }
 
 /// When a summary is worth writing. Pure, covered by `WidgetSummaryKeeperTests`.

@@ -11,16 +11,12 @@ enum CalendarPassOnRefresh {
 
     /// Registers the refresh; must run before the app finishes launching.
     static func register() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
-            let done = Unchecked(task: task)
+        BackgroundRefresh.register(identifier) {
             schedule()
-            Task { @MainActor in
-                CalendarStore.shared?.passOn(.background)
-                // What the pass wrote goes up before iOS suspends the app again.
-                _ = await SyncController.current?.sendSoon(timeout: .seconds(25))
-                done.task.setTaskCompleted(success: true)
-            }
-            task.expirationHandler = { done.task.setTaskCompleted(success: false) }
+            CalendarStore.shared?.passOn(.background)
+            // What the pass wrote goes up before iOS suspends the app again.
+            _ = await SyncController.current?.sendSoon(timeout: .seconds(25))
+            return true
         }
     }
 
@@ -30,9 +26,5 @@ enum CalendarPassOnRefresh {
         let request = BGAppRefreshTaskRequest(identifier: identifier)
         request.earliestBeginDate = now.addingTimeInterval(interval)
         try? BGTaskScheduler.shared.submit(request)
-    }
-
-    private struct Unchecked: @unchecked Sendable {
-        let task: BGTask
     }
 }

@@ -5,6 +5,7 @@
 #   scripts/test.sh                 everything: unit and the wall's UI suite on the iPad, the phone's on the iPhone
 #   scripts/test.sh --smoke         unit and a few UI tests on each: the gate before installing
 #   scripts/test.sh --unit-only     only the unit tests
+#   scripts/test.sh --unit Suite ...   just these unit suites, by type name (and no UI tests)
 #   scripts/test.sh --ui-only       only the UI suites
 #   scripts/test.sh --wall          only the wall's UI suite (with --ui-only, no unit tests)
 #   scripts/test.sh --phone         only the phone's UI suite (with --ui-only, no unit tests)
@@ -53,6 +54,7 @@ build=1
 workers=1
 udid=""
 only=()
+unit_suites=()
 build_only=0
 shard=""
 progress=0
@@ -62,6 +64,7 @@ while (( $# )); do
     --shard) shift; shard="$1" ;;
     --progress) progress=1 ;;
     --unit-only) ui=0 ;;
+    --unit) shift; ui=0; while (( $# )) && [[ "$1" != -* ]]; do unit_suites+=("$1"); shift; done; continue ;;
     --ui-only) unit=0 ;;
     --wall) wall_asked=1 ;;
     --phone) phone_asked=1 ;;
@@ -73,7 +76,7 @@ while (( $# )); do
     --workers) shift; workers="$1" ;;
     --runtime) shift; porchlight_sim_runtime="$1" ;;
     --only) shift; while (( $# )) && [[ "$1" != -* ]]; do only+=("$1"); shift; done; continue ;;
-    -h|--help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) udid="$1" ;;
   esac
   shift
@@ -396,7 +399,9 @@ run_ipad() {
     step=$SECONDS
     echo "Unit tests on $ipad"
     rm -rf "$results/unit.xcresult"
-    { xcodebuild test-without-building -xctestrun "$(xctestrun Porchlight)" -destination "id=$ipad" \
+    unit_args=()
+    for suite in $unit_suites; do unit_args+=(-only-testing:PorchlightTests/$suite); done
+    { xcodebuild test-without-building -xctestrun "$(xctestrun Porchlight)" -destination "id=$ipad" $unit_args \
       -resultBundlePath "$results/unit.xcresult"; echo $? > "$results/unit.status" } 2>&1 | record "$results/unit.log" || true
     summarize < "$results/unit.log" | grep -v "passed ("
     verdict Unit "$results/unit.xcresult" "$results/unit.log" || failed=1

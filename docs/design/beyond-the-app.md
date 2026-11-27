@@ -48,6 +48,11 @@ It looks again:
 - when "me" changes, and at the start of each day in the household's time zone;
 - when iOS gives the app background time (`BGAppRefreshTask`, asked for near the next midnight), so tomorrow becomes today even if the app wasn't opened.
 
+All background work iOS wakes the app for (this refresh, the send's retry, the calendars' passing on) is registered through `BackgroundRefresh` and nowhere else.
+iOS calls a task's handler on a queue of its own, and a handler written inside a main-actor type stops the app at its first line there.
+The widgets' refresh was written that way, and the app crashed just after midnight on phones where nobody had it open (a TestFlight crash log of November 19, 2026, in the handler `WidgetSummaryKeeper` registered).
+`BackgroundRefresh` owns the handler, which belongs to no actor, runs the work on the main actor, and tells iOS that the task ended exactly once, whether the work ended or iOS ran out of patience first (`BackgroundRefreshTests`).
+
 After a write it asks `WidgetCenter` to reload every widget's timeline.
 When nothing changed it writes nothing and reloads nothing.
 
@@ -172,6 +177,7 @@ Automatic signing does most of this on the first signed build; the developer acc
 - That a widget's button runs `LogSlotIntent` in the app's process with the app not running, and that the log reaches the wall: the M4 gate, tried on James's iPhone with the wall's glow as the check.
 - How long iOS keeps a background launch alive after an intent, and so whether `sendSoon`'s ten seconds are enough on a slow network.
 - When iOS actually runs the send's retry (`BGAppRefreshTask` is at its discretion, learns from how the phone is used, and never runs with Background App Refresh off or in Low Power Mode).
+- That a background refresh iOS starts no longer crashes the app: the simulator never runs one, so the fix is checked on a phone by a night with the app closed and no crash report after it.
 - That `BGAppRefreshTask` actually runs near midnight (iOS decides, from how the phone is used), and what the widgets show on mornings it didn't (the "Open Porchlight to see today" state).
 - Lock Screen redaction: which text the system hides when "Allow access when locked" is off for widgets.
 - Siri's handling of the phrases with companion names, its disambiguation between two cats, and the "continue in the app" hand-off without "me".
